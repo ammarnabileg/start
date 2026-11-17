@@ -6321,4 +6321,5 @@ If you know someone who needs our services, send them this link. They get {get},
     'اربط مزود ذكاء اصطناعي أولًا من التكاملات.' => 'Connect an AI provider first from Integrations.',
     '%s منشورات بانتظار موافقتك' => '%s posts awaiting your approval',
     'راجعها الآن' => 'Review now',
+    'حذف الملاحظة' => 'Delete note',
 ];

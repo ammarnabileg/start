@@ -217,7 +217,7 @@
     todo.reduce(function (p, q) { return p.then(function () { return send(q); }); }, Promise.resolve()).then(function () {
       busy = false; paintQ();
       var ok = todo.filter(function (q) { return q.state === 'done'; }).length;
-      toast(f(S.allDone, ok, todo.length - ok), ok === todo.length ? 'ok' : undefined);
+      toast(f(S.allDone, ok, todo.length - ok), ok ? 'ok' : undefined);
     });
   };
   window.addEventListener('beforeunload', function (e) { if (busy) { e.preventDefault(); e.returnValue = S.leave; return S.leave; } });

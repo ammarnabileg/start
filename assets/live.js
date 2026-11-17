@@ -156,8 +156,10 @@
 
     load(action, { method: 'POST', body: fd }).then(function (res) {
       var doc = parse(res.html);
+      var failed = pending && doc.querySelector('[data-flash=error]');
       swap(doc, 'submit');
       flashesFrom(doc);
+      if (failed) { var ta2 = document.querySelector('#' + (f.id || '_') + ' textarea, [data-live-root] form[data-optimistic] textarea'); if (ta2 && !ta2.value) ta2.value = pending.dataset.text || ''; } // الإرسال اترفض: النص يرجع
       if (res.url && res.url !== location.href && sameScreen(res.url)) history.replaceState({ live: 1 }, '', res.url);
     }).catch(function () {
       if (pending) {

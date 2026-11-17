@@ -359,7 +359,7 @@ render(t('التعليقات'), 'comments', function () use ($z, $posts, $next, 
     <!-- رد على المحدد -->
     <dialog id="cm-dlg" class="w-[min(520px,94vw)] p-0 rounded-2xl border border-ink-200 bg-white shadow-2xl backdrop:bg-ink-900/40">
       <form method="dialog" id="cm-form" class="flex flex-col">
-        <div class="flex items-center px-5 h-14 border-b border-ink-200"><b class="flex-1 text-ink-900"><?= e(t('رد على المحدد')) ?> (<span id="cm-dn">0</span>)</b><button type="button" data-cm-close class="p-2 rounded-lg text-ink-400 hover:bg-ink-100">✕</button></div>
+        <div class="flex items-center px-5 h-14 border-b border-ink-200"><b class="flex-1 text-ink-900"><?= e(t('رد على المحدد')) ?> (<span id="cm-dn">0</span>)</b><button type="button" data-cm-close class="p-2 rounded-lg text-ink-400 hover:bg-ink-100" aria-label="<?= e(t('إغلاق')) ?>"><?= ui_icon('x', 'w-5 h-5') ?></button></div>
         <div class="p-5 space-y-3">
           <textarea name="message" data-saved-replies data-ai="improve,shorten,tone_friendly" rows="4" required class="input text-sm" placeholder="<?= e(t('أهلًا {name}، شكرًا لتعليقك! بعتنالك التفاصيل في الخاص.')) ?>"></textarea>
           <p class="text-[11px] text-ink-500 -mt-1"><?= e(t('اكتب {name} في أي مكان وهيتبدّل باسم العميل.')) ?></p>

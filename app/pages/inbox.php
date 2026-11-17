@@ -777,7 +777,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
               <span class="text-xs font-medium text-ink-500"><?= e(t('ملاحظات داخلية')) ?> <span class="text-ink-400 font-normal">· <?= e(t('العميل مش بيشوفها')) ?></span></span>
               <div id="ibx-notes" class="space-y-2 mt-2">
                 <?php foreach ($notes as $n): ?>
-                  <div class="ibx-note group rounded-xl bg-amber-50 border border-amber-200 p-2.5 text-xs" data-id="<?= (int)$n['id'] ?>"><div class="flex items-center gap-1.5 text-[10px] text-amber-800 mb-1"><b><?= e($n['name'] ?? '') ?></b><span>· <?= e(fmt_date($n['created_at'], 'd/m h:i A')) ?></span><?php if ((int)$n['user_id'] === $me || is_ws_owner()): ?><button type="button" class="ibx-note-del ms-auto opacity-0 group-hover:opacity-100 text-amber-700 hover:text-red-600">✕</button><?php endif; ?></div><div class="text-ink-800 whitespace-pre-wrap" dir="auto"><?= e($n['body']) ?></div></div>
+                  <div class="ibx-note group rounded-xl bg-amber-50 border border-amber-200 p-2.5 text-xs" data-id="<?= (int)$n['id'] ?>"><div class="flex items-center gap-1.5 text-[10px] text-amber-800 mb-1"><b><?= e($n['name'] ?? '') ?></b><span>· <?= e(fmt_date($n['created_at'], 'd/m h:i A')) ?></span><?php if ((int)$n['user_id'] === $me || is_ws_owner()): ?><button type="button" class="ibx-note-del ms-auto opacity-0 group-hover:opacity-100 text-amber-700 hover:text-red-600" aria-label="<?= e(t('حذف الملاحظة')) ?>"><?= ui_icon('x', 'w-3.5 h-3.5') ?></button><?php endif; ?></div><div class="text-ink-800 whitespace-pre-wrap" dir="auto"><?= e($n['body']) ?></div></div>
                 <?php endforeach; ?>
               </div>
               <div class="flex gap-1.5 mt-2"><input id="ibx-note-in" class="input !mt-0 !h-9 !py-0 text-xs flex-1" placeholder="<?= e(t('اكتب ملاحظة للفريق...')) ?>"><button type="button" id="ibx-note-add" class="btn-ghost !h-9 !py-0 !px-3 !text-xs"><?= e(t('إضافة')) ?></button></div>
@@ -803,7 +803,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
         <div class="flex items-center gap-3 px-5 h-14 border-b border-ink-200 shrink-0">
           <span class="w-9 h-9 rounded-xl bg-brand-50 text-brand-700 flex items-center justify-center"><?= ui_icon('megaphone', 'w-[18px] h-[18px]') ?></span>
           <b class="flex-1 text-ink-900"><?= e(t('حملة رسائل')) ?></b>
-          <button type="button" data-camp-close class="p-2 rounded-lg text-ink-400 hover:text-ink-900 hover:bg-ink-100">✕</button>
+          <button type="button" data-camp-close class="p-2 rounded-lg text-ink-400 hover:text-ink-900 hover:bg-ink-100" aria-label="<?= e(t('إغلاق')) ?>"><?= ui_icon('x', 'w-5 h-5') ?></button>
         </div>
         <div class="p-5 space-y-4 overflow-y-auto">
           <div class="seg w-fit" id="camp-mode"><a href="#" class="on" data-mode="selected"><?= e(t('المحدد')) ?> (<span id="camp-sel-n">0</span>)</a><a href="#" data-mode="all"><?= e(t('كل المحادثات')) ?></a></div>

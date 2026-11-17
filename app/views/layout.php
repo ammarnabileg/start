@@ -347,7 +347,7 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
 <script>window.CK = <?= json_encode(['pages' => $ckPages, 'acts' => $ckAct, 'search' => url('search'), 'lead' => url('prospects') . '&lead=', 'tr' => ['pages' => t('الصفحات'), 'acts' => t('إجراءات سريعة'), 'leads' => t('العملاء'), 'none' => t('مفيش نتايج.'), 'recent' => t('فتحتها قريب')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
 <script src="assets/cmdk.js?v=<?= e(APP_VERSION) ?>"></script>
 <?php if (module_enabled('crm') && can('crm.view')): ?>
-<script>window.FU = <?= json_encode(['url' => url('prospects') . '&ajax=due', 'ws' => (int)$curWs['id'], 'dueUrl' => url('prospects') . '&due=1', 'L' => ['title' => t('ميعاد متابعة'), 'many' => t('%s متابعات حان موعدها'), 'openAll' => t('اعرضها'), 'open' => t('افتح'), 'later' => t('تمام'), 'perm' => t('فعّل إشعارات المتصفح عشان يوصلك التنبيه حتى لو الصفحة مش قدامك'), 'permOn' => t('فعّل')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+<script>window.FU = <?= json_encode(['url' => url('prospects') . '&ajax=due', 'ws' => (int)$curWs['id'], 'dueUrl' => url('prospects', ['stat' => 'due']), 'L' => ['title' => t('ميعاد متابعة'), 'many' => t('%s متابعات حان موعدها'), 'openAll' => t('اعرضها'), 'open' => t('افتح'), 'later' => t('تمام'), 'perm' => t('فعّل إشعارات المتصفح عشان يوصلك التنبيه حتى لو الصفحة مش قدامك'), 'permOn' => t('فعّل')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
 <script src="assets/followup-alerts.js?v=<?= e(APP_VERSION) ?>" defer></script>
 <?php if ($curWs && function_exists('ai_auto_enabled') && ai_auto_enabled((int)$curWs['id'], 'reply')): ?><script>
 // الرد الذكي بيشتغل وانت فاتح اللوحة حتى لو مفيش cron على السيرفر (مرة كل دقيقة للشركة)

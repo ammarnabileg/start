@@ -352,7 +352,7 @@ render(t('الرئيسية'), 'dashboard', function () use ($z, $d, $e, $activit
       }
       if ($d['scheduled'] !== null) {
           $next = $scheduled[0]['scheduledFor'] ?? null;
-          $kpis[] = [t('منشورات مجدولة'), $scheduledTotal, '<span class="text-xs text-ink-500">' . e($next ? t('الجاي: %s', fmt_date($next, 'd/m h:i A')) : t('مفيش حاجة مجدولة')) . '</span>', url('posts', ['status' => 'scheduled'])];
+          $kpis[] = [t('منشورات مجدولة'), $scheduledTotal, '<span class="text-xs text-ink-500">' . e($next ? t('الجاي: %s', fmt_date($next, 'd/m h:i A')) : t('مفيش حاجة مجدولة')) . '</span>', url('posts', ['status' => 'scheduled', 'view' => 'list'])];
       }
       if ($d['convs'] !== null) {
           $kpis[] = [t('رسائل غير مقروءة'), $unreadTotal, '<span class="text-xs text-ink-500">' . e(t('في %s محادثة', count($unread))) . '</span>', url('inbox')];
