@@ -199,7 +199,7 @@ function kb_compile(int $wid, string $query = '', bool $lean = false): string
     if (!empty($tone['style']) || !empty($tone['dialect']) || trim((string)($tone['notes'] ?? '')) !== '') {
         $styles = array_intersect_key(kb_tone_options(), array_flip((array)($tone['style'] ?? [])));
         $out[] = "## TONE\n" . ($styles ? 'Style: ' . implode(', ', $styles) . "\n" : '') . (!empty($tone['dialect']) ? 'Language/dialect: ' . (kb_dialect_options()[$tone['dialect']] ?? $tone['dialect']) . "\n" : '')
-            . (!empty($tone['langs']) ? 'Supported languages: ' . implode(', ', array_intersect_key(kb_lang_options(), array_flip((array)$tone['langs']))) . '. ' . (($tone['lang_rule'] ?? 'match') === 'match' ? 'Reply in the language the customer writes in if it is one of these; otherwise use the default language/dialect.' : 'Always reply in the default language/dialect, even if the customer writes in another language.') . "\n" : '')
+            . (!empty($tone['langs']) ? 'Supported languages: ' . implode(', ', array_intersect_key(kb_lang_options(), array_flip((array)$tone['langs']))) . '. ' . (($tone['lang_rule'] ?? 'match') === 'match' ? 'Reply in the language the customer writes in if it is one of these; otherwise use the default language/dialect.' : 'Reply in the language the customer writes in first; use the default language/dialect only when the customer\'s language is unclear.') . "\n" : '')
             . (isset($tone['emoji']) ? 'Emoji: ' . ['none' => 'never', 'light' => 'at most 1-2', 'normal' => 'normal'][$tone['emoji']] . "\n" : '') . trim((string)($tone['notes'] ?? ''));
     }
     $pos = [];
@@ -516,6 +516,9 @@ function kb_decide(int $wid, string $message, string $channel = 'message', strin
         . 'If you answer: follow TONE, NEVER SAY and ANTI-HYPE rules, use only knowledge-base facts, keep it short' . ($channel === 'comment' ? ' and public-safe (no personal details; invite to DM for specifics)' : '') . '.' . "\n"
         . 'Return ONLY compact JSON: {"action":"reply"|"handoff","reply":"' . ($esc['message'] !== '' ? 'the reply text (empty string if handoff)' : 'the reply text (if handoff: one short polite line saying a team member will follow up)') . '","reason":"max 6 words in ' . (lang() === 'ar' ? 'Arabic' : 'English') . '"}';
     if ($style !== '') $sys .= "\nREPLY STYLE: " . $style;
+    // لغة العميل أولًا: آخر سطر في التعليمات = الأولوية الأعلى، وبيغلب لغة قاعدة المعرفة وإعداد «اللغة الافتراضية»
+    $cl = function_exists('ai_text_lang') ? ai_text_lang($message) : '';
+    $sys .= "\nLANGUAGE (highest priority, overrides any other language rule above): reply in the same language the customer wrote this message in" . ($cl !== '' ? " ({$cl})" : '') . ($cl === 'Arabic' || $cl === '' ? ', matching their dialect (Egyptian, Gulf, Levantine, MSA...)' : '') . ". Only if the message has no clear language (emoji, numbers, a single word), use the business default language.";
     $user = ($history !== '' ? "Conversation so far:\n" . mb_substr($history, -2500) . "\n\n" : '') . "Customer's latest " . $channel . ":\n" . mb_substr($message, 0, 2000);
     if ($smart && ($route = kb_route($wid, $message, $history)) !== null) $GLOBALS['__kb_override'] = kb_fetch($wid, $route['look'], $message);
     try { $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => $user]], $task === 'reply_fast' ? 350 : 450, $task); } finally { unset($GLOBALS['__kb_override']); }

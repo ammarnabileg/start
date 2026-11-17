@@ -509,9 +509,7 @@ render(t('قاعدة المعرفة'), 'knowledge', function () use ($schema, $k
               <div><span class="label"><?= e(t('اللغات التي يتحدث بها')) ?></span><p class="text-xs text-ink-500 mt-0.5"><?= e(t('اختر كل اللغات واللهجات التي يرد بها على العملاء.')) ?></p>
                 <div class="flex flex-wrap gap-2 mt-2"><?php foreach (kb_lang_options() as $ok => $ol): ?><label class="chip cursor-pointer has-[:checked]:border-brand-600 has-[:checked]:bg-brand-50 has-[:checked]:text-brand-700"><input type="checkbox" name="d[langs][]" value="<?= $ok ?>" class="sr-only" <?= in_array($ok, (array)($d['langs'] ?? []), true) ? 'checked' : '' ?> <?= $dis ?>><?= e($ol) ?></label><?php endforeach; ?></div>
                 <div class="mt-3 flex flex-wrap gap-2 text-sm">
-                  <?php foreach (['match' => t('يرد بلغة العميل (من اللغات المختارة)'), 'default' => t('يرد دائمًا باللغة الافتراضية')] as $ok => $ol): ?>
-                    <label class="flex items-center gap-2 rounded-xl border border-ink-200 px-3 py-2 cursor-pointer has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50"><input type="radio" name="d[lang_rule]" value="<?= $ok ?>" class="accent-brand-600" <?= ($d['lang_rule'] ?? 'match') === $ok ? 'checked' : '' ?> <?= $dis ?>> <?= e($ol) ?></label>
-                  <?php endforeach; ?>
+                  <input type="hidden" name="d[lang_rule]" value="match"><p class="rounded-xl bg-brand-50 px-3 py-2 text-brand-800"><?= e(t('يرد دائمًا بلغة العميل ولهجته أولًا. اللغة الافتراضية تُستخدم فقط عندما لا تكون لغة الرسالة واضحة (رموز أو أرقام فقط).')) ?></p>
                 </div>
               </div>
               <div class="grid sm:grid-cols-2 gap-4">

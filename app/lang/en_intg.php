@@ -5976,4 +5976,5 @@ If you know someone who needs our services, send them this link. They get {get},
     'أرفق شعار الشركة في التصميم' => 'Include the company logo in the design',
     'لا يوجد شعار في قاعدة المعرفة.' => 'No logo in the knowledge base.',
     'أضف الشعار' => 'Add logo',
+    'يرد دائمًا بلغة العميل ولهجته أولًا. اللغة الافتراضية تُستخدم فقط عندما لا تكون لغة الرسالة واضحة (رموز أو أرقام فقط).' => 'Always replies in the customer’s language and dialect first. The default language is used only when the message language is unclear (emoji or numbers only).',
 ];
