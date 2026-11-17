@@ -90,7 +90,7 @@ function smtp_send(array $c, string $from, string $to, array $headers, string $b
     $remote = ($c['secure'] === 'ssl' ? 'ssl://' : 'tcp://') . $c['host'] . ':' . $c['port'];
     $ctx = stream_context_create(['ssl' => ['verify_peer' => true, 'verify_peer_name' => true, 'SNI_enabled' => true, 'peer_name' => $c['host']]]);
     $fp = @stream_socket_client($remote, $errno, $errstr, 20, STREAM_CLIENT_CONNECT, $ctx);
-    if (!$fp) throw new MailException(t('مقدرناش نوصل لسيرفر SMTP (%s): %s', $c['host'] . ':' . $c['port'], $errstr ?: $errno));
+    if (!$fp) throw new MailException(t('مقدرناش نوصل لسيرفر SMTP (%s): %s', $c['host'] . ':' . $c['port'], $errstr ?: $errno), 99);
     stream_set_timeout($fp, 20);
 
     $read = function () use ($fp) {
@@ -118,7 +118,7 @@ function smtp_send(array $c, string $from, string $to, array $headers, string $b
         if ($c['secure'] === 'tls') {
             $cmd('STARTTLS', [220]);
             if (!@stream_socket_enable_crypto($fp, true, STREAM_CRYPTO_METHOD_TLS_CLIENT | (defined('STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT') ? STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT : 0))) {
-                throw new MailException(t('فشل تشغيل التشفير (TLS) مع سيرفر SMTP.'));
+                throw new MailException(t('فشل تشغيل التشفير (TLS) مع سيرفر SMTP.'), 99);
             }
             $cmd('EHLO ' . $helo, [250]);
         }

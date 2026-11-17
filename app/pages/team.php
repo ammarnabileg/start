@@ -144,12 +144,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'revoke') {
+        $iq = $pdo->prepare('SELECT role FROM workspace_invites WHERE id = ? AND workspace_id = ?'); $iq->execute([(int)$_POST['invite_id'], $wid]); $ir = $iq->fetchColumn(); if (!is_ws_owner() && ($ir === 'owner' || ($ir !== false && array_diff(role_permissions((string)$ir, $wid), role_permissions((string)ws('my_role'), $wid))))) { flash('error', t('مالكش صلاحية.')); redirect(url('team')); }
         $pdo->prepare("DELETE FROM workspace_invites WHERE id = ? AND workspace_id = ?")->execute([(int)$_POST['invite_id'], $wid]);
         flash('success', t('اتلغت الدعوة.'));
         redirect(url('team'));
     }
 
     if ($action === 'cancel_pending') {
+        $iq = $pdo->prepare("SELECT role FROM workspace_users WHERE workspace_id = ? AND user_id = ? AND status = 'pending'"); $iq->execute([$wid, $uid]); $ir = $iq->fetchColumn(); if (!is_ws_owner() && ($ir === 'owner' || ($ir !== false && array_diff(role_permissions((string)$ir, $wid), role_permissions((string)ws('my_role'), $wid))))) { flash('error', t('مالكش صلاحية.')); redirect(url('team')); }
         $pdo->prepare("DELETE FROM workspace_users WHERE workspace_id = ? AND user_id = ? AND status = 'pending'")->execute([$wid, $uid]);
         flash('success', t('اتلغت الدعوة.'));
         redirect(url('team'));

@@ -66,6 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($status === 'pending') {
         $pdo->prepare("DELETE FROM workspace_users WHERE workspace_id = ? AND user_id = ?")->execute([$inv['workspace_id'], $me['id']]);
     }
+    if (!empty($inv['email']) && !empty($inv['id'])) $pdo->prepare('DELETE FROM workspace_invites WHERE id = ?')->execute([(int)$inv['id']]); // دعوة باسمه: رفضها تتلغي
     flash('success', t('رفضت الدعوة.'));
     redirect(url('workspaces'));
 }

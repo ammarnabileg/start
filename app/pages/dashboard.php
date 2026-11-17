@@ -269,10 +269,10 @@ render(t('الرئيسية'), 'dashboard', function () use ($z, $d, $e, $activit
     // رحلة المنصة: حالة كل مرحلة بأرقام حقيقية، والمرحلة الأضعف هي "الخطوة الجاية"
     $wid0 = (int)ws('id'); $J = [];
     $kbS = function_exists('kb_schema') ? kb_schema() : []; $kbD = function_exists('kb_get') ? kb_get($wid0) : []; $kbN = 0; foreach ($kbS as $k => $sd) if (!empty($kbD[$k]) && kb_filled((array)$kbD[$k], (string)($sd['type'] ?? 'fields'))) $kbN++;
-    $kbP = $kbS ? (int)round($kbN / count($kbS) * 100) : 0; $accN = is_array($d['accounts']) ? count($d['accounts']) : null;
+    $kbP = $kbS ? (int)round($kbN / count($kbS) * 100) : 0; $accN = is_array($d['accounts']) ? count($d['accounts']) : ($z ? null : 0); // مفيش ربط = مفيش حسابات
     $J[] = ['🏢', t('شركتك'), $kbP . '%', t('ملف الشركة مكتمل'), $kbP >= 60 && $accN !== 0, $kbP < 60 ? t('كمّل ملف الشركة') : ($accN === 0 ? t('اربط حساباتك') : t('راجع الملف')), $kbP < 60 ? url('knowledge') : url('accounts')];
     $alN = (function_exists('alerts_unseen_count') && module_enabled('analytics') && can('analytics.view')) ? alerts_unseen_count($wid0) : 0;
-    $J[] = ['📈', t('السوق والفرص'), (string)$alN, t('تنبيه جديد'), $alN === 0, $alN ? t('شوف التنبيهات') : t('افتح التحليلات'), $alN ? url('alerts') : url('analytics')];
+    $J[] = ['📈', t('التنبيهات والأداء'), (string)$alN, t('تنبيه جديد'), $alN === 0, $alN ? t('شوف التنبيهات') : t('افتح التحليلات'), $alN ? url('alerts') : url('analytics')];
     $wk = 0; foreach ((array)($d['scheduled']['posts'] ?? []) as $sp) { $tt = strtotime((string)($sp['scheduledFor'] ?? '')); if ($tt && $tt < time() + 7 * 86400) $wk++; }
     $J[] = ['✍️', t('المحتوى'), $d['scheduled'] === null ? '—' : (string)$wk, t('منشور في 7 أيام'), $wk >= 3, $wk >= 3 ? t('شوف التقويم') : t('جدول منشورات'), $wk >= 3 ? url('posts', ['view' => 'cal']) : url('compose')];
     $crmOn = module_enabled('crm') && can('crm.view'); $newL = $dueL = $wonL = 0;

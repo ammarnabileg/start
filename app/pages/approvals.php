@@ -9,7 +9,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $a = (string)($_POST['action'] ?? '');
     if ($a === 'toggle' && $mgr) { save_setting('post_approval_' . $wid, !empty($_POST['on']) ? '1' : '0'); flash('success', t('اتحفظ ✓')); redirect(url('approvals')); }
     $st = db()->prepare("SELECT * FROM post_approvals WHERE id = ? AND workspace_id = ? AND status = 'pending'"); $st->execute([(int)($_POST['id'] ?? 0), $wid]); $r = $st->fetch();
-    if (!$r || !$mgr || (!$z && $a !== 'reject')) { flash('error', t('بيانات ناقصة')); redirect(url('approvals')); }
+    if (!$z && $a !== 'reject') { flash('error', t('اربط حسابات التواصل أولًا لنشر المنشورات المعتمدة.')); redirect(url('approvals')); }
+    if (!$r || !$mgr) { flash('error', t('بيانات ناقصة')); redirect(url('approvals')); }
     if ($a === 'approve') {
         // حجز ذرّي: ضغطتين أو مديرين في نفس اللحظة مايعملوش نشر مرتين
         $cl = db()->prepare("UPDATE post_approvals SET status = 'approving' WHERE id = ? AND status = 'pending'"); $cl->execute([(int)$r['id']]);
@@ -42,7 +43,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 $st = db()->prepare('SELECT a.*, u.name uname FROM post_approvals a LEFT JOIN users u ON u.id = a.user_id WHERE a.workspace_id = ?' . ($mgr ? '' : ' AND a.user_id = ' . $uid) . ' ORDER BY a.status = \'pending\' DESC, a.id DESC LIMIT 100');
 $st->execute([$wid]); $rows = $st->fetchAll();
-render(t('الموافقات'), 'approvals', function () use ($rows, $mgr, $wid) {
+render(t('الموافقات'), 'approvals', function () use ($rows, $mgr, $wid, $z) {
+    if (!$z && $mgr) { no_api_box(); echo '<div class="h-4"></div>'; }
     $on = setting('post_approval_' . $wid, '0') === '1';
     $badge = ['pending' => ['bg-amber-100 text-amber-800', t('مستني')], 'approved' => ['bg-lime-100 text-lime-800', t('اتوافق')], 'rejected' => ['bg-red-100 text-red-700', t('اترفض')]];
     ?>

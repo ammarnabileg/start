@@ -66,7 +66,7 @@ render(t('الكتابة بالذكاء الاصطناعي'), 'studio', function
   <?php if (!$aiOn): ?>
     <div class="card p-8 text-center"><div class="mx-auto mb-3 w-12 h-12 rounded-2xl bg-brand-50 text-brand-600 grid place-items-center"><?= ui_icon('spark', 'w-6 h-6') ?></div>
       <b class="block text-ink-900"><?= e(t('اربط مزود ذكاء اصطناعي الأول')) ?></b><p class="text-sm text-ink-500 mt-1"><?= e(t('الاستوديو بيكتب من ملف شركتك باستخدام مزود الذكاء الاصطناعي المربوط في التكاملات.')) ?></p>
-      <a href="<?= e(url('connectors')) ?>" class="btn-primary mt-4 inline-flex"><?= e(t('فتح التكاملات')) ?></a></div>
+      <?php if (can('integrations.manage') || is_ws_owner()): ?><a href="<?= e(url('connectors')) ?>" class="btn-primary mt-4 inline-flex"><?= e(t('فتح التكاملات')) ?></a><?php else: ?><p class="text-xs text-ink-400 mt-3"><?= e(t('اطلب من مالك الشركة ربطه.')) ?></p><?php endif; ?></div>
   <?php else: ?>
   <div class="grid xl:grid-cols-[400px_minmax(0,1fr)] gap-5 items-start">
     <form id="st-f" class="card p-5 space-y-5 xl:sticky xl:top-4" data-no-ajax>

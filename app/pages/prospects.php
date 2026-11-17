@@ -95,7 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach (array_slice((array)($_POST['ids'] ?? []), 0, 25) as $id) { $l = $getLead((int)$id); if (!$l) continue;
             if (!crm_can_edit($l) || (!$l['email'] && !$l['emails']) || !empty($l['unsub'])) { $skip++; continue; }
             try { $r = crm_send_email($l, crm_fill_vars($sub, $l), crm_fill_vars($body, $l)); $sent += (int)($r['sent'] ?? 1); $leads++; }
-            catch (Throwable $ex) { $errs[] = $ex->getMessage(); if ($ex instanceof MailException && !$sent && preg_match('/SMTP \(|TLS|connect|reach|timed out|نوصل|resolve/iu', $ex->getMessage())) break; /* السيرفر مش بيرد: مانستناش 20 ثانية لكل عميل */ } }
+            catch (Throwable $ex) { $errs[] = $ex->getMessage(); if ($ex instanceof MailException && !$sent && $ex->getCode() === 99) break; /* السيرفر مش بيرد: مانستناش 20 ثانية لكل عميل */ } }
         if (!$sent && $errs) $J(['ok' => false, 'error' => $errs[0]]);
         log_activity('crm.email_bulk', (string)$sent);
         $J(['ok' => true, 'sent' => $sent, 'leads' => $leads, 'skip' => $skip, 'fail' => count($errs)]);

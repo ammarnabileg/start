@@ -12,8 +12,9 @@
     if (f.closest('[data-live-root]')) return;
     var b = ev.submitter || f.querySelector('button:not([type=button])');
     if (!b) return;
-    setTimeout(function () { if (ev.defaultPrevented) return; b.disabled = true; b.dataset.label = b.textContent; b.textContent = T.working; }, 0);
+    setTimeout(function () { if (ev.defaultPrevented) return; b.disabled = true; b.dataset.busy = '1'; b.setAttribute('aria-busy', 'true'); b.classList.add('opacity-70', 'cursor-wait'); }, 0);
   });
+  window.addEventListener('pageshow', function () { document.querySelectorAll('[data-busy]').forEach(function (b) { b.disabled = false; delete b.dataset.busy; b.removeAttribute('aria-busy'); b.classList.remove('opacity-70', 'cursor-wait'); }); }); // رجعت بزرار Back: الزرار يرجع شغال
 
   // Enter يبعت، و Shift+Enter سطر جديد
   document.addEventListener('keydown', function (e) {

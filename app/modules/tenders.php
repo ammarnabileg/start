@@ -186,7 +186,7 @@ function tnd_marked(string $status): array
 function tnd_mark(int $tid, string $status, ?string $note = null, ?int $leadId = null): void
 {
     $wid = (int)ws('id');
-    if ($status === '') { db()->prepare('DELETE FROM tender_marks WHERE workspace_id = ? AND tender_id = ?')->execute([$wid, $tid]); return; }
+    if ($status === '') { db()->prepare('DELETE FROM tender_marks WHERE workspace_id = ? AND tender_id = ? AND lead_id IS NULL')->execute([$wid, $tid]); db()->prepare("UPDATE tender_marks SET status = 'fav' WHERE workspace_id = ? AND tender_id = ? AND lead_id IS NOT NULL")->execute([$wid, $tid]); return; } // الربط بالعميل يفضل
     db()->prepare('INSERT INTO tender_marks (workspace_id, tender_id, status, note, lead_id) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE status = VALUES(status), note = COALESCE(VALUES(note), note), lead_id = COALESCE(VALUES(lead_id), lead_id)')
         ->execute([$wid, $tid, $status, $note, $leadId]);
 }

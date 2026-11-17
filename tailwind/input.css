@@ -166,7 +166,7 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
   .mk-stat small { @apply block text-xs text-ink-500; }
   .mk-stat.mk-on { @apply border-brand-500 ring-4 ring-brand-500/10 bg-brand-50/50; }
   .mk-stat:focus:not(:focus-visible):not(.mk-on) { @apply outline-none ring-0 border-ink-200; }
-  .mk-tools { @apply sticky top-16 z-20 flex flex-wrap items-center gap-2 mb-3 -mx-1 px-1 py-2 bg-ink-50/85 backdrop-blur; }
+  .mk-tools { @apply lg:sticky lg:top-16 z-20 flex flex-wrap items-center gap-2 mb-3 -mx-1 px-1 py-2 bg-ink-50/85 backdrop-blur; }
   .mk-search { @apply relative flex-1 min-w-[200px] max-w-md; }
   .mk-search input { @apply w-full rounded-xl border border-ink-200 bg-white ps-9 pe-10 py-2 text-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/15; }
   .mk-search svg { @apply absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-400; }
