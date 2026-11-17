@@ -13,6 +13,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         [$emails, $bad] = rp_parse_emails((string)($_POST['recipients'] ?? ''));
         $freq = in_array($_POST['frequency'] ?? '', ['off', 'weekly', 'monthly'], true) ? $_POST['frequency'] : 'off';
         $lang = ($_POST['lang'] ?? '') === 'ar' ? 'ar' : 'en';
+        $allIn = array_unique(array_filter(preg_split('/[\s,;]+/', strtolower((string)($_POST['recipients'] ?? ''))), function ($x) { return filter_var($x, FILTER_VALIDATE_EMAIL); }));
+        if (count($allIn) > 20) { flash('error', t('الحد الأقصى 20 مستلمًا للتقرير. قلّل القائمة.')); redirect(url('reports')); }
         if ($bad) {
             flash('error', t('الإيميلات دي مش صحيحة: %s', implode(', ', array_slice($bad, 0, 5))));
             redirect(url('reports'));

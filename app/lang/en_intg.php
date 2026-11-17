@@ -6281,4 +6281,6 @@ If you know someone who needs our services, send them this link. They get {get},
     'بريد المرسل غير صحيح، فتم الإبقاء على القديم.' => 'The sender email is invalid; the previous one was kept.',
     'اتحقق' => 'Achieved',
     'تعديل العملاء يتطلب صلاحية إدارة العملاء.' => 'Editing leads requires the CRM manage permission.',
+    'الضريبة والعملة الافتراضية يغيّرها مدير العملاء فقط.' => 'Only a CRM manager can change the default tax and currency.',
+    'الحد الأقصى 20 مستلمًا للتقرير. قلّل القائمة.' => 'A report can have at most 20 recipients. Shorten the list.',
 ];

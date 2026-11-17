@@ -12,6 +12,7 @@ $no = ($isInv ? 'INV-' : 'Q-') . date('Y') . '-' . str_pad((string)$d['id'], 4, 
 $today = new DateTime('now', new DateTimeZone(site_timezone()));
 $valid = (clone $today)->modify('+14 days');
 $cur = (string)setting('crm_currency_' . $wid, '');
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !can('crm.manage')) { http_response_code(403); header('Content-Type: application/json; charset=utf-8'); exit(json_encode(['ok' => false, 'error' => t('الضريبة والعملة الافتراضية يغيّرها مدير العملاء فقط.')], JSON_UNESCAPED_UNICODE)); }
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && can('crm.manage')) { // حفظ الضريبة والعملة الافتراضية (إعداد للشركة كلها: للمدير بس)
     save_setting('crm_tax_' . $wid, (string)max(0, min(100, (float)($_POST['tax'] ?? 0))));
     save_setting('crm_currency_' . $wid, mb_substr(trim((string)($_POST['cur'] ?? '')), 0, 8));

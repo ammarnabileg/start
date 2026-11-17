@@ -203,7 +203,7 @@ document.addEventListener('click', function (e) {
     if (rows.length) {
       var out = [];
       rows.forEach(function (r) { var ps = r.querySelectorAll('.px-4 > p, .px-4 > em'), tx = [].map.call(ps, function (x) { return x.innerText.trim(); }).filter(Boolean).join('\n');
-        if (!tx && r.querySelector('.px-4 img')) tx = '[image]'; if (tx) out.push((r.dataset.who === 'agent' ? 'Agent: ' : 'Customer: ') + tx); });
+        var ex = []; if (r.querySelector('.px-4 img')) ex.push('[image]'); r.querySelectorAll('.px-4 > a').forEach(function (a) { ex.push('[' + a.innerText.trim() + ']'); }); tx = [tx].concat(ex).filter(Boolean).join(' '); if (tx) out.push((r.dataset.who === 'agent' ? 'Agent: ' : 'Customer: ') + tx); });
       return out.join('\n').slice(-5000);
     }
     return el.innerText.replace(/\n{3,}/g, '\n\n').slice(-5000); // باقي الصفحات: النص الظاهر زي الأول

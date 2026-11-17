@@ -382,7 +382,7 @@ function crm_deals_rollup(int $leadId): void
 {
     $st = db()->prepare("SELECT COUNT(*), COALESCE(SUM(CASE WHEN status <> 'lost' THEN value END), 0) FROM crm_deals WHERE workspace_id = ? AND lead_id = ?");
     $st->execute([(int)ws('id'), $leadId]); [$n, $sum] = $st->fetch(PDO::FETCH_NUM);
-    if ((int)$n) db()->prepare('UPDATE crm_leads SET deal_value = ? WHERE id = ?')->execute([(float)$sum, $leadId]);
+    db()->prepare('UPDATE crm_leads SET deal_value = ? WHERE id = ? AND workspace_id = ?')->execute([(int)$n ? (float)$sum : 0, $leadId, (int)ws('id')]); // مفيش صفقات = مفيش قيمة
 }
 /** فترة التقرير */
 function crm_period(string $p): array
@@ -919,7 +919,7 @@ function crm_book_slots(array $c): array
         if (!in_array((int)$d->format('w'), array_map('intval', (array)$c['days']), true)) continue;
         [$fh, $fm] = array_map('intval', explode(':', (string)$c['from']) + [0, 0]); [$th, $tm] = array_map('intval', explode(':', (string)$c['to']) + [0, 0]);
         $t = (clone $d)->setTime($fh, $fm); $end = (clone $d)->setTime($th, $tm);
-        for (; $t < $end; $t->modify("+$len minutes")) { $k = $t->format('Y-m-d H:i'); if ($t > $min && !isset($taken[$k])) $out[$d->format('Y-m-d')][] = $k; }
+        for (; (clone $t)->modify("+$len minutes") <= $end; $t->modify("+$len minutes")) { $k = $t->format('Y-m-d H:i'); if ($t > $min && !isset($taken[$k])) $out[$d->format('Y-m-d')][] = $k; }
     }
     return $out;
 }

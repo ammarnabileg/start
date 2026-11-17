@@ -13,7 +13,7 @@ $person = function (array $l) { return ['id' => (int)$l['id'], 'name' => (string
 // بوب أب الشركة: الأشخاص المعروفين + أهم الأشخاص من Apollo
 if (($_GET['ajax'] ?? '') === 'company') {
     $co = $getCo((int)($_GET['id'] ?? 0)); if (!$co) $J(['ok' => false, 'error' => t('الشركة مش موجودة.')], 404);
-    $st = db()->prepare('SELECT * FROM crm_leads WHERE workspace_id = ? AND company_id = ? ORDER BY (phone IS NULL OR phone = \'\') , (email IS NULL OR email = \'\'), id DESC');
+    $st = db()->prepare('SELECT * FROM crm_leads WHERE workspace_id = ? AND company_id = ?' . (can('crm.manage') ? '' : ' AND (owner_id IS NULL OR owner_id = ' . (int)(current_user()['id'] ?? 0) . ')') . ' ORDER BY (phone IS NULL OR phone = \'\') , (email IS NULL OR email = \'\'), id DESC');
     $st->execute([$wid, (int)$co['id']]); $known = array_map($person, $st->fetchAll());
     $out = ['ok' => true, 'known' => $known, 'apollo' => null, 'co' => ['linkedin' => (string)$co['linkedin'], 'phone' => (string)$co['phone'], 'about' => (string)$co['about'], 'enriched' => (bool)$co['enriched_at']]];
     if ($hasApollo) {
