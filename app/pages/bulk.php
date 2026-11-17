@@ -106,7 +106,7 @@ if ($z && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['ajax'] ?? '') === 'd
         $g = function ($c) use ($r) { return trim((string)($r[$c] ?? '')); };
         $tr = function ($c) use ($g) { return (bool)preg_match('/^(true|1|yes)$/i', $g($c)); };
         $platforms = [];
-        foreach (array_filter(array_map('trim', explode('|', $g('accounts')))) as $aid) {
+        foreach (array_unique(array_filter(array_map('trim', explode('|', $g('accounts'))))) as $aid) {
             if (!isset($byId[$aid])) { $errs[] = t('حساب مش موجود: %s', $aid); continue; }
             $pf = (string)$byId[$aid]['platform']; $item = ['platform' => $pf, 'accountId' => $aid];
             if ($g('custom_content_' . $pf) !== '') $item['customContent'] = $g('custom_content_' . $pf);

@@ -57,7 +57,7 @@ function assistant_context(bool $extended = false): string
             $ctx['upcoming_scheduled_posts'] = array_map(function ($p) {
                 return ['when' => (string)($p['scheduledFor'] ?? ''), 'platforms' => array_values(array_filter(array_map(function ($x) { return is_array($x) ? ($x['platform'] ?? '') : (string)$x; }, (array)($p['platforms'] ?? [])))), 'text' => mb_substr(trim((string)($p['content'] ?? '')), 0, 100)];
             }, $up);
-            $ctx['recent_customer_messages'] = array_values(array_filter(array_map(function ($c) {
+            if (can('inbox.reply')) $ctx['recent_customer_messages'] = array_values(array_filter(array_map(function ($c) {
                 $m = $c['lastMessage'] ?? '';
                 $m = is_array($m) ? (string)($m['text'] ?? $m['message'] ?? '') : (string)$m;
                 return $m !== '' ? ['platform' => $c['platform'] ?? '', 'text' => mb_substr($m, 0, 140)] : null;

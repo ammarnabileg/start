@@ -594,7 +594,7 @@ function kb_file_row(array $f, bool $canEdit): string
         . '<button type="button" class="kb-reread text-xs link" title="' . e(t('يقرا الملف تاني ويبدّل النص القديم بالجديد')) . '">' . e(t('إعادة قراءة')) . '</button>';
     if ($canEdit) {
         $h .= '<label class="relative inline-flex cursor-pointer" title="' . e(t('استخدام في الردود')) . '"><input type="checkbox" class="kb-on sr-only peer" ' . ($f['enabled'] ? 'checked' : '') . '><span class="w-9 h-5 rounded-full bg-ink-300 peer-checked:bg-lime-500 transition after:absolute after:top-0.5 after:start-0.5 after:w-4 after:h-4 after:rounded-full after:bg-[#fff] after:shadow after:transition-transform peer-checked:after:translate-x-4 rtl:peer-checked:after:-translate-x-4"></span></label>'
-            . '<button type="button" class="kb-rm p-1.5 rounded-lg text-ink-400 hover:text-red-600 hover:bg-red-50" title="' . e(t('حذف')) . '"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>';
+            . '<button type="button" class="kb-rm p-1.5 rounded-lg text-ink-400 hover:text-red-600 hover:bg-red-50" title="' . e(t('حذف')) . '">' . ui_icon('trash', 'w-4 h-4') . '</button>';
     }
     return $h . '</div><div class="kb-prev hidden border-t border-ink-100 p-3"><pre class="text-xs whitespace-pre-wrap max-h-64 overflow-auto text-ink-700" dir="auto">' . e((string)$f['preview']) . ((int)$f['chars'] > 600 ? "\n…" : '') . '</pre></div></div>';
 }

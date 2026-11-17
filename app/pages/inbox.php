@@ -601,7 +601,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
               <?php endif; ?>
               <?php if (can('inbox.manage')): ?>
                 <form method="post" onsubmit="return confirm('<?= tjs('حذف المحادثة دي وكل رسايلها من Zernio؟ مش هينفع ترجعها.') ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="delete_conv">
-                  <button class="tb w-9 h-9 !h-9 justify-center hover:!text-red-600 hover:!border-red-200" title="<?= e(t('حذف المحادثة')) ?>"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button></form>
+                  <button class="tb w-9 h-9 !h-9 justify-center hover:!text-red-600 hover:!border-red-200" title="<?= e(t('حذف المحادثة')) ?>"><?= ui_icon('trash', 'w-4 h-4') ?></button></form>
               <?php endif; ?>
             </div>
           </div>

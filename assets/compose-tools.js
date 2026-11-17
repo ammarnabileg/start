@@ -154,7 +154,7 @@
   new MutationObserver(later).observe(document.getElementById('mediaPreview') || document.body, { childList: true, subtree: true });
   check();
 
-  function toast(m) { var o = document.querySelector('.ld-toast'); if (o) o.remove(); var t = document.createElement('div'); t.className = 'ld-toast'; t.textContent = m; document.body.appendChild(t); setTimeout(function () { t.remove(); }, 3500); }
+  function toast(m, k) { if (window.fxToast) return fxToast(m, k || 'success'); var o = document.querySelector('.ld-toast'); if (o) o.remove(); var t = document.createElement('div'); t.className = 'ld-toast'; t.textContent = m; document.body.appendChild(t); setTimeout(function () { t.remove(); }, 3500); }
 
   /* ---------- #6 منشور من لينك ---------- */
   function fromLink() {

@@ -1881,3 +1881,5 @@ html.dark [class*="inset-0"][class*="bg-ink-900/"],html.dark .cx-shb,html.dark .
 }
 
 @media (pointer: coarse) { #ibx form button[name=emoji] { min-width: 40px; min-height: 40px; font-size: 18px; } }
+
+@media (max-width: 639px) { .mk-bar, html[dir=rtl] .mk-bar, .mk-bar.mk-bar-on { inset-inline: 12px; left: 12px; right: 12px; transform: none !important; max-width: calc(100vw - 24px); overflow-x: auto; } }

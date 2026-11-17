@@ -66,7 +66,7 @@ render(t('الموافقات'), 'approvals', function () use ($rows, $mgr, $wid,
           <?php if ($r['note']): ?><span class="text-red-600">· <?= e($r['note']) ?></span><?php endif; ?></div>
         <?php if ($r['status'] === 'pending' && $mgr): ?>
           <form method="post" class="space-y-2"><?= csrf_field() ?><input type="hidden" name="id" value="<?= (int)$r['id'] ?>">
-            <textarea name="content" rows="4" class="input text-sm" dir="auto"><?= e((string)($p['content'] ?? '')) ?></textarea>
+            <textarea name="content" data-ai="improve,shorten,hashtags,cta,translate_en,translate_ar" rows="4" class="input text-sm" dir="auto"><?= e((string)($p['content'] ?? '')) ?></textarea>
             <?php if ($media): ?><div class="flex gap-2"><?php foreach (array_slice($media, 0, 4) as $mi): if (($mi['type'] ?? '') === 'image'): ?><img src="<?= e($mi['url'] ?? '') ?>" class="w-16 h-16 rounded-lg object-cover border border-ink-200" alt=""><?php endif; endforeach; ?></div><?php endif; ?>
             <div class="flex flex-wrap items-center gap-2"><button name="action" value="approve" class="btn-primary !py-1.5 !text-sm">✓ <?= e(t('وافق وانشر')) ?></button>
               <input name="note" class="input !py-1.5 text-sm !w-64 !mt-0" maxlength="300" placeholder="<?= e(t('ملاحظة لو هترفض (اختياري)')) ?>"><button name="action" value="reject" class="btn-ghost !py-1.5 !text-sm text-red-600">✕ <?= e(t('ارفض')) ?></button></div>

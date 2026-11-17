@@ -59,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 mb_substr(t('آخر موعد لتقديم العروض %s', $t['deadline'] ? fmt_date($t['deadline'], 'd/m h:i A') : '—'), 0, 255), (int)$l['id'], $wid]);
             if (function_exists('crm_act_add')) crm_act_add((int)$l['id'], 'note', '🏛️ ' . t('اتحولت من منافسة: %s', mb_substr($t['name'], 0, 200)));
         }
-        if ($mgr || in_array((string)(($tmq = db()->prepare('SELECT status FROM tender_marks WHERE workspace_id = ? AND tender_id = ?')) && $tmq->execute([(int)ws('id'), $tid]) ? ($tmq->fetchColumn() ?: '') : ''), ['', 'fav'], true)) tnd_mark($tid, 'applied', null, (int)$l['id']);
+        if ($mgr || in_array((string)(($tmq = db()->prepare('SELECT status FROM tender_marks WHERE workspace_id = ? AND tender_id = ?')) && $tmq->execute([(int)ws('id'), $tid]) ? ($tmq->fetchColumn() ?: '') : ''), ['', 'fav'], true)) tnd_mark($tid, 'applied', null, (int)$l['id']); else db()->prepare('UPDATE tender_marks SET lead_id = ? WHERE workspace_id = ? AND tender_id = ?')->execute([(int)$l['id'], (int)ws('id'), $tid]); // الربط يتسجل والعلامة تفضل
         log_activity('tenders.deal', (string)$t['ref']);
         $J(['ok' => true, 'status' => 'applied', 'lead' => (int)$l['id'], 'url' => url('prospects', ['lead' => (int)$l['id']])]);
     }
@@ -72,7 +72,7 @@ $rows = tnd_list(true, 3000);
 $seen = array_flip(array_column($rows, 'id'));
 foreach (['fav', 'applied'] as $m) foreach (tnd_marked($m) as $t) if (!isset($seen[$t['id']])) { $t['hits'] = []; $rows[] = $t; $seen[$t['id']] = 1; }
 $counts = ['match' => 0, 'soon' => 0, 'fav' => 0, 'applied' => 0, 'all' => 0];
-foreach ($rows as $t) { $hid = $t['mark'] === 'hidden'; $act = $t['deadline'] && strtotime($t['deadline']) > time();
+foreach ($rows as $t) { $hid = $t['mark'] === 'hidden'; $act = !$t['deadline'] || strtotime($t['deadline']) > time();
     if ($t['hits'] && !$hid && $act) $counts['match']++; if ($t['hits'] && !$hid && $act && strtotime($t['deadline']) < time() + 3 * 86400) $counts['soon']++;
     if ($t['mark'] === 'fav') $counts['fav']++; if ($t['mark'] === 'applied') $counts['applied']++; if (!$hid && $act) $counts['all']++; }
 render(t('آخر المنافسات'), 'tenders', function () use ($cfg, $h, $rows, $counts, $mgr) {
@@ -199,7 +199,7 @@ render(t('آخر المنافسات'), 'tenders', function () use ($cfg, $h, $ro
         <span data-mk-sort="name"><?= e(t('المنافسة')) ?></span><span data-mk-sort="act"><?= e(t('النشاط')) ?></span><span data-mk-sort="dl" data-dir="asc"><?= e(t('آخر موعد')) ?></span>
         <span data-mk-sort="bk"><?= e(t('الكراسة')) ?></span><span data-mk-sort="type"><?= e(t('النوع')) ?></span><span></span></div>
       <div data-mk-body>
-      <?php foreach ($rows as $t): $left = $t['deadline'] ? (strtotime($t['deadline']) - time()) : null; $d = $left !== null ? (int)floor($left / 86400) : null; $act = $left !== null && $left > 0;
+      <?php foreach ($rows as $t): $left = $t['deadline'] ? (strtotime($t['deadline']) - time()) : null; $d = $left !== null ? (int)floor($left / 86400) : null; $act = $left === null || $left > 0;
           $isNew = strtotime($t['first_seen']) > time() - 86400; $dlTxt = $t['deadline'] ? fmt_date($t['deadline'], fmt_date($t['deadline'], 'H:i') === '00:00' ? 'd/m' : 'd/m h:i A') : '';
           $bk = $t['booklet'] === null ? '' : ((float)$t['booklet'] > 0 ? number_format((float)$t['booklet']) . ' ' . t('ريال') : t('مجانًا'));
           $j = ['id' => (int)$t['id'], 'name' => $t['name'], 'agency' => (string)$t['agency'], 'branch' => (string)$t['branch'], 'activity' => trim((string)$t['activity']), 'type' => (string)$t['type'], 'ref' => (string)$t['ref'],

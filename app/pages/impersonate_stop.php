@@ -3,6 +3,7 @@
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_SESSION['impersonator'])) {
     $back = (int)$_SESSION['impersonator'];
     $as = current_user();
+    if (!$as || empty($_SESSION['impersonator'])) { redirect(url('login')); } // الأدمن نفسه اتوقف أو اتشال: مايرجعش
     unset($_SESSION['impersonator'], $_SESSION['ws']);
     session_regenerate_id(true);
     $_SESSION['uid'] = $back;

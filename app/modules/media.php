@@ -247,7 +247,7 @@ function media_name_is_generic(string $n): bool
 }
 function media_ai_tag(int $wid, int $id, bool $rename): array
 {
-    $r = media_get($wid, $id); if (!$r) throw new RuntimeException(t('الملف مش موجود'));
+    $r = media_get($wid, $id); if (!$r || !empty($r['deleted_at'])) throw new RuntimeException(t('الملف مش موجود'));
     if (media_kind((string)$r['mime']) !== 'image') throw new RuntimeException(t('الذكاء الاصطناعي بيقرا الصور بس'));
     $p = media_thumb_path($wid, $r); if (!is_file($p) || filesize($p) > 4 * 1048576) throw new RuntimeException(t('الصورة كبيرة جدًا للقراءة'));
     $mime = strpos($p, '/thumbs/') !== false ? 'image/jpeg' : (string)$r['mime'];

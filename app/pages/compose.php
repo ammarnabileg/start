@@ -537,7 +537,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
             var tr = document.getElementById('cp-track'); if (tr) tr.addEventListener('click', function () {
               (window.cptAsk ? window.cptAsk({ title: <?= json_encode(t('الرابط اللي عاوز تتابعه (موقعك، صفحة منتج، فورم…):'), JSON_UNESCAPED_UNICODE) ?>, value: <?= json_encode((string)setting('crm_site_url_' . (int)ws('id'), '') ?: 'https://', JSON_UNESCAPED_UNICODE) ?>, ltr: true }) : Promise.resolve(null)).then(function (u) { if (!u) return;
               var fd = new FormData(); fd.append('action', 'track_link'); fd.append('url', u.trim()); fd.append('label', ta.value.split('\n')[0].slice(0, 120)); fd.append('_csrf', <?= json_encode(csrf_token()) ?>);
-              fetch(location.href, { method: 'POST', body: fd }).then(function (r) { return r.json(); }).then(function (r) { if (!r.ok) return alert(r.error); var v = ta.value.replace(/\s+$/, ''); ta.value = (v ? v + '\n\n' : '') + '🔗 ' + r.short; ta.dispatchEvent(new Event('input', { bubbles: true })); }); });
+              fetch(location.href, { method: 'POST', body: fd }).then(function (r) { return r.json(); }).then(function (r) { if (!r.ok) return (window.fxToast ? fxToast(r.error, 'error') : alert(r.error)); var v = ta.value.replace(/\s+$/, ''); ta.value = (v ? v + '\n\n' : '') + '🔗 ' + r.short; ta.dispatchEvent(new Event('input', { bubbles: true })); }).catch(function () { window.fxToast && fxToast((window.T && T.liveFailed) || 'Error', 'error'); }); });
             });
             var go = document.getElementById('cp-auto-go'); if (go) go.addEventListener('click', function () {
               var accs = Array.prototype.map.call(document.querySelectorAll('input[name="accounts[]"]:checked'), function (c) { return c.value; }), m = document.getElementById('cp-auto-msg');
@@ -563,7 +563,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
           <div id="cpt-pane" class="hidden rounded-2xl border border-ink-200 bg-ink-50/60 p-3"></div>
           <div id="cpt-ab" class="hidden rounded-2xl border border-violet-200 bg-violet-50/40 p-3 space-y-2">
             <div class="text-sm font-semibold text-ink-900"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6M10 3v6L4 19a1 1 0 001 2h14a1 1 0 001-2l-6-10V3M7 15h10"/></svg> <?= e(t('النسخة B')) ?></div>
-            <textarea name="ab_text" rows="4" class="input text-sm" dir="auto" placeholder="<?= e(t('نفس الفكرة بصياغة أو افتتاحية أو دعوة مختلفة')) ?>"></textarea>
+            <textarea name="ab_text" data-ai="variants,hook,cta,improve,shorten,tone_friendly" rows="4" class="input text-sm" dir="auto" placeholder="<?= e(t('نفس الفكرة بصياغة أو افتتاحية أو دعوة مختلفة')) ?>"></textarea>
             <label class="flex items-center gap-2 text-xs text-ink-600"><?= e(t('تتنشر بعد النسخة A بـ')) ?> <input type="number" name="ab_gap" min="1" max="168" value="24" class="input !mt-0 !py-1 !w-20 text-xs"> <?= e(t('ساعة')) ?></label>
             <p class="text-[11px] text-ink-500"><?= e(t('النتيجة (أنهي نسخة تفاعلها أعلى) بتظهر في التحليلات تحت "أفضل 10 منشورات". شغال مع الجدولة والنشر دلوقتي.')) ?></p>
           </div>
@@ -601,7 +601,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
             <div class="flex items-center gap-3 border-b border-ink-100 px-5 py-3.5">
               <b class="text-ink-900"><?= e(t('تصميم صورة من المنشور')) ?></b>
               <ol class="flex items-center gap-2 text-xs text-ink-500 ms-auto"><li data-stp="1" class="font-bold text-brand-700">1 · <?= e(t('الإعداد')) ?></li><li>›</li><li data-stp="2">2 · <?= e(t('التصميم')) ?></li></ol>
-              <button type="button" data-pst-x class="w-8 h-8 rounded-full hover:bg-ink-100 text-ink-500" aria-label="✕">✕</button>
+              <button type="button" data-pst-x class="w-8 h-8 grid place-items-center rounded-full hover:bg-ink-100 text-ink-500" aria-label="<?= e(t('إغلاق')) ?>"><?= ui_icon('x', 'w-4 h-4') ?></button>
             </div>
             <div id="pst-1" class="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
               <div class="grid sm:grid-cols-3 gap-3">

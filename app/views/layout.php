@@ -180,11 +180,11 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
       $R['knowledge'] = [[t('اكتب منشور من ملفك'), url('compose')], [t('الردود التلقائية بتستخدمه'), url('automations')]];
       $R['compose'] = array_filter([[t('المنشورات (قائمة أو تقويم)'), url('posts')], $crmOn2 ? [t('اعمل صفحة هبوط للمنشور'), url('crm_capture') . '#lp'] : null, [t('أفضل وقت للنشر'), url('analytics')]]);
       $R['posts'] = $R['calendar'] = array_filter([[t('التعليقات على منشوراتك'), url('comments')], [t('أداء المنشورات'), url('analytics')], $crmOn2 ? [t('روابط المنشورات والعملاء اللي جابتهم'), url('crm_reports')] : null]);
-      $R['analytics'] = array_filter([[t('التنبيهات'), url('alerts')], [t('التقارير'), url('reports')], [t('جدول منشور في أحسن وقت'), url('compose')], $crmOn2 ? [t('مبيعات كل مصدر'), url('crm_reports')] : null]);
+      $R['analytics'] = array_filter([[t('التنبيهات'), url('alerts')], [t('التقارير'), url('analytics', ['tab' => 'reports'])], [t('جدول منشور في أحسن وقت'), url('compose')], $crmOn2 ? [t('مبيعات كل مصدر'), url('crm_reports')] : null]);
       $R['comments'] = $R['inbox'] = array_filter([$crmOn2 ? [t('العملاء اللي جم من هنا'), url('prospects')] : null, [t('ردود تلقائية'), url('automations')]]);
-      $R['alerts'] = [[t('التحليلات'), url('analytics')], [t('التقارير'), url('reports')], [t('أداء الرسائل'), url('inbox_analytics')]];
-      $R['reports'] = [[t('التحليلات'), url('analytics')], [t('التنبيهات'), url('alerts')], [t('أداء الرسائل'), url('inbox_analytics')]];
-      $R['inbox_analytics'] = [[t('التحليلات'), url('analytics')], [t('التقارير'), url('reports')], [t('الرسائل'), url('inbox')]];
+      $R['alerts'] = [[t('التحليلات'), url('analytics')], [t('التقارير'), url('analytics', ['tab' => 'reports'])], [t('أداء الرسائل'), url('analytics', ['tab' => 'messages'])]];
+      $R['reports'] = [[t('التحليلات'), url('analytics')], [t('التنبيهات'), url('alerts')], [t('أداء الرسائل'), url('analytics', ['tab' => 'messages'])]];
+      $R['inbox_analytics'] = [[t('التحليلات'), url('analytics')], [t('التقارير'), url('analytics', ['tab' => 'reports'])], [t('الرسائل'), url('inbox')]];
       if ($crmOn2) {
         $R['crm_capture'] = [[t('العملاء اللي اتجمعوا'), url('prospects')], [t('أنهي مصدر بيجيب أكتر'), url('crm_reports')], [t('اكتب منشور بلينك متتبع'), url('compose')]];
         $R['crm_leads'] = [[t('هات عملاء أكتر'), url('crm_capture')], [t('تقارير المبيعات'), url('crm_reports')], [t('الرسائل'), url('inbox')]];
