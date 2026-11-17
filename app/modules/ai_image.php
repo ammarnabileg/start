@@ -29,10 +29,10 @@ function img_openai_cost(string $quality, string $size): float
 }
 
 /** حفظ صورة (بايتات) في مكتبة الشركة بنفس صيغة الأسماء */
-function img_lib_save_bytes(int $wid, string $bytes, string $prompt): ?string
+function img_lib_save_bytes(int $wid, string $bytes, string $prompt, bool $trim = true): ?string
 {
     $dir = hf_lib_dir($wid); if (!is_dir($dir)) @mkdir($dir, 0750, true);
-    if (function_exists('img_trim_bands')) $bytes = img_trim_bands($bytes);
+    if ($trim && function_exists('img_trim_bands')) $bytes = img_trim_bands($bytes);
     $tmp = tempnam(sys_get_temp_dir(), 'oa'); file_put_contents($tmp, $bytes); $mime = (string)mime_content_type($tmp);
     $ext = ['image/png' => 'png', 'image/jpeg' => 'jpg', 'image/webp' => 'webp'][$mime] ?? null;
     if (!$ext || filesize($tmp) > 25 * 1048576) { @unlink($tmp); return null; }
@@ -103,7 +103,7 @@ function img_remove_bg(string $file): string
     if ($code >= 400 || !is_array($j)) { $msg = (string)($j['error']['message'] ?? ('HTTP ' . $code)); if ($code === 401) throw new RuntimeException(t('مفتاح OpenAI غير صحيح.')); throw new RuntimeException('OpenAI: ' . mb_substr($msg, 0, 300)); }
     $b64 = (string)($j['data'][0]['b64_json'] ?? ''); $bytes = $b64 !== '' ? base64_decode($b64, true) : false;
     if (!$bytes) throw new RuntimeException(t('لم يرجع OpenAI صورة. جرّب مرة أخرى.'));
-    $nm = img_lib_save_bytes($wid, $bytes, 'background removed'); if (!$nm) throw new RuntimeException(t('تعذر حفظ الصورة.'));
+    $nm = img_lib_save_bytes($wid, $bytes, 'background removed', false); if (!$nm) throw new RuntimeException(t('تعذر حفظ الصورة.'));
     if (function_exists('ai_log_usage')) { try { ai_log_usage($wid, 'image', 'openai', $model, ['cost' => round(img_openai_cost($q, '1024x1024'), 4), 'prompt_tokens' => 0, 'completion_tokens' => 0]); } catch (Throwable $e) {} }
     return $nm;
 }

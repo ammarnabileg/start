@@ -33,9 +33,9 @@
   fit(); window.addEventListener('resize', fit); setTimeout(fit, 300);
   var keepY = null;
   // الأماكن اللي بتسبب قفزة: الضغط على اللوحة، تحديد عنصر، الطبقات، تعديل النص (textarea مخفي بيتحط مكان المؤشر)
-  document.addEventListener('pointerdown', function (e) { if (e.target.closest('.dz-shell')) keepY = window.scrollY; }, true);
+  document.addEventListener('pointerdown', function (e) { keepY = e.pointerType !== 'touch' && e.target.closest('.dz-shell') ? window.scrollY : null; }, true); window.addEventListener('scroll', function () { if (keepY != null && !document.querySelector('.dz-shell:hover')) keepY = null; }, { passive: true });
   function hold() { if (keepY == null) return; var y = keepY; [0, 50, 150].forEach(function (t) { setTimeout(function () { if (Math.abs(window.scrollY - y) > 2) window.scrollTo({ top: y, behavior: 'instant' }); }, t); }); }
-  document.addEventListener('pointerup', hold, true); document.addEventListener('focusin', function (e) { if (e.target.closest('.dz-shell') || e.target.tagName === 'TEXTAREA') hold(); }, true);
+  document.addEventListener('pointerup', function (e) { if (e.target.closest && e.target.closest('.dz-shell')) hold(); else keepY = null; }, true); document.addEventListener('focusin', function (e) { if (e.target.closest('.dz-shell') || e.target.tagName === 'TEXTAREA') hold(); }, true);
   if (window.DZX && window.DZX.cv) ['selection:created', 'selection:updated', 'text:editing:entered'].forEach(function (ev) { window.DZX.cv.on(ev, hold); });
   window.addEventListener('wheel', function () { keepY = null; }, { passive: true }); window.addEventListener('keydown', function (e) { if (/Page|Arrow|Home|End/.test(e.key) && !(document.activeElement && /INPUT|TEXTAREA/.test(document.activeElement.tagName))) keepY = null; });
 })();
@@ -46,7 +46,7 @@
   var X = window.DZX; if (!X) return; var cv = X.cv, C = X.C || window.DZ || {}, L = (C.L || {});
   function img() { var o = cv.getActiveObject(); return o && o.type === 'image' ? o : null; }
   function st(t) { var e = document.getElementById('dz-rembg-st'); if (e) e.textContent = t || ''; }
-  function srcCanvas(o) { var el = o._originalElement || o.getElement(), w = el.naturalWidth || el.width, h = el.naturalHeight || el.height, c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').drawImage(el, 0, 0); return c; }
+  function srcCanvas(o) { var el = o._originalElement || o.getElement(), cx = o.cropX || 0, cy = o.cropY || 0, w = Math.round(o.width), h = Math.round(o.height), c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').drawImage(el, cx, cy, w, h, 0, 0, w, h); return c; } // الجزء الظاهر بس (بعد القص)
   function put(o, url, cb) { var keep = { left: o.left, top: o.top, sx: o.getScaledWidth(), sy: o.getScaledHeight() };
     o.setSrc(url, function () { o.set({ scaleX: keep.sx / o.width, scaleY: keep.sy / o.height, cropX: 0, cropY: 0 }); o.dzCrop = null; if (o.filters && o.filters.length) o.applyFilters(); o.setCoords(); cv.requestRenderAll(); X.snap(); cb && cb(); }, { crossOrigin: 'anonymous' }); }
   function quick(o) { var c; try { c = srcCanvas(o); var g = c.getContext('2d'), w = c.width, h = c.height, d = g.getImageData(0, 0, w, h), px = d.data; } catch (e) { return X.toast(L.rembgCors || 'تعذر قراءة الصورة. احفظها في المكتبة ثم أعد المحاولة.', 'error'); }

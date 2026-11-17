@@ -55,10 +55,10 @@
 
   /* ---------- 3) قائمة الزرار اليمين + نسخ ولصق ---------- */
   var menu = document.createElement('div'); menu.className = 'dz-menu hidden'; document.body.appendChild(menu);
-  function copy() { var o = cv.getActiveObject(); if (!o) return; o.clone(function (c) { clip = c; }, ['dzRole', 'dzCircle', 'dzRx', 'dzF']); }
+  function copy() { var o = cv.getActiveObject(); if (!o) return; o.clone(function (c) { clip = c; }, ['dzRole', 'dzCircle', 'dzRx', 'dzF', 'dzFill', 'dzCrop']); }
   function paste() { if (!clip) return; clip.clone(function (c) { cv.discardActiveObject(); c.set({ left: c.left + 24, top: c.top + 24, evented: true });
       if (c.type === 'activeSelection') { c.canvas = cv; c.forEachObject(function (x) { cv.add(x); }); c.setCoords(); } else cv.add(c);
-      clip.left += 24; clip.top += 24; cv.setActiveObject(c); cv.requestRenderAll(); X.snap(); }, ['dzRole', 'dzCircle', 'dzRx', 'dzF']); }
+      clip.left += 24; clip.top += 24; cv.setActiveObject(c); cv.requestRenderAll(); X.snap(); }, ['dzRole', 'dzCircle', 'dzRx', 'dzF', 'dzFill', 'dzCrop']); }
   function openMenu(x, y, o) {
     var items = o ? [['copy', L.copy, 'Ctrl+C'], ['paste', L.paste, 'Ctrl+V'], ['dup', L.dup, 'Ctrl+D'], ['-'], ['front', L.front], ['back', L.back], ['center', L.center], ['-'],
       o.type === 'activeSelection' ? ['group', L.group, 'Ctrl+G'] : o.type === 'group' && o.dzRole !== 'ph' ? ['ungroup', L.ungroup] : null, ['lock', L.lock], ['-'], ['del', L.del2, 'Del']] : [['paste', L.paste, 'Ctrl+V']];

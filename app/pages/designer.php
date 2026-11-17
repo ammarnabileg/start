@@ -37,6 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $J(['ok' => true, 'kit' => $new]);
     }
     if ($act === 'rembg') { // إزالة الخلفية بالذكاء الاصطناعي
+        if (!can('ai.use')) $J(['error' => t('استخدام الذكاء الاصطناعي غير متاح لدورك.')], 403);
         $f = $_FILES['file'] ?? null; if (!$f || ($f['error'] ?? 1) !== UPLOAD_ERR_OK || $f['size'] > 20 * 1048576) $J(['error' => t('الصورة غير صالحة.')], 400);
         $mime = (string)(mime_content_type($f['tmp_name']) ?: ''); if (!in_array($mime, ['image/png', 'image/jpeg', 'image/webp'], true)) $J(['error' => t('الصورة غير صالحة.')], 400);
         try { $nm = img_remove_bg($f['tmp_name']); log_activity('designer.rembg', ''); $J(['ok' => true, 'url' => url('ai_task', ['img' => $nm])]); } catch (Throwable $e) { $J(['error' => $e->getMessage()], 502); }
@@ -81,14 +82,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $name = mb_substr(trim((string)($_POST['name'] ?? '')), 0, 120) ?: t('تصميم بدون اسم');
         $w = max(50, min(5000, (int)($_POST['w'] ?? 1080))); $h = max(50, min(5000, (int)($_POST['h'] ?? 1080))); $pg = max(1, min(30, (int)($_POST['pages'] ?? 1)));
         $id = (int)($_POST['id'] ?? 0);
-        if ($id) { $st = db()->prepare('UPDATE designs SET name = ?, w = ?, h = ?, pages = ?, data = ?, thumb = ? WHERE id = ? AND workspace_id = ?'); $st->execute([$name, $w, $h, $pg, $data, $thumb ?: null, $id, $wid]); if (!$st->rowCount()) { $c = db()->prepare('SELECT 1 FROM designs WHERE id = ? AND workspace_id = ?'); $c->execute([$id, $wid]); if (!$c->fetchColumn()) $id = 0; } }
+        if ($id) { $st = db()->prepare('UPDATE designs SET name = ?, w = ?, h = ?, pages = ?, data = ?, thumb = ? WHERE id = ? AND workspace_id = ?' . (can('posts.manage') ? '' : ' AND user_id = ' . (int)(current_user()['id'] ?? 0))); /* تصميم زميل: يتحفظ كنسخة جديدة ليك */ $st->execute([$name, $w, $h, $pg, $data, $thumb ?: null, $id, $wid]); if (!$st->rowCount()) { $c = db()->prepare('SELECT user_id FROM designs WHERE id = ? AND workspace_id = ?'); $c->execute([$id, $wid]); $own = $c->fetchColumn(); if ($own === false || (!can('posts.manage') && (int)$own !== (int)(current_user()['id'] ?? 0))) $id = 0; } }
         if (!$id) { db()->prepare('INSERT INTO designs (workspace_id, user_id, name, w, h, pages, data, thumb) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')->execute([$wid, $uid ?: null, $name, $w, $h, $pg, $data, $thumb ?: null]); $id = (int)db()->lastInsertId(); }
         $J(['ok' => true, 'id' => $id]);
     }
     if ($act === 'drename' || $act === 'ddup') { // مشاريعي: إعادة تسمية ونسخة
         $id = (int)($_POST['id'] ?? 0); $mine = can('posts.manage') ? '' : ' AND user_id = ' . (int)(current_user()['id'] ?? 0);
         if ($act === 'drename') { $nm = mb_substr(trim((string)($_POST['name'] ?? '')), 0, 80); if ($nm === '') $J(['error' => t('اكتب اسمًا للمشروع.')], 400);
-            $st = db()->prepare('UPDATE designs SET name = ? WHERE id = ? AND workspace_id = ?' . $mine); $st->execute([$nm, $id, $wid]); $J(['ok' => true]); }
+            $st = db()->prepare('UPDATE designs SET name = ? WHERE id = ? AND workspace_id = ?' . $mine); $st->execute([$nm, $id, $wid]); $J($st->rowCount() ? ['ok' => true] : ['ok' => false, 'error' => t('يمكنك تعديل مشاريعك فقط.')]); }
         $st = db()->prepare('SELECT * FROM designs WHERE id = ? AND workspace_id = ?'); $st->execute([$id, $wid]); $r = $st->fetch(); if (!$r) $J(['error' => t('التصميم مش موجود.')], 404);
         db()->prepare('INSERT INTO designs (workspace_id, user_id, name, w, h, pages, data, thumb) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')->execute([$wid, (int)(current_user()['id'] ?? 0), mb_substr($r['name'] . ' — ' . t('نسخة'), 0, 80), $r['w'], $r['h'], $r['pages'], $r['data'], $r['thumb']]);
         $J(['ok' => true, 'id' => (int)db()->lastInsertId()]);

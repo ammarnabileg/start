@@ -532,7 +532,7 @@ return [
         // الفولدرات التلقائية بقت بأسماء إنجليزي
         "UPDATE media_files SET folder = 'AI Generated' WHERE folder IN ('مولدة بالذكاء الاصطناعي', 'مولدة بالذكاء الاصطناعى')",
         "UPDATE media_files SET folder = 'Designs' WHERE folder = 'التصميمات'",
-        "UPDATE settings SET value = REPLACE(REPLACE(value, 'مولدة بالذكاء الاصطناعي', 'AI Generated'), 'التصميمات', 'Designs') WHERE name LIKE 'media\\_folders\\_%'",
+        "UPDATE settings SET value = REPLACE(REPLACE(value, '\"مولدة بالذكاء الاصطناعي\"', '\"AI Generated\"'), '\"التصميمات\"', '\"Designs\"') WHERE name LIKE 'media\\_folders\\_%'", // الاسم كامل بين علامات التنصيص: مايلمسش فولدرات فيها نفس الكلمة
     ],
     '062_perf_company' => [
         // الشركات المستهدفة: ربط الشركة بالأشخاص (10 ثواني مع 20 ألف عميل)

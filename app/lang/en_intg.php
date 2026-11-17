@@ -6218,4 +6218,6 @@ If you know someone who needs our services, send them this link. They get {get},
     'ألوان معكوسة' => 'Swapped colors',
     'فاتح / داكن' => 'Light / dark',
     'نسخة بديلة' => 'Alternate',
+    'يمكنك تعديل مشاريعك فقط.' => 'You can only edit your own projects.',
+    'استخدام الذكاء الاصطناعي غير متاح لدورك.' => 'AI is not available for your role.',
 ];

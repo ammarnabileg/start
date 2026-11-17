@@ -295,7 +295,7 @@
   function start() {
     if (C.img) { setSize('1080x1080'); addImg(C.img); }
     else if (C.title || C.text) { useTplNow(6); }
-    else if (draft) { window.dzAsk(L.restore, { title: L.restoreT, ok: L.cont, cancel: L.fresh, icon: '✎' }).then(function (ok) { if (ok) load(draft, function () { hist = [draft]; }); else { try { localStorage.removeItem(KEY); } catch (e) {} useTplNow(0); snap(); } }); return; }
+    else if (draft) { window.dzAsk(L.restore, { title: L.restoreT, ok: L.cont, cancel: L.fresh, icon: '✎' }).then(function (ok) { if (ok) load(draft, function () { hist = [draft]; }); else { try { localStorage.removeItem(KEY); } catch (e) {} useTplNow(0); } }); return; }
     else { useTplNow(0); }
     snap();
   }

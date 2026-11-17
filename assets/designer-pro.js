@@ -173,7 +173,7 @@
   function btnBusy(b, on) { b.disabled = on; b.classList.toggle('animate-pulse', on); }
   MORE.aidesign = function () { var b = document.querySelector('[data-cmd="aidesign"]'); btnBusy(b, true);
     post({ action: 'ai', mode: 'design', topic: $('dz-ai-topic').value }).then(function (j) { btnBusy(b, false); if (!j.ok) return X.toast(j.error || L.err, 'error');
-      var map = { offer: 0, product: 1, quote: 2, edu: 4, event: 7, story: 11 }, i = map[j.kind] != null ? map[j.kind] : 0; C.title = j.title; C.text = j.sub;
+      var map = { offer: 0, product: 1, quote: 4, edu: 6, event: 8, story: 10 }, i = map[j.kind] != null ? map[j.kind] : 0; C.title = j.title; C.text = j.sub;
       X.useTplNow(i); C.title = ''; C.text = '';
       if (j.cta) cv.getObjects().forEach(function (o) { if (o.type === 'group') o.getObjects().forEach(function (t) { if (t.type === 'textbox' && (t.text === L.cta || t.text === L.orderWa)) { t.set('text', j.cta); } }); });
       cv.requestRenderAll(); X.snap(); X.toast(L.aiDone); }).catch(function () { btnBusy(b, false); X.toast(L.err, 'error'); }); };

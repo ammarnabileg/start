@@ -11,6 +11,7 @@
   var CONTACT = WA || HANDLE || '';
   var HEAD = FIRST(X.C.title || K.focus || SV.name || L.h1, 60);
   var SUB = FIRST(K.tagline || K.pod || K.about || '', 120);
+  function refresh() { HEAD = FIRST(X.C.title || K.focus || SV.name || L.h1, 60); SUB = FIRST(X.C.text || K.tagline || K.pod || K.about || '', 120); } // العنوان من الذكاء الاصطناعي بيوصل للقالب
 
   /* ---------- نظام التصميم ---------- */
   function g() { var W = X.W, H = X.H; return { W: W, H: H, M: Math.round(W * 0.08), u: W / 100 }; }
@@ -253,7 +254,8 @@
   var INV = { '#ffffff': S, '#fff': S, '#f4f6fb': '#0b1220', '#fffdf8': S, '#475569': 'rgba(255,255,255,.75)', '#64748b': 'rgba(255,255,255,.65)', '#334155': 'rgba(255,255,255,.85)', '#cbd5e1': 'rgba(255,255,255,.25)', 'rgba:255,255,255': '15,23,42', 'rgba:15,23,42': '255,255,255' }; INV[lc(S)] = '#ffffff';
   var NEXT = { '1080x1080': '1080x1350', '1080x1350': '1080x1920', '1080x1920': '1080x1350', '1200x628': '1200x628' };
   var VAR = [];
-  TPLS.forEach(function (base) { var vs = [['swap', tl('vSwap', 'ألوان معكوسة')], ['inv', tl('vInv', 'فاتح / داكن')], [base.size === '1200x628' ? 'both' : 'size', base.size === '1200x628' ? tl('vAlt', 'نسخة بديلة') : (NEXT[base.size] === '1080x1920' ? tl('vStory', 'ستوري') : tl('vTall', 'طولي'))]];
+  TPLS = TPLS.map(function (t) { var b0 = t.b; return Object.assign({}, t, { b: function () { refresh(); return b0(); } }); });
+  TPLS.forEach(function (base) { var bg0 = ''; try { bg0 = lc(base.b().bg); } catch (e) {} var vs = [['swap', tl('vSwap', 'ألوان معكوسة')], [bg0 === lc(P) ? 'both' : 'inv', tl('vInv', 'فاتح / داكن')], [base.size === '1200x628' ? 'both' : 'size', base.size === '1200x628' ? tl('vAlt', 'نسخة بديلة') : (NEXT[base.size] === '1080x1920' ? tl('vStory', 'ستوري') : tl('vTall', 'طولي'))]];
     vs.forEach(function (v) { var fx = v[0] === 'swap' ? recolor(SW) : v[0] === 'inv' ? recolor(INV) : v[0] === 'both' ? function (r) { return recolor(INV)(recolor(SW)(r)); } : function (r) { return r; };
       VAR.push({ n: base.n + ' · ' + v[1], cat: base.cat, size: v[0] === 'size' ? NEXT[base.size] : base.size, b: function () { return fx(base.b()); } }); }); });
   TPLS = TPLS.concat(VAR);

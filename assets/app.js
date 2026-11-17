@@ -429,5 +429,5 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || /^(localh
 (function () { var m = /[?&]cpd=(\d+_\d+)/.exec(location.search); if (!m) return; try { localStorage.removeItem('cp_draft_' + m[1]); } catch (e) {} try { var r = indexedDB.open('cp_drafts'); r.onsuccess = function () { try { var db = r.result, tx = db.transaction(db.objectStoreNames[0], 'readwrite'); tx.objectStore(db.objectStoreNames[0]).delete('cp_draft_' + m[1]); } catch (e) {} }; } catch (e) {} })();
 
 /* روابط «انشره / كرّره» بالنص الطويل: النص بيتنقل عبر sessionStorage بدل الرابط (الروابط الطويلة بترجع 414) */
-document.addEventListener('click', function (e) { var a = e.target.closest && e.target.closest('a[href*="dup_text="]'); if (!a || e.ctrlKey || e.metaKey || e.button) return;
+document.addEventListener('click', function (e) { var a = e.target.closest && e.target.closest('a[href*="dup_text="]'); if (!a || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.button || (a.target && a.target !== '_self')) return;
   try { var u = new URL(a.href, location.href), t = u.searchParams.get('dup_text') || ''; if (t.length < 300) return; sessionStorage.setItem('cp_handoff', t); u.searchParams.delete('dup_text'); u.searchParams.set('handoff', '1'); e.preventDefault(); location.href = u.toString(); } catch (x) {} }, true);
