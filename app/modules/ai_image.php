@@ -329,6 +329,7 @@ function img_trim_bands(string $bytes): string
 function img_palette(string $path, int $n = 4): array
 {
     if (!is_file($path) || !function_exists('imagecreatefromstring')) return [];
+    $sz = @getimagesize($path); if (!$sz || $sz[0] * $sz[1] > 16000000) return []; // صورة ضخمة: مانفكّهاش في الذاكرة
     $im = @imagecreatefromstring((string)file_get_contents($path)); if (!$im) return [];
     $w = imagesx($im); $h = imagesy($im); $step = max(1, (int)floor(sqrt($w * $h / 6000))); $bins = [];
     for ($x = 0; $x < $w; $x += $step) for ($y = 0; $y < $h; $y += $step) {
@@ -348,5 +349,9 @@ function img_palette(string $path, int $n = 4): array
 function kb_logo_palette(int $wid): array
 {
     $lg = function_exists('kb_logo') ? kb_logo($wid) : null; if (!$lg || !function_exists('media_file_path')) return [];
-    return img_palette(media_file_path($wid, $lg), 4);
+    // متخزنة لكل شعار: الحساب بيحصل مرة واحدة لما الشعار يتغير، مش في كل فتحة صفحة
+    $ck = 'logo_pal_' . $wid; $c = json_decode((string)setting($ck, ''), true);
+    if (is_array($c) && (int)($c['id'] ?? 0) === (int)$lg['id'] && isset($c['p'])) return (array)$c['p'];
+    $p = img_palette(media_file_path($wid, $lg), 4); save_setting($ck, json_encode(['id' => (int)$lg['id'], 'p' => $p]));
+    return $p;
 }
