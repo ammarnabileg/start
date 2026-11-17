@@ -98,13 +98,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
                 flash('error', t('اكتب STOP بالظبط عشان نوقف كل الحملات.'));
             } else {
                 $ok = 0; $fail = [];
-                for ($page = 1; $page <= 10; $page++) {
-                    $r = ads_campaigns($z, ['status' => 'active', 'page' => $page, 'limit' => 100]);
+                $seen = [];
+                for ($pass = 1; $pass <= 20; $pass++) {
+                    // دايمًا الصفحة الأولى: كل حملة بتتوقف بتطلع من فلتر «active»، فالترقيم بالصفحات كان بيفوّت حملات
+                    $r = ads_campaigns($z, ['status' => 'active', 'page' => 1, 'limit' => 100]);
+                    $r['campaigns'] = array_values(array_filter((array)($r['campaigns'] ?? []), function ($c) use (&$seen) { $k = (string)($c['platformCampaignId'] ?? ''); if ($k === '' || isset($seen[$k])) return false; $seen[$k] = 1; return true; }));
+                    if (!$r['campaigns']) break;
                     foreach ($r['campaigns'] ?? [] as $c) {
                         try { ads_set_campaign_status($z, (string)$c['platformCampaignId'], (string)$c['platform'], 'paused'); $ok++; }
                         catch (ZernioException $ex) { $fail[] = $ex->getMessage(); }
                     }
-                    if (count($r['campaigns'] ?? []) < 100) break;
                 }
                 log_activity('ads.stop_all', (string)$ok);
                 flash($fail ? 'error' : 'success', t('اتوقفت %s حملة.', $ok) . ($fail ? ' ' . t('%s حملة ما اتعدلتش: %s', count($fail), $fail[0]) : ''));

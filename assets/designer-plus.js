@@ -156,8 +156,9 @@
     var call = function (d) { var f = new FormData(); Object.keys(d).forEach(function (k) { f.append(k, d[k]); }); return fetch('index.php?p=ai_task', { method: 'POST', body: f, headers: { 'X-CSRF-Token': C.csrf }, credentials: 'same-origin' }).then(function (r) { return r.json(); }); };
     call({ task: 'image', text: prompt, aspect: ar }).then(function (d) { if (d.error) { st.textContent = d.error; return; }
       (function poll(n) { call({ task: 'image_status', id: d.id }).then(function (s) { if (s.error) { st.textContent = s.error; return; }
-        if (s.status === 'completed') { var im = (s.images || [])[0], ph = cv.getObjects().filter(function (o) { return o.dzRole === 'ph'; })[0]; st.textContent = L.genDone; if (im && ph) X.fillPh(ph, im.src); return; }
-        if (n < 80) setTimeout(function () { poll(n + 1); }, 3000); }).catch(function () { setTimeout(function () { poll(n + 1); }, 5000); }); })(0); }); }
+        if (s.status === 'completed') { var im = (s.images || [])[0], ph = cv.getObjects().filter(function (o) { return o.dzRole === 'ph'; })[0]; st.textContent = im ? L.genDone : (L.err || '✗'); if (im && ph) X.fillPh(ph, im.src); return; }
+        if (s.status === 'failed') { st.textContent = s.error || L.err || '✗'; return; }
+        if (n < 80) setTimeout(function () { poll(n + 1); }, 3000); else st.textContent = L.err || '✗'; }).catch(function () { if (n < 80) setTimeout(function () { poll(n + 1); }, 5000); else st.textContent = L.err || '✗'; }); })(0); }).catch(function () { st.textContent = L.err || '✗'; }); }
   var MORE = {
     ailayout: function () { var b = document.querySelector('[data-cmd="ailayout"]'); busy(b, true, L.aiBusy);
       post({ action: 'ai', mode: 'layout', topic: $('dz-ai-brief').value }).then(function (d) { busy(b, false); if (!d.ok) return X.toast(d.error || L.err, 'error');
@@ -176,7 +177,7 @@
         PRO.loadPages(out, $('dz-ai-car').value || L.t14); X.toast(L.carDone.replace('%s', n));
       }).catch(function () { busy(b, false); X.toast(L.err, 'error'); }); },
     resizeall: function () { var b = document.querySelector('[data-cmd="resizeall"]'); busy(b, true, L.aiBusy);
-      var src = JSON.parse(X.json()), W0 = src.w, H0 = src.h, base = $('dz-name').value, sizes = Object.keys(L.sizes).filter(function (k) { return k !== W0 + 'x' + H0; }), done = 0;
+      var src = JSON.parse(X.json()), W0 = src.w, H0 = src.h, base = $('dz-name').value, sizes = Object.keys(L.sizes).filter(function (k) { return k !== W0 + 'x' + H0; }), good = 0, done = 0;
       sizes.forEach(function (sz) { var p = sz.split('x'), W = +p[0], H = +p[1], s = Math.min(W / W0, H / H0), c = JSON.parse(JSON.stringify(src.c));
         (c.objects || []).forEach(function (o) {
           var sx = o.scaleX || 1, sy = o.scaleY || 1, ow = o.width * sx, oh = o.height * sy;
@@ -184,7 +185,8 @@
             var f = Math.max(W / ow, H / oh); o.scaleX = sx * f; o.scaleY = sy * f; o.left = (W - ow * f) / 2; o.top = (H - oh * f) / 2; return; }
           var cx = o.left - W0 / 2, cy = o.top - H0 / 2; o.left = W / 2 + cx * s; o.top = H / 2 + cy * s; o.scaleX = sx * s; o.scaleY = sy * s; }); // الباقي بنفس النسبة حوالين النص
         var j = window.dzSmart ? window.dzSmart({ w: W0, h: H0, name: base + ' — ' + L.sizes[sz], c: src.c }, W, H) : JSON.stringify({ w: W, h: H, name: base + ' — ' + L.sizes[sz], c: c }); // ترتيب ذكي لو متاح
-        post({ action: 'dsave', id: 0, name: base + ' — ' + L.sizes[sz], w: W, h: H, pages: 1, data: JSON.stringify({ v: 2, pages: [j] }), thumb: '' }).then(function () { if (++done === sizes.length) { busy(b, false); X.toast(L.resizeDone.replace('%s', done)); PRO.mine(); } }); });
+        var fin = function (ok) { done++; if (ok) good++; if (done === sizes.length) { busy(b, false); X.toast(good === done ? L.resizeDone.replace('%s', good) : (good + ' / ' + done), good === done ? undefined : 'error'); PRO.mine(); } };
+        post({ action: 'dsave', id: 0, name: base + ' — ' + L.sizes[sz], w: W, h: H, pages: 1, data: JSON.stringify({ v: 2, pages: [j] }), thumb: '' }).then(function (r) { fin(!!(r && r.ok)); }).catch(function () { fin(false); }); });
     }
   };
   document.addEventListener('click', function (e) { var b = e.target.closest('[data-cmd]'); if (b && MORE[b.dataset.cmd]) { e.stopImmediatePropagation(); MORE[b.dataset.cmd](); } }, true);

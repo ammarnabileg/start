@@ -450,7 +450,7 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
                   <p class="text-sm text-ink-400 mt-2"><?= e(t('مش متاح')) ?></p>
                 <?php else: ?>
                   <p class="text-2xl font-bold text-ink-900 tabular-nums mt-1 text-start"><bdi dir="ltr"><?= !empty($k['pct']) ? e(number_format($k['cur'], 2)) . '%' : e((!empty($k['signed']) && $k['cur'] > 0 ? '+' : '') . an_num($k['cur'])) ?></bdi></p>
-                  <div class="flex items-center gap-1.5 whitespace-nowrap"><?= an_delta((float)$k['cur'], (float)$k['prev'], !empty($k['pct'])) ?><span class="sr-only"><?= e(t('عن الفترة السابقة')) ?></span></div>
+                  <div class="flex items-center gap-1.5 whitespace-nowrap"><?= (!empty($k['label']) && $k['label'] === t('متابعين جداد') ? !empty($E['folPrev']) : !empty($E['prev'])) ? '<span class="text-[11px] text-ink-400">' . e(t('المقارنة غير متاحة')) . '</span>' : an_delta((float)$k['cur'], (float)$k['prev'], !empty($k['pct'])) ?><span class="sr-only"><?= e(t('عن الفترة السابقة')) ?></span></div>
                   <div class="mt-auto pt-2"><?= an_sparkline($k['spark'], $k['color']) ?></div>
                 <?php endif; ?>
               </div>
@@ -880,7 +880,7 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
                 $('an-csv').addEventListener('click', function () {
                   var keys = ['dateLabel', 'platformLabel', 'account', 'media', 'text', 'impressions', 'reach', 'likes', 'comments', 'shares', 'clicks', 'engagement', 'rate', 'url'];
                   var hd = [L.date, L.platform, L.account, L.media, L.post, L.impressions, L.reach, L.likes, L.comments, L.shares, L.clicks, L.engagement, L.rate, L.url];
-                  var q = function (v) { v = String(v == null ? '' : v); return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+                  var q = function (v) { v = String(v == null ? '' : v); if (/^[=+\-@\t\r]/.test(v) && isNaN(+v)) v = "'" + v; return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }; // نص المنشور مايشتغلش كمعادلة في الإكسل
                   var lines = [hd.map(q).join(',')];
                   filtered().forEach(function (x) { lines.push(keys.map(function (k) { return q(k === 'media' ? (L.medias[x.media] || x.media) : k === 'rate' ? x.rate.toFixed(2) : x[k]); }).join(',')); });
                   var a = document.createElement('a');

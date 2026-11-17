@@ -6063,4 +6063,6 @@ If you know someone who needs our services, send them this link. They get {get},
     'قادة التسويق' => 'Marketing leaders',
     'قادة تقنية المعلومات' => 'IT leaders',
     'المشتريات والعمليات' => 'Procurement & operations',
+    'اختبار A/B غير متاح للمنشورات التي تحتاج موافقة المدير. احذف النسخة (ب) أو اطلب من المدير النشر.' => 'A/B testing is not available for posts that need manager approval. Remove version B or ask a manager to publish.',
+    'المقارنة غير متاحة' => 'Comparison unavailable',
 ];

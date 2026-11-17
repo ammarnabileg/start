@@ -9,6 +9,8 @@ $back = url('post_edit', ['id' => $id]);
 
 if ($z && $id !== '' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = (string)($_POST['action'] ?? '');
+    $need = ['update' => 'posts.manage', 'edit_published' => 'posts.manage', 'retry' => 'posts.create', 'duplicate' => 'posts.create'][$action] ?? null;
+    if ($need && !can($need)) { flash('error', t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.')); redirect($back); }
     try {
         if ($action === 'update') {
             $content = trim((string)($_POST['content'] ?? ''));

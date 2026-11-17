@@ -88,14 +88,14 @@
       team({ action: 'team_state', state: st.dataset.state }); return;
     }
     if (e.target.closest('#ibx-note-add')) { addNote(); return; }
-    var nd = e.target.closest('.ibx-note-del'); if (nd) { var n = nd.closest('.ibx-note'); team({ action: 'team_note_del', id: n.dataset.id }).then(function () { n.remove(); }); }
+    var nd = e.target.closest('.ibx-note-del'); if (nd) { var n = nd.closest('.ibx-note'); team({ action: 'team_note_del', id: n.dataset.id }).then(function (d) { if (d && d.ok) n.remove(); else if (window.toast) toast((d && d.error) || '✗'); }); }
   });
   document.addEventListener('keydown', function (e) { if (e.target.id === 'ibx-note-in' && e.key === 'Enter') { e.preventDefault(); addNote(); } });
   function addNote() {
     var inp = document.getElementById('ibx-note-in'); if (!inp || !inp.value.trim()) return;
     var body = inp.value.trim(); inp.value = '';
     team({ action: 'team_note', body: body }).then(function (d) {
-      if (!d || !d.ok) return;
+      if (!d || !d.ok) { if (!inp.value) inp.value = body; if (window.toast) toast((d && d.error) || '✗'); return; } // مانضيّعش اللي اتكتب
       var n = document.createElement('div'); n.className = 'ibx-note group rounded-xl bg-amber-50 border border-amber-200 p-2.5 text-xs'; n.dataset.id = d.id;
       n.innerHTML = '<div class="flex items-center gap-1.5 text-[10px] text-amber-800 mb-1"><b></b><span></span><button type="button" class="ibx-note-del ms-auto opacity-0 group-hover:opacity-100 text-amber-700 hover:text-red-600">✕</button></div><div class="text-ink-800 whitespace-pre-wrap" dir="auto"></div>';
       n.querySelector('b').textContent = d.name; n.querySelector('span').textContent = '· ' + d.time; n.lastChild.textContent = body;

@@ -298,6 +298,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && !$apiError) {
         if (!$errors) flash('success', t('المنشور سليم وجاهز.'));
         foreach ($errors as $m) flash('error', $m);
     } else {
+        // الفحوص الرخيصة قبل رفع الملفات: ميعاد فات أو فاضي، أو A/B مع الموافقة
+        if (!$errors && $old['mode'] === 'schedule') { $pre = DateTime::createFromFormat('Y-m-d\TH:i', (string)$old['when'], new DateTimeZone(site_timezone())); if (!$pre) $errors[] = t('اختار تاريخ ووقت النشر.'); elseif ($pre < new DateTime('now', new DateTimeZone(site_timezone()))) $errors[] = t('وقت النشر لازم يكون في المستقبل.'); }
+        // 0) نسخة A/B مش بتعدّي على الموافقة: نقول بدل ما تضيع
+        if (!$errors && trim((string)($_POST['ab_text'] ?? '')) !== '' && setting('post_approval_' . (int)ws('id'), '0') === '1' && !can('posts.manage') && $old['mode'] !== 'draft') $errors[] = t('اختبار A/B غير متاح للمنشورات التي تحتاج موافقة المدير. احذف النسخة (ب) أو اطلب من المدير النشر.');
         $media = [];
         if (!$errors && !empty($_FILES['media']['name'][0])) {
             $finfo = new finfo(FILEINFO_MIME_TYPE);
