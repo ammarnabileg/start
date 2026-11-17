@@ -73,6 +73,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         flash('success', t('اتحفظ.'));
     }
 
+    if ($action === 'vid_model' && $existing && $provider === 'openrouter') {
+        $m = trim((string)($_POST['vid_model'] ?? ''));
+        $ok = $m === '' || (function_exists('vid_or_models') && in_array($m, array_column(vid_or_models($existing), 'id'), true));
+        if ($ok) { save_setting('vid_or_model_' . (int)ws('id'), $m); flash('success', t('اتحفظ.')); } else flash('error', t('الموديل غير متاح.'));
+    }
+    if ($action === 'img_model' && $existing && $provider === 'openrouter') {
+        $m = trim((string)($_POST['img_model'] ?? ''));
+        $ok = $m === '' || (function_exists('img_or_models') && in_array($m, array_column(img_or_models($existing), 'id'), true));
+        if ($ok) { save_setting('img_or_model_' . (int)ws('id'), $m); flash('success', t('اتحفظ.')); } else flash('error', t('الموديل غير متاح.'));
+    }
+
     if ($action === 'model' && $existing && !empty($def['ai_models'])) {
         $settings = $existing['settings'];
         $m = (string)($_POST['model'] ?? '');
@@ -333,6 +344,30 @@ render(t('التكاملات'), 'connectors', function () use ($registry, $detai
                     </label>
                   <?php endforeach; ?>
                 </div>
+              </form>
+              <?php $imL = []; try { $imL = function_exists('img_or_models') ? img_or_models($c) : []; } catch (Throwable $e) {} $imCur = (string)setting('img_or_model_' . (int)ws('id'), ''); $imAuto = function_exists('img_or_model') && $imL ? img_or_model($c) : ''; ?>
+              <form method="post" class="mt-4">
+                <?= csrf_field() ?><input type="hidden" name="provider" value="openrouter"><input type="hidden" name="cid" value="<?= (int)$c['id'] ?>"><input type="hidden" name="action" value="img_model">
+                <span class="label"><?= e(t('موديل توليد الصور')) ?></span>
+                <?php if ($imL): ?>
+                <select name="img_model" class="input mt-2" onchange="this.form.requestSubmit()" dir="ltr">
+                  <option value=""><?= e(t('تلقائي')) ?><?= $imCur === '' && $imAuto !== '' ? ' — ' . e($imAuto) : '' ?></option>
+                  <?php foreach ($imL as $im): ?><option value="<?= e($im['id']) ?>" <?= $imCur === $im['id'] ? 'selected' : '' ?>><?= e($im['name'] . ' (' . $im['id'] . ')' . ($im['img_in'] ? '' : ' · ' . t('بدون صور مرجعية'))) ?></option><?php endforeach; ?>
+                </select>
+                <p class="text-xs text-ink-500 mt-1"><?= e(t('يُستخدم في تصميم الصور واستوديو المحتوى والمصمم. لو OpenAI مربوط، يُستخدم OpenAI أولًا.')) ?></p>
+                <?php else: ?><p class="text-xs text-amber-700 mt-2"><?= e(t('تعذّر جلب موديلات الصور من OpenRouter الآن.')) ?></p><?php endif; ?>
+              </form>
+              <?php $vL = []; try { $vL = function_exists('vid_or_models') ? vid_or_models($c) : []; } catch (Throwable $e) {} $vCur = (string)setting('vid_or_model_' . (int)ws('id'), ''); $hasHf = (bool)connector('higgsfield'); ?>
+              <form method="post" class="mt-4">
+                <?= csrf_field() ?><input type="hidden" name="provider" value="openrouter"><input type="hidden" name="cid" value="<?= (int)$c['id'] ?>"><input type="hidden" name="action" value="vid_model">
+                <span class="label"><?= e(t('موديل توليد الفيديو')) ?></span>
+                <?php if ($vL): ?>
+                <select name="vid_model" class="input mt-2" onchange="this.form.requestSubmit()" dir="ltr">
+                  <option value=""><?= e($hasHf ? t('Higgsfield (الافتراضي)') : t('تلقائي')) ?></option>
+                  <?php foreach ($vL as $vm): ?><option value="<?= e($vm['id']) ?>" <?= $vCur === $vm['id'] ? 'selected' : '' ?>><?= e($vm['name'] . ' (' . $vm['id'] . ')' . ($vm['durations'] ? ' · ' . implode('/', $vm['durations']) . 's' : '')) ?></option><?php endforeach; ?>
+                </select>
+                <p class="text-xs text-ink-500 mt-1"><?= e(t('الفيديو يُولَّد في الخلفية وقد يستغرق عدة دقائق، ثم يُحفظ في مكتبة الوسائط. تكلفته أعلى بكثير من الصور.')) ?></p>
+                <?php else: ?><p class="text-xs text-amber-700 mt-2"><?= e(t('تعذّر جلب موديلات الفيديو من OpenRouter الآن.')) ?></p><?php endif; ?>
               </form>
             <?php endif; ?>
 

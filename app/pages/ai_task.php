@@ -66,6 +66,21 @@ if (in_array($task, ['image', 'image_status'], true)) {
         unset($_SESSION['oa_img'][$rid]);
         $out(['status' => 'completed', 'images' => array_map(function ($n) { return ['name' => $n, 'src' => url('ai_task', ['img' => $n]), 'video' => false]; }, $names)]);
     }
+    if ($task === 'image' && $video && function_exists('vid_provider') && vid_provider() === 'openrouter') {
+        if (!ai_feature_on('video')) $out(['error' => t('هذه الميزة متوقفة في الشركة. يمكن تفعيلها من إعدادات الذكاء الاصطناعي.')], 403);
+        $prompt = mb_substr(trim((string)($_POST['text'] ?? '')), 0, 1500); if ($prompt === '') $out(['error' => t('اكتب وصف الفيديو أولًا.')], 422);
+        $ar = in_array($_POST['aspect'] ?? '', ['1:1', '4:5', '9:16', '16:9'], true) ? ($_POST['aspect'] === '4:5' ? '3:4' : $_POST['aspect']) : '9:16';
+        try { $vid = vid_or_start($prompt, $ar); } catch (Throwable $e) { $out(['error' => $e->getMessage()], 502); }
+        $rid = 'orv-' . $vid; $_SESSION['orv'][$rid] = 1; log_activity('ai.video', 'openrouter');
+        $out(['id' => $rid, 'ids' => [$rid], 'status' => 'queued', 'provider' => 'openrouter']);
+    }
+    if ($task === 'image_status' && strpos((string)($_POST['id'] ?? ''), 'orv-') === 0) {
+        $rid = (string)$_POST['id']; if (empty($_SESSION['orv'][$rid])) $out(['error' => t('طلب غير صحيح.')], 400);
+        try { $r = vid_or_poll(substr($rid, 4)); } catch (Throwable $e) { $out(['error' => $e->getMessage()], 502); }
+        if ($r['status'] === 'completed') { unset($_SESSION['orv'][$rid]); $out(['status' => 'completed', 'images' => array_map(function ($n) { return ['name' => $n, 'src' => url('ai_task', ['img' => $n]), 'video' => true]; }, $r['names'])]); }
+        if ($r['status'] === 'failed') { unset($_SESSION['orv'][$rid]); $out(['status' => 'failed', 'error' => $r['error'] ?: t('فشل توليد الفيديو. جرّب وصفًا مختلفًا.')]); }
+        $out(['status' => 'in_progress']);
+    }
     if (!$hf) $out(['error' => $video ? t('توليد الفيديو يحتاج ربط Higgsfield من صفحة التكاملات.') : t('اربط OpenAI (أو Higgsfield) من صفحة التكاملات لتوليد الصور.')], 422);
     $c = $hf['credentials'];
     try {

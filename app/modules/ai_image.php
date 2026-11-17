@@ -103,7 +103,7 @@ function img_or_models(array $c): array
     curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 30, CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $c['credentials']['api_key']]]);
     $j = json_decode((string)curl_exec($ch), true); curl_close($ch);
     $out = [];
-    foreach ((array)($j['data'] ?? []) as $m) if (in_array('image', (array)($m['architecture']['output_modalities'] ?? []), true)) $out[] = ['id' => (string)$m['id'], 'name' => (string)($m['name'] ?? $m['id']), 'img_in' => in_array('image', (array)($m['architecture']['input_modalities'] ?? []), true)];
+    foreach ((array)($j['data'] ?? []) as $m) if (in_array('image', (array)($m['architecture']['output_modalities'] ?? []), true) && strpos((string)$m['id'], 'openrouter/') !== 0) $out[] = ['id' => (string)$m['id'], 'name' => (string)($m['name'] ?? $m['id']), 'img_in' => in_array('image', (array)($m['architecture']['input_modalities'] ?? []), true)];
     if ($out) { @mkdir(dirname($file), 0750, true); @file_put_contents($file, json_encode($out)); }
     return $out;
 }
@@ -111,10 +111,10 @@ function img_or_models(array $c): array
 /** الموديل المختار: من الإعدادات لو متحدد، وإلا الأشهر للصور */
 function img_or_model(array $c): string
 {
-    $set = trim((string)setting('img_or_model', ''));
+    $set = trim((string)setting('img_or_model_' . (int)ws('id'), ''));
     $list = img_or_models($c); $ids = array_column($list, 'id');
     if ($set !== '' && in_array($set, $ids, true)) return $set;
-    foreach (['google/gemini-2.5-flash-image', 'google/gemini-2.5-flash-image-preview', 'openai/gpt-5-image-mini', 'openai/gpt-5-image'] as $pref) if (in_array($pref, $ids, true)) return $pref;
+    foreach (['google/gemini-3.1-flash-image', 'google/gemini-nano-banana-2.1', 'google/gemini-2.5-flash-image', 'openai/gpt-5-image-mini', 'openai/gpt-5-image'] as $pref) if (in_array($pref, $ids, true)) return $pref;
     return $ids[0] ?? '';
 }
 
@@ -128,6 +128,16 @@ function img_or_generate(string $prompt, string $aspect = '1:1', array $refs = [
     $parts = [['type' => 'text', 'text' => mb_substr($prompt, 0, 30000) . "\n\nAspect ratio: {$aspect}."]];
     foreach (array_slice(array_values(array_filter($refs, 'is_file')), 0, 4) as $f) { $mime = (string)(mime_content_type($f) ?: 'image/png'); $parts[] = ['type' => 'image_url', 'image_url' => ['url' => 'data:' . $mime . ';base64,' . base64_encode((string)file_get_contents($f))]]; }
     @set_time_limit(180);
+    $hdr = ['Content-Type: application/json', 'Authorization: Bearer ' . $c['credentials']['api_key'], 'HTTP-Referer: ' . (function_exists('base_url') ? base_url() : 'https://localhost'), 'X-Title: ' . (string)setting('site_name', 'Panel')];
+    if (!$refs) {
+        $ch = curl_init(ai_base('openrouter') . '/images');
+        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true, CURLOPT_TIMEOUT => 170, CURLOPT_CONNECTTIMEOUT => 15, CURLOPT_HTTPHEADER => $hdr,
+            CURLOPT_POSTFIELDS => json_encode(['model' => $model, 'prompt' => mb_substr($prompt, 0, 30000), 'aspect_ratio' => $aspect, 'n' => 1, 'output_format' => 'png'], JSON_UNESCAPED_UNICODE)]);
+        $raw = (string)curl_exec($ch); $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch); $j = json_decode($raw, true); $names = [];
+        if ($code < 400 && is_array($j)) foreach ((array)($j['data'] ?? []) as $d) { $bytes = !empty($d['b64_json']) ? base64_decode((string)$d['b64_json'], true) : null; if ($bytes) { $nm = img_lib_save_bytes($wid, $bytes, $prompt); if ($nm) $names[] = $nm; } }
+        if ($names) { if (function_exists('ai_log_usage')) { try { ai_log_usage($wid, 'image', 'openrouter', $model, ['cost' => (float)($j['usage']['cost'] ?? 0), 'prompt_tokens' => 0, 'completion_tokens' => 0]); } catch (Throwable $e) {} } return $names; }
+        if ($code >= 400 && $code !== 404 && $code !== 405 && isset($j['error']['message'])) throw new RuntimeException('OpenRouter: ' . mb_substr((string)$j['error']['message'], 0, 300));
+    }
     $ch = curl_init(ai_base('openrouter') . '/chat/completions');
     curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true, CURLOPT_TIMEOUT => 170, CURLOPT_CONNECTTIMEOUT => 15,
         CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'Authorization: Bearer ' . $c['credentials']['api_key'], 'HTTP-Referer: ' . (function_exists('base_url') ? base_url() : 'https://localhost'), 'X-Title: ' . (string)setting('site_name', 'Panel')],
@@ -159,3 +169,82 @@ function img_generate(string $prompt, string $aspect = '1:1', int $n = 1, array 
     $out = []; for ($i = 0; $i < max(1, min(2, $n)); $i++) $out = array_merge($out, img_or_generate($prompt, $aspect, $refs));
     return $out;
 }
+
+/* ---------- فيديو OpenRouter: غير متزامن (طلب ← متابعة ← تنزيل) ---------- */
+
+function vid_or_models(array $c): array
+{
+    $file = ROOT_DIR . '/uploads/cache/openrouter_vid_models.json';
+    if (is_file($file) && filemtime($file) > time() - 21600) { $j = json_decode((string)file_get_contents($file), true); if (is_array($j)) return $j; }
+    $ch = curl_init(ai_base('openrouter') . '/videos/models');
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 30, CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $c['credentials']['api_key']]]);
+    $j = json_decode((string)curl_exec($ch), true); curl_close($ch);
+    $out = [];
+    foreach ((array)($j['data'] ?? []) as $m) if (!empty($m['id'])) $out[] = ['id' => (string)$m['id'], 'name' => (string)($m['name'] ?? $m['id']), 'durations' => array_values(array_map('intval', (array)($m['supported_durations'] ?? []))), 'ratios' => array_values((array)($m['supported_aspect_ratios'] ?? []))];
+    @mkdir(dirname($file), 0750, true); @file_put_contents($file, json_encode($out));
+    return $out;
+}
+
+function vid_or_model(array $c): string
+{
+    $set = trim((string)setting('vid_or_model_' . (int)ws('id'), '')); $ids = array_column(vid_or_models($c), 'id');
+    if ($set !== '' && in_array($set, $ids, true)) return $set;
+    foreach (['google/veo-3.1', 'bytedance/seedance-2.0', 'minimax/hailuo-3', 'alibaba/wan-2.7'] as $pref) if (in_array($pref, $ids, true)) return $pref;
+    return $ids[0] ?? '';
+}
+
+/** مين يولّد الفيديو: OpenRouter لو المالك اختار له موديل (أو مفيش Higgsfield)، وإلا Higgsfield */
+function vid_provider(): string
+{
+    $or = img_or_conn(); $hf = function_exists('connector') ? connector('higgsfield') : null;
+    if ($or && (trim((string)setting('vid_or_model_' . (int)ws('id'), '')) !== '' || !$hf)) { try { if (vid_or_model($or) !== '') return 'openrouter'; } catch (Throwable $e) {} }
+    return $hf ? 'higgsfield' : '';
+}
+
+function vid_or_req(array $c, string $method, string $path, ?array $body = null, bool $raw = false)
+{
+    $ch = curl_init(ai_base('openrouter') . $path);
+    $h = ['Authorization: Bearer ' . $c['credentials']['api_key']]; if ($body !== null) { $h[] = 'Content-Type: application/json'; curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body, JSON_UNESCAPED_UNICODE)); }
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_CUSTOMREQUEST => $method, CURLOPT_TIMEOUT => $raw ? 170 : 40, CURLOPT_CONNECTTIMEOUT => 15, CURLOPT_HTTPHEADER => $h, CURLOPT_FOLLOWLOCATION => true, CURLOPT_MAXREDIRS => 3]);
+    $out = (string)curl_exec($ch); $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
+    if ($raw) { if ($code >= 400 || $out === '') throw new RuntimeException('OpenRouter: HTTP ' . $code); return $out; }
+    $j = json_decode($out, true); if ($code >= 400 || !is_array($j)) throw new RuntimeException('OpenRouter: ' . mb_substr((string)($j['error']['message'] ?? ('HTTP ' . $code)), 0, 300));
+    return $j;
+}
+
+/** يبدأ توليد فيديو ويرجع رقم المهمة */
+function vid_or_start(string $prompt, string $aspect = '9:16', int $duration = 0): string
+{
+    $c = img_or_conn(); if (!$c) throw new RuntimeException(t('اربط OpenRouter أولًا من صفحة التكاملات.'));
+    $model = vid_or_model($c); if ($model === '') throw new RuntimeException(t('لا يوجد موديل فيديو متاح على حساب OpenRouter.'));
+    $body = ['model' => $model, 'prompt' => mb_substr($prompt, 0, 4000), 'aspect_ratio' => $aspect];
+    $info = array_values(array_filter(vid_or_models($c), function ($m) use ($model) { return $m['id'] === $model; }))[0] ?? [];
+    if (!empty($info['ratios']) && !in_array($aspect, $info['ratios'], true)) unset($body['aspect_ratio']);
+    if ($duration > 0 && (empty($info['durations']) || in_array($duration, $info['durations'], true))) $body['duration'] = $duration;
+    $r = vid_or_req($c, 'POST', '/videos', $body); $id = (string)($r['id'] ?? '');
+    if ($id === '' || !preg_match('/^[\w-]{4,100}$/', $id)) throw new RuntimeException(t('لم يرجع OpenRouter رقم المهمة.'));
+    return $id;
+}
+
+/** حالة المهمة: ['status' => pending|in_progress|completed|failed, 'names' => [...]] وبيحفظ الفيديو في المكتبة لما يخلص */
+function vid_or_poll(string $id): array
+{
+    $c = img_or_conn(); if (!$c) throw new RuntimeException(t('اربط OpenRouter أولًا من صفحة التكاملات.'));
+    $r = vid_or_req($c, 'GET', '/videos/' . rawurlencode($id)); $st = (string)($r['status'] ?? 'pending');
+    if ($st !== 'completed') return ['status' => in_array($st, ['failed', 'cancelled', 'expired'], true) ? 'failed' : $st, 'error' => (string)($r['error'] ?? '')];
+    $wid = (int)ws('id'); $names = [];
+    foreach (array_slice((array)($r['unsigned_urls'] ?? $r['urls'] ?? []), 0, 2) as $i => $u) {
+        $path = parse_url((string)$u, PHP_URL_PATH) . (($q = parse_url((string)$u, PHP_URL_QUERY)) ? '?' . $q : '');
+        $bytes = strpos((string)$u, 'openrouter.ai/') !== false || strpos((string)$u, '/videos/') !== false ? vid_or_req($c, 'GET', preg_replace('~^.*?/videos/~', '/videos/', $path), null, true) : null;
+        if (!$bytes) continue;
+        $dir = hf_lib_dir($wid); if (!is_dir($dir)) @mkdir($dir, 0750, true);
+        $nm = gmdate('Ymd-His') . '-' . substr(md5($id . $i . microtime(true)), 0, 10) . '.mp4';
+        file_put_contents($dir . '/' . $nm, $bytes); @chmod($dir . '/' . $nm, 0640);
+        @file_put_contents($dir . '/' . $nm . '.json', json_encode(['src' => '', 't' => time(), 'provider' => 'openrouter']));
+        $names[] = $nm;
+    }
+    if (function_exists('media_sync_ai')) { try { media_sync_ai($wid); } catch (Throwable $e) {} }
+    if (function_exists('ai_log_usage')) { try { ai_log_usage($wid, 'video', 'openrouter', vid_or_model($c), ['cost' => (float)($r['usage']['cost'] ?? 0), 'prompt_tokens' => 0, 'completion_tokens' => 0]); } catch (Throwable $e) {} }
+    return ['status' => $names ? 'completed' : 'failed', 'names' => $names, 'error' => $names ? '' : t('اكتمل الفيديو لكن تعذّر تنزيله.')];
+}
+
