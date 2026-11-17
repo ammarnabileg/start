@@ -11,7 +11,7 @@
   function full(it) { return it.text + (it.tags.length ? '\n\n' + it.tags.join(' ') : ''); }
   var LIM = { twitter: 280, instagram: 2200, tiktok: 2200, linkedin: 3000, facebook: 5000 };
   var PN = { instagram: 'Instagram', facebook: 'Facebook', linkedin: 'LinkedIn', twitter: 'X', tiktok: 'TikTok' };
-  var store = { get: function (k) { try { return JSON.parse(localStorage.getItem('st_' + k) || '[]'); } catch (e) { return []; } }, set: function (k, v) { try { localStorage.setItem('st_' + k, JSON.stringify(v.slice(0, 30))); } catch (e) {} } };
+  var store = { get: function (k) { try { return JSON.parse(localStorage.getItem('st_' + (C.ws || '') + k) || '[]'); } catch (e) { return []; } }, set: function (k, v) { try { localStorage.setItem('st_' + (C.ws || '') + k, JSON.stringify(v.slice(0, 30))); } catch (e) {} } };
 
   f.addEventListener('click', function (e) {
     var b = e.target.closest('[data-n]'); if (b) { var n = document.getElementById('st-n'); n.value = Math.max(1, Math.min(6, +n.value + +b.dataset.n)); return; }

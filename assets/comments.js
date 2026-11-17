@@ -43,7 +43,7 @@
     if (op === 'hide' && !confirm(C.confirmHide.replace('%s', ids.length))) return;
     btn.disabled = true; btn.classList.add('animate-pulse');
     post({ action: op === 'classify' ? 'c_classify' : 'c_hide', ids: ids }).then(function (d) {
-      if (d.error) { toast(d.error, true); return; } toast(C.done.replace('%s', d.done)); location.reload();
+      if (d.error) { toast(d.error, true); if (d.done > 0) setTimeout(function () { location.reload(); }, 1500); return; } toast(C.done.replace('%s', d.done)); location.reload();
     }).catch(function () { toast(C.err, true); }).finally(function () { btn.disabled = false; btn.classList.remove('animate-pulse'); });
   }
   // الرد على المحدد: واحد ورا التاني بفاصل ثانيتين، عشان الحساب مايتحظرش

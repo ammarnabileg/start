@@ -11,18 +11,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $st = db()->prepare("SELECT * FROM post_approvals WHERE id = ? AND workspace_id = ? AND status = 'pending'"); $st->execute([(int)($_POST['id'] ?? 0), $wid]); $r = $st->fetch();
     if (!$r || !$mgr || !$z) { flash('error', t('بيانات ناقصة')); redirect(url('approvals')); }
     if ($a === 'approve') {
+        // حجز ذرّي: ضغطتين أو مديرين في نفس اللحظة مايعملوش نشر مرتين
+        $cl = db()->prepare("UPDATE post_approvals SET status = 'approving' WHERE id = ? AND status = 'pending'"); $cl->execute([(int)$r['id']]);
+        if (!$cl->rowCount()) { flash('error', t('تمت معالجة هذا الطلب بالفعل.')); redirect(url('approvals')); }
+        $tz = new DateTimeZone(site_timezone()); $ts = function ($v) use ($tz) { try { return (new DateTime((string)$v, $tz))->getTimestamp(); } catch (Throwable $e) { return 0; } };
         try {
             $p = json_decode((string)$r['payload'], true) ?: [];
             if (isset($_POST['content'])) $p['content'] = mb_substr((string)$_POST['content'], 0, 10000);
-            if ($r['want'] !== 'now' && $r['want'] !== 'queue' && strtotime($r['want']) < time()) { unset($p['scheduledFor']); $p['publishNow'] = true; } // الميعاد فات وهو مستني
+            if ($r['want'] !== 'now' && $r['want'] !== 'queue' && $ts($r['want']) < time()) { unset($p['scheduledFor']); $p['publishNow'] = true; } // الميعاد فات وهو مستني
             $z->createPost($p);
-            foreach ((array)json_decode((string)$r['extra'], true) as $f) if (strtotime($f) > time()) { try { $z->createPost(['scheduledFor' => $f] + array_diff_key($p, ['publishNow' => 1])); } catch (ZernioException $e) {} }
+            foreach ((array)json_decode((string)$r['extra'], true) as $f) if ($ts($f) > time()) { try { $z->createPost(['scheduledFor' => $f] + array_diff_key($p, ['publishNow' => 1])); } catch (ZernioException $e) {} }
             if ($r['draft_id']) { try { $z->request('DELETE', '/v1/posts/' . rawurlencode($r['draft_id'])); } catch (ZernioException $e) {} }
             db()->prepare("UPDATE post_approvals SET status = 'approved', decided_by = ?, decided_at = NOW() WHERE id = ?")->execute([$uid, (int)$r['id']]);
             if ($r['user_id'] && function_exists('crm_notify')) crm_notify((int)$r['user_id'], null, 'approval', t('✅ المدير وافق على منشورك'));
             log_activity('post.approved', (string)$r['id']);
             flash('success', t('اتوافق عليه ✓'));
-        } catch (ZernioException $ex) { flash('error', $ex->getMessage()); }
+        } catch (ZernioException $ex) { db()->prepare("UPDATE post_approvals SET status = 'pending' WHERE id = ? AND status = 'approving'")->execute([(int)$r['id']]); flash('error', $ex->getMessage()); }
     }
     if ($a === 'reject') {
         $note = mb_substr(trim((string)($_POST['note'] ?? '')), 0, 300);

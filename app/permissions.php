@@ -10,7 +10,7 @@
 function permission_catalog(): array
 {
     return [
-        t('المحتوى') => [
+        t('إنشاء المحتوى') => [
             'posts.view' => t('عرض المنشورات والتقويم'),
             'posts.create' => t('إنشاء وجدولة منشورات'),
             'posts.manage' => t('تعديل وحذف المنشورات وإدارة الطابور'),

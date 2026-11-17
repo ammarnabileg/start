@@ -21,7 +21,7 @@
       if (s.status === 'completed') { (s.images || []).forEach(function (im, i) { item(im, i ? (function () { var x = ph(); return x; })() : slot); }); msg(L.done); if (--pending <= 0) busy(false); return; }
       if (tries > 80) { slot.remove(); msg(L.slow, true); if (--pending <= 0) busy(false); return; }
       setTimeout(function () { poll(id, slot, tries + 1); }, 3000);
-    }).catch(function () { setTimeout(function () { poll(id, slot, tries + 1); }, 5000); });
+    }).catch(function () { if (tries > 40) { slot.remove(); msg(L.slow, true); if (--pending <= 0) busy(false); return; } setTimeout(function () { poll(id, slot, tries + 1); }, 5000); });
   }
   go.addEventListener('click', function () {
     if (!pr.value.trim()) { pr.focus(); return; }

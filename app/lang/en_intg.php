@@ -6084,4 +6084,5 @@ If you know someone who needs our services, send them this link. They get {get},
     'إيقاف كل الحملات يتطلب صلاحية إدارة الإنفاق الإعلاني.' => 'Stopping all campaigns requires the ad spend permission.',
     'إنشاء المحتوى' => 'Content creation',
     'اختبار A/B يعمل مع الجدولة أو النشر الآن فقط. غيّر طريقة النشر أو احذف النسخة (ب).' => 'A/B testing works only with scheduling or publish now. Change the publish mode or remove version B.',
+    'تمت معالجة هذا الطلب بالفعل.' => 'This request was already handled.',
 ];
