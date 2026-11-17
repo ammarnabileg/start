@@ -244,4 +244,6 @@ return [
     'يومية' => 'Daily',
     '— اختار —' => '— Choose —',
     '→ رجوع للحملات' => '← Back to campaigns',
+    'حساب الإعلانات على %s غير مربوط بعد. اربطه لتظهر حملاتك وتقدر تنشئ إعلانات.' => 'The %s ad account is not connected yet. Connect it to see your campaigns and create ads.',
+    'ربط إعلانات %s' => 'Connect %s Ads',
 ];

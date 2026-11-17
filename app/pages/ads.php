@@ -288,7 +288,14 @@ render(t('الحملات الإعلانية'), 'ads', function () use ($z, $apiE
                 </div>
               </div>
               <?php if ($row['error']): ?>
+                <?php $pl = (string)($c['platform'] ?? ''); $pfm = $pl === 'twitter' ? 'twitter' : ($pl === 'instagram' ? 'facebook' : $pl); if (stripos((string)$row['error'], 'not connected') !== false && isset(ads_connect_platforms()[$pfm])): ?>
+                <div class="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
+                  <p class="text-sm text-amber-900"><?= e(t('حساب الإعلانات على %s غير مربوط بعد. اربطه لتظهر حملاتك وتقدر تنشئ إعلانات.', ads_connect_platforms()[$pfm])) ?></p>
+                  <?php if (can('ads.spend')): ?><form method="post" action="<?= e(url('ads')) ?>" data-no-ajax><?= csrf_field() ?><input type="hidden" name="action" value="connect"><input type="hidden" name="platform" value="<?= e($pfm) ?>"><button class="btn-primary !py-1.5 !text-sm"><?= e(t('ربط إعلانات %s', ads_connect_platforms()[$pfm])) ?></button></form><?php endif; ?>
+                </div>
+                <?php else: ?>
                 <p class="text-sm text-ink-500 mt-2"><?= e(t('مش قادرين نقرا حسابات الإعلانات هنا: %s', $row['error'])) ?></p>
+                <?php endif; ?>
               <?php elseif (!$row['accounts']): ?>
                 <p class="text-sm text-ink-500 mt-2"><?= e(t('مفيش حسابات إعلانات على الحساب ده.')) ?></p>
               <?php else: ?>
