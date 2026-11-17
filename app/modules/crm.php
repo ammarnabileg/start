@@ -472,7 +472,7 @@ function crm_mail_tpl(): array
 function crm_mail_wrap(string $body, string $unsubUrl): string
 {
     $c = crm_mail_tpl(); $dir = is_rtl() ? 'rtl' : 'ltr';
-    $un = '<a href="' . e($unsubUrl) . '" style="color:#94a3b8">' . e(t('مش عاوز إيميلات تاني')) . '</a>';
+    $un = '<a href="' . e($unsubUrl) . '" style="color:#64748b">' . e(t('مش عاوز إيميلات تاني')) . '</a>';
     if (empty($c['on'])) return '<div style="font-family:Tahoma,Arial,sans-serif;font-size:15px;line-height:1.7" dir="auto">' . $body . '</div><p style="font-family:Tahoma,Arial,sans-serif;font-size:11px;color:#94a3b8;margin-top:24px">' . $un . '</p>';
     $col = preg_match('/^#[0-9a-f]{6}$/i', (string)$c['color']) ? $c['color'] : '#4f46e5';
     $logo = preg_match('~^https?://~i', (string)$c['logo']) ? '<img src="' . e($c['logo']) . '" alt="" style="max-height:44px;max-width:180px;display:block">' : '<b style="font-size:18px;color:#fff">' . e((string)(ws('name') ?? '')) . '</b>';

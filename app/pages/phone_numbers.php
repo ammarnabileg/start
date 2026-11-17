@@ -339,7 +339,7 @@ render(t('أرقام التليفون'), 'phone_numbers', function () use ($z, $
                 <?= csrf_field() ?><input type="hidden" name="action" value="release"><input type="hidden" name="id" value="<?= e($n['_id'] ?? '') ?>">
                 <label class="flex items-start gap-2 text-red-800"><input type="checkbox" name="confirm" value="1" required class="mt-1">
                   <span><?= e(t('فاهم إن الرقم هيروح نهائياً، وأي واتساب أو مكالمات أو رسايل عليه هتقف.')) ?></span></label>
-                <button class="btn-primary mt-2 !bg-red-600"><?= e(t('ألغي الرقم نهائياً')) ?></button>
+                <button class="btn-primary mt-2" style="background:#b91c1c;color:#fff"><?= e(t('ألغي الرقم نهائياً')) ?></button>
               </form>
             </details>
           <?php endif; ?>
