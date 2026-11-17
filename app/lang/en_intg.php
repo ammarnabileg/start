@@ -6015,4 +6015,7 @@ If you know someone who needs our services, send them this link. They get {get},
     'اكتب وصف الفيديو أولًا.' => 'Write the video description first.',
     'فشل توليد الفيديو. جرّب وصفًا مختلفًا.' => 'Video generation failed. Try a different description.',
     'اربط OpenRouter أولًا من صفحة التكاملات.' => 'Connect OpenRouter first in Integrations.',
+    'إنشاء الجماهير يحتاج صلاحية الإعلانات. اطلبها من صاحب الشركة.' => 'Creating audiences needs ads permission. Ask the company owner.',
+    'تعذّر جلب كود التركيب. حاول مرة أخرى.' => 'Could not load the install code. Try again.',
+    'ميزانية إحدى النسخ لم تُحفظ. صحّحها أولًا.' => 'A copy budget was not saved. Fix it first.',
 ];

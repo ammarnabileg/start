@@ -1795,6 +1795,6 @@ html.dark *{scrollbar-color:rgb(71 85 105/.75) transparent}
 ::-webkit-scrollbar-thumb:hover{background:rgb(100 116 139/.8);background-clip:padding-box;border:2px solid transparent}
 ::-webkit-scrollbar-button{display:none;width:0;height:0}
 ::-webkit-scrollbar-corner{background:transparent}
-html.dark::-webkit-scrollbar-track,html.dark ::-webkit-scrollbar-track{background:#0b1220}
+html.dark::-webkit-scrollbar-track{background:#0b1220}html.dark ::-webkit-scrollbar-track{background:transparent}
 html.dark ::-webkit-scrollbar-thumb{background:rgb(71 85 105/.8);background-clip:padding-box;border:2px solid transparent}
 html.dark ::-webkit-scrollbar-thumb:hover{background:rgb(100 116 139/.9);background-clip:padding-box;border:2px solid transparent}

@@ -83,23 +83,22 @@ function acr_tick(int $wid, Zernio $z, int $max = 15): int
                 $k = 'cm:' . $cid; if (isset($done[$k])) continue;
                 // الجديد بس: التعليق لازم يكون اتكتب بعد ما القاعدة اتشغلت
                 $ts = function_exists('ai_ts') ? (int)ai_ts($c['createdTime'] ?? $c['createdAt'] ?? null) : (int)strtotime((string)($c['createdTime'] ?? $c['createdAt'] ?? ''));
-                if (!$ts || $ts < (int)($rule['since'] ?? time())) { $done[$k] = 1; continue; }
+                if (!$ts || $ts < (int)($rule['since'] ?? time())) continue; // قديم على القاعدة دي بس، ممكن قاعدة تانية ترد
                 if (array_filter((array)($c['replies'] ?? []), function ($r) { return !empty($r['from']['isOwner']); })) { $done[$k] = 1; continue; }
                 if (!acr_match($rule, $tx)) continue;
                 try {
                     $hist = trim((string)($rule['ins'] ?? '')) !== '' ? t('تعليمات صاحب الصفحة للرد: %s', (string)$rule['ins']) : '';
                     $d = ai_decide($wid, $cfg, $tx, 'comment', $hist);
                     $rt = function_exists('ai_sign') ? ai_sign($cfg, trim((string)$d['reply'], " \n\"'«»")) : trim((string)$d['reply']);
-                    $done[$k] = 1;
-                    if (($d['action'] ?? '') === 'handoff' || $rt === '') { $rule['log'][] = ['at' => time(), 'who' => (string)($c['from']['name'] ?? ''), 'in' => mb_substr($tx, 0, 200), 'out' => '', 'st' => 'handoff']; $changed[$rule['id']] = $rule; continue; }
-                    $z->replyComment($pid, $acc, $rt, $cid);
+                    if (($d['action'] ?? '') === 'handoff' || $rt === '') { $done[$k] = 1; $rule['log'][] = ['at' => time(), 'who' => (string)($c['from']['name'] ?? ''), 'in' => mb_substr($tx, 0, 200), 'out' => '', 'st' => 'handoff']; $changed[$rule['id']] = $rule; continue; }
+                    $z->replyComment($pid, $acc, $rt, $cid); $done[$k] = 1;
                     if (function_exists('ai_sent_mark')) ai_sent_mark($wid, $rt, 'p:' . $pid);
                     log_activity('ai.auto_comment', $cid);
                     $rule['n'] = (int)($rule['n'] ?? 0) + 1;
                     $rule['log'][] = ['at' => time(), 'who' => (string)($c['from']['name'] ?? ''), 'in' => mb_substr($tx, 0, 200), 'out' => mb_substr($rt, 0, 300), 'st' => 'sent'];
                     $rule['log'] = array_slice((array)$rule['log'], -30);
                     $changed[$rule['id']] = $rule; $n++;
-                } catch (Throwable $e) { error_log('acr: ' . $e->getMessage()); break 3; }
+                } catch (Throwable $e) { error_log('acr: ' . $e->getMessage()); $rule['log'][] = ['at' => time(), 'who' => (string)($c['from']['name'] ?? ''), 'in' => mb_substr($tx, 0, 200), 'out' => mb_substr($e->getMessage(), 0, 200), 'st' => 'failed']; $rule['log'] = array_slice((array)$rule['log'], -30); $changed[$rule['id']] = $rule; $fails = ($fails ?? 0) + 1; if ($fails >= 3) break 3; }
             }
         }
     }

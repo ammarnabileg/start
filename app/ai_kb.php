@@ -199,7 +199,7 @@ function kb_compile(int $wid, string $query = '', bool $lean = false): string
     if (!empty($tone['style']) || !empty($tone['dialect']) || trim((string)($tone['notes'] ?? '')) !== '') {
         $styles = array_intersect_key(kb_tone_options(), array_flip((array)($tone['style'] ?? [])));
         $out[] = "## TONE\n" . ($styles ? 'Style: ' . implode(', ', $styles) . "\n" : '') . (!empty($tone['dialect']) ? 'Language/dialect: ' . (kb_dialect_options()[$tone['dialect']] ?? $tone['dialect']) . "\n" : '')
-            . (!empty($tone['langs']) ? 'Supported languages: ' . implode(', ', array_intersect_key(kb_lang_options(), array_flip((array)$tone['langs']))) . '. ' . (($tone['lang_rule'] ?? 'match') === 'match' ? 'Reply in the language the customer writes in if it is one of these; otherwise use the default language/dialect.' : 'Reply in the language the customer writes in first; use the default language/dialect only when the customer\'s language is unclear.') . "\n" : '')
+            . (!empty($tone['langs']) ? 'Supported languages: ' . implode(', ', array_intersect_key(kb_lang_options(), array_flip((array)$tone['langs']))) . '. ' . (($tone['lang_rule'] ?? 'match') === 'match' ? 'Reply in the language and dialect the customer writes in; use the default language/dialect only when the customer\'s language is unclear.' : 'Reply in the language the customer writes in first; use the default language/dialect only when the customer\'s language is unclear.') . "\n" : '')
             . (isset($tone['emoji']) ? 'Emoji: ' . ['none' => 'never', 'light' => 'at most 1-2', 'normal' => 'normal'][$tone['emoji']] . "\n" : '') . trim((string)($tone['notes'] ?? ''));
     }
     $pos = [];

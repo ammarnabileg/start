@@ -231,7 +231,7 @@ function ai_cheap_answer(int $wid, array $cfg, string $msg, string $channel): ?a
     if ($sv['greet']) {
         $greet = '/^(السلام عليكم( ورحمه الله( وبركاته)?)?|سلام|مرحبا|مرحب|اهلا|اهلين|هلا|هاي|هلو|صباح الخير|مساء الخير|hi|hello|hey|good (morning|evening))( \S+)?$/u';
         $thanks = '/^(شكرا( جزيلا)?( لك| لكم)?|مشكور|مشكورين|تسلم|يعطيك العافيه|جزاك الله خير|ممتاز|تمام|اوكي|اوك|ok|okay|thanks|thank you|thx|👍)$/u';
-        if (preg_match($greet, $n)) return ['action' => 'reply', 'reply' => $sv['greetText'] !== '' ? $sv['greetText'] : ($ar ? 'أهلًا وسهلًا بك 👋 كيف نقدر نساعدك اليوم؟' : 'Hi there 👋 How can we help you today?'), 'reason' => t('تحية'), 'src' => 'greet'];
+        if (preg_match($greet, $n)) return ['action' => 'reply', 'reply' => $sv['greetText'] !== '' && (!function_exists('ai_text_lang') || ai_text_lang($sv['greetText']) === '' || ai_text_lang($sv['greetText']) === ($ar ? 'Arabic' : 'English')) ? $sv['greetText'] : ($ar ? 'أهلًا وسهلًا بك 👋 كيف نقدر نساعدك اليوم؟' : 'Hi there 👋 How can we help you today?'), 'reason' => t('تحية'), 'src' => 'greet'];
         if (preg_match($thanks, $n)) return ['action' => 'reply', 'reply' => $channel === 'comment' ? '' : ($ar ? 'العفو، في خدمتك دائمًا 🤍' : 'You’re welcome! 🤍'), 'reason' => t('شكر'), 'src' => 'greet'];
     }
     $qw = ai_words($n);

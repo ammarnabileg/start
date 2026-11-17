@@ -219,6 +219,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && ($_POST['action'] ?? '') === 
     header('Content-Type: application/json; charset=utf-8');
     $op = (string)($_POST['op'] ?? '');
     if ($op === 'note') {
+        if (!can('posts.create')) { http_response_code(403); exit(json_encode(['error' => t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.')], JSON_UNESCAPED_UNICODE)); }
         if (!ps_notes_ok()) exit(json_encode(['error' => t('شغّل setup.php الأول عشان الملاحظات تشتغل.')], JSON_UNESCAPED_UNICODE));
         $pid = (string)($_POST['ids'][0] ?? ''); $body = trim(mb_substr((string)($_POST['body'] ?? ''), 0, 1000));
         if (!preg_match('/^[\w-]{1,64}$/', $pid) || $body === '') exit(json_encode(['error' => t('اكتب الملاحظة الأول.')], JSON_UNESCAPED_UNICODE));

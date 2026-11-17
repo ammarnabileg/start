@@ -43,7 +43,7 @@
   function prefill(type, vals) { if (!form) return; var t = form.querySelector('#audType'); if (![].some.call(t.options, function (o) { return o.value === type; })) return; t.value = type; fire(t);
     var cards = document.querySelectorAll('#aud-types button'); cards.forEach(function (b) { b.click && b.dataset.v === type && b.click(); });
     Object.keys(vals || {}).forEach(function (k) { var el = form.elements[k]; if (el) { el.value = vals[k]; fire(el); } });
-    var sec = document.getElementById('aud-new'); sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); sec.classList.add('ab-flash'); setTimeout(function () { sec.classList.remove('ab-flash'); }, 1400); form.elements.name.focus(); }
+    var sec = document.getElementById('aud-new'); if (!sec || !form) return; sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); sec.classList.add('ab-flash'); setTimeout(function () { sec.classList.remove('ab-flash'); }, 1400); form.elements.name.focus(); }
   if (form) {
     var days = form.elements.days; if (days) { var w = document.createElement('div'); w.className = 'aud-sl'; days.after(w); days.classList.add('abx-hide');
       w.innerHTML = '<div class="flex items-center justify-between"><input type="range" min="1" max="180" value="' + (+days.value || 30) + '" class="flex-1 accent-brand-600"><b class="w-16 text-end tabular-nums"></b></div><div class="abx-quick">' + [7, 30, 90, 180].map(function (d) { return '<button type="button" data-d="' + d + '">' + esc(f(U.dN, d)) + '</button>'; }).join('') + '</div>';

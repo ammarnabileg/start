@@ -250,6 +250,7 @@
       })();
     }
     function inBlack(d) { var r = X.q.blackout || [], dw = +siteDT(d).slice(0, 10).split('-').length && new Date(siteDT(d).slice(0, 10) + 'T12:00').getDay(), hm = siteDT(d).slice(11, 16); return r.some(function (b) { return b.days.indexOf(dw) > -1 && hm >= b.from && hm < b.to; }); }
+    function inBlackS(w) { var r = X.q.blackout || [], dw = new Date(w.slice(0, 10) + 'T12:00').getDay(), hm = w.slice(11, 16); return r.some(function (b) { return b.days.indexOf(dw) > -1 && hm >= b.from && hm < b.to; }); }
     window.__psInBlack = inBlack;
     // الأزرار بتتنقل لقايمة «أدوات» اللي فوق، فالاستماع على الصفحة كلها
     if (ctl) document.addEventListener('click', function (e) {
@@ -272,8 +273,8 @@
         var plan = [], day = new Date();
         for (var i = 1; i <= 14 && plan.length < drafts.length; i++) {
           var d = new Date(day.getTime() + i * 864e5), key2 = siteDT(d).slice(0, 10); if (busy[key2]) continue;
-          var when = key2 + 'T' + pad(X.q.gHour) + ':00', probe = new Date(when);
-          if (inBlack(probe)) { when = key2 + 'T' + pad((X.q.gHour + 3) % 24) + ':00'; if (inBlack(new Date(when))) continue; }
+          var when = key2 + 'T' + pad(X.q.gHour) + ':00';
+          if (inBlackS(when)) { when = key2 + 'T' + pad((X.q.gHour + 3) % 24) + ':00'; if (inBlackS(when)) continue; }
           plan.push({ id: drafts[plan.length].id, when: when, txt: drafts[plan.length].txt });
         }
         if (!plan.length) return toast(X.q.gNone);
@@ -317,7 +318,7 @@
       $('#br-save').onclick = function () {
         var out = $$('#br-list [data-br]').map(function (r) { return { days: $$('input[type=checkbox]:checked', r).map(function (c) { return +c.value; }), from: $('[data-k=from]', r).value, to: $('[data-k=to]', r).value }; });
         var fd = new FormData(); fd.append('action', 'blackout'); fd.append('rules', JSON.stringify(out));
-        fetch(location.pathname + '?p=posts', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': csrf() } }).then(function (r) { return r.json(); }).then(function (j) { if (j.ok) { X.q.blackout = j.rules; toast(X.q.bSaved, true); dm.classList.add('hidden'); } });
+        fetch(location.pathname + '?p=posts', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': csrf() } }).then(function (r) { return r.json(); }).then(function (j) { if (j.ok) { X.q.blackout = j.rules; toast(X.q.bSaved, true); dm.classList.add('hidden'); } else toast(j.error || X.err); }).catch(function () { toast(X.err); });
       };
     }
     /* ---------- #25 اسحب ملف Excel/CSV على التقويم → الرفع الجماعي ---------- */

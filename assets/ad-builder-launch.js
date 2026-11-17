@@ -91,15 +91,16 @@
     var row = inp.closest('[data-mt]'), st = row.querySelector('.ab-mt-st'); pending++; inp.disabled = true;
     send({ action: 'copy_budget', id: row.dataset.mt, amount: inp.value }).then(function (d) {
       pending--; inp.disabled = false;
-      if (!d.ok) { st.textContent = '✗ ' + (d.error || ''); st.className = 'ab-mt-st text-[11px] text-red-600'; return; }
+      if (!d.ok) { row.dataset.bad = '1'; st.textContent = '✗ ' + (d.error || ''); st.className = 'ab-mt-st text-[11px] text-red-600'; return; } delete row.dataset.bad;
       inp.value = d.budget; st.textContent = '✓ ' + (T.saved || ''); st.className = 'ab-mt-st text-[11px] text-lime-700';
       rows.forEach(function (m) { if (String(m.id) === row.dataset.mt) m.budget = d.budget; });
-    }).catch(function () { pending--; inp.disabled = false; });
+    }).catch(function () { pending--; inp.disabled = false; row.dataset.bad = '1'; st.textContent = '✗'; st.className = 'ab-mt-st text-[11px] text-red-600'; });
   });
   function launchAll() {
     var ok = document.getElementById('ab-mt-ok'), lb = document.getElementById('ab-mt-launch');
     if (!ok || !ok.checked) return;
     if (pending) { setTimeout(launchAll, 300); return; } // استنى حفظ الميزانية الأول
+    var bad = out.querySelector('[data-mt][data-bad]'); if (bad) { alert(T.badBudget || 'Budget not saved'); var bi = bad.querySelector('.ab-mt-b'); if (bi) bi.focus(); return; }
     lb.disabled = true; ok.disabled = true; out.querySelectorAll('.ab-mt-b').forEach(function (x) { x.disabled = true; });
     var list = [].slice.call(out.querySelectorAll('[data-mt]:not([data-locked])')), i = 0, fails = 0;
     var nextProject = function () {

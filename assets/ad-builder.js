@@ -195,7 +195,7 @@
         return h;
       })();
     // الجمهور المخصص
-    var aud = T.audience ? field(S.customAud, '<select class="input ab-aud" data-p="' + P + '.targeting.audienceId"><option value="">' + esc(S.none) + '</option>' + (window.__abAud || []).map(function (a) { return '<option value="' + esc(a.id) + '"' + (a.id === tg.audienceId ? ' selected' : '') + '>' + esc(a.name) + '</option>'; }).join('') + '</select>', S.audHint) : ''
+    var aud = (T.audience ? field(S.customAud, '<select class="input ab-aud" data-p="' + P + '.targeting.audienceId"><option value="">' + esc(S.none) + '</option>' + (window.__abAud || []).map(function (a) { return '<option value="' + esc(a.id) + '"' + (a.id === tg.audienceId ? ' selected' : '') + '>' + esc(a.name) + '</option>'; }).join('') + '</select>', S.audHint) : '')
       + (T.audience && (window.__abAud || []).length ? field(S.excludeAud || '', '<select class="input ab-aud" data-p="' + P + '.targeting.audienceExclude" data-arr="1"><option value="">' + esc(S.none) + '</option>' + (window.__abAud || []).map(function (a) { return '<option value="' + esc(a.id) + '"' + ((tg.audienceExclude || []).indexOf(a.id) >= 0 ? ' selected' : '') + '>' + esc(a.name) + '</option>'; }).join('') + '</select>', S.excludeAudHint) : '');
     // أماكن الظهور
     var pl = T.placements && T.placements.length ? '<div class="seg w-max">' + ['auto', 'manual'].map(function (m) { return '<a href="#" data-set="' + P + '.targeting.placementsMode" data-v="' + m + '" class="' + (tg.placementsMode === m ? 'on' : '') + '">' + esc(m === 'auto' ? S.plAuto : S.plManual) + '</a>'; }).join('') + '</div>'

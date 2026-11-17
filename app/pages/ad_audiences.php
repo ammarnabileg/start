@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
         if ($action === 'pixel_code') {
             header('Content-Type: application/json; charset=utf-8');
             if ($connId === '' || $adAccId === '') exit(json_encode(['ok' => false, 'error' => t('اختار حساب الإعلانات.')], JSON_UNESCAPED_UNICODE));
-            $tg = ads_pixel($z, $connId, (string)($_POST['tag'] ?? ''), $adAccId);
+            try { $tg = ads_pixel($z, $connId, (string)($_POST['tag'] ?? ''), $adAccId); } catch (Throwable $ex) { exit(json_encode(['ok' => false, 'error' => $ex->getMessage()], JSON_UNESCAPED_UNICODE)); }
             exit(json_encode(['ok' => true, 'code' => (string)($tg['code'] ?? ''), 'events' => array_values((array)($tg['events'] ?? []))], JSON_UNESCAPED_UNICODE));
         }
         if ($action === 'pixel_create') {
@@ -256,6 +256,7 @@ render(t('الجماهير'), 'ad_audiences', function () use ($z, $apiError, $t
         <?php endif; ?>
       </section>
 
+      <?php if (can('ads.spend')): ?>
       <section class="card p-5 lg:sticky lg:top-4" id="aud-new">
         <h2 class="font-bold text-ink-900 mb-3"><?= e(t('جمهور جديد')) ?></h2>
         <form method="post" class="space-y-3" id="audForm">
@@ -276,7 +277,7 @@ render(t('الجماهير'), 'ad_audiences', function () use ($z, $apiError, $t
           </div>
           <div data-aud="customer_list" class="space-y-2">
             <label class="flex items-center gap-2 text-sm rounded-xl border border-ink-200 p-3 cursor-pointer"><input type="checkbox" name="from_crm" value="1" <?= $crmN && can('crm.manage') ? 'checked' : 'disabled' ?>>
-              <span class="flex-1"><?= e(t('ضيف عملاء الـ CRM اللي ليهم إيميل')) ?> <b class="text-brand-700">(<?= ads_num($crmN) ?>)</b></span>
+              <span class="flex-1"><?= e(t('ضيف عملاء الـ CRM اللي ليهم إيميل')) ?> <b class="text-brand-700">(<?= ads_num($crmN) ?>)</b></span><?php if ($crmN && !can('crm.manage')): ?><span class="basis-full text-[11px] text-amber-700"><?= e(t('إضافة عملاء الـ CRM تحتاج صلاحية إدارة العملاء.')) ?></span><?php endif; ?>
               <select name="crm_stage" class="input !w-auto !py-1 text-xs"><option value=""><?= e(t('كلهم')) ?></option><option value="won"><?= e(t('اللي اشتروا بس (%s)', ads_num($crmW))) ?></option></select></label>
             <div><label class="label"><?= e(t('أو الصق إيميلات (واحد في كل سطر)')) ?><?= $isMeta ? ' ' . e(t('أو أرقام موبايل بكود الدولة')) : '' ?></label>
               <textarea name="list" rows="4" class="input font-mono text-xs" dir="ltr" placeholder="name@company.com"></textarea>
@@ -313,6 +314,7 @@ render(t('الجماهير'), 'ad_audiences', function () use ($z, $apiError, $t
         })();
         </script>
       </section>
+      <?php else: ?><section class="card p-5 text-sm text-ink-600" id="aud-new"><?= e(t('إنشاء الجماهير يحتاج صلاحية الإعلانات. اطلبها من صاحب الشركة.')) ?></section><?php endif; ?>
       </div>
       <script>window.AUDX = <?= json_encode(['all' => t('الكل'), 'keys' => t('اختصارات لوحة المفاتيح'), 'kSearch' => t('البحث في الجماهير'), 'kNew' => t('جمهور جديد'),
         'hints' => ['meta_engagement' => t('الأنسب للبداية: ناس عرفوك فعلًا، وغالبًا بيتحولوا أسرع.'), 'website' => t('محتاج Pixel متركّب على موقعك، وإلا الجمهور هيفضل فاضي.'), 'lookalike' => t('ابدأ بـ 1% لأدق تشابه، وكبّر الحجم لو عاوز وصول أكبر.')]], JSON_UNESCAPED_UNICODE) ?>;</script>
@@ -346,7 +348,7 @@ render(t('الجماهير'), 'ad_audiences', function () use ($z, $apiError, $t
     fetch(location.pathname + '?p=ad_audiences', { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'fetch', 'Accept': 'application/json' } }).then(function (r) { return r.json(); }).then(function (d) {
       b.disabled = false; if (!d.ok) { alert(d.error || ''); return; }
       var ta = document.getElementById('px-code'), box = document.getElementById('px-codebox'); ta.value = d.code || ''; box.classList.remove('hidden'); ta.focus(); ta.select();
-    }).catch(function () { b.disabled = false; });
+    }).catch(function () { b.disabled = false; alert(<?= json_encode(t('تعذّر جلب كود التركيب. حاول مرة أخرى.'), JSON_UNESCAPED_UNICODE) ?>); });
   });
 })();
 </script>

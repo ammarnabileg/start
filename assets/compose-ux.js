@@ -91,7 +91,7 @@
 
   /* ---------- 4) الوسائط: سحب وإفلات + حذف + معلومات ---------- */
   var files = [];
-  function setFiles(list) { files = list; try { var dt = new DataTransfer(); files.forEach(function (f) { dt.items.add(f); }); mi.files = dt.files; } catch (e) {} drawMedia(); render(); }
+  function setFiles(list) { files = list; try { var dt = new DataTransfer(); files.forEach(function (f) { dt.items.add(f); }); mi.files = dt.files; } catch (e) {} drawMedia(); render(); if (window.cpAiSync) window.cpAiSync(); }
   function drawMedia() {
     var mp = $('#mediaPreview'); if (!mp) return; mp.innerHTML = '';
     files.forEach(function (f, i) {
@@ -418,6 +418,7 @@
 (function () {
   var ta = document.getElementById('content'); if (!ta) return;
   function hasImg() { return [].some.call((document.getElementById('mediaInput') || {}).files || [], function (f) { return /^image\//.test(f.type); }) || !!document.querySelector('#libMedia img'); }
+  window.cpAiSync = function () { sync(); };
   function sync() {
     var has = ta.value.trim() !== '', wrap = ta.parentNode, sp = wrap && wrap.querySelector('.ai-spark');
     if (sp) sp.classList.toggle('hidden', !has);

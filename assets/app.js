@@ -238,7 +238,7 @@ document.addEventListener('click', function (e) {
         });
       }
       return pump();
-    }).catch(function () { return acc.trim() ? { text: acc, mode: mode } : plain(); }).then(function (d) {
+    }).catch(function () { return plain(); }).then(function (d) {
       if (d.error && mode !== 'show') ta.value = orig;
       if (live) live.remove();
       if (d.error) { window.aiToast ? aiToast(d.error) : alert(d.error); return; }
