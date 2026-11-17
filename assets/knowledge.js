@@ -348,7 +348,7 @@
           var back = function (txt) { nm.textContent = txt; inp.replaceWith(nm); row.querySelector('.kb-ren').classList.remove('hidden'); };
           if (!save || !v || v === old) return back(old);
           var f = new FormData(); f.append('action', 'kb_file_rename'); f.append('id', row.dataset.id); f.append('name', v);
-          post(f).then(function (d) { back(d.ok ? d.name : old); if (d.error) alert(d.error); }).catch(function () { back(old); });
+          post(f).then(function (d) { back(d.ok ? d.name : old); if (d.error) aiToast(d.error); }).catch(function () { back(old); aiToast((window.T && T.liveFailed) || 'Error'); });
         };
         inp.addEventListener('keydown', function (k) { if (k.key === 'Enter') { k.preventDefault(); finish(true); } else if (k.key === 'Escape') finish(false); });
         inp.addEventListener('blur', function () { finish(true); });

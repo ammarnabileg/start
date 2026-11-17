@@ -253,7 +253,7 @@
     if (k === 'coupon') {
       return window.cptAsk({ title: b.dataset.q, value: '', ok: T.go }).then(function (code) { if (code === null) return;
       post({ action: 'coupon_new', code: code, label: ta.value.slice(0, 150) }).then(function (j) {
-        if (!j.ok) return alert(j.error || '');
+        if (!j.ok) return toast(j.error || '', 'error');
         ta.value = ta.value.replace(/\s*$/, '') + '\n\n' + b.dataset.line.replace('%s', j.code); ta.dispatchEvent(new Event('input', { bubbles: true })); toast(T.saved);
       }); });
     }

@@ -178,7 +178,7 @@
     var it = b.closest('.ibx-item'), op = b.dataset.qa; b.disabled = true;
     var fd = new FormData(); fd.append('action', 'bulk'); fd.append('op', op); fd.append('items[]', it.dataset.key);
     fetch(location.pathname + '?p=inbox', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': (document.querySelector('meta[name=csrf-token]') || {}).content || '' } }).then(function (r) { return r.json(); }).then(function (d) {
-      if (d.error) { alert(d.error); b.disabled = false; return; }
+      if (d.error) { (window.fxToast ? function (m) { fxToast(m, 'error'); } : alert)(d.error); b.disabled = false; return; }
       if (op === 'read') { it.dataset.unread = '0'; var bd = it.querySelector('.bg-brand-600.rounded-full'); if (bd) bd.remove(); b.remove(); toast(U.doneRead); }
       else { it.style.transition = 'all .25s'; it.style.opacity = '0'; it.style.transform = 'translateX(' + (document.dir === 'rtl' ? '-' : '') + '30px)'; setTimeout(function () { it.remove(); }, 260); toast(op === 'archive' ? U.doneArchive : U.doneUnarchive); }
     }).catch(function () { b.disabled = false; });

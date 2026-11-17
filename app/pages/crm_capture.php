@@ -178,7 +178,7 @@ render(t('المصادر والإعدادات'), 'crm_capture', function () use 
         <label class="text-xs text-ink-600"><?= e(t('العنوان')) ?><input name="title" required maxlength="140" class="input text-sm" dir="auto"></label>
         <label class="text-xs text-ink-600"><?= e(t('اسم الرابط (حروف إنجليزي)')) ?><input name="slug" maxlength="40" class="input text-sm" dir="ltr" placeholder="ramadan-offer"></label>
         <label class="text-xs text-ink-600 md:col-span-2"><?= e(t('سطر تحت العنوان')) ?><input name="sub" maxlength="240" class="input text-sm" dir="auto"></label>
-        <label class="text-xs text-ink-600 md:col-span-2"><?= e(t('التفاصيل')) ?><textarea name="body" rows="4" maxlength="3000" class="input text-sm" dir="auto"></textarea></label>
+        <label class="text-xs text-ink-600 md:col-span-2"><?= e(t('التفاصيل')) ?><textarea name="body" data-ai="improve,shorten,cta,translate_en" rows="4" maxlength="3000" class="input text-sm" dir="auto"></textarea></label>
         <label class="text-xs text-ink-600"><?= e(t('رابط الصورة (https)')) ?><input name="img" class="input text-sm" dir="ltr"></label>
         <label class="text-xs text-ink-600"><?= e(t('رقم واتساب بكود الدولة (اختياري)')) ?><input name="wa" class="input text-sm" dir="ltr" placeholder="9665…"></label>
         <label class="text-xs text-ink-600"><?= e(t('نص الزرار')) ?><input name="cta" maxlength="60" class="input text-sm" dir="auto" placeholder="<?= e(t('سجّل اهتمامك')) ?>"></label>

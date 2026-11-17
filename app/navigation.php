@@ -45,7 +45,7 @@ function nav_items(): array
         ['key' => 'dashboard', 'label' => t('الرئيسية'), 'section' => ''],
         ['key' => 'tenders', 'module' => 'tenders', 'label' => t('آخر المنافسات'), 'section' => $s2],
         ['key' => 'crm', 'label' => t('الشركات المستهدفة'), 'section' => $s2, 'module' => 'crm'],
-        ['key' => 'prospects', 'label' => t('العملاء'), 'section' => $s2, 'module' => 'crm', 'also' => ['crm_doc', 'crm_leads', 'crm_find']],
+        ['key' => 'prospects', 'label' => t('العملاء'), 'section' => $s2, 'module' => 'crm', 'also' => ['crm_doc', 'crm_leads', 'crm_find'] + (module_enabled('analytics') ? [] : [3 => 'alerts'])],
         ['key' => 'crm_capture', 'label' => t('المصادر والإعدادات'), 'section' => $s2, 'module' => 'crm', 'also' => ['crm_settings']],
         ['key' => 'competitors', 'module' => 'competitors', 'label' => t('المنافسين'), 'section' => $s2],
         ['key' => 'crm_reports', 'label' => t('تقارير المبيعات'), 'section' => $s2, 'module' => 'crm'],
@@ -75,7 +75,7 @@ function nav_items(): array
         ['key' => 'media', 'module' => 'media', 'label' => t('مكتبة الوسائط'), 'section' => t('الإدارة')],
         ['key' => 'accounts', 'label' => t('الحسابات المربوطة'), 'section' => t('الإدارة')],
         ['key' => 'connectors', 'label' => t('التكاملات'), 'section' => t('الإدارة'), 'owner' => true],
-        ['key' => 'assistant', 'label' => t('الذكاء الاصطناعي'), 'section' => t('الإدارة')],
+        ['key' => 'assistant', 'label' => t('إعدادات الذكاء الاصطناعي'), 'section' => t('الإدارة')],
         ['key' => 'settings', 'label' => t('إعدادات الشركة'), 'section' => t('الإدارة'),
             'tabs' => ['settings' => t('عام'), 'team' => t('الفريق')], 'owner' => true],
     ];

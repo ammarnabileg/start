@@ -115,7 +115,7 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
       <div class="px-3 py-2 text-xs text-ink-500" dir="ltr" style="text-align:start"><?= e($user['email'] ?? '') ?></div>
       <div class="sm:hidden flex gap-2 px-3 py-2"><?= pref_switch() ?></div>
       <a href="<?= e(url('account')) ?>" class="menu-item"><?= e(t('حسابي')) ?></a>
-      <?php if (is_admin()): ?><a href="<?= e(url('system')) ?>" class="menu-item"><?= e(t('إعدادات النظام')) ?></a><?php endif; ?>
+      <?php if (is_admin()): ?><a href="<?= e(url('system')) ?>" class="menu-item"><?= e(t('إعدادات المنصة')) ?></a><?php endif; ?>
       <div class="border-t border-ink-200 my-1.5"></div>
       <form method="post" action="<?= e(url('logout')) ?>"><?= csrf_field() ?><button class="menu-item"><?= e(t('تسجيل خروج')) ?></button></form>
     </div>

@@ -3,7 +3,7 @@
   var C = window.CAP || {}, $ = function (s, r) { return (r || document).querySelector(s); };
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function post(d) { var fd = new FormData(); Object.keys(d).forEach(function (k) { fd.append(k, d[k]); }); fd.append('_csrf', C.csrf); return fetch(location.pathname + '?p=crm_capture', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': C.csrf } }).then(function (r) { return r.json(); }); }
-  function note(m) { if (window.toast) return window.toast(m); alert(m); }
+  function note(m) { if (window.fxToast) return fxToast(m, 'error'); alert(m); }
   function copy(t, b) { (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { if (b) { var o = b.textContent; b.textContent = C.copied; setTimeout(function () { b.textContent = o; }, 1200); } }).catch(function () { prompt('', t); }); }
   function linkRow(u) { return '<div class="flex flex-wrap items-center gap-2 rounded-xl border border-lime-200 bg-lime-50 p-2 text-xs"><code class="flex-1 min-w-0 truncate" dir="ltr">' + esc(u) + '</code><button type="button" class="btn-ghost !py-1 !text-xs" data-copy="' + esc(u) + '">⧉</button><button type="button" class="btn-ghost !py-1 !text-xs" data-qr="' + esc(u) + '" data-qrn="">▦ QR</button></div>'; }
   var dlg = $('#qr-dlg');
