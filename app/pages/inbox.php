@@ -374,7 +374,7 @@ function ip_private_reply_block(array $c, string $postId, string $accId, bool $i
               <?= csrf_field() ?>
               <input type="hidden" name="action" value="private_reply">
               <input type="hidden" name="comment_id" value="<?= e($c['id']) ?>">
-              <textarea data-ai="comment_to_dm,polish_reply" name="message" rows="2" required class="input flex-1 text-sm" placeholder="<?= e(t('الرسالة هتوصل له في الخاص (مرة واحدة لكل تعليق، خلال 7 أيام)')) ?>"></textarea>
+              <textarea data-saved-replies data-ai="comment_to_dm,polish_reply" name="message" rows="2" required class="input flex-1 text-sm" placeholder="<?= e(t('الرسالة هتوصل له في الخاص (مرة واحدة لكل تعليق، خلال 7 أيام)')) ?>"></textarea>
               <button class="btn-primary"><?= e(t('إرسال')) ?></button>
             </form>
           </details>
@@ -694,7 +694,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
           <?php if ($isRequest): ?>
             <form method="post" class="p-3 border-t border-ink-200 flex gap-2 items-end">
               <?= csrf_field() ?><input type="hidden" name="action" value="accept">
-              <textarea data-ai="polish_reply,summarize" name="message" rows="2" required class="input flex-1 text-sm" placeholder="<?= e(t('اكتب ردك عشان تقبل الطلب...')) ?>"></textarea>
+              <textarea data-saved-replies data-ai="polish_reply,summarize,triage,extract,translate_ctx" name="message" rows="2" required class="input flex-1 text-sm" placeholder="<?= e(t('اكتب ردك عشان تقبل الطلب...')) ?>"></textarea>
               <button class="btn-primary"><?= e(t('قبول ورد')) ?></button>
             </form>
           <?php else: ?>
@@ -836,7 +836,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
     <script>window.IBX = <?= json_encode(['n' => t('%s محادثة'), 'sel' => t('محدد'), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.'), 'done' => t('تم: %s'), 'started' => t('بدأت الحملة: %s محادثة'), 'skipped' => t('اتستبعد %s'),
         'campaigns' => t('الحملات'), 'running' => t('شغالة'), 'paused' => t('متوقفة'), 'done2' => t('خلصت'), 'cancelled' => t('اتلغت'), 'pause' => t('إيقاف مؤقت'), 'resume' => t('كمّل'), 'cancel' => t('إلغاء'),
         'sent' => t('اتبعت'), 'failed' => t('فشل'), 'left' => t('فاضل'), 'eta' => t('حوالي %s دقيقة'), 'confirmCancel' => t('إلغاء الحملة؟ الرسايل اللي اتبعتت مش هترجع.'), 'pickFirst' => t('حدد محادثة واحدة على الأقل.'), 'confirmAi' => t('هيتم تحليل %s محادثة بالذكاء الاصطناعي (طلب واحد لكل 20 محادثة). تكمل؟'), 'ocrRun' => t('بيقرا الصورة...'), 'ocrNone' => t('مالقيناش كلام في الصورة.'), 'ocrCors' => t('المنصة مش بتسمح بقراية الصورة دي من المتصفح. افتحها واحفظها وارفعها.'), 'copied' => t('اتنسخ'), 'insert' => t('حطه في الرد'), 'copy' => t('نسخ')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
-    <script>window.SAVED_REPLIES = <?= json_encode(['canDel' => can('inbox.manage') || is_ws_owner(), 'items' => saved_replies((int)ws('id')), 'manage' => t('إدارة الردود المحفوظة'), 'empty' => t('مفيش ردود محفوظة. اكتب # واختصار جديد عشان تضيف.'), 'add' => t('إضافة رد محفوظ'), 'shortcut' => t('الاختصار'), 'body' => t('نص الرد'), 'save' => t('حفظ'), 'del' => t('حذف'), 'hint' => t('اكتب # للردود المحفوظة')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+    <script>window.SAVED_REPLIES = <?= json_encode(['delQ' => t('حذف هذا الرد المحفوظ نهائيًا؟'), 'canDel' => can('inbox.manage') || is_ws_owner(), 'items' => saved_replies((int)ws('id')), 'manage' => t('إدارة الردود المحفوظة'), 'empty' => t('مفيش ردود محفوظة. اكتب # واختصار جديد عشان تضيف.'), 'add' => t('إضافة رد محفوظ'), 'shortcut' => t('الاختصار'), 'body' => t('نص الرد'), 'save' => t('حفظ'), 'del' => t('حذف'), 'hint' => t('اكتب # للردود المحفوظة')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
     <script src="assets/replies.js?v=<?= e(APP_VERSION) ?>"></script>
     <script src="assets/extract.js?v=<?= e(APP_VERSION) ?>"></script>
     <script src="assets/inbox.js?v=<?= e(APP_VERSION) ?>"></script>

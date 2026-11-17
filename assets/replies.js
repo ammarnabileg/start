@@ -56,7 +56,7 @@
       R.items.forEach(function (it) {
         var row = document.createElement('div'); row.className = 'flex items-start gap-2 rounded-xl border border-ink-200 p-2.5';
         row.innerHTML = '<div class="flex-1 min-w-0"><div class="text-xs font-semibold text-ink-900">#' + esc(it.shortcut) + '</div><div class="text-xs text-ink-600 whitespace-pre-wrap">' + esc(it.body) + '</div></div><button type="button" class="text-xs text-red-600 hover:underline">' + esc(R.del) + '</button>';
-        var db = row.querySelector('button'); if (R.canDel === false) db.remove(); else db.onclick = function () { post({ action: 'reply_del', id: it.id }).then(function (r) { if (r.items) { R.items = r.items; draw(); } else if (r.error) alert(r.error); }); };
+        var db = row.querySelector('button'); if (R.canDel === false) db.remove(); else db.onclick = function () { if (!confirm(R.delQ || '?')) return; post({ action: 'reply_del', id: it.id }).then(function (r) { if (r.items) { R.items = r.items; draw(); } else if (r.error) alert(r.error); }); };
         l.appendChild(row);
       });
     }

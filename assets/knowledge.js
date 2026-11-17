@@ -157,7 +157,7 @@
         suggest(form, { rows: acc }, d.meta); return true;
       });
     }
-    return ask(0).catch(function (e) { if (e && e.name === 'AbortError') { if (acc.length) suggest(form, { rows: acc }, ''); window.aiToast && aiToast(K.stopped); return 'stopped'; } if (acc.length) { suggest(form, { rows: acc }, ''); window.aiToast && aiToast(K.err); return true; } window.aiToast ? aiToast(K.err) : alert(K.err); return false; })
+    return ask(0).catch(function (e) { if (e && e.name === 'AbortError') { if (acc.length) suggest(form, { rows: acc }, ''); window.aiToast && aiToast(K.stopped, 'ok'); return 'stopped'; } if (acc.length) { suggest(form, { rows: acc }, ''); window.aiToast && aiToast(K.err); return true; } window.aiToast ? aiToast(K.err) : alert(K.err); return false; })
       .finally(function () { form.__ac = null; btn.classList.remove('kb-running', '!border-red-200', '!bg-red-50', '!text-red-700'); btn.innerHTML = ico; btn.title = ''; btn.querySelector('span').textContent = txt; });
   }
   root.addEventListener('click', function (e) {
@@ -172,7 +172,7 @@
   function runFill(forms, keep, btn) {
     var lbl = btn.querySelector('span'), txt = lbl.textContent; batch = { stop: false };
     var me = batch; btn.classList.add('!border-red-200', '!bg-red-50', '!text-red-700');
-    function end(stopped) { batch = null; btn.classList.remove('!border-red-200', '!bg-red-50', '!text-red-700'); lbl.textContent = txt; if (stopped) window.aiToast && aiToast(K.stoppedAll); }
+    function end(stopped) { batch = null; btn.classList.remove('!border-red-200', '!bg-red-50', '!text-red-700'); lbl.textContent = txt; if (stopped) window.aiToast && aiToast(K.stoppedAll, 'ok'); }
     (function next(i) {
       if (me.stop) return end(true);
       if (i >= forms.length) { end(false); go(forms[0].dataset.section); return; }

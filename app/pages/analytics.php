@@ -1373,7 +1373,7 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
                 <h2 class="font-bold text-ink-900 mb-1"><?= e(t('تحليل الهاشتاجات')) ?></h2>
                 <p class="text-xs text-ink-500 mb-4"><?= e(t('مترتبة حسب متوسط معدل التفاعل. الهاشتاج لازم يكون في منشورين على الأقل.')) ?></p>
                 <?php if (!$tags): ?>
-                  <?= an_empty(t('مفيش هاشتاجات في منشورات الفترة دي.'), '', '#') ?>
+                  <?= an_empty(t('مفيش هاشتاجات في منشورات الفترة دي.'), '', 'hash') ?>
                 <?php elseif (!$ranked): ?>
                   <?= an_empty(t('كل هاشتاج اتستخدم مرة واحدة بس، فمش كفاية للترتيب.'), t('اتستخدم %s هاشتاج مختلف.', count($tags)), '#') ?>
                 <?php else: $mx = max(array_map(function ($l) { return an_group_stats($l)[2]; }, $ranked)) ?: 1; ?>

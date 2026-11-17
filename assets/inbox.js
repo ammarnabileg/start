@@ -10,7 +10,7 @@
     var fd = new FormData(); Object.keys(data).forEach(function (k) { [].concat(data[k]).forEach(function (v) { fd.append(Array.isArray(data[k]) ? k + '[]' : k, v); }); });
     return fetch(location.pathname + '?p=inbox', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': csrf() } }).then(function (r) { return r.json(); });
   }
-  function toast(m, bad) { if (window.aiToast && bad) return aiToast(m); var t = document.createElement('div'); t.className = 'fixed bottom-5 start-1/2 -translate-x-1/2 rtl:translate-x-1/2 z-[70] rounded-xl ' + (bad ? 'bg-red-600' : 'bg-ink-900') + ' text-[#fff] text-sm px-4 py-2.5 shadow-xl'; t.textContent = m; document.body.appendChild(t); setTimeout(function () { t.remove(); }, 3500); }
+  function toast(m, bad) { if (window.fxToast) return fxToast(m, bad ? 'error' : 'success'); if (window.aiToast && bad) return aiToast(m); var t = document.createElement('div'); t.className = 'fixed bottom-5 start-1/2 -translate-x-1/2 rtl:translate-x-1/2 z-[70] rounded-xl ' + (bad ? 'bg-red-600' : 'bg-ink-900') + ' text-[#fff] text-sm px-4 py-2.5 shadow-xl'; t.textContent = m; document.body.appendChild(t); setTimeout(function () { t.remove(); }, 3500); }
   var items = function () { return [].slice.call(document.querySelectorAll('.ibx-item')); };
 
   // يطبّق التحديد والفلاتر على القائمة (بعد كل تحديث تلقائي كمان)

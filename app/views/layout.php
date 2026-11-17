@@ -187,6 +187,7 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
       $R['ads'] = $R['ad_create'] = $R['ad_builder'] = [[t('عملاء الإعلانات'), url('leads')], [t('الجماهير'), url('ad_audiences')], [t('أداء المحتوى'), url('analytics')]];
       $R['leads'] = [[t('الحملات الإعلانية'), url('ads')], $crmOn2 ? [t('العملاء'), url('prospects')] : null];
       $R['leads'] = array_filter($R['leads']);
+      $R['phone_kyc'] = [[t('الأرقام'), url('phone_numbers')]];
       $R['goals'] = [[t('أداء المنشورات'), url('analytics')], [t('منشور جديد'), url('compose')], [t('التنبيهات'), url('alerts')]];
       if ($crmOn2) {
         $R['crm_capture'] = [[t('العملاء اللي اتجمعوا'), url('prospects')], [t('أنهي مصدر بيجيب أكتر'), url('crm_reports')], [t('اكتب منشور بلينك متتبع'), url('compose')]];

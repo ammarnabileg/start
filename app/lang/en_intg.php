@@ -6315,4 +6315,5 @@ If you know someone who needs our services, send them this link. They get {get},
     'بدون نصوص المستندات المرفوعة، مناسب للتعليمات المخصصة.' => 'Without uploaded document text; good for custom instructions.',
     'للربط مع أنظمة أو أدوات أخرى.' => 'For other systems or tools.',
     'اطلب من مالك الشركة ربط حساب الإعلانات.' => 'Ask the company owner to connect the ad account.',
+    'حذف هذا الرد المحفوظ نهائيًا؟' => 'Delete this saved reply permanently?',
 ];
