@@ -735,3 +735,44 @@ function kb_fill_has(array $d): bool
     array_walk_recursive($d, function ($v, $k) use (&$has) { if ($has) return; if (is_string($v) && trim($v) !== '' && !in_array($k, ['lang_rule', 'dialect'], true)) $has = true; });
     return $has;
 }
+
+/** تصدير قاعدة المعرفة كملف: Markdown (لـ Claude / ChatGPT / Projects) أو JSON (للأنظمة) */
+function kb_export(int $wid, string $fmt = 'md', bool $withFiles = true): string
+{
+    $schema = kb_schema(); $kb = kb_get($wid);
+    $val = function ($v) { if (is_array($v)) $v = implode(', ', array_filter(array_map(function ($x) { return is_scalar($x) ? trim((string)$x) : ''; }, $v), 'strlen')); return trim((string)$v); };
+    $out = []; // [section label => [[label, value] ...] | text]
+    foreach ($schema as $key => $def) {
+        $d = (array)($kb[$key] ?? []); if (!$d || !kb_filled($d, (string)$def['type'])) continue;
+        $items = [];
+        if (!empty($def['fields'])) {
+            foreach ($def['fields'] as $fk => $fd) { if (($fd[1] ?? '') === 'media') continue; $v = $val($d[$fk] ?? ''); if ($v !== '') $items[] = [(string)$fd[0], $v]; }
+        } elseif (!empty($def['cols'])) {
+            foreach ((array)($d['rows'] ?? []) as $r) { $row = []; foreach ($def['cols'] as $ck => $cl) { $v = $val($r[$ck] ?? ''); if ($v !== '') $row[] = [(string)$cl, $v]; } if ($row) $items[] = ['', $row]; }
+        } else {
+            foreach ($d as $k => $v) { $v = $val($v); if ($v !== '' && !is_numeric($k)) $items[] = [$k === 'text' ? '' : (string)$k, $v]; }
+        }
+        if ($items) $out[$key] = ['label' => (string)$def['label'], 'items' => $items];
+    }
+    $files = [];
+    if ($withFiles) { try { $st = db()->prepare('SELECT name, content FROM kb_files WHERE workspace_id = ? ORDER BY id'); $st->execute([$wid]); foreach ($st->fetchAll() as $f) if (trim((string)$f['content']) !== '') $files[] = ['name' => (string)$f['name'], 'content' => mb_substr((string)$f['content'], 0, 200000)]; } catch (Throwable $e) {} }
+    $name = (string)(ws('name') ?? '');
+    if ($fmt === 'json') {
+        $j = ['company' => $name, 'exported_at' => gmdate('c'), 'sections' => []];
+        foreach ($out as $k => $sec) { $rows = []; foreach ($sec['items'] as [$l, $v]) $rows[] = is_array($v) ? array_combine(array_column($v, 0), array_column($v, 1)) : ($l === '' ? $v : [$l => $v]); $j['sections'][$k] = ['title' => $sec['label'], 'content' => $rows]; }
+        if ($files) $j['documents'] = $files;
+        return json_encode($j, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+    }
+    $md = '# ' . t('قاعدة معرفة %s', $name) . "\n\n> " . t('مرجع معتمد عن الشركة. استخدم هذه المعلومات فقط عند الإجابة أو الكتابة باسم الشركة، ولا تخترع أسعارًا أو وعودًا غير مذكورة هنا.') . "\n\n";
+    foreach ($out as $sec) {
+        $md .= '## ' . $sec['label'] . "\n\n";
+        foreach ($sec['items'] as [$l, $v]) {
+            if (is_array($v)) { $md .= '- ' . implode("\n  ", array_map(function ($c) { return '**' . $c[0] . ':** ' . str_replace("\n", ' ', $c[1]); }, $v)) . "\n"; continue; }
+            $md .= $l === '' ? $v . "\n" : (strpos($v, "\n") !== false ? '**' . $l . ":**\n" . $v . "\n" : '- **' . $l . ':** ' . $v . "\n");
+        }
+        $md .= "\n";
+    }
+    if ($files) { $md .= '## ' . t('المستندات المرفوعة') . "\n\n"; foreach ($files as $f) $md .= '### ' . $f['name'] . "\n\n" . trim($f['content']) . "\n\n"; }
+    return $md;
+}
+

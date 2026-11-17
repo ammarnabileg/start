@@ -361,6 +361,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $json(['error' => t('طلب غير صحيح.')], 400);
 }
 
+// تحميل قاعدة المعرفة كملف (Markdown لـ Claude / ChatGPT، أو JSON)
+if (isset($_GET['export'])) {
+    $fmt = $_GET['export'] === 'json' ? 'json' : 'md';
+    $slug = trim((string)preg_replace('/[^A-Za-z0-9]+/', '-', (string)(ws('name') ?? '')), '-'); $fn = 'knowledge-base-' . ($slug !== '' ? $slug . '-' : '') . date('Y-m-d') . '.' . $fmt;
+    header('Content-Type: ' . ($fmt === 'json' ? 'application/json' : 'text/markdown') . '; charset=utf-8');
+    header('Content-Disposition: attachment; filename="' . $fn . '"');
+    log_activity('kb.export', $fmt);
+    echo kb_export($wid, $fmt, empty($_GET['nofiles']));
+    exit;
+}
 $kb = kb_get($wid);
 $st = db()->prepare("SELECT id, name, size, method, enabled, CHAR_LENGTH(content) chars, LEFT(content, 600) preview, created_at FROM kb_files WHERE workspace_id = ? ORDER BY id DESC");
 $st->execute([$wid]);
@@ -388,6 +398,14 @@ render(t('قاعدة المعرفة'), 'knowledge', function () use ($schema, $k
         <h2 class="text-lg font-semibold text-ink-900"><?= e(t('كل ما يعرفه الذكاء الاصطناعي عن شركتك')) ?></h2>
         <p class="text-sm text-ink-500 mt-0.5"><?= e(t('يُستخدم في كل الردود والمنشورات والتحليلات. كلما كان أكمل، كانت الردود أدق وأقل خطأ. الحفظ تلقائي.')) ?></p>
       </div>
+      <details class="relative">
+        <summary class="btn-ghost list-none cursor-pointer"><?= ui_icon('download', 'w-4 h-4') ?> <span><?= e(t('تصدير كملف')) ?></span></summary>
+        <div class="absolute end-0 z-30 mt-2 w-72 rounded-2xl border border-ink-200 bg-white p-2 shadow-xl text-sm">
+          <a class="block rounded-xl px-3 py-2 hover:bg-ink-50" href="<?= e(url('knowledge', ['export' => 'md'])) ?>"><b class="block text-ink-900"><?= e(t('Markdown (موصى به)')) ?></b><span class="text-xs text-ink-500"><?= e(t('ارفعه في Claude Projects أو ChatGPT كملف معرفة.')) ?></span></a>
+          <a class="block rounded-xl px-3 py-2 hover:bg-ink-50" href="<?= e(url('knowledge', ['export' => 'md', 'nofiles' => 1])) ?>"><b class="block text-ink-900"><?= e(t('Markdown مختصر')) ?></b><span class="text-xs text-ink-500"><?= e(t('بدون نصوص المستندات المرفوعة، مناسب للتعليمات المخصصة.')) ?></span></a>
+          <a class="block rounded-xl px-3 py-2 hover:bg-ink-50" href="<?= e(url('knowledge', ['export' => 'json'])) ?>"><b class="block text-ink-900">JSON</b><span class="text-xs text-ink-500"><?= e(t('للربط مع أنظمة أو أدوات أخرى.')) ?></span></a>
+        </div>
+      </details>
       <?php if ($canEdit): ?>
         <button type="button" id="kbs-open" class="btn-primary"><?= ui_icon('link', 'w-4 h-4') ?> <span><?= e(t('املأ من موقعك')) ?></span></button>
         <button type="button" id="kb-ai-pick" class="btn-ghost"><?= ui_icon('spark', 'w-4 h-4 text-brand-600') ?> <span><?= e(t('املأ بالذكاء الاصطناعي')) ?></span></button>
