@@ -734,7 +734,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
               $ll = crm_lead_by_ext($lext);
               $inTxt = implode("\n", array_map(function ($m) { return (string)($m['message'] ?? ''); }, array_filter($messages, function ($m) { return ($m['direction'] ?? '') !== 'outgoing'; })));
               $fc = crm_extract_contacts($inTxt);
-              $lastIn = trim((string)(end($messages)['message'] ?? '')); ?>
+              $inOnly = array_values(array_filter($messages, function ($m) { return ($m['direction'] ?? '') !== 'outgoing'; })); $lastIn = trim((string)(($inOnly ? end($inOnly) : [])['message'] ?? '')); ?>
             <div class="rounded-xl border <?= $ll ? 'border-lime-200 bg-lime-50/50' : 'border-brand-200 bg-brand-50/40' ?> p-3" data-tolead
               data-source="inbox" data-ext="<?= e($lext) ?>" data-name="<?= e($nm) ?>" data-text="<?= e(mb_substr($lastIn, 0, 600)) ?>" data-where="<?= e(platform_label($plat)) ?>"
               data-url="<?= e(url('inbox', ['c' => $convId, 'a' => $accId])) ?>">

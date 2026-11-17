@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($r['want'] !== 'now' && $r['want'] !== 'queue' && $ts($r['want']) < time()) { unset($p['scheduledFor']); $p['publishNow'] = true; } // الميعاد فات وهو مستني
             $z->createPost($p); $posted = true;
             db()->prepare("UPDATE post_approvals SET status = 'approved', decided_by = ?, decided_at = NOW() WHERE id = ?")->execute([$uid, (int)$r['id']]);
-            foreach ((array)json_decode((string)$r['extra'], true) as $f) if ($ts($f) > time()) { try { $z->createPost(['scheduledFor' => $f] + array_diff_key($p, ['publishNow' => 1])); } catch (ZernioException $e) {} }
+            foreach ((array)json_decode((string)$r['extra'], true) as $f) if ($ts($f) > time()) { try { $z->createPost(['scheduledFor' => $f] + array_diff_key($p, ['recycling' => 1, 'publishNow' => 1])); } catch (ZernioException $e) {} }
             if ($r['draft_id']) { try { $z->request('DELETE', '/v1/posts/' . rawurlencode($r['draft_id'])); } catch (ZernioException $e) {} }
             db()->prepare("UPDATE post_approvals SET status = 'approved', decided_by = ?, decided_at = NOW() WHERE id = ?")->execute([$uid, (int)$r['id']]);
             if ($r['user_id'] && function_exists('crm_notify')) crm_notify((int)$r['user_id'], null, 'approval', t('✅ المدير وافق على منشورك'));

@@ -429,7 +429,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && !$apiError) {
                     } catch (ZernioException $ex) { $extraFail[] = 'A/B: ' . $ex->getMessage(); }
                 }
                 foreach ($extraAt as $f) {
-                    try { $z->createPost(['scheduledFor' => $f] + $payload); $made++; }
+                    try { $z->createPost(['scheduledFor' => $f] + array_diff_key($payload, ['recycling' => 1])); /* النسخ الإضافية مش سلسلة تكرار جديدة */ $made++; }
                     catch (ZernioException $ex) { $extraFail[] = substr($f, 0, 16) . ': ' . $ex->getMessage(); }
                 }
                 // سجل النشر: تفاصيل مفهومة (النص، المنصات، الطريقة، الميعاد، رقم المنشور) بدل «now 2 accounts»
@@ -513,7 +513,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
                 <div class="flex flex-wrap gap-1"><?php foreach ([t('مهتم'), t('التفاصيل'), t('السعر'), t('احجز'), t('أرغب')] as $sg): ?><button type="button" class="rounded-full border border-ink-200 bg-white px-2 py-0.5 text-[11px] text-ink-700 hover:border-brand-400" data-wsg="<?= e($sg) ?>"><?= e($sg) ?></button><?php endforeach; ?></div>
                 <p class="text-[10px] text-ink-400"><?= e(t('الكلمات اللي استخدمتها قبل كده بتفضل تتلقط في التعليقات.')) ?></p></div><?php endif; ?><?php endforeach; ?>
             <button type="button" class="text-start rounded-xl px-3 py-2 text-sm text-ink-800 hover:bg-brand-50" id="cp-track"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/></svg> <?= e(t('لينك متتبع')) ?></button>
-            <?php if (count($ctas) < 2): ?><a class="link text-[11px]" href="<?= e(url('crm_leads')) ?>"><?= e(t('فعّل الحجز والفورم من الـ Leads ← أدوات')) ?></a><?php endif; ?>
+            <?php if (count($ctas) < 2): ?><a class="link text-[11px]" href="<?= e(url('crm_capture')) ?>"><?= e(t('فعّل الحجز والفورم من الـ Leads ← أدوات')) ?></a><?php endif; ?>
           </div></div>
           <?php if ($ctaW && module_enabled('automations')):
             $link = setting('crm_book_on_' . (int)ws('id'), '0') === '1' ? crm_book_url() : crm_form_url(); ?>
@@ -583,7 +583,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
             function add(f) {
               if (form.querySelector('input[name="lib_media[]"][value="' + f.id + '"]')) return;
               var w = document.createElement('div'); w.className = 'relative w-20 h-20 rounded-xl overflow-hidden border border-ink-200 bg-ink-100';
-              w.innerHTML = (f.kind === 'video' ? '<video muted preload="metadata" class="w-full h-full object-cover"></video>' : '<img alt="" class="w-full h-full object-cover">') + '<input type="hidden" name="lib_media[]"><button type="button" class="absolute top-1 end-1 w-5 h-5 rounded-full bg-ink-900/70 text-white text-xs leading-5" aria-label="✕">×</button>';
+              w.innerHTML = (f.kind === 'video' ? '<video muted preload="metadata" class="w-full h-full object-cover"></video>' : '<img alt="" class="w-full h-full object-cover">') + '<input type="hidden" name="lib_media[]"><button type="button" class="absolute top-1 end-1 w-9 h-9 sm:w-6 sm:h-6 grid place-items-center rounded-full bg-ink-900/70 text-white text-xs" aria-label="✕">×</button>';
               w.querySelector('img, video').src = f.kind === 'video' ? f.url + '#t=0.5' : f.thumb || f.url; w.querySelector('input').value = f.id; w.title = f.name;
               w.querySelector('button').onclick = function () { w.remove(); }; box.appendChild(w);
             }
@@ -655,7 +655,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
             function txt() { var c = document.getElementById('content'); return c ? c.value.trim() : ''; }
             function suggest() { if (!txt() && !$('pst-prompt').value.trim()) { err('pst-err1', L.noText); return; } err('pst-err1', ''); var pr = $('pst-prompt'), b = $('pst-suggest'); b.disabled = true; pr.readOnly = true;
               post({ action: 'poster_prompt', idea: pr.value.trim(), text: txt(), aspect: $('pst-aspect').value, style: $('pst-style').value, headline: $('pst-head').value, nref: refs.length, use_logo: $('pst-logo') && $('pst-logo').checked ? 1 : '' }).then(function (d) { if (d.ok) pr.value = d.prompt; else err('pst-err1', d.error); }).finally(function () { b.disabled = false; pr.readOnly = false; }); }
-            function paintRefs() { $('pst-refs').innerHTML = refs.map(function (f, i) { return '<span class="relative w-16 h-16 rounded-xl overflow-hidden border border-ink-200"><img src="' + (f.thumb || f.url) + '" class="w-full h-full object-cover" alt=""><button type="button" data-rm="' + i + '" class="absolute top-0.5 end-0.5 w-5 h-5 rounded-full bg-ink-900/70 text-[#fff] text-xs">×</button></span>'; }).join(''); }
+            function paintRefs() { $('pst-refs').innerHTML = refs.map(function (f, i) { return '<span class="relative w-16 h-16 rounded-xl overflow-hidden border border-ink-200"><img src="' + (f.thumb || f.url) + '" class="w-full h-full object-cover" alt=""><button type="button" data-rm="' + i + '" class="absolute top-0.5 end-0.5 w-9 h-9 sm:w-6 sm:h-6 grid place-items-center rounded-full bg-ink-900/70 text-[#fff] text-xs">×</button></span>'; }).join(''); }
             function design() { if (busy) return; if ($('pst-prompt').value.trim().length < 10) { err('pst-err1', L.noText); step(1); return; } busy = true; step(2); err('pst-err2', ''); file = null; $('pst-use').disabled = true; $('pst-saved').classList.add('hidden'); $('pst-again').disabled = true;
               $('pst-stage').innerHTML = '<div class="text-center p-8"><div class="mx-auto mb-3 w-10 h-10 rounded-full border-4 border-brand-200 border-t-brand-600 animate-spin"></div><p class="text-sm text-ink-600">' + L.wait + '</p></div>';
               post({ action: 'poster_gen', prompt: $('pst-prompt').value, aspect: $('pst-aspect').value, style: $('pst-style').value, quality: $('pst-q') ? $('pst-q').value : '', use_logo: $('pst-logo') && $('pst-logo').checked ? 1 : '', 'refs[]': refs.map(function (f) { return f.id; }) }).then(function (d) {
@@ -941,7 +941,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
                 var q = acc.map(function (a) { return 'acc[]=' + encodeURIComponent(a); }).join('&');
                 fetch(location.pathname + '?p=compose&ajax=best&' + q).then(function (r) { return r.json(); }).then(function (r) {
                   if (!r.ok || !r.items.length) { box.classList.add('hidden'); return; }
-                  lst.innerHTML = r.items.map(function (it) { return '<button type="button" class="chip text-xs" data-at="' + it.at + '" title="' + it.at.replace('T', ' ') + '">' + String(names[it.acc] || '').replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }) + ': <b>' + it.label + '</b></button>'; // اسم الحساب نص مش HTML }).join('');
+                  lst.innerHTML = r.items.map(function (it) { return '<button type="button" class="chip text-xs" data-at="' + it.at + '" title="' + it.at.replace('T', ' ') + '">' + String(names[it.acc] || '').replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }) + ': <b>' + it.label + '</b></button>'; /* اسم الحساب نص مش HTML */ }).join('');
                   box.classList.remove('hidden');
                 }).catch(function () {});
               }

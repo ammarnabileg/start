@@ -99,7 +99,7 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
     $alertsN = ($curWs && function_exists('alerts_unseen_count') && can('analytics.view') && module_enabled('analytics')) ? alerts_unseen_count((int)$curWs['id']) : 0;
     $crmN = ($curWs && function_exists('crm_notifs_unseen') && module_enabled('crm') && can('crm.view')) ? crm_notifs_unseen((int)$curWs['id'], (int)(current_user()['id'] ?? 0)) : 0;
     $bellN = count($invites) + $alertsN + $crmN;
-    $bellHref = $invites && !($alertsN + $crmN) ? url('workspaces') : url('alerts'); // مركز تنبيهات واحد: تنبيهات العملاء + تنبيهات الأداء
+    $bellHref = ($invites && !($alertsN + $crmN)) || (!can('analytics.view') && !can('crm.view')) ? url('workspaces') : url('alerts'); // مركز تنبيهات واحد: تنبيهات العملاء + تنبيهات الأداء
   ?>
   <a href="<?= e($bellHref) ?>" id="tb-bell" data-n="<?= (int)$bellN ?>" class="tb relative w-10 justify-center <?= $bellN ? '!text-ink-900' : '' ?>" title="<?= e(t('التنبيهات')) ?>">
     <?= $icon('M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 00-4-5.7V5a2 2 0 10-4 0v.3A6 6 0 006 11v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1') ?>
@@ -181,12 +181,13 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
       $R['compose'] = array_filter([[t('المنشورات (قائمة أو تقويم)'), url('posts')], $crmOn2 ? [t('اعمل صفحة هبوط للمنشور'), url('crm_capture') . '#lp'] : null, [t('أفضل وقت للنشر'), url('analytics')]]);
       $R['posts'] = $R['calendar'] = array_filter([[t('التعليقات على منشوراتك'), url('comments')], [t('أداء المنشورات'), url('analytics')], $crmOn2 ? [t('روابط المنشورات والعملاء اللي جابتهم'), url('crm_reports')] : null]);
       $R['analytics'] = array_filter([[t('جدول منشور في أحسن وقت'), url('compose')], $crmOn2 ? [t('مبيعات كل مصدر'), url('crm_reports')] : null]);
-      $R['comments'] = $R['inbox'] = array_filter([$crmOn2 ? [t('العملاء اللي جم من هنا'), url('crm_leads')] : null, [t('ردود تلقائية'), url('automations')]]);
+      $R['comments'] = $R['inbox'] = array_filter([$crmOn2 ? [t('العملاء اللي جم من هنا'), url('prospects')] : null, [t('ردود تلقائية'), url('automations')]]);
       if ($crmOn2) {
-        $R['crm_capture'] = [[t('العملاء اللي اتجمعوا'), url('crm_leads')], [t('أنهي مصدر بيجيب أكتر'), url('crm_reports')], [t('اكتب منشور بلينك متتبع'), url('compose')]];
+        $R['crm_capture'] = [[t('العملاء اللي اتجمعوا'), url('prospects')], [t('أنهي مصدر بيجيب أكتر'), url('crm_reports')], [t('اكتب منشور بلينك متتبع'), url('compose')]];
         $R['crm_leads'] = [[t('هات عملاء أكتر'), url('crm_capture')], [t('تقارير المبيعات'), url('crm_reports')], [t('الرسائل'), url('inbox')]];
-        $R['crm_reports'] = [[t('شغل النهارده'), url('crm_leads') . '#due'], [t('حسّن المصادر الضعيفة'), url('crm_capture')], [t('أداء المحتوى'), url('analytics')]];
-        $R['crm_settings'] = [[t('العملاء'), url('crm_leads')]];
+        $R['crm_reports'] = [[t('شغل النهارده'), url('prospects', ['due' => 1])], [t('حسّن المصادر الضعيفة'), url('crm_capture')], [t('أداء المحتوى'), url('analytics')]];
+        $R['crm_settings'] = [[t('العملاء'), url('prospects')]];
+        $R['prospects'] = $R['crm_leads'] ?? [[t('شغل النهارده'), url('prospects', ['due' => 1])], [t('مصادر العملاء'), url('crm_capture')], [t('التقارير'), url('crm_reports')]];
       }
       $okU = function ($u) { $dp = function_exists('disabled_pages') ? disabled_pages() : []; return !preg_match('/[?&]p=([a-z_]+)/', (string)$u, $m) || !in_array($m[1], $dp, true); };
       $rel = array_values(array_filter($R[$active] ?? [], function ($x) use ($okU) { return $okU($x[1]); }));
@@ -322,7 +323,7 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
   $ckPages = []; foreach ($navItems as $it) { if ($it['key'] === 'admin') continue; foreach (($it['tabs'] ?? [$it['key'] => $it['label']]) as $tk => $tl) $ckPages[] = ['l' => $tl, 'g' => $it['label'] !== $tl ? $it['label'] : '', 's' => $it['section'], 'u' => url($tk), 'i' => $I[$it['key']] ?? $I['dashboard']]; }
   $ckAct = [];
   if (can('posts.create')) { $ckAct[] = ['l' => t('اكتب منشور جديد'), 'u' => url('compose'), 'k' => 'n']; $ckAct[] = ['l' => t('رفع منشورات من Excel'), 'u' => url('bulk')]; }
-  if (module_enabled('crm') && can('crm.view')) { $ckAct[] = ['l' => t('ضيف عميل جديد'), 'u' => url('crm_leads') . '#add', 'k' => 'l']; $ckAct[] = ['l' => t('شغل النهارده (المتابعات المستحقة)'), 'u' => url('crm_leads') . '#due']; $ckAct[] = ['l' => t('اعمل صفحة هبوط أو QR'), 'u' => url('crm_capture') . '#lp']; }
+  if (module_enabled('crm') && can('crm.view')) { $ckAct[] = ['l' => t('ضيف عميل جديد'), 'u' => url('prospects') . '#add', 'k' => 'l']; $ckAct[] = ['l' => t('شغل النهارده (المتابعات المستحقة)'), 'u' => url('prospects', ['due' => 1])]; $ckAct[] = ['l' => t('اعمل صفحة هبوط أو QR'), 'u' => url('crm_capture') . '#lp']; }
   $ckAct[] = ['l' => t('الرسائل اللي مستنية رد'), 'u' => url('inbox')];
 ?>
 <div id="ck" class="fixed inset-0 z-[90] hidden items-start justify-center bg-ink-900/40 backdrop-blur-sm p-4 pt-[12vh]" aria-hidden="true">

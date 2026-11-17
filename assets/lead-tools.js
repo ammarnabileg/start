@@ -185,7 +185,7 @@
   /* ---------- حذف ---------- */
   var del = $('pd-del');
   if (del) del.addEventListener('click', function () { var b = this; if (!b.classList.contains('arm')) { b.classList.add('arm'); b.lastChild.textContent = T.delSure; setTimeout(function () { b.classList.remove('arm'); b.lastChild.textContent = b.dataset.l; }, 3000); return; }
-    var r = LP.cur(); api({ action: 'delete', id: LP.jd(r).id }).then(function (j) { if (!j.ok) return fail(j); dl.close(); toast(T.deleted); var H = LP.H(); if (H.onDelete) H.onDelete(r); else if (r.isConnected) r.remove(); }); });
+    var r = LP.cur(); b.disabled = true; api({ action: 'delete', id: LP.jd(r).id }).then(function (j) { b.disabled = false; if (!j.ok) return fail(j); dl.close(); toast(T.deleted); var H = LP.H(); if (H.onDelete) H.onDelete(r); else if (r.isConnected) r.remove(); }).catch(function () { b.disabled = false; fail({}); }); });
   if (del) del.dataset.l = del.lastChild.textContent;
 
   /* ---------- ملاحظة صوتية + إملاء ---------- */
@@ -194,7 +194,7 @@
     navigator.mediaDevices.getUserMedia({ audio: true }).then(function (s) { chunks = []; cancel = false; rec = new MediaRecorder(s); rec.ondataavailable = function (e) { if (e.data.size) chunks.push(e.data); };
       rec.onstop = function () { s.getTracks().forEach(function (t) { t.stop(); }); clearInterval(tm); st.classList.add('hidden'); if (cancel || !chunks.length) return; var blob = new Blob(chunks, { type: rec.mimeType || 'audio/webm' }), f = new FormData(), r = LP.cur();
         f.append('action', 'voice'); f.append('id', LP.jd(r).id); f.append('sec', Math.round((Date.now() - t0) / 1000)); f.append('body', $('pd-note-f').b.value); f.append('audio', blob, 'note.' + (/mp4/.test(blob.type) ? 'm4a' : /ogg/.test(blob.type) ? 'ogg' : 'webm'));
-        api(f).then(function (j) { if (!j.ok) return fail(j); $('pd-note-f').b.value = ''; toast(T.vSaved); LP.reload(); }); };
+        api(f).then(function (j) { if (!j.ok) return fail(j); $('pd-note-f').b.value = ''; toast(T.vSaved); LP.reload(); }).catch(function () { fail({}); }); };
       rec.start(); t0 = Date.now(); st.classList.remove('hidden'); tm = setInterval(function () { var s2 = Math.round((Date.now() - t0) / 1000); $('pd-rec-t').textContent = Math.floor(s2 / 60) + ':' + ('0' + s2 % 60).slice(-2); }, 250);
     }).catch(function () { toast(T.noMic, 'error'); }); });
   $('pd-rec-stop').addEventListener('click', function () { if (rec && rec.state === 'recording') rec.stop(); });

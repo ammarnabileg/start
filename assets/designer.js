@@ -263,10 +263,12 @@
   // التصدير بالمقاس الحقيقي بالظبط (من غير تقريب التكبير)
   function exportURL() { cv.discardActiveObject(); var z = zoom; cv.setZoom(1); cv.setDimensions({ width: W, height: H }); var u = cv.toDataURL({ format: 'png' }); zoom = z; apply(); cv.requestRenderAll(); return u; }
   function blob(cb) { fetch(exportURL()).then(function (r) { return r.blob(); }).then(cb); }
-  function save(then) { var s = document.querySelector('[data-cmd="save"]'); s.disabled = true; $('dz-saved').textContent = L.saving;
+  var saving = false;
+  function save(then) { if (saving) return; saving = true; var s = document.querySelector('[data-cmd="save"]'), pb = document.querySelector('[data-cmd="post"]'); s.disabled = true; if (pb) pb.disabled = true; $('dz-saved').textContent = L.saving;
+    var done0 = function () { saving = false; s.disabled = false; if (pb) pb.disabled = false; };
     blob(function (b) { var d = new FormData(); d.append('_csrf', C.csrf); d.append('action', 'save'); d.append('name', $('dz-name').value); d.append('file', b, 'design.png');
-      fetch(C.url, { method: 'POST', body: d, credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) { s.disabled = false;
-        if (!j.ok) { $('dz-saved').textContent = ''; return toast(j.error || L.err, 'error'); } $('dz-saved').textContent = L.saved; toast(L.saved); if (then) then(j); }).catch(function () { s.disabled = false; toast(L.err, 'error'); }); }); }
+      fetch(C.url, { method: 'POST', body: d, credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) { done0();
+        if (!j.ok) { $('dz-saved').textContent = ''; return toast(j.error || L.err, 'error'); } $('dz-saved').textContent = L.saved; toast(L.saved); if (then) then(j); }).catch(function () { done0(); $('dz-saved').textContent = ''; toast(L.err, 'error'); }); }); }
   var CMD = {
     undo: undo, redo: redo, 'zoom+': function () { zoom = Math.min(3, zoom * 1.2); apply(); }, 'zoom-': function () { zoom = Math.max(0.05, zoom / 1.2); apply(); },
     png: function () { fetch(exportURL()).then(function (r) { return r.blob(); }).then(function (bl) { var u = URL.createObjectURL(bl), a = document.createElement('a'); a.href = u; a.download = ($('dz-name').value || 'design') + '.png'; a.click(); setTimeout(function () { URL.revokeObjectURL(u); }, 4000); }); },

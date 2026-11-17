@@ -66,6 +66,7 @@
 
   /* ---------- عميل جديد ---------- */
   var ad = dlg('pr-add'), af = $('pr-add-f');
+  if (location.hash === '#add') setTimeout(function () { var b = $('pr-add-btn'); if (b) b.click(); }, 0); // رابط "ضيف عميل" من أي مكان
   $('pr-add-btn').addEventListener('click', function () { af.reset(); $('pr-add-dup').classList.add('hidden'); ad.showModal(); af.name.focus(); });
   function norm(p) { return String(p || '').replace(/\D/g, '').slice(-9); }
   af.addEventListener('input', function () { var ph = norm(af.phone.value), em = af.email.value.trim().toLowerCase(), hit = null;

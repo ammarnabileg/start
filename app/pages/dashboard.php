@@ -441,7 +441,7 @@ render(t('الرئيسية'), 'dashboard', function () use ($z, $d, $e, $activit
       <div class="card flex flex-col" data-w="upcoming">
         <div class="px-5 py-4 flex items-center justify-between">
           <b class="text-ink-900"><?= e(t('المنشورات القادمة')) ?></b>
-          <a class="link text-sm" href="<?= e(url('calendar')) ?>"><?= e(t('التقويم')) ?></a>
+          <a class="link text-sm" href="<?= e(url('posts', ['view' => 'cal'])) ?>"><?= e(t('التقويم')) ?></a>
         </div>
         <div class="px-5 pb-5">
           <?php foreach ($scheduled as $i => $p): ?>

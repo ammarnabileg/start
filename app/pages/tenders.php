@@ -49,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($a === 'deal') {
         if (!module_enabled('crm') || !can('crm.view')) $J(['ok' => false, 'error' => t('مالكش صلاحية على العملاء.')], 403);
         $agency = trim((string)$t['agency']) ?: t('جهة حكومية');
-        $l = crm_lead_upsert(['source' => 'tender', 'ext_id' => 'tender:' . $t['src'] . ':' . $t['ext_id'], 'name' => $t['branch'] ?: $agency, 'company' => $agency, 'country' => 'SA']);
+        $l = crm_lead_upsert(['source' => 'tender', 'ext_id' => 'tender:' . $t['src'] . ':' . $t['ext_id'], 'name' => $t['branch'] ?: $agency, 'company' => $agency, 'country' => 'SA', 'owner_id' => can('crm.manage') ? null : (int)(current_user()['id'] ?? 0), 'respect_owner' => 1]);
         if (!$l) $J(['ok' => false, 'error' => t('حصلت مشكلة.')], 500);
         if (empty($l['merged'])) {
             $due = $t['deadline'] ? date('Y-m-d H:i:s', max(time() + 3600, strtotime($t['deadline']) - 3 * 86400)) : null;

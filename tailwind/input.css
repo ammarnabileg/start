@@ -1840,3 +1840,5 @@ fieldset{min-width:0}
 html.dark dialog::backdrop{background:rgb(0 0 0/.65)!important;backdrop-filter:blur(2px)}
 html.dark [class*="inset-0"][class*="bg-ink-900/"],html.dark .cx-shb,html.dark .st-hpb{background:rgb(0 0 0/.6)!important}
 @media (hover: none) { #ibx .group .opacity-0, .ibx-sel { opacity: 1 !important; } }
+@media (hover: none) { #ibx .group .ibx-qa { display: flex !important; } #ibx [data-ocr] { display: inline-flex !important; } #ibx .ibx-qa button { min-width: 40px; min-height: 40px; } }
+@media (max-width: 1023px) { main { padding-bottom: 6rem; } } /* زرار المساعد العائم مايغطيش آخر الصفحة */
