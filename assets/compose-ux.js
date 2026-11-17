@@ -30,7 +30,7 @@
 
   /* ---------- 2) أدوات النص: إيموجي + هاشتاج ---------- */
   var bar = document.createElement('div'); bar.className = 'flex flex-wrap items-center gap-1 border-t border-ink-100 px-2 py-1.5';
-  bar.innerHTML = '<button type="button" data-tl="emoji" class="relative inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-ink-600 hover:bg-ink-100"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 007 0M9 9.5h.01M15 9.5h.01"/></svg>' + esc(P.emoji) + '</button>'
+  bar.innerHTML = '<button type="button" data-tl="emoji" class="relative inline-flex items-center rounded-lg px-1.5 py-0.5 text-lg leading-none hover:bg-ink-100" title="' + esc(P.emoji) + '" aria-label="' + esc(P.emoji) + '">😊</button>'
     + '<span id="cp-tags" class="ms-auto text-[11px] text-ink-500"></span><span id="cp-draft" class="text-[11px] text-amber-700"></span>';
   content.closest('label').after(bar);
   // قوائم منسدلة في شريط المحرر («الأدوات» و«الذكاء الاصطناعي»): العنصر نفسه بيتنقل جوه القائمة (مش نسخة) فكل حاجة بتفضل شغالة
@@ -373,7 +373,7 @@
       row.addEventListener('click', function (e) { var b = e.target.closest('[data-aiq]'); if (!b) return; if (!ta.value.trim()) { ta.focus(); ta.classList.add('animate-pulse'); setTimeout(function () { ta.classList.remove('animate-pulse'); }, 700); return; } var pop = document.getElementById('cp-aiq-pop'); if (pop) { pop.classList.add('hidden'); var bt = document.getElementById('cp-aiq-btn'); if (bt) { bt.setAttribute('aria-expanded', 'false'); bt.classList.remove('bg-ink-100'); } } window.aiRun(ta, b.dataset.aiq, b); });
       var lb = row.querySelector(':scope > span'); if (window.cpDrop) { if (lb) lb.remove(); var tb = document.querySelector('#cp-tools-btn'); window.cpDrop('cp-aiq', (window.CPX && CPX.aiMenu) || 'AI', '<span class="text-[13px] leading-none bg-gradient-to-l from-brand-600 to-fuchsia-600 bg-clip-text text-transparent">✦</span>', row, tb ? tb.closest('.cp-dd').nextSibling : null); }
       else ed.appendChild(row); } }
-  if (document.readyState === 'complete') aiRow(); else window.addEventListener('load', aiRow);
+  // قايمة «الذكاء الاصطناعي» في الشريط اتشالت: نجمة خانة النص بتعرض نفس الأوامر
   function grow() { ta.style.height = 'auto'; ta.style.height = Math.min(520, Math.max(180, ta.scrollHeight + 2)) + 'px'; }
   ta.addEventListener('input', function () { paintRing(); grow(); });
   document.addEventListener('change', function (e) { if (e.target.classList && e.target.classList.contains('acc')) { paintRing(); paintStack(); } });

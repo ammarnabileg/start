@@ -44,15 +44,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
     $styles = ['photo' => 'photorealistic commercial photography, natural light, shallow depth of field', 'minimal' => 'clean minimal flat design, generous negative space, modern geometric shapes',
         '3d' => 'polished 3D render, soft studio lighting, premium materials', 'corporate' => 'corporate B2B visual, professional, trustworthy, blue and neutral palette',
         'illustration' => 'editorial vector illustration, bold shapes, vibrant but balanced colors', 'luxury' => 'luxury aesthetic, dark elegant background, gold accents, dramatic lighting'];
-    $style = isset($styles[$_POST['style'] ?? '']) ? $_POST['style'] : 'photo';
+    $vs = (array)(kb_get((int)ws('id'))['visual_style'] ?? []); $bColors = trim((string)($vs['colors'] ?? '')); $bStyle = trim((string)($vs['style'] ?? ''));
+    if ($bStyle !== '' || $bColors !== '') $styles['brand'] = $bStyle !== '' ? $bStyle : 'clean professional brand visual';
+    $style = isset($styles[$_POST['style'] ?? '']) ? $_POST['style'] : (isset($styles['brand']) ? 'brand' : 'photo');
+    $brand = "BRAND IDENTITY (from the company's knowledge base, must be followed): company \"" . ws('name') . "\"." . ($bColors !== '' ? " Brand colors: {$bColors} — use them as the dominant palette." : '') . ($bStyle !== '' ? " Brand visual style: {$bStyle}." : '');
     $aspect = in_array($_POST['aspect'] ?? '', ['1:1', '4:5', '9:16', '16:9'], true) ? $_POST['aspect'] : '1:1';
     if ($_POST['action'] === 'poster_prompt') {
         if (!ai_connection()) $J(['ok' => false, 'error' => t('اربط مزوّد ذكاء اصطناعي أولًا.')]);
         $text = mb_substr(trim((string)($_POST['text'] ?? '')), 0, 3000); if ($text === '') $J(['ok' => false, 'error' => t('اكتب نص المنشور أولًا.')]);
-        $head = mb_substr(trim((string)($_POST['headline'] ?? '')), 0, 80); $nref = max(0, min(4, (int)($_POST['nref'] ?? 0)));
+        $head = mb_substr(trim((string)($_POST['headline'] ?? '')), 0, 80); $nref = max(0, min(4, (int)($_POST['nref'] ?? 0))) + (!empty($_POST['use_logo']) ? 1 : 0);
         try {
             $r = ai_chat([['role' => 'system', 'content' => "You are a senior art director writing prompts for an image generation model (GPT image). Read the social media post and write ONE professional English prompt for a scroll-stopping social media visual that supports the post's message.\nInclude: subject and scene, composition for a {$aspect} frame, lighting, color palette, mood, camera/lens or render details, and what to avoid (no clutter, no distorted hands, no random text)." .
-                "\nStyle: {$styles[$style]}." . ($head !== '' ? "\nRender this exact headline text clearly on the image, large and legible, with correct spelling: \"{$head}\"." : "\nDo not put any text or letters in the image.") .
+                "\nStyle: {$styles[$style]}.\n{$brand}" . ($head !== '' ? "\nRender this exact headline text clearly on the image, large and legible, with correct spelling: \"{$head}\"." : "\nDo not put any text or letters in the image.") .
                 ($nref ? "\n{$nref} reference image(s) will be attached (product, logo or person): tell the model to keep them faithful and integrate them naturally." : '') . "\nReturn ONLY the prompt, 60-140 words, no quotes, no preamble."],
                 ['role' => 'user', 'content' => $text]], 500, 'compose');
             $J(['ok' => true, 'prompt' => trim((string)$r['text'], " \n\"")]);
@@ -61,8 +64,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
     // التوليد
     if (!function_exists('img_openai_conn') || !img_openai_conn()) $J(['ok' => false, 'error' => t('اربط OpenAI أولًا من صفحة التكاملات لتوليد الصور.')]);
     $prompt = trim((string)($_POST['prompt'] ?? '')); if (mb_strlen($prompt) < 10) $J(['ok' => false, 'error' => t('اكتب وصف الصورة.')]);
+    // الهوية بتتطبق حتى لو المستخدم عدّل الوصف ومسح الألوان
+    if ($bColors !== '' && stripos($prompt, $bColors) === false) $prompt .= "\n\nBrand colors (must use as dominant palette): {$bColors}.";
     $wid = (int)ws('id'); $refs = [];
-    foreach (array_slice(array_unique(array_map('intval', (array)($_POST['refs'] ?? []))), 0, 4) as $mid) { $mr = media_get($wid, $mid); if ($mr && empty($mr['deleted_at']) && strpos((string)$mr['mime'], 'image/') === 0) $refs[] = media_file_path($wid, $mr); }
+    $lg = !empty($_POST['use_logo']) && function_exists('kb_logo') ? kb_logo($wid) : null;
+    if ($lg) { $refs[] = media_file_path($wid, $lg); $prompt .= "\n\nThe first attached image is the company logo: place it small and clean in a corner, keep its exact shape and colors, do not redraw or distort it."; }
+    foreach (array_slice(array_unique(array_map('intval', (array)($_POST['refs'] ?? []))), 0, $lg ? 3 : 4) as $mid) { $mr = media_get($wid, $mid); if ($mr && empty($mr['deleted_at']) && strpos((string)$mr['mime'], 'image/') === 0) $refs[] = media_file_path($wid, $mr); }
     try {
         $names = img_openai_generate($prompt, $aspect, 1, $refs, (string)($_POST['quality'] ?? ''));
         if (function_exists('media_sync_ai')) media_sync_ai($wid);
@@ -544,7 +551,10 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
             <p class="text-[11px] text-ink-500"><?= e(t('النتيجة (أنهي نسخة تفاعلها أعلى) بتظهر في التحليلات تحت "أفضل 10 منشورات". شغال مع الجدولة والنشر دلوقتي.')) ?></p>
           </div>
           <div id="cpt-check" class="flex flex-wrap gap-1.5 text-[11px]"></div>
-          <div class="border-t border-ink-100 pt-4"><div class="flex items-center gap-2 mb-2"><b class="text-ink-900"><?= e(t('صور أو فيديو')) ?></b><span class="text-[11px] text-ink-400"><?= e(t('اختياري')) ?> · <?= e(t('الصور بأي حجم (تُصغَّر تلقائيًا) · الفيديو حتى %s ميجا', function_exists('media_max_bytes') ? (string)max(1, (int)floor(media_max_bytes() / 1048576)) : (string)ini_get('upload_max_filesize'))) ?></span></div>
+          <div class="border-t border-ink-100 pt-4"><div class="flex items-center gap-2 mb-2"><b class="text-ink-900"><?= e(t('صور أو فيديو')) ?></b><span class="text-[11px] text-ink-400"><?= e(t('اختياري')) ?> · <?= e(t('الصور بأي حجم (تُصغَّر تلقائيًا) · الفيديو حتى %s ميجا', function_exists('media_max_bytes') ? (string)max(1, (int)floor(media_max_bytes() / 1048576)) : (string)ini_get('upload_max_filesize'))) ?></span><?php if (can('ai.use') && ((function_exists('img_openai_conn') && img_openai_conn()) || (ai_connection() && ai_feature_on('vision')))): ?>
+            <div class="relative ms-auto" id="mai"><button type="button" id="mai-btn" class="w-8 h-8 grid place-items-center rounded-lg border border-brand-200 bg-brand-50 text-brand-700 hover:shadow-sm" title="<?= e(t('الذكاء الاصطناعي')) ?>" aria-label="<?= e(t('الذكاء الاصطناعي')) ?>" aria-expanded="false"><?= ai_icon('spark', 'w-4 h-4') ?></button>
+              <div id="mai-pop" class="hidden absolute end-0 z-40 mt-2 w-60 rounded-2xl border border-ink-200 bg-white p-1.5 shadow-2xl text-sm"></div></div>
+            <?php endif; ?></div>
           <label class="block">
             <input type="file" name="media[]" id="mediaInput" multiple accept="image/*,video/*,application/pdf" class="input"></label>
           <div id="mediaPreview" class="flex flex-wrap gap-2 mt-3"></div>
@@ -569,7 +579,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
           })();
           </script>
           <?php if (can('ai.use') && function_exists('img_openai_conn') && img_openai_conn()): ?>
-          <button type="button" id="pst-open" class="mt-2 inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-l from-brand-600 to-fuchsia-600 px-3.5 py-2 text-sm font-semibold text-[#fff] shadow-sm hover:shadow-md"><?= ai_icon('spark', 'w-4 h-4') ?> <?= e(t('صمّم صورة من المنشور')) ?></button>
+          <button type="button" id="pst-open" class="hidden items-center gap-1.5 rounded-xl bg-gradient-to-l from-brand-600 to-fuchsia-600 px-3.5 py-2 text-sm font-semibold text-[#fff] shadow-sm hover:shadow-md"><?= ai_icon('spark', 'w-4 h-4') ?> <?= e(t('صمّم صورة من المنشور')) ?></button>
           <dialog id="pst" class="m-auto w-[min(760px,94vw)] rounded-3xl p-0 shadow-2xl backdrop:bg-ink-900/50">
             <div class="flex items-center gap-3 border-b border-ink-100 px-5 py-3.5">
               <b class="text-ink-900"><?= e(t('تصميم صورة من المنشور')) ?></b>
@@ -581,9 +591,23 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
                 <div><label class="label"><?= e(t('المقاس')) ?></label><select id="pst-aspect" class="input">
                   <option value="1:1"><?= e(t('بوست مربع 1:1')) ?></option><option value="4:5"><?= e(t('بوست طولي 4:5')) ?></option><option value="9:16"><?= e(t('ستوري / ريلز 9:16')) ?></option><option value="16:9"><?= e(t('عرضي 16:9 (لينكدإن، إكس، يوتيوب)')) ?></option></select></div>
                 <div><label class="label"><?= e(t('الأسلوب')) ?></label><select id="pst-style" class="input">
+                  <?php $vsK = (array)(kb_get((int)ws('id'))['visual_style'] ?? []); $hasBrand = trim((string)($vsK['colors'] ?? '') . ($vsK['style'] ?? '')) !== ''; if ($hasBrand): ?><option value="brand" selected><?= e(t('هوية الشركة')) ?></option><?php endif; ?>
                   <option value="photo"><?= e(t('تصوير احترافي')) ?></option><option value="corporate"><?= e(t('شركات B2B')) ?></option><option value="minimal"><?= e(t('بسيط مسطّح')) ?></option><option value="3d"><?= e(t('ثلاثي الأبعاد')) ?></option><option value="illustration"><?= e(t('رسم توضيحي')) ?></option><option value="luxury"><?= e(t('فاخر')) ?></option></select></div>
                 <div><label class="label"><?= e(t('الجودة')) ?></label><select id="pst-q" class="input"><option value="low"><?= e(t('سريعة (أرخص)')) ?></option><option value="medium" selected><?= e(t('متوسطة')) ?></option><option value="high"><?= e(t('عالية (أغلى)')) ?></option></select></div>
               </div>
+              <?php if ($hasBrand): preg_match_all('/#[0-9a-f]{6}\b|#[0-9a-f]{3}\b/i', (string)($vsK['colors'] ?? ''), $hx); ?>
+              <div class="flex flex-wrap items-center gap-2 rounded-xl bg-ink-50 px-3 py-2 text-xs text-ink-700"><b><?= e(t('تُطبَّق هوية الشركة:')) ?></b>
+                <?php foreach (array_slice($hx[0], 0, 6) as $c): ?><span class="w-4 h-4 rounded-full ring-1 ring-ink-200" style="background:<?= e($c) ?>"></span><?php endforeach; ?>
+                <span class="truncate max-w-[40ch]"><?= e(mb_substr(trim((string)($vsK['colors'] ?? '') . ' · ' . ($vsK['style'] ?? ''), ' ·'), 0, 90)) ?></span>
+                <a href="<?= e(url('knowledge')) ?>#visual_style" target="_blank" class="link ms-auto"><?= e(t('تعديل')) ?></a></div>
+              <?php else: ?>
+              <p class="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800"><?= e(t('لا توجد هوية بصرية في قاعدة المعرفة، فالتصميم لن يلتزم بألوانك.')) ?> <a href="<?= e(url('knowledge')) ?>#visual_style" target="_blank" class="link"><?= e(t('أضف الألوان والأسلوب')) ?></a></p>
+              <?php endif; ?>
+              <?php $lgK = function_exists('kb_logo') ? kb_logo((int)ws('id')) : null; if ($lgK): $lgR = media_row($lgK); ?>
+              <label class="flex items-center gap-3 rounded-xl border border-ink-200 px-3 py-2 text-sm cursor-pointer"><input type="checkbox" id="pst-logo" checked><img src="<?= e($lgR['thumb'] ?: $lgR['url']) ?>" alt="" class="w-8 h-8 rounded object-contain bg-ink-50"><span><?= e(t('أرفق شعار الشركة في التصميم')) ?></span></label>
+              <?php else: ?>
+              <p class="text-xs text-ink-500"><?= e(t('لا يوجد شعار في قاعدة المعرفة.')) ?> <a href="<?= e(url('knowledge')) ?>#company" target="_blank" class="link"><?= e(t('أضف الشعار')) ?></a></p>
+              <?php endif; ?>
               <div><label class="label"><?= e(t('عنوان مكتوب على الصورة (اختياري)')) ?></label><input id="pst-head" class="input" maxlength="80" placeholder="<?= e(t('اتركه فارغًا لصورة بدون كتابة')) ?>">
                 <p class="text-[11px] text-amber-700 mt-1"><?= e(t('الكتابة الإنجليزية تخرج أدق. العربية قد تخرج بأخطاء في الحروف، راجعها قبل النشر.')) ?></p></div>
               <div><div class="flex items-center justify-between"><label class="label"><?= e(t('صور مرفقة (منتج، لوجو، شخص)')) ?></label><button type="button" id="pst-addref" class="link text-xs">+ <?= e(t('اختر أو ارفع من المكتبة')) ?></button></div>
@@ -614,11 +638,11 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
             function err(id, m) { var e = $(id); e.textContent = m || ''; e.classList.toggle('hidden', !m); }
             function txt() { var c = document.getElementById('content'); return c ? c.value.trim() : ''; }
             function suggest() { if (!txt()) { err('pst-err1', L.noText); return; } err('pst-err1', ''); var pr = $('pst-prompt'), b = $('pst-suggest'); pr.value = ''; pr.placeholder = L.writing; b.disabled = true;
-              post({ action: 'poster_prompt', text: txt(), aspect: $('pst-aspect').value, style: $('pst-style').value, headline: $('pst-head').value, nref: refs.length }).then(function (d) { if (d.ok) pr.value = d.prompt; else err('pst-err1', d.error); }).finally(function () { b.disabled = false; }); }
+              post({ action: 'poster_prompt', text: txt(), aspect: $('pst-aspect').value, style: $('pst-style').value, headline: $('pst-head').value, nref: refs.length, use_logo: $('pst-logo') && $('pst-logo').checked ? 1 : '' }).then(function (d) { if (d.ok) pr.value = d.prompt; else err('pst-err1', d.error); }).finally(function () { b.disabled = false; }); }
             function paintRefs() { $('pst-refs').innerHTML = refs.map(function (f, i) { return '<span class="relative w-16 h-16 rounded-xl overflow-hidden border border-ink-200"><img src="' + (f.thumb || f.url) + '" class="w-full h-full object-cover" alt=""><button type="button" data-rm="' + i + '" class="absolute top-0.5 end-0.5 w-5 h-5 rounded-full bg-ink-900/70 text-[#fff] text-xs">×</button></span>'; }).join(''); }
             function design() { if (busy) return; if ($('pst-prompt').value.trim().length < 10) { err('pst-err1', L.noText); step(1); return; } busy = true; step(2); err('pst-err2', ''); file = null; $('pst-use').disabled = true; $('pst-saved').classList.add('hidden'); $('pst-again').disabled = true;
               $('pst-stage').innerHTML = '<div class="text-center p-8"><div class="mx-auto mb-3 w-10 h-10 rounded-full border-4 border-brand-200 border-t-brand-600 animate-spin"></div><p class="text-sm text-ink-600">' + L.wait + '</p></div>';
-              post({ action: 'poster_gen', prompt: $('pst-prompt').value, aspect: $('pst-aspect').value, style: $('pst-style').value, quality: $('pst-q').value, 'refs[]': refs.map(function (f) { return f.id; }) }).then(function (d) {
+              post({ action: 'poster_gen', prompt: $('pst-prompt').value, aspect: $('pst-aspect').value, style: $('pst-style').value, quality: $('pst-q').value, use_logo: $('pst-logo') && $('pst-logo').checked ? 1 : '', 'refs[]': refs.map(function (f) { return f.id; }) }).then(function (d) {
                 if (!d.ok) { $('pst-stage').innerHTML = ''; err('pst-err2', d.error); return; } file = d.file;
                 $('pst-stage').innerHTML = '<img src="' + d.file.url + '" alt="" class="max-h-[60vh] w-auto object-contain">'; $('pst-use').disabled = false; $('pst-saved').classList.remove('hidden');
               }).catch(function () { err('pst-err2', L.err); }).finally(function () { busy = false; $('pst-again').disabled = false; }); }
@@ -633,8 +657,28 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
           })();
           </script>
           <?php endif; ?>
+          <script>
+          (function () {
+            var btn = document.getElementById('mai-btn'), pop = document.getElementById('mai-pop'); if (!btn) return;
+            function firstImage() { var f = [].slice.call((document.getElementById('mediaInput') || {}).files || []).filter(function (x) { return /^image\//.test(x.type); })[0]; if (f) return f;
+              var im = document.querySelector('#libMedia img'); return im ? im.src : null; }
+            function items() { var out = [], img = firstImage();
+              if (document.getElementById('pst-open')) out.push(['pst', <?= json_encode(t('صمّم صورة من المنشور'), JSON_UNESCAPED_UNICODE) ?>]);
+              if (img) document.querySelectorAll('#vis-box [data-vis]').forEach(function (b) { out.push(['vis:' + b.dataset.vis, b.textContent.trim()]); });
+              return out; }
+            function close() { pop.classList.add('hidden'); btn.setAttribute('aria-expanded', 'false'); }
+            btn.addEventListener('click', function (e) { e.stopPropagation(); if (!pop.classList.contains('hidden')) return close();
+              pop.innerHTML = items().map(function (x) { return '<button type="button" data-mai="' + x[0] + '" class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start hover:bg-ink-50">✦ <span></span></button>'; }).join('');
+              items().forEach(function (x, i) { pop.children[i].querySelector('span').textContent = x[1]; });
+              pop.classList.remove('hidden'); btn.setAttribute('aria-expanded', 'true'); });
+            pop.addEventListener('click', function (e) { var b = e.target.closest('[data-mai]'); if (!b) return; close(); var k = b.dataset.mai;
+              if (k === 'pst') document.getElementById('pst-open').click(); else { var v = document.querySelector('#vis-box [data-vis="' + k.slice(4) + '"]'); if (v) v.click(); } });
+            document.addEventListener('click', function (e) { if (!e.target.closest('#mai')) close(); });
+            window.cpFirstImage = firstImage;
+          })();
+          </script>
           <?php if (ai_connection() && can('ai.use') && ai_feature_on('vision')): ?>
-          <div class="flex flex-wrap items-center gap-2 mt-2" id="vis-box">
+          <div class="hidden" id="vis-box">
             <?php foreach (['from_image', 'alt_text'] as $vk): if (!ai_feature_on($vk)) continue; ?>
               <button type="button" data-vis="<?= $vk ?>" class="cp-tool !border-brand-200 !bg-brand-50 !text-brand-700 disabled:opacity-60"><?= ai_icon('spark', 'w-3.5 h-3.5') ?> <?= e(ai_presets()[$vk]['label']) ?></button>
             <?php endforeach; ?>
@@ -652,10 +696,10 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
             }
             box.addEventListener('click', function (e) {
               var b = e.target.closest('[data-vis]'); if (!b) return;
-              var f = [].slice.call(document.getElementById('mediaInput').files || []).filter(function (x) { return /^image\//.test(x.type); })[0];
+              var f = window.cpFirstImage ? window.cpFirstImage() : [].slice.call(document.getElementById('mediaInput').files || []).filter(function (x) { return /^image\//.test(x.type); })[0];
               if (!f) { (window.aiToast || alert)(<?= json_encode(t('اختر صورة أولًا (أقل من 2 ميجا).'), JSON_UNESCAPED_UNICODE) ?>); return; }
               b.disabled = true; b.classList.add('animate-pulse');
-              shrink(f).then(function (data) {
+              (typeof f === 'string' ? fetch(f, { credentials: 'same-origin' }).then(function (r) { return r.blob(); }) : Promise.resolve(f)).then(shrink).then(function (data) {
                 var fd = new FormData(), c = document.getElementById('content'); fd.append('task', 'preset'); fd.append('preset', b.dataset.vis); fd.append('text', c.value); fd.append('image', data);
                 return fetch('index.php?p=ai_task', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': document.querySelector('meta[name=csrf-token]').content } }).then(function (r) { return r.json(); }).then(function (d) {
                   if (d.error) { (window.aiToast || alert)(d.error); return; }

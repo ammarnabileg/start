@@ -474,7 +474,13 @@ render(t('قاعدة المعرفة'), 'knowledge', function () use ($schema, $k
               <div class="grid sm:grid-cols-2 gap-x-4 gap-y-3">
                 <?php foreach ($s['fields'] as $fk => $f): $span = ($f[3] ?? 1) === 2; ?>
                   <label class="block <?= $span ? 'sm:col-span-2' : '' ?>"><span class="label"><?= e($f[0]) ?></span>
-                    <?php if ($f[1] === 'area'): ?><textarea name="d[<?= $fk ?>]" rows="<?= $span ? 3 : 2 ?>" class="input text-sm leading-relaxed" dir="auto" placeholder="<?= e($f[2]) ?>" <?= $dis ?>><?= e($d[$fk] ?? '') ?></textarea>
+                    <?php if ($f[1] === 'media'): $lr = ($lv = (int)($d[$fk] ?? 0)) && function_exists('media_get') ? media_get((int)ws('id'), $lv) : null; $lr = $lr ? media_row($lr) : null; ?>
+                      <span class="kb-media flex items-center gap-3 rounded-xl border border-dashed border-ink-300 p-2"><input type="hidden" name="d[<?= $fk ?>]" value="<?= $lr ? (int)$lr['id'] : '' ?>">
+                        <img alt="" class="w-14 h-14 rounded-lg object-contain bg-ink-50 <?= $lr ? '' : 'hidden' ?>" src="<?= e($lr['thumb'] ?? $lr['url'] ?? '') ?>">
+                        <button type="button" class="btn-ghost !text-xs border border-ink-200" data-kb-media <?= $dis ?>>📁 <?= e(t('اختر من مكتبة الوسائط')) ?></button>
+                        <button type="button" class="text-xs text-red-600 <?= $lr ? '' : 'hidden' ?>" data-kb-media-x <?= $dis ?>><?= e(t('إزالة')) ?></button>
+                        <span class="text-[11px] text-ink-500"><?= e($f[2]) ?></span></span>
+                    <?php elseif ($f[1] === 'area'): ?><textarea name="d[<?= $fk ?>]" rows="<?= $span ? 3 : 2 ?>" class="input text-sm leading-relaxed" dir="auto" placeholder="<?= e($f[2]) ?>" <?= $dis ?>><?= e($d[$fk] ?? '') ?></textarea>
                     <?php else: ?><input <?= $f[1] === 'tel' ? 'data-phone="' . ($fk === 'whatsapp' ? 'mobile' : 'any') . '"' : '' ?> name="d[<?= $fk ?>]" type="<?= in_array($f[1], ['url', 'email', 'tel'], true) ? $f[1] : 'text' ?>" <?= in_array($f[1], ['url', 'email', 'tel'], true) ? 'dir="ltr"' : 'dir="auto"' ?> class="input text-sm" placeholder="<?= e($f[2]) ?>" value="<?= e($d[$fk] ?? '') ?>" <?= $dis ?>><?php endif; ?>
                   </label>
                 <?php endforeach; ?>

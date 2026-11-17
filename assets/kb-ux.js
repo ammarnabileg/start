@@ -191,3 +191,15 @@
     sync();
   }
 })();
+
+/* الشعار في «عن الشركة»: يتختار من مكتبة الوسائط ويتحفظ رقمه */
+(function () {
+  if (window.__kbMedia) return; window.__kbMedia = 1;
+  document.addEventListener('click', function (e) {
+    var pick = e.target.closest('[data-kb-media]'), rm = e.target.closest('[data-kb-media-x]'); if (!pick && !rm) return;
+    var box = (pick || rm).closest('.kb-media'), inp = box.querySelector('input'), img = box.querySelector('img'), x = box.querySelector('[data-kb-media-x]');
+    function set(id, src) { inp.value = id; img.src = src || ''; img.classList.toggle('hidden', !id); x.classList.toggle('hidden', !id); inp.dispatchEvent(new Event('input', { bubbles: true })); inp.dispatchEvent(new Event('change', { bubbles: true })); }
+    if (rm) return set('', '');
+    if (window.mediaPick) window.mediaPick({ accept: 'image', public: false }).then(function (f) { f = f && (f[0] || f); if (f && f.id) set(f.id, f.thumb || f.url); });
+  });
+})();

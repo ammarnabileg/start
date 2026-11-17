@@ -15,6 +15,7 @@ function kb_schema(): array
     return [
         // معلومات الشركة
         'company' => ['group' => 'info', 'label' => t('عن الشركة'), 'hint' => t('هوية الشركة بدقة: الاسم، النشاط، الفروع، الدفع والتوصيل.'), 'type' => 'fields', 'fields' => [
+            'logo' => [t('الشعار'), 'media', t('اختره من مكتبة الوسائط. يُستخدم في تصميم الصور.'), 2],
             'name' => [t('اسم الشركة'), 'text', ''], 'industry' => [t('المجال / النشاط'), 'text', t('مثال: مقاولات كهربائية، توريد معدات صناعية، وكالة تسويق')],
             'tagline' => [t('وصف في سطر واحد'), 'text', t('ماذا تقدم ولمن، في جملة واحدة'), 2],
             'about' => [t('نبذة عن الشركة'), 'area', t('التأسيس، الخبرة، الفريق، أهم الإنجازات'), 2],
@@ -62,6 +63,13 @@ function kb_schema(): array
             'hint' => t('كل خدمة في "الخدمات والمنتجات" لها بطاقة هنا تلقائيًا، لأن لكل منتج جمهورًا ومشكلة وفرقًا مختلفًا. الأقسام السابقة هي تموضع الشركة ككل.'),
             'cols' => ['offer' => t('المنتج أو الخدمة'), 'audience' => t('الجمهور المستهدف'), 'problem' => t('المشكلة أو الاحتياج'), 'frame' => t('الفئة والمنافسين'), 'pod' => t('نقطة الاختلاف'), 'rtb' => t('سبب التصديق')]],
     ];
+}
+
+/** ملف الشعار من قاعدة المعرفة (صف مكتبة الوسائط) أو null */
+function kb_logo(int $wid): ?array
+{
+    $id = (int)(kb_get($wid)['company']['logo'] ?? 0); if ($id <= 0 || !function_exists('media_get')) return null;
+    $r = media_get($wid, $id); return $r && empty($r['deleted_at']) && strpos((string)$r['mime'], 'image/') === 0 ? $r : null;
 }
 
 function kb_get(int $wid): array
@@ -165,7 +173,7 @@ function kb_compile(int $wid, string $query = '', bool $lean = false): string
     $k = kb_get($wid);
     $out = [];
     $sch = kb_schema();
-    $fields = function ($sec) use ($k, $sch) { $l = []; foreach ($sch[$sec]['fields'] as $fk => $f) if (($v = trim((string)($k[$sec][$fk] ?? ''))) !== '') $l[] = $f[0] . ': ' . (strpos($v, "\n") !== false ? "\n  " . str_replace("\n", "\n  ", $v) : $v); return implode("\n", $l); };
+    $fields = function ($sec) use ($k, $sch) { $l = []; foreach ($sch[$sec]['fields'] as $fk => $f) if ($f[1] !== 'media' && ($v = trim((string)($k[$sec][$fk] ?? ''))) !== '') $l[] = $f[0] . ': ' . (strpos($v, "\n") !== false ? "\n  " . str_replace("\n", "\n  ", $v) : $v); return implode("\n", $l); };
     // الرد الذكي: نصنّف السؤال الأول وبعدين نبحث جوه الأقسام دي بس
     $in = $lean ? kb_intent($query) : [];
     if ($in) {
@@ -279,7 +287,7 @@ function kb_map(int $wid): array
         if (in_array($sec, kb_rule_secs(), true)) continue;
         $type = $d['type'] ?? ''; $lab = (string)($d['nav'] ?? $d['label']);
         if ($type === 'fields') {
-            $f = []; foreach ($d['fields'] as $fk => $fd) if (trim((string)($k[$sec][$fk] ?? '')) !== '') { $f[] = $sec . '.' . $fk . '=' . $fd[0]; $paths[$sec . '.' . $fk] = 1; $labels[$sec . '.' . $fk] = $lab . ' › ' . $fd[0]; }
+            $f = []; foreach ($d['fields'] as $fk => $fd) if ($fd[1] !== 'media' && trim((string)($k[$sec][$fk] ?? '')) !== '') { $f[] = $sec . '.' . $fk . '=' . $fd[0]; $paths[$sec . '.' . $fk] = 1; $labels[$sec . '.' . $fk] = $lab . ' › ' . $fd[0]; }
             if ($f) { $lines[] = '[' . $sec . '] ' . $lab . ': ' . implode(' | ', $f); $paths[$sec] = 1; $labels[$sec] = $lab; }
         } elseif ($type === 'rows') {
             $cols = array_keys($d['cols'] ?? []); $first = $cols[0] ?? 'name';
@@ -310,7 +318,7 @@ function kb_fetch(int $wid, array $look, string $query): string
     }
     foreach ($bySec as $sec => $wants) {
         $d = $sch[$sec]; $type = $d['type'] ?? ''; $lab = (string)$d['label']; $all = in_array(['all'], $wants, true); $l = [];
-        if ($type === 'fields') { foreach ($d['fields'] as $fk => $fd) if (($all || in_array(['f', $fk], $wants, true)) && ($v = trim((string)($k[$sec][$fk] ?? ''))) !== '') $l[] = $fd[0] . ': ' . $v; }
+        if ($type === 'fields') { foreach ($d['fields'] as $fk => $fd) if ($fd[1] !== 'media' && ($all || in_array(['f', $fk], $wants, true)) && ($v = trim((string)($k[$sec][$fk] ?? ''))) !== '') $l[] = $fd[0] . ': ' . $v; }
         elseif ($type === 'rows') {
             $cols = $d['cols'] ?? []; $first = array_keys($cols)[0] ?? 'name';
             $rows = array_values(array_filter((array)($k[$sec]['rows'] ?? []), function ($r) use ($first) { return trim((string)($r[$first] ?? '')) !== ''; }));
