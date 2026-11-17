@@ -77,8 +77,10 @@ if (in_array($page, $adminPages, true) && !is_admin()) {
     redirect(url('dashboard'));
 }
 
+if (is_admin() && empty($_SESSION['impersonator']) && setting('site_base', '') === '' && !empty($_SERVER['HTTP_HOST'])) save_setting('site_base', base_url()); // العنوان الحقيقي للمنصة
 // وضع الصيانة: الموقع مقفول على الكل ما عدا مديري النظام
 if (current_user() && !is_admin() && empty($_SESSION['impersonator']) && setting('maintenance', '0') === '1' && $page !== 'logout') {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' || !empty($_SERVER['HTTP_X_REQUESTED_WITH']) || stripos((string)($_SERVER['HTTP_ACCEPT'] ?? ''), 'json') !== false) { http_response_code(503); header('Content-Type: application/json; charset=utf-8'); exit(json_encode(['ok' => false, 'error' => setting('maintenance_message', '') ?: t('المنصة في وضع الصيانة الآن. حاول بعد قليل.')], JSON_UNESCAPED_UNICODE)); }
     auth_page(t('وضع الصيانة'), function () {
         echo '<p class="text-center text-sm text-ink-600">' . e(setting('maintenance_message', '') ?: t('المنصة في وضع الصيانة دلوقتي. جرب بعد شوية.')) . '</p>';
         echo '<form method="post" action="' . e(url('logout')) . '">' . csrf_field() . '<button class="btn-ghost w-full">' . e(t('تسجيل خروج')) . '</button></form>';

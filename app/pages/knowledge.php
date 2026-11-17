@@ -100,7 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $text = mb_substr($text, 0, 200000);
         $method = preg_replace('/[^a-z+]/', '', (string)($_POST['client_method'] ?? '')) ?: 'browser';
         $mime = $ext === 'pdf' ? 'application/pdf' : 'image/' . ($ext === 'jpg' ? 'jpeg' : $ext);
-        kb_file_store($wid, $name, $mime, (int)($_POST['client_size'] ?? 0), $method, $text);
+        try { kb_file_store($wid, $name, $mime, (int)($_POST['client_size'] ?? 0), $method, $text); } catch (RuntimeException $e) { $json(['ok' => false, 'error' => $e->getMessage()]); }
         log_activity('kb.file', $name);
         $json(['ok' => true, 'id' => $GLOBALS['kb_last_id'], 'name' => $name, 'chars' => mb_strlen($text), 'method' => $method, 'preview' => mb_substr($text, 0, 600)]);
     }
@@ -117,7 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $json(['error' => $name . ': ' . $e->getMessage()], 422);
         }
         $text = mb_substr($text, 0, 200000);
-        kb_file_store($wid, $name, $mime, (int)$f['size'], $method, $text);
+        try { kb_file_store($wid, $name, $mime, (int)$f['size'], $method, $text); } catch (RuntimeException $e) { $json(['ok' => false, 'error' => $e->getMessage()]); }
         kb_orig_save($wid, (int)$GLOBALS['kb_last_id'], $f['tmp_name'], $name);
         log_activity('kb.file', $name);
         $json(['ok' => true, 'id' => $GLOBALS['kb_last_id'], 'name' => $name, 'chars' => mb_strlen($text), 'method' => $method, 'preview' => mb_substr($text, 0, 600)]);

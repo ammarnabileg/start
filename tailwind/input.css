@@ -1839,3 +1839,4 @@ fieldset{min-width:0}
 /* الوضع الداكن: الخلفية حوالين أي نافذة منبثقة سودا شفافة (لون ink بيتقلب فاتح في الداكن فكانت بتطلع بيضا) */
 html.dark dialog::backdrop{background:rgb(0 0 0/.65)!important;backdrop-filter:blur(2px)}
 html.dark [class*="inset-0"][class*="bg-ink-900/"],html.dark .cx-shb,html.dark .st-hpb{background:rgb(0 0 0/.6)!important}
+@media (hover: none) { #ibx .group .opacity-0, .ibx-sel { opacity: 1 !important; } }

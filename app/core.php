@@ -195,7 +195,8 @@ function record_failed_attempt(PDO $pdo): void
 
 function clear_attempts(PDO $pdo): void
 {
-    $pdo->prepare("DELETE FROM login_attempts WHERE ip = ?")->execute([client_ip()]);
+    // مابنمسحش العداد كله (كان بيتيح تخمين لا نهائي: كذا محاولة غلط ثم دخول بحساب تاني من نفس الـ IP). العداد بيخلص لوحده بعد 15 دقيقة
+    $pdo->exec("DELETE FROM login_attempts WHERE created_at < (NOW() - INTERVAL 1 DAY)");
 }
 
 /* ---------- المستخدمين ---------- */
@@ -337,6 +338,8 @@ function ws(string $field)
 
 /* ---------- مساعدات ---------- */
 
+/** عنوان المنصة الموثوق (للروابط اللي بتتبعت بالإيميل): بيتحفظ من طلب مدير منصة مسجّل دخوله */
+function site_base(): string { $b = (string)setting('site_base', ''); return $b !== '' ? $b : ''; }
 function base_url(): string
 {
     $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
