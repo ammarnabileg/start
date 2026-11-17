@@ -58,7 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $aiOn = function_exists('ai_connection') && ai_connection() && can('ai.use');
 $wsName = (string)(ws('name') ?? '');
-render(t('استوديو المحتوى'), 'studio', function () use ($kinds, $plats, $goals, $tones, $svcs, $aiOn, $wsName) {
+render(t('الكتابة بالذكاء الاصطناعي'), 'studio', function () use ($kinds, $plats, $goals, $tones, $svcs, $aiOn, $wsName) {
     $seg = function (string $name, array $opts, string $on) { $h = '<div class="flex flex-wrap gap-1.5">';
         foreach ($opts as $k => $l) $h .= '<label class="cursor-pointer"><input type="radio" name="' . $name . '" value="' . e($k) . '" class="peer sr-only"' . ($k === $on ? ' checked' : '') . '><span class="inline-flex rounded-full border border-ink-200 bg-white px-3 py-1.5 text-xs font-medium text-ink-600 transition hover:border-brand-300 peer-checked:border-brand-500 peer-checked:bg-brand-600 peer-checked:text-white peer-focus-visible:ring-4 peer-focus-visible:ring-brand-500/20">' . e($l) . '</span></label>';
         return $h . '</div>'; };

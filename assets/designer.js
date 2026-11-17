@@ -90,13 +90,17 @@
     var t = new fabric.Textbox('📷  ' + L.ph, { fontSize: Math.max(18, w * 0.06), fill: '#64748b', fontFamily: 'Cairo', width: w * 0.8, textAlign: 'center', originX: 'center', originY: 'center' });
     return new fabric.Group([shape, t], { left: x, top: y, dzRole: 'ph', dzCircle: !!(o && o.circle), dzRx: (o && o.rx) || 0 });
   }
-  function T(t, o) { var ar = isAr(t); var tb = new fabric.Textbox(t, Object.assign({ fontFamily: ar ? 'Cairo' : 'Inter', fontSize: W * 0.05, fill: S, width: W * 0.84, left: W * 0.08, textAlign: ar ? 'right' : 'left', direction: ar ? 'rtl' : 'ltr', lineHeight: 1.15 }, o || {})); return fitT(tb, o && o.maxLines); }
+  function T(t, o) { var ar = isAr(t); var tb = new fabric.Textbox(t, Object.assign({ fontFamily: ar ? 'Cairo' : 'Inter', fontSize: W * 0.05, fill: S, width: W * 0.84, left: W * 0.08, textAlign: ar ? 'right' : 'left', direction: ar ? 'rtl' : 'ltr', lineHeight: 1.15 }, o || {})); tb.dzCap = o && o.maxLines; return fitT(tb, tb.dzCap); }
   // النص مايطلعش برا مكانه: نصغّر الخط لحد عدد سطور معقول، ولو لسه طويل نقصّه بـ «…»
   function fitT(tb, cap) { var fs0 = tb.fontSize; if (!cap) cap = fs0 >= W * 0.075 ? 2 : fs0 >= W * 0.055 ? 3 : fs0 >= W * 0.04 ? 4 : 6; var n = function () { tb.initDimensions(); return (tb.textLines || []).length; };
     while (n() > cap && tb.fontSize > fs0 * 0.6) tb.set('fontSize', tb.fontSize * 0.92);
     var guard = 0; while (n() > cap && tb.text.length > 4 && guard++ < 300) { var raw = tb.text.replace(/…$/, ''), w = raw.split(' '); if (w.length < 2) tb.set('text', raw.slice(0, -2) + '…'); else { w.pop(); tb.set('text', w.join(' ') + '…'); } }
     if (tb.width && tb.calcTextWidth && tb.calcTextWidth() > tb.width * 1.02 && tb.text.indexOf(' ') < 0) { while (tb.text.length > 4 && tb.calcTextWidth() > tb.width) { tb.set('text', tb.text.replace(/…$/, '').slice(0, -1) + '…'); tb.initDimensions(); } } // كلمة واحدة طويلة (رابط)
     return tb; }
+  // بعد ما خطوط القالب (Cairo...) تحمّل: نعيد القياس، لأن القياس بالخط البديل كان بيطلّع العنوان مقصوص برا اللوحة
+  document.addEventListener('dz:tpl', function () { if (!document.fonts) return; document.fonts.ready.then(function () { var ch = false;
+    (function walk(list) { list.forEach(function (o) { if (o.type === 'textbox') { var fs = o.fontSize; o.initDimensions(); fitT(o, o.dzCap); if (o.width && o.calcTextWidth && o.calcTextWidth() > o.width * 1.01) { while (o.fontSize > fs * 0.5 && o.calcTextWidth() > o.width) { o.set('fontSize', o.fontSize * 0.94); o.initDimensions(); } } ch = true; } else if (o.type === 'group') walk(o.getObjects()); }); })(cv.getObjects());
+    if (ch) { cv.requestRenderAll(); } }); });
   function TC(t, o) { return T(t, Object.assign({ textAlign: 'center' }, o || {})); }
   function pill(t, x, y, bg, fg, fs, mid) { var tt = new fabric.Textbox(t, { fontSize: fs, fontWeight: 800, fill: fg, fontFamily: isAr(t) ? 'Cairo' : 'Inter', textAlign: 'center', originX: 'center', originY: 'center', width: fs * Math.max(4, t.length * 0.62) }); var r = new fabric.Rect({ width: tt.width + fs * 1.6, height: fs * 2.1, rx: fs * 1.05, ry: fs * 1.05, fill: bg, originX: 'center', originY: 'center' }); return new fabric.Group([r, tt], { left: x, top: y, originX: mid ? 'center' : 'left' }); }
   function R(x, y, w, h, fill, o) { return new fabric.Rect(Object.assign({ left: x, top: y, width: w, height: h, fill: fill }, o || {})); }

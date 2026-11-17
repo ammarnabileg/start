@@ -155,7 +155,7 @@ $img = (string)($_GET['img'] ?? ''); if (!preg_match('~^index\.php\?p=(ai_task&i
 
 $kitOut = $kit + ['colors' => [], 'head' => '', 'body' => '', 'logo' => '', 'auto' => false, 'fonts' => []];
 $kitOut['fonts'] = array_map(function ($f) { return ['name' => (string)$f['name'], 'url' => url('designer', ['font' => (string)$f['file']])]; }, array_filter((array)$kitOut['fonts'], function ($f) { return is_array($f) && !empty($f['file']); }));
-render(t('استوديو المحتوى'), 'designer', function () use ($brand, $co, $img, $kbd, $kitOut) {
+render(t('المصمم'), 'designer', function () use ($brand, $co, $img, $kbd, $kitOut) {
     $fonts = ['Cairo', 'Tajawal', 'Almarai', 'Alexandria', 'Changa', 'El Messiri', 'Lalezar', 'Amiri', 'Reem Kufi', 'Inter', 'Poppins', 'Playfair Display'];
     ?>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&family=Tajawal:wght@400;700;900&family=Almarai:wght@400;700;800&family=Changa:wght@400;700&family=El+Messiri:wght@400;700&family=Lalezar&family=Amiri:wght@400;700&family=Reem+Kufi:wght@400;700&family=Inter:wght@400;700;900&family=Poppins:wght@400;700;900&family=Playfair+Display:wght@400;700&display=swap">
@@ -347,4 +347,4 @@ render(t('استوديو المحتوى'), 'designer', function () use ($brand, 
   <script src="assets/designer-pro.js?v=<?= e(APP_VERSION) ?>"></script>
   <script src="assets/designer-plus.js?v=<?= e(APP_VERSION) ?>"></script>
   <script src="assets/designer-kit.js?v=<?= e(APP_VERSION) ?>"></script>
-<?php });
+<?php }, ['full' => true]);

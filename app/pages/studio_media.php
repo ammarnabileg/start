@@ -4,7 +4,7 @@ $wid = (int)ws('id');
 $hf = connector('higgsfield'); $oa = function_exists('img_provider') && img_provider() !== '';
 $on = ($hf || $oa) && ai_feature_on('image');
 $lib = $on ? hf_lib_list($wid, 30) : [];
-render(t('استوديو المحتوى'), 'studio_media', function () use ($on, $lib, $hf, $oa) {
+render(t('الصور والفيديو'), 'studio_media', function () use ($on, $lib, $hf, $oa) {
     $ratios = ['1:1' => [t('مربع'), 'aspect-square'], '4:5' => [t('بوست'), 'aspect-[4/5]'], '9:16' => [t('ستوري'), 'aspect-[9/16]'], '16:9' => [t('عرضي'), 'aspect-video']];
     ?>
   <?php if (!$on): ?>
