@@ -99,7 +99,7 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
     $alertsN = ($curWs && function_exists('alerts_unseen_count') && can('analytics.view') && module_enabled('analytics')) ? alerts_unseen_count((int)$curWs['id']) : 0;
     $crmN = ($curWs && function_exists('crm_notifs_unseen') && module_enabled('crm') && can('crm.view')) ? crm_notifs_unseen((int)$curWs['id'], (int)(current_user()['id'] ?? 0)) : 0;
     $bellN = count($invites) + $alertsN + $crmN;
-    $bellHref = ($invites && !($alertsN + $crmN)) || (!can('analytics.view') && !can('crm.view')) ? url('workspaces') : url('alerts'); // مركز تنبيهات واحد: تنبيهات العملاء + تنبيهات الأداء
+    $bellHref = ($invites && !($alertsN + $crmN)) || (!(can('analytics.view') && module_enabled('analytics')) && !(can('crm.view') && module_enabled('crm'))) ? url('workspaces') : url('alerts'); // مركز تنبيهات واحد: تنبيهات العملاء + تنبيهات الأداء
   ?>
   <a href="<?= e($bellHref) ?>" id="tb-bell" data-n="<?= (int)$bellN ?>" class="tb relative w-10 justify-center <?= $bellN ? '!text-ink-900' : '' ?>" title="<?= e(t('التنبيهات')) ?>">
     <?= $icon('M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 00-4-5.7V5a2 2 0 10-4 0v.3A6 6 0 006 11v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1') ?>
@@ -285,7 +285,7 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
   <span class="text-xs font-medium tracking-wide text-ink-500 group-hover:text-brand-700 transition" style="writing-mode:vertical-rl"><?= e(t('اسأل الذكاء الاصطناعي')) ?></span>
   <kbd class="mt-auto rounded-md border border-ink-200 bg-ink-50 px-1 py-0.5 text-[9px] font-mono text-ink-400 opacity-0 group-hover:opacity-100 transition" dir="ltr">Ctrl J</kbd>
 </button>
-<button type="button" data-cp-toggle class="<?= in_array($active ?? '', ['compose', 'post_edit'], true) ? '!bottom-24 ' : '' ?>lg:hidden fixed bottom-5 end-5 z-40 w-14 h-14 rounded-full text-[#fff] shadow-xl shadow-brand-600/30 bg-gradient-to-br from-brand-600 via-cyan-500 to-lime-400 flex items-center justify-center" aria-label="<?= e(t('اسأل الذكاء الاصطناعي')) ?>">
+<button type="button" data-cp-toggle class="<?= in_array($active ?? '', ['compose', 'post_edit', 'designer', 'studio', 'studio_media'], true) ? '!bottom-24 ' : '' ?>lg:hidden fixed bottom-5 end-5 z-40 w-14 h-14 rounded-full text-[#fff] shadow-xl shadow-brand-600/30 bg-gradient-to-br from-brand-600 via-cyan-500 to-lime-400 flex items-center justify-center" aria-label="<?= e(t('اسأل الذكاء الاصطناعي')) ?>">
   <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>
 </button>
 <aside id="cp" role="dialog" aria-label="AI" class="group/cp fixed z-40 top-16 bottom-0 end-0 w-full sm:w-[26rem] bg-white border-s border-ink-200 shadow-2xl lg:shadow-none flex flex-col translate-x-full rtl:-translate-x-full opacity-0 pointer-events-none transition-all duration-300 ease-out">

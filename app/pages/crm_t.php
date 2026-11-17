@@ -10,6 +10,7 @@ if (!empty($_GET['x']) && empty($_GET['y']) && $m) { // خطوة تأكيد: ب�
     $yes = 'index.php?' . http_build_query(['p' => 'crm_t', 'k' => $k, 'x' => 1, 'y' => 1]);
     exit('<!doctype html><meta charset="utf-8"><meta name="robots" content="noindex"><meta name="viewport" content="width=device-width,initial-scale=1"><div style="font-family:system-ui,Tahoma,sans-serif;max-width:420px;margin:15vh auto;text-align:center;color:#0f172a" dir="auto"><p>' . e(t('هل تريد إلغاء الاشتراك في رسائلنا؟')) . '</p><a href="' . e($yes) . '" rel="nofollow" style="display:inline-block;background:#0f172a;color:#fff;padding:10px 18px;border-radius:10px;text-decoration:none">' . e(t('نعم، ألغِ الاشتراك')) . '</a></div>');
 }
+if (!empty($_GET['x']) && !$m) { http_response_code(404); exit('<!doctype html><meta charset="utf-8"><p style="font-family:sans-serif;padding:2rem">' . e(t('الرابط ده مش صالح. رد على الإيميل واطلب إلغاء الاشتراك.')) . '</p>'); }
 if (!empty($_GET['x'])) {
     if ($m) ai_as_workspace((int)$m['workspace_id'], function () use ($m) {
         db()->prepare('UPDATE crm_leads SET unsub = 1 WHERE id = ? AND workspace_id = ?')->execute([(int)$m['lead_id'], (int)$m['workspace_id']]);

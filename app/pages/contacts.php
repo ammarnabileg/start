@@ -22,6 +22,7 @@ $back = url('contacts', ['q' => $q, 'tag' => $tag, 'sub' => $sub, 'skip' => $ski
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
     $action = (string)($_POST['action'] ?? '');
+    if (in_array($action, ['save', 'import'], true) && !can('whatsapp.manage')) { flash('error', t('مالكش صلاحية.')); redirect($back); }
     try {
         if ($action === 'save') {
             $id = (string)($_POST['id'] ?? '');

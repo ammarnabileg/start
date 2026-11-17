@@ -175,6 +175,7 @@ document.addEventListener('click', function (e) {
   if (task === 'reply' && th) fd.append('context', th.innerText.replace(/\n{3,}/g, '\n\n').slice(-3000));
   var label = b.querySelector('span'), old = label ? label.textContent : '';
   b.disabled = true; b.classList.add('animate-pulse'); if (label) label.textContent = (window.T && T.working) || '...';
+  ta.readOnly = true; // اللي هيتكتب وقت الطلب كان بيضيع
   fetch('index.php?p=ai_task', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': (document.querySelector('meta[name=csrf-token]') || {}).content || '' } })
     .then(function (r) { return r.json(); })
     .then(function (d) {
@@ -183,7 +184,7 @@ document.addEventListener('click', function (e) {
       ta.classList.add('ring-4', 'ring-brand-500/20'); setTimeout(function () { ta.classList.remove('ring-4', 'ring-brand-500/20'); }, 1200);
     })
     .catch(function () { var m = (window.T && T.liveFailed) || 'Error'; aiToast(m); })
-    .finally(function () { b.disabled = false; b.classList.remove('animate-pulse'); if (label) label.textContent = old; });
+    .finally(function () { ta.readOnly = false; b.disabled = false; b.classList.remove('animate-pulse'); if (label) label.textContent = old; });
 });
 
 /* زرار ✨ على أي خانة فيها data-ai="preset1,preset2" */

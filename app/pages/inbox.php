@@ -676,10 +676,10 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
                         </form>
                       <?php endif; ?>
                       <?php if ($out && ip_can_edit($plat)): ?>
-                        <details class="inline"><summary class="cursor-pointer link"><?= e(t('تعديل')) ?></summary>
+                        <?php if (can('inbox.manage')): ?><details class="inline"><summary class="cursor-pointer link"><?= e(t('تعديل')) ?></summary>
                           <form method="post" class="flex gap-1 mt-1"><?= csrf_field() ?><input type="hidden" name="action" value="edit_msg"><input type="hidden" name="message_id" value="<?= e($mid) ?>">
                             <textarea name="text" required rows="3" dir="auto" class="input text-xs py-1"><?= e($m['message'] ?? '') ?></textarea><button class="btn-ghost text-xs"><?= e(t('حفظ')) ?></button></form>
-                        </details>
+                        </details><?php endif; ?>
                       <?php endif; ?>
                       <?php if ($out && ip_can_delete($plat)): ?>
                         <form method="post" class="inline" onsubmit="return confirm('<?= tjs('حذف الرسالة دي؟') ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="delete_msg"><input type="hidden" name="message_id" value="<?= e($mid) ?>"><button class="text-red-600"><?= e(t('حذف')) ?></button></form>
@@ -836,7 +836,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
     <script>window.IBX = <?= json_encode(['n' => t('%s محادثة'), 'sel' => t('محدد'), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.'), 'done' => t('تم: %s'), 'started' => t('بدأت الحملة: %s محادثة'), 'skipped' => t('اتستبعد %s'),
         'campaigns' => t('الحملات'), 'running' => t('شغالة'), 'paused' => t('متوقفة'), 'done2' => t('خلصت'), 'cancelled' => t('اتلغت'), 'pause' => t('إيقاف مؤقت'), 'resume' => t('كمّل'), 'cancel' => t('إلغاء'),
         'sent' => t('اتبعت'), 'failed' => t('فشل'), 'left' => t('فاضل'), 'eta' => t('حوالي %s دقيقة'), 'confirmCancel' => t('إلغاء الحملة؟ الرسايل اللي اتبعتت مش هترجع.'), 'pickFirst' => t('حدد محادثة واحدة على الأقل.'), 'confirmAi' => t('هيتم تحليل %s محادثة بالذكاء الاصطناعي (طلب واحد لكل 20 محادثة). تكمل؟'), 'ocrRun' => t('بيقرا الصورة...'), 'ocrNone' => t('مالقيناش كلام في الصورة.'), 'ocrCors' => t('المنصة مش بتسمح بقراية الصورة دي من المتصفح. افتحها واحفظها وارفعها.'), 'copied' => t('اتنسخ'), 'insert' => t('حطه في الرد'), 'copy' => t('نسخ')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
-    <script>window.SAVED_REPLIES = <?= json_encode(['items' => saved_replies((int)ws('id')), 'manage' => t('إدارة الردود المحفوظة'), 'empty' => t('مفيش ردود محفوظة. اكتب # واختصار جديد عشان تضيف.'), 'add' => t('إضافة رد محفوظ'), 'shortcut' => t('الاختصار'), 'body' => t('نص الرد'), 'save' => t('حفظ'), 'del' => t('حذف'), 'hint' => t('اكتب # للردود المحفوظة')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+    <script>window.SAVED_REPLIES = <?= json_encode(['canDel' => can('inbox.manage') || is_ws_owner(), 'items' => saved_replies((int)ws('id')), 'manage' => t('إدارة الردود المحفوظة'), 'empty' => t('مفيش ردود محفوظة. اكتب # واختصار جديد عشان تضيف.'), 'add' => t('إضافة رد محفوظ'), 'shortcut' => t('الاختصار'), 'body' => t('نص الرد'), 'save' => t('حفظ'), 'del' => t('حذف'), 'hint' => t('اكتب # للردود المحفوظة')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
     <script src="assets/replies.js?v=<?= e(APP_VERSION) ?>"></script>
     <script src="assets/extract.js?v=<?= e(APP_VERSION) ?>"></script>
     <script src="assets/inbox.js?v=<?= e(APP_VERSION) ?>"></script>

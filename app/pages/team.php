@@ -39,6 +39,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // إنشاء أو تعديل دور مخصص
     if ($action === 'acc_perm') {
         $uid = (int)($_POST['user_id'] ?? 0); $m = acc_perm_map();
+        $tm = $pdo->prepare("SELECT role FROM workspace_users WHERE workspace_id = ? AND user_id = ? AND status = 'active'"); $tm->execute([$wid, $uid]); $trole = $tm->fetchColumn();
+        if ($trole === false || (!is_ws_owner() && ($trole === 'owner' || array_diff(role_permissions((string)$trole, $wid), role_permissions((string)ws('my_role'), $wid))))) { flash('error', t('مالكش صلاحية.')); redirect(url('team')); }
         $ids = array_values(array_filter(array_map('strval', (array)($_POST['accs'] ?? [])), function ($x) { return preg_match('/^[\w-]{1,64}$/', $x); }));
         if ($ids) $m[$uid] = $ids; else unset($m[$uid]);
         save_setting('acc_perm_' . $wid, json_encode($m));

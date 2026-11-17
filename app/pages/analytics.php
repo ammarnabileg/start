@@ -434,7 +434,7 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
                 <?php foreach ($health['parts'] as $hp): ?>
                   <li class="rounded-lg bg-ink-50 p-3">
                     <div class="flex justify-between text-xs gap-2"><span class="font-semibold text-ink-800"><?= e($partNames[$hp[0]]) ?></span><span class="tabular-nums text-ink-600" dir="ltr"><?= e($hp[1] . ' / ' . $hp[2]) ?></span></div>
-                    <?= an_hbar((float)$hp[1], (float)$hp[2], 'bg-' . $hc . '-500') ?>
+                    <?php $pr = (float)$hp[2] > 0 ? (float)$hp[1] / (float)$hp[2] : 0; ?><?= an_hbar((float)$hp[1], (float)$hp[2], 'bg-' . ($pr >= 0.7 ? 'lime' : ($pr >= 0.4 ? 'amber' : 'red')) . '-500') ?>
                     <p class="text-[11px] text-ink-500 mt-1"><?= e($partHint($hp)) ?></p>
                   </li>
                 <?php endforeach; ?>

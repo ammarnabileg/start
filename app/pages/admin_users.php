@@ -21,6 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $pdo->prepare("INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)")
                     ->execute([mb_substr($name, 0, 120), $email, password_hash($pass, PASSWORD_DEFAULT), !empty($_POST['admin']) ? 'admin' : 'user']);
                 $uid = (int)$pdo->lastInsertId();
+                if (function_exists('claim_email_invites')) { try { claim_email_invites($uid, $email); } catch (Throwable $e) {} }
                 if ($wsId) {
                     $pdo->prepare("INSERT IGNORE INTO workspace_users (workspace_id, user_id, role, status) VALUES (?, ?, ?, 'active')")->execute([$wsId, $uid, $role]);
                 }

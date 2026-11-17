@@ -1863,3 +1863,13 @@ html.dark [class*="inset-0"][class*="bg-ink-900/"],html.dark .cx-shb,html.dark .
   #pr-dlg .pd-cla .mk, #pr-dlg .pd-cla .del, #pr-dlg .pd-cla [data-copy] { visibility: visible !important; }
 }
 @media (pointer: coarse) { .pd-cla button, .pd-cla a { min-width: 2.5rem; min-height: 2.5rem; } .pd-cla { gap: .5rem; } .pd-cla .del { margin-inline-start: .5rem; } }
+
+/* حل عام: عناصر group-hover بتظهر على اللمس وبالكيبورد */
+.group:focus-within .group-hover\:opacity-100 { opacity: 1; }
+@media (hover: none) {
+  .group .group-hover\:opacity-100 { opacity: 1 !important; }
+  .group .group-hover\:flex { display: flex !important; }
+  .group .group-hover\:inline-flex { display: inline-flex !important; }
+  .ibx-note-del { min-width: 36px; min-height: 36px; font-size: 13px; }
+  .ibx-mtools button, .ibx-mtools a { min-height: 32px; padding-inline: .5rem; }
+}
