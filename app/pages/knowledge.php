@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($rows) $out[] = ['sec' => $sec, 'label' => $sd['label'], 'type' => 'rows', 'cols' => $sd['cols'], 'rows' => $rows, 'have' => count($have)];
             } else {
                 $fs = [];
-                foreach ($data as $f => $v) { if (!isset($sd['fields'][$f])) continue; $old = trim((string)($cur[$sec][$f] ?? '')); if ($old === trim((string)$v)) continue;
+                foreach ($data as $f => $v) { if (!isset($sd['fields'][$f]) || $sd['fields'][$f][1] === 'media') continue; $old = trim((string)($cur[$sec][$f] ?? '')); if ($old === trim((string)$v)) continue;
                     $fs[] = ['f' => $f, 'label' => $sd['fields'][$f][0], 'old' => $old, 'new' => (string)$v, 'src' => $r['src'][$sec . '.' . $f] ?? '']; }
                 if ($fs) $out[] = ['sec' => $sec, 'label' => $sd['label'], 'type' => 'fields', 'fields' => $fs];
             }
@@ -39,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $rows = (array)($old['rows'] ?? []);
                 foreach ((array)($data['rows'] ?? []) as $rw) { $clean = []; foreach ($sd['cols'] as $ck => $_) $clean[$ck] = $str($rw[$ck] ?? '', 1500); if (implode('', $clean) !== '') { $rows[] = $clean; $n++; } }
                 $old['rows'] = array_slice($rows, 0, 3000);
-            } else foreach ($data as $f => $v) if (isset($sd['fields'][$f])) { $old[$f] = $str($v); $n++; }
+            } else foreach ($data as $f => $v) if (isset($sd['fields'][$f]) && $sd['fields'][$f][1] !== 'media') { $old[$f] = $str($v); $n++; }
             kb_save($wid, $sec, $old);
         }
         log_activity('kb.site_import', (string)$n);
@@ -53,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         switch ($type) {
             case 'fields':
                 $data = [];
-                foreach ($schema[$sec]['fields'] as $fk => $f) $data[$fk] = $str($in[$fk] ?? '', $f[1] === 'area' ? 4000 : 500);
+                foreach ($schema[$sec]['fields'] as $fk => $f) $data[$fk] = $f[1] === 'media' ? (array_key_exists($fk, $in) ? (string)(int)$in[$fk] : (string)(kb_get($wid)[$sec][$fk] ?? '')) : $str($in[$fk] ?? '', $f[1] === 'area' ? 4000 : 500);
                 break;
             case 'rows':
                 $rows = [];
@@ -194,7 +194,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'fields' => '',
         ][$type];
         // fields: المفتاح = اسم الخانة، والقيمة = وصف اللي المفروض يتكتب (مش نص فاضي، عشان الموديل مايرجّعش النموذج فاضي زي ما هو)
-        if ($type === 'fields') $shape = json_encode(array_map(function ($f) { return '<' . $f[0] . (($f[2] ?? '') !== '' ? ' — ' . mb_substr((string)$f[2], 0, 80) : '') . '>'; }, $schema[$sec]['fields']), JSON_UNESCAPED_UNICODE) . ' (exactly these keys; replace every <...> with real content written for this company; use an empty string only for a hard fact that is truly unknown)';
+        if ($type === 'fields') $shape = json_encode(array_map(function ($f) { return '<' . $f[0] . (($f[2] ?? '') !== '' ? ' — ' . mb_substr((string)$f[2], 0, 80) : '') . '>'; }, array_filter($schema[$sec]['fields'], function ($f) { return $f[1] !== 'media'; })), JSON_UNESCAPED_UNICODE) . ' (exactly these keys; replace every <...> with real content written for this company; use an empty string only for a hard fact that is truly unknown)';
         $guide = [
             'contact' => 'Contact channels. Copy ONLY exact website, emails, phone/WhatsApp numbers, map links and social links found in the sources (account data included). Never invent or guess any of them; leave the field empty if unknown.',
             'hours' => 'Working hours per day. ONLY times written in the sources; never guess. Leave a day empty if unknown. Use one format: 10:00 - 22:00, or مغلق.',
@@ -473,8 +473,8 @@ render(t('قاعدة المعرفة'), 'knowledge', function () use ($schema, $k
             <?php if ($s['type'] === 'fields'): ?>
               <div class="grid sm:grid-cols-2 gap-x-4 gap-y-3">
                 <?php foreach ($s['fields'] as $fk => $f): $span = ($f[3] ?? 1) === 2; ?>
-                  <label class="block <?= $span ? 'sm:col-span-2' : '' ?>"><span class="label"><?= e($f[0]) ?></span>
-                    <?php if ($f[1] === 'media'): $lr = ($lv = (int)($d[$fk] ?? 0)) && function_exists('media_get') ? media_get((int)ws('id'), $lv) : null; $lr = $lr ? media_row($lr) : null; ?>
+                  <<?= $f[1] === 'media' ? 'div' : 'label' ?> class="block <?= $span ? 'sm:col-span-2' : '' ?>"><span class="label"><?= e($f[0]) ?></span>
+                    <?php if ($f[1] === 'media'): $lr = function_exists('kb_logo') && (int)($d[$fk] ?? 0) ? kb_logo((int)ws('id')) : null; $lr = $lr ? media_row($lr) : null; ?>
                       <span class="kb-media flex items-center gap-3 rounded-xl border border-dashed border-ink-300 p-2"><input type="hidden" name="d[<?= $fk ?>]" value="<?= $lr ? (int)$lr['id'] : '' ?>">
                         <img alt="" class="w-14 h-14 rounded-lg object-contain bg-ink-50 <?= $lr ? '' : 'hidden' ?>" src="<?= e($lr['thumb'] ?? $lr['url'] ?? '') ?>">
                         <button type="button" class="btn-ghost !text-xs border border-ink-200" data-kb-media <?= $dis ?>>📁 <?= e(t('اختر من مكتبة الوسائط')) ?></button>
@@ -482,7 +482,7 @@ render(t('قاعدة المعرفة'), 'knowledge', function () use ($schema, $k
                         <span class="text-[11px] text-ink-500"><?= e($f[2]) ?></span></span>
                     <?php elseif ($f[1] === 'area'): ?><textarea name="d[<?= $fk ?>]" rows="<?= $span ? 3 : 2 ?>" class="input text-sm leading-relaxed" dir="auto" placeholder="<?= e($f[2]) ?>" <?= $dis ?>><?= e($d[$fk] ?? '') ?></textarea>
                     <?php else: ?><input <?= $f[1] === 'tel' ? 'data-phone="' . ($fk === 'whatsapp' ? 'mobile' : 'any') . '"' : '' ?> name="d[<?= $fk ?>]" type="<?= in_array($f[1], ['url', 'email', 'tel'], true) ? $f[1] : 'text' ?>" <?= in_array($f[1], ['url', 'email', 'tel'], true) ? 'dir="ltr"' : 'dir="auto"' ?> class="input text-sm" placeholder="<?= e($f[2]) ?>" value="<?= e($d[$fk] ?? '') ?>" <?= $dis ?>><?php endif; ?>
-                  </label>
+                  </<?= $f[1] === 'media' ? 'div' : 'label' ?>>
                 <?php endforeach; ?>
               </div>
             <?php elseif ($s['type'] === 'text'): ?>

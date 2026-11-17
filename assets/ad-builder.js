@@ -312,7 +312,7 @@
     var pb = e.target.closest('[data-preset]'), ib = e.target.closest('[data-icp]');
     if (pb) { var q = pb.dataset.preset.split('|'), pr = (S.presets || [])[+q[1]], t1 = D.adSets[+q[0]].targeting; if (!pr) return; ['seniorities', 'jobFunctions'].forEach(function (k) { t1[k] = JSON.parse(JSON.stringify(pr[k])); }); t1.companySizes = pr.companySizes.slice(); save(); rerender(); return; }
     if (ib) { var si2 = +ib.dataset.icp; ib.disabled = true; fetch(A.url + '&ajax=icp', { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) {
-        if (!j.ok) { alert(S.icpNone); ib.disabled = false; return; } var t2 = D.adSets[si2].targeting;
+        if (!j.ok || !(j.seniorities.length || j.jobFunctions.length || j.companySizes.length || j.countries.length)) { alert(S.icpNone); ib.disabled = false; return; } var t2 = D.adSets[si2].targeting;
         if (j.seniorities.length) t2.seniorities = j.seniorities; if (j.jobFunctions.length) t2.jobFunctions = j.jobFunctions; if (j.companySizes.length) t2.companySizes = j.companySizes;
         j.countries.forEach(function (c) { if (t2.countries.indexOf(c) < 0) t2.countries.push(c); }); save(); rerender(); var n = root.querySelector('[data-icp="' + si2 + '"]'); if (n) n.textContent = (S.icpDone || '%d').replace('%d', j.n);
       }).catch(function () { ib.disabled = false; }); return; }

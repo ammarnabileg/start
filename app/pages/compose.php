@@ -67,9 +67,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
     // الهوية بتتطبق حتى لو المستخدم عدّل الوصف ومسح الألوان
     if ($bColors !== '' && stripos($prompt, $bColors) === false) $prompt .= "\n\nBrand colors (must use as dominant palette): {$bColors}.";
     $wid = (int)ws('id'); $refs = [];
-    $lg = !empty($_POST['use_logo']) && function_exists('kb_logo') ? kb_logo($wid) : null;
+    $okM = ['image/png', 'image/jpeg', 'image/webp']; $lg = !empty($_POST['use_logo']) && function_exists('kb_logo') ? kb_logo($wid) : null; if ($lg && !in_array((string)$lg['mime'], $okM, true)) $lg = null;
     if ($lg) { $refs[] = media_file_path($wid, $lg); $prompt .= "\n\nThe first attached image is the company logo: place it small and clean in a corner, keep its exact shape and colors, do not redraw or distort it."; }
-    foreach (array_slice(array_unique(array_map('intval', (array)($_POST['refs'] ?? []))), 0, $lg ? 3 : 4) as $mid) { $mr = media_get($wid, $mid); if ($mr && empty($mr['deleted_at']) && strpos((string)$mr['mime'], 'image/') === 0) $refs[] = media_file_path($wid, $mr); }
+    foreach (array_slice(array_unique(array_map('intval', (array)($_POST['refs'] ?? []))), 0, $lg ? 3 : 4) as $mid) { $mr = media_get($wid, $mid); if ($mr && empty($mr['deleted_at']) && in_array((string)$mr['mime'], $okM, true)) $refs[] = media_file_path($wid, $mr); }
     try {
         $names = img_openai_generate($prompt, $aspect, 1, $refs, (string)($_POST['quality'] ?? ''));
         if (function_exists('media_sync_ai')) media_sync_ai($wid);
@@ -603,7 +603,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
               <?php else: ?>
               <p class="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800"><?= e(t('لا توجد هوية بصرية في قاعدة المعرفة، فالتصميم لن يلتزم بألوانك.')) ?> <a href="<?= e(url('knowledge')) ?>#visual_style" target="_blank" class="link"><?= e(t('أضف الألوان والأسلوب')) ?></a></p>
               <?php endif; ?>
-              <?php $lgK = function_exists('kb_logo') ? kb_logo((int)ws('id')) : null; if ($lgK): $lgR = media_row($lgK); ?>
+              <?php $lgK = function_exists('kb_logo') ? kb_logo((int)ws('id')) : null; if ($lgK && !in_array((string)$lgK['mime'], ['image/png', 'image/jpeg', 'image/webp'], true)) $lgK = null; if ($lgK): $lgR = media_row($lgK); ?>
               <label class="flex items-center gap-3 rounded-xl border border-ink-200 px-3 py-2 text-sm cursor-pointer"><input type="checkbox" id="pst-logo" checked><img src="<?= e($lgR['thumb'] ?: $lgR['url']) ?>" alt="" class="w-8 h-8 rounded object-contain bg-ink-50"><span><?= e(t('أرفق شعار الشركة في التصميم')) ?></span></label>
               <?php else: ?>
               <p class="text-xs text-ink-500"><?= e(t('لا يوجد شعار في قاعدة المعرفة.')) ?> <a href="<?= e(url('knowledge')) ?>#company" target="_blank" class="link"><?= e(t('أضف الشعار')) ?></a></p>
@@ -661,11 +661,11 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
           (function () {
             var btn = document.getElementById('mai-btn'), pop = document.getElementById('mai-pop'); if (!btn) return;
             function firstImage() { var f = [].slice.call((document.getElementById('mediaInput') || {}).files || []).filter(function (x) { return /^image\//.test(x.type); })[0]; if (f) return f;
-              var im = document.querySelector('#libMedia img'); return im ? im.src : null; }
+              var im = document.querySelector('#libMedia img'), id = document.querySelector('#libMedia input[name="lib_media[]"]'); return im ? (im.dataset.full || im.src) : null; }
             function items() { var out = [], img = firstImage();
               out.push(['pst', <?= json_encode(t('صمّم صورة من المنشور'), JSON_UNESCAPED_UNICODE) ?>]);
               if (img) document.querySelectorAll('#vis-box [data-vis]').forEach(function (b) { out.push(['vis:' + b.dataset.vis, b.textContent.trim()]); });
-              if (!img) out.push(['note', <?= json_encode(t('اختر صورة لتظهر أوامر: اكتب منشورًا من الصورة، ووصف Alt.'), JSON_UNESCAPED_UNICODE) ?>]);
+              if (!img && document.querySelector('#vis-box [data-vis]')) out.push(['note', <?= json_encode(t('اختر صورة لتظهر أوامر: اكتب منشورًا من الصورة، ووصف Alt.'), JSON_UNESCAPED_UNICODE) ?>]);
               return out; }
             function close() { pop.classList.add('hidden'); btn.setAttribute('aria-expanded', 'false'); }
             btn.addEventListener('click', function (e) { e.stopPropagation(); if (!pop.classList.contains('hidden')) return close();
@@ -700,14 +700,14 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
               var f = window.cpFirstImage ? window.cpFirstImage() : [].slice.call(document.getElementById('mediaInput').files || []).filter(function (x) { return /^image\//.test(x.type); })[0];
               if (!f) { (window.aiToast || alert)(<?= json_encode(t('اختر صورة أولًا (أقل من 2 ميجا).'), JSON_UNESCAPED_UNICODE) ?>); return; }
               b.disabled = true; b.classList.add('animate-pulse');
-              (typeof f === 'string' ? fetch(f, { credentials: 'same-origin' }).then(function (r) { return r.blob(); }) : Promise.resolve(f)).then(shrink).then(function (data) {
+              (typeof f === 'string' ? fetch(f, { credentials: 'same-origin' }).then(function (r) { if (!r.ok) throw new Error('lib'); return r.blob(); }) : Promise.resolve(f)).then(shrink).then(function (data) {
                 var fd = new FormData(), c = document.getElementById('content'); fd.append('task', 'preset'); fd.append('preset', b.dataset.vis); fd.append('text', c.value); fd.append('image', data);
                 return fetch('index.php?p=ai_task', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': document.querySelector('meta[name=csrf-token]').content } }).then(function (r) { return r.json(); }).then(function (d) {
                   if (d.error) { (window.aiToast || alert)(d.error); return; }
-                  if (d.mode === 'show') { var p = box.querySelector('.vis-out') || document.createElement('div'); p.className = 'vis-out w-full rounded-xl border border-brand-200 bg-brand-50/60 p-3 text-sm'; p.textContent = d.text; box.appendChild(p); }
+                  if (d.mode === 'show') { var p = document.getElementById('vis-out') || document.createElement('div'); p.id = 'vis-out'; p.className = 'mt-2 w-full whitespace-pre-wrap rounded-xl border border-brand-200 bg-brand-50/60 p-3 text-sm'; p.textContent = d.text; (document.querySelector('.cp-dz') || box).after(p); }
                   else { c.value = d.text; c.dispatchEvent(new Event('input', { bubbles: true })); c.focus(); }
                 });
-              }).catch(function () { (window.aiToast || alert)((window.T && T.liveFailed) || 'Error'); }).finally(function () { b.disabled = false; b.classList.remove('animate-pulse'); });
+              }).catch(function (er) { (window.aiToast || alert)(er && er.message === 'lib' ? <?= json_encode(t('تعذّر تحميل الصورة من المكتبة.'), JSON_UNESCAPED_UNICODE) ?> : ((window.T && T.liveFailed) || 'Error')); }).finally(function () { b.disabled = false; b.classList.remove('animate-pulse'); });
             });
           })();
           </script>

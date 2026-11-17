@@ -630,7 +630,7 @@
           var pg2 = +more.dataset.page + 1, pages = +more.dataset.pages;
           if (pg2 >= pages) more.parentNode.remove();
           else { more.dataset.page = pg2; more.dataset.next = more.dataset.next.replace(/([?&]n=)\d+/, '$1' + (pg2 + 1)); more.disabled = false; more.innerHTML = o.replace(/\d+(\D+)\d+(\)?)\s*<\/span>/, (pg2 + 1) + '$1' + pages + '$2</span>'); }
-          apply(); var sr = $('#ps-sort'); if (sr && sr.value) sr.dispatchEvent(new Event('change'));
+          apply(); var sr = $('#ps-sort'); if (sr && sr.value) $$('.ps-day').forEach(function (h) { h.classList.add('hidden'); }); // السيرفر بيرجّع الصفحة مرتبة
           if (window.__psDens) window.__psDens();
         }).catch(function () { more.disabled = false; more.innerHTML = o; toast(X.err); });
       };

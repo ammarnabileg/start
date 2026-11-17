@@ -47,6 +47,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
                 log_activity('ads.audience_delete', $id);
                 flash('success', t('تم حذف الجمهور.'));
             }
+        } elseif ($action === 'create' && !can('ads.spend')) {
+            flash('error', t('إنشاء الجماهير لصاحب صلاحية الإعلانات فقط.'));
         } elseif ($action === 'create') {
             $type = (string)($_POST['type'] ?? '');
             $plat = '';
@@ -71,11 +73,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
                 // بتتملي من تفاعل الناس مع حسابك على المنصة: مفيش حقول زيادة
             } elseif ($type === 'customer_list') {
                 $raw = preg_split('/[\s,;]+/u', (string)($_POST['list'] ?? ''), -1, PREG_SPLIT_NO_EMPTY);
-                foreach ($raw as $x) { $x = trim($x); if (filter_var($x, FILTER_VALIDATE_EMAIL)) $rows[mb_strtolower($x)] = ['email' => mb_strtolower($x)]; elseif ($plat === 'metaads' && preg_match('/^\+?\d{8,15}$/', $x)) $rows[$x] = ['phone' => $x]; }
-                if (!empty($_POST['from_crm'])) {
+                foreach ($raw as $x) { $x = trim($x); if (filter_var($x, FILTER_VALIDATE_EMAIL)) $rows[mb_strtolower($x)] = ['email' => mb_strtolower($x)]; elseif (ads_is_meta($plat) && preg_match('/^\+?\d{8,15}$/', $x)) $rows[$x] = ['phone' => $x]; }
+                if (!empty($_POST['from_crm']) && !can('crm.manage')) $bad = t('إضافة عملاء الـ CRM تحتاج صلاحية إدارة العملاء.');
+                elseif (!empty($_POST['from_crm'])) {
                     $stg = (string)($_POST['crm_stage'] ?? '') === 'won' ? " AND stage = 'won'" : '';
                     $st = db()->prepare("SELECT email, phone FROM crm_leads WHERE workspace_id = ? AND email IS NOT NULL AND email <> ''" . $stg . ' LIMIT 50000'); $st->execute([(int)ws('id')]);
-                    foreach ($st->fetchAll() as $r) { $em = mb_strtolower(trim((string)$r['email'])); if (filter_var($em, FILTER_VALIDATE_EMAIL)) $rows[$em] = array_filter(['email' => $em, 'phone' => $plat === 'metaads' ? (string)$r['phone'] : '']); }
+                    foreach ($st->fetchAll() as $r) { $em = mb_strtolower(trim((string)$r['email'])); if (filter_var($em, FILTER_VALIDATE_EMAIL)) $rows[$em] = array_filter(['email' => $em, 'phone' => ads_is_meta($plat) ? (string)$r['phone'] : '']); }
                 }
                 if (!$rows) $bad = t('مفيش إيميلات صالحة. الصق قائمة أو اختار عملاء الـ CRM.');
             } elseif ($type === 'meta_engagement') {
@@ -272,10 +275,10 @@ render(t('الجماهير'), 'ad_audiences', function () use ($z, $apiError, $t
             <div><label class="label"><?= e(t('رقم الصفحة / الحساب')) ?></label><input name="source_id" class="input" dir="ltr" value="<?= e($current['conn']['metadata']['selectedPageId'] ?? '') ?>"></div>
           </div>
           <div data-aud="customer_list" class="space-y-2">
-            <label class="flex items-center gap-2 text-sm rounded-xl border border-ink-200 p-3 cursor-pointer"><input type="checkbox" name="from_crm" value="1" <?= $crmN ? 'checked' : 'disabled' ?>>
+            <label class="flex items-center gap-2 text-sm rounded-xl border border-ink-200 p-3 cursor-pointer"><input type="checkbox" name="from_crm" value="1" <?= $crmN && can('crm.manage') ? 'checked' : 'disabled' ?>>
               <span class="flex-1"><?= e(t('ضيف عملاء الـ CRM اللي ليهم إيميل')) ?> <b class="text-brand-700">(<?= ads_num($crmN) ?>)</b></span>
               <select name="crm_stage" class="input !w-auto !py-1 text-xs"><option value=""><?= e(t('كلهم')) ?></option><option value="won"><?= e(t('اللي اشتروا بس (%s)', ads_num($crmW))) ?></option></select></label>
-            <div><label class="label"><?= e(t('أو الصق إيميلات (واحد في كل سطر)')) ?><?= $plat === 'metaads' || $isMeta ? ' ' . e(t('أو أرقام موبايل بكود الدولة')) : '' ?></label>
+            <div><label class="label"><?= e(t('أو الصق إيميلات (واحد في كل سطر)')) ?><?= $isMeta ? ' ' . e(t('أو أرقام موبايل بكود الدولة')) : '' ?></label>
               <textarea name="list" rows="4" class="input font-mono text-xs" dir="ltr" placeholder="name@company.com"></textarea>
               <p class="text-[11px] text-ink-500 mt-1"><span id="aud-lc">0</span> <?= e(t('صالح')) ?> · <?= e(t('بيتشفّر (SHA256) قبل ما يوصل للمنصة. المنصة محتاجة 300 مطابقة على الأقل عشان تقدر تعلن عليه.')) ?></p></div>
           </div>

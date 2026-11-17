@@ -238,7 +238,7 @@ document.addEventListener('click', function (e) {
         });
       }
       return pump();
-    }).then(function (d) {
+    }).catch(function () { return acc.trim() ? { text: acc, mode: mode } : plain(); }).then(function (d) {
       if (d.error && mode !== 'show') ta.value = orig;
       if (live) live.remove();
       if (d.error) { window.aiToast ? aiToast(d.error) : alert(d.error); return; }
@@ -254,11 +254,11 @@ document.addEventListener('click', function (e) {
         box.querySelector('.ai-use').onclick = function () { var sel = (window.getSelection() + '').trim(); ta.value = sel && d.text.indexOf(sel) > -1 ? sel : d.text; ta.dispatchEvent(new Event('input', { bubbles: true })); ta.focus(); };
         if (!ta.value && !/review|score/.test(key)) {} // النتيجة بتتعرض بس، المستخدم يختار
       } else {
-        ta.value = d.mode === 'append' ? (ta.value.replace(/\s+$/, '') + (ta.value ? '\n\n' : '') + d.text) : d.text;
+        ta.value = d.mode === 'append' ? (orig.replace(/\s+$/, '') + (orig ? '\n\n' : '') + d.text) : d.text;
         ta.dispatchEvent(new Event('input', { bubbles: true })); ta.focus();
         ta.classList.add('ring-4', 'ring-brand-500/20'); setTimeout(function () { ta.classList.remove('ring-4', 'ring-brand-500/20'); }, 1200);
       }
-    }).catch(function () { return plain().then(function (d) { if (d.error) { ta.value = orig; window.aiToast ? aiToast(d.error) : alert(d.error); return; } if (d.mode === 'show') { var bx = panel(ta, '<div class="ai-body whitespace-pre-wrap leading-relaxed"></div>'); bx.querySelector('.ai-body').textContent = d.text; } else { ta.value = d.mode === 'append' ? (orig.replace(/\s+$/, '') + (orig ? '\n\n' : '') + d.text) : d.text; ta.dispatchEvent(new Event('input', { bubbles: true })); } }).catch(function () { var m = (window.T && T.liveFailed) || 'Error'; window.aiToast ? aiToast(m) : alert(m); }); })
+    }).catch(function () { var m = (window.T && T.liveFailed) || 'Error'; window.aiToast ? aiToast(m) : alert(m); })
       .finally(function () { btn.disabled = false; btn.classList.remove('animate-pulse'); });
   }
   function openMenu(ta, btn) {
