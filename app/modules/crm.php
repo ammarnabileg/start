@@ -326,6 +326,7 @@ function crm_sequences(): array
 function crm_add_to_sequence(array $l, string $seq, string $acc, string $seqName = ''): void
 {
     if (empty($l['email'])) throw new CrmException(t('العميل ده مالوش إيميل، والـ Sequence بيبعت إيميلات.'));
+    if (!empty($l['unsub'])) throw new CrmException(t('العميل ده لغى الاشتراك في الإيميلات.'));
     $parts = preg_split('/\s+/u', trim((string)$l['name']), 2);
     $c = (array)(crm_api('/contacts', ['first_name' => $parts[0] ?? '', 'last_name' => $parts[1] ?? '', 'email' => $l['email'], 'organization_name' => (string)$l['company'],
         'title' => (string)$l['title'], 'run_dedupe' => true])['contact'] ?? []);

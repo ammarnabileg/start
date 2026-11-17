@@ -46,7 +46,7 @@ function nav_items(): array
         ['key' => 'tenders', 'module' => 'tenders', 'label' => t('آخر المنافسات'), 'section' => $s2],
         ['key' => 'crm', 'label' => t('الشركات المستهدفة'), 'section' => $s2, 'module' => 'crm'],
         ['key' => 'prospects', 'label' => t('العملاء'), 'section' => $s2, 'module' => 'crm', 'also' => ['crm_doc', 'crm_leads', 'crm_find']],
-        ['key' => 'crm_capture', 'label' => t('المصادر والإعدادات'), 'section' => $s2, 'module' => 'crm', 'also' => ['leads', 'crm_settings']],
+        ['key' => 'crm_capture', 'label' => t('المصادر والإعدادات'), 'section' => $s2, 'module' => 'crm', 'also' => ['crm_settings']],
         ['key' => 'competitors', 'module' => 'competitors', 'label' => t('المنافسين'), 'section' => $s2],
         ['key' => 'crm_reports', 'label' => t('تقارير المبيعات'), 'section' => $s2, 'module' => 'crm'],
         // استوديو المحتوى: 3 بنود رئيسية مباشرة (من غير قائمة منسدلة)
@@ -58,7 +58,7 @@ function nav_items(): array
             // التقويم مش صفحة لوحده: هو طريقة عرض جوه «المنشورات» (قائمة / تقويم)
             'tabs' => ['posts' => t('المنشورات'), 'approvals' => t('الموافقات'), 'post_log' => t('سجل النشر')], 'also' => ['post_edit', 'queue', 'bulk', 'calendar']],
         // الإعلانات: بندين رئيسيين من غير قائمة منسدلة. منشئ الحملات والحملة السريعة جوه «الحملات الإعلانية»
-        ['key' => 'ads', 'label' => t('الحملات الإعلانية'), 'section' => $s3, 'module' => 'ads', 'also' => ['ad_campaign', 'ad_builder', 'ad_create']],
+        ['key' => 'ads', 'label' => t('الحملات الإعلانية'), 'section' => $s3, 'module' => 'ads', 'also' => ['ad_campaign', 'ad_builder', 'ad_create', 'leads']],
         ['key' => 'ad_audiences', 'label' => t('الجماهير'), 'section' => $s3, 'module' => 'ads'],
         ['key' => 'inbox', 'module' => 'inbox', 'label' => t('الرسائل'), 'section' => $s4],
         ['key' => 'comments', 'module' => 'inbox', 'label' => t('التعليقات'), 'section' => $s4],

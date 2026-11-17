@@ -187,9 +187,12 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
         $R['crm_leads'] = [[t('هات عملاء أكتر'), url('crm_capture')], [t('تقارير المبيعات'), url('crm_reports')], [t('الرسائل'), url('inbox')]];
         $R['crm_reports'] = [[t('شغل النهارده'), url('prospects', ['stat' => 'due'])], [t('حسّن المصادر الضعيفة'), url('crm_capture')], [t('أداء المحتوى'), url('analytics')]];
         $R['crm_settings'] = [[t('العملاء'), url('prospects')]];
+        $R['alerts'] = [[t('التحليلات'), url('analytics')], [t('التقارير'), url('reports')], [t('أداء الرسائل'), url('inbox_analytics')]];
+        $R['reports'] = [[t('التحليلات'), url('analytics')], [t('التنبيهات'), url('alerts')], [t('أداء الرسائل'), url('inbox_analytics')]];
+        $R['inbox_analytics'] = [[t('التحليلات'), url('analytics')], [t('التقارير'), url('reports')], [t('الرسائل'), url('inbox')]];
         $R['prospects'] = $R['crm_leads'] ?? [[t('شغل النهارده'), url('prospects', ['stat' => 'due'])], [t('مصادر العملاء'), url('crm_capture')], [t('التقارير'), url('crm_reports')]];
       }
-      $okU = function ($u) { $dp = function_exists('disabled_pages') ? disabled_pages() : []; return !preg_match('/[?&]p=([a-z_]+)/', (string)$u, $m) || !in_array($m[1], $dp, true); };
+      $okU = function ($u) { $dp = function_exists('disabled_pages') ? disabled_pages() : []; return !preg_match('/[?&]p=([a-z_]+)/', (string)$u, $m) || (!in_array($m[1], $dp, true) && (($pp = page_permission($m[1])) === null || can($pp))); };
       $rel = array_values(array_filter($R[$active] ?? [], function ($x) use ($okU) { return $okU($x[1]); }));
     ?>
     <?php // هيدر الصفحة: العنوان نفسه زرار بيفتح popover فيه الصفحات الشقيقة والمرتبطة (بدل صف التابات)
@@ -333,7 +336,7 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
     <div class="flex items-center gap-3 px-4 py-2 border-t border-ink-100 text-[11px] text-ink-400"><span>↑↓ <?= e(t('للتنقل')) ?></span><span>Enter <?= e(t('للفتح')) ?></span><span class="ms-auto"><?= e(t('من غير ذكاء اصطناعي')) ?></span></div>
   </div>
 </div>
-<?php $okU2 = function ($u) { $dp = function_exists('disabled_pages') ? disabled_pages() : []; return !preg_match('/[?&]p=([a-z_]+)/', (string)$u, $m) || !in_array($m[1], $dp, true); }; $ckAct = array_values(array_filter($ckAct, function ($x) use ($okU2) { return $okU2($x['u']); })); ?>
+<?php $okU2 = function ($u) { $dp = function_exists('disabled_pages') ? disabled_pages() : []; return !preg_match('/[?&]p=([a-z_]+)/', (string)$u, $m) || (!in_array($m[1], $dp, true) && (($pp = page_permission($m[1])) === null || can($pp))); }; $ckAct = array_values(array_filter($ckAct, function ($x) use ($okU2) { return $okU2($x['u']); })); ?>
 <script>window.CK = <?= json_encode(['pages' => $ckPages, 'acts' => $ckAct, 'search' => url('search'), 'lead' => url('prospects') . '&lead=', 'tr' => ['pages' => t('الصفحات'), 'acts' => t('إجراءات سريعة'), 'leads' => t('العملاء'), 'none' => t('مفيش نتايج.'), 'recent' => t('فتحتها قريب')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
 <script src="assets/cmdk.js?v=<?= e(APP_VERSION) ?>"></script>
 <?php if (module_enabled('crm') && can('crm.view')): ?>

@@ -146,13 +146,14 @@ render(t('رقمي'), 'sms_mine', function () use ($c, $owner, $threads, $msgs, 
               <span id="sm-live" class="text-[11px] text-ink-400"></span>
             </div>
             <div id="sm-msgs" class="flex-1 overflow-y-auto p-4 space-y-2 bg-ink-50"></div>
+            <?php if (!preg_match('/^\+?\d{6,15}$/', (string)$phone)): ?><div class="border-t border-ink-100 p-3 text-xs text-ink-500"><?= e(t('هذا مرسل باسم، ولا يمكن الرد عليه.')) ?></div><?php else: ?>
             <form id="sm-form" class="border-t border-ink-100 p-3 flex items-end gap-2">
               <div class="flex-1 min-w-0">
                 <textarea id="sm-text" rows="2" maxlength="1000" class="input !mt-0 resize-none" dir="auto" placeholder="<?= e(t('اكتب رسالتك… (Enter للإرسال، Shift+Enter لسطر جديد)')) ?>"></textarea>
                 <div id="sm-count" class="text-[11px] text-ink-400 mt-1"></div>
               </div>
               <button class="btn-primary" id="sm-send"><?= e(t('ابعت')) ?></button>
-            </form>
+            </form><?php endif; ?>
           </div>
         <?php endif; ?>
       </section>

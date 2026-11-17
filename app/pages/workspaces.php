@@ -33,6 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         {
             if ($action === 'accept') {
                 $pdo->prepare("UPDATE workspace_users SET status = 'active' WHERE workspace_id = ? AND user_id = ?")->execute([$id, $me['id']]);
+                $rm = json_decode((string)setting('ws_removed_' . $id, '[]'), true) ?: []; if (isset($rm[(string)$me['id']])) { unset($rm[(string)$me['id']]); save_setting('ws_removed_' . $id, json_encode($rm)); }
                 $_SESSION['ws'] = $id; user_workspaces(true); // القائمة كانت متخزنة قبل الإضافة
                 flash('success', t('انضميت للشركة.'));
                 redirect(url('dashboard'));

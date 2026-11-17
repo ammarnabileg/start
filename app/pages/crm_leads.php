@@ -132,7 +132,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ((int)$prefs['daily_limit'] - crm_reveals_today($uid) <= 0) { $err = t('خلصت حد الكشف بتاعك النهارده (%s). بيتجدد بكرة.', (int)$prefs['daily_limit']); break; }
                     crm_enrich_lead($l, $prefs);
                 } elseif ($op === 'seq') {
-                    if (empty($l['email'])) { $skip++; continue; }
+                    if (empty($l['email']) || !empty($l['unsub'])) { $skip++; continue; }
                     crm_add_to_sequence($l, (string)($_POST['seq'] ?? ''), (string)($_POST['acc'] ?? ''), mb_substr((string)($_POST['seq_name'] ?? ''), 0, 120));
                 } else { $skip++; continue; }
                 $ok++;
@@ -175,7 +175,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (($tg !== '' || $nt !== '') && crm_can_edit($l)) db()->prepare("UPDATE crm_leads SET tags = LEFT(TRIM(BOTH ', ' FROM CONCAT_WS(', ', NULLIF(tags, ''), NULLIF(?, ''))), 255), note = LEFT(TRIM(CONCAT_WS('\n', NULLIF(note, ''), NULLIF(?, ''))), 2000) WHERE id = ?")->execute([$tg, $nt, (int)$l['id']]);
                 continue; }
             $new++;
-            if ($tg !== '' || $nt !== '') db()->prepare('UPDATE crm_leads SET tags = ?, note = ? WHERE id = ?')->execute([mb_substr($tg, 0, 255) ?: null, mb_substr($nt, 0, 2000) ?: null, (int)$l['id']]);
+            if ($tg !== '' || $nt !== '') db()->prepare("UPDATE crm_leads SET tags = LEFT(TRIM(BOTH ', ' FROM CONCAT_WS(', ', NULLIF(tags, ''), NULLIF(?, ''))), 255), note = COALESCE(?, note) WHERE id = ?")->execute([mb_substr($tg, 0, 255), mb_substr($nt, 0, 2000) ?: null, (int)$l['id']]);
         }
         log_activity('crm.import', "$new new, $merged merged");
         $json(['ok' => true, 'new' => $new, 'merged' => $merged, 'skip' => $skip + max(0, count($rows) - 2000)]); // اللي بعد 2000 بيتعدّوا ضمن المتخطّى

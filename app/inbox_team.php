@@ -87,6 +87,7 @@ function team_post(string $act): void
         $J(['ok' => true, 'items' => saved_replies($wid)]);
     }
     if ($act === 'reply_del') {
+        if (!can('inbox.manage') && !is_ws_owner()) $J(['error' => t('مالكش صلاحية.')], 403);
         db()->prepare("DELETE FROM saved_replies WHERE id = ? AND workspace_id = ?")->execute([(int)($_POST['id'] ?? 0), $wid]);
         $J(['ok' => true, 'items' => saved_replies($wid)]);
     }

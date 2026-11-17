@@ -1856,3 +1856,10 @@ html.dark [class*="inset-0"][class*="bg-ink-900/"],html.dark .cx-shb,html.dark .
   .sm-it > div.absolute a, .sm-it > div.absolute button { min-height: 40px; }
   .hf-tovideo { font-size: 12px !important; padding: .45rem .7rem !important; }
 }
+
+@media (hover: none) {
+  [data-mk-row] .pr-pin, [data-mk-row] .pr-tagadd { opacity: 1 !important; }
+  .pd-cla .del, .pd-cla .mk { opacity: 1 !important; }
+  #pr-dlg .pd-cla .mk, #pr-dlg .pd-cla .del, #pr-dlg .pd-cla [data-copy] { visibility: visible !important; }
+}
+@media (pointer: coarse) { .pd-cla button, .pd-cla a { min-width: 2.5rem; min-height: 2.5rem; } .pd-cla { gap: .5rem; } .pd-cla .del { margin-inline-start: .5rem; } }

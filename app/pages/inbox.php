@@ -251,6 +251,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
                 if ($msgId !== '') ip_unreact($z, $convId, $msgId, $accId);
                 break;
             case 'edit_msg':
+                if (!can('inbox.manage')) { flash('error', t('مالكش صلاحية.')); break; }
                 $text = trim((string)($_POST['text'] ?? ''));
                 if ($msgId !== '' && $text !== '') {
                     ip_edit_message($z, $convId, $msgId, $accId, $text);

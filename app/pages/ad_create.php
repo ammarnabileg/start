@@ -116,6 +116,7 @@ function adc_read_form(array $in, array $goals, array $ctas): array
     $f['country_list'] = $countries;
     if ($f['age_min'] > $f['age_max']) $errors[] = t('السن الأصغر لازم يكون أقل من الأكبر.');
     $today = (new DateTime('now', new DateTimeZone(site_timezone())))->format('Y-m-d');
+    foreach (['start', 'end'] as $dk) if ($f[$dk] !== '' && !(($dd = DateTime::createFromFormat('!Y-m-d', $f[$dk])) && $dd->format('Y-m-d') === $f[$dk])) { $errors[] = t('صيغة التاريخ غير صحيحة.'); $f[$dk] = ''; }
     if ($f['start'] !== '' && $f['start'] < $today) $errors[] = t('تاريخ البداية لازم يكون النهارده أو بعده.');
     if ($f['budget_type'] === 'lifetime' && $f['end'] === '') $errors[] = t('الميزانية الإجمالية محتاجة تاريخ نهاية.');
     if ($f['end'] !== '' && $f['end'] <= ($f['start'] ?: $today)) $errors[] = t('تاريخ النهاية لازم يكون بعد البداية.');

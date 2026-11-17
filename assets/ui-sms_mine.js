@@ -39,7 +39,7 @@
   setInterval(function () { if (!document.hidden) poll(); }, 8000);
   $('#sm-live').textContent = '● ' + S.live;
 
-  var ta = $('#sm-text'), cnt = $('#sm-count'), form = $('#sm-form'), btn = $('#sm-send');
+  var ta = $('#sm-text'), cnt = $('#sm-count'), form = $('#sm-form'), btn = $('#sm-send'); if (!form) return; // مرسل باسم: مفيش رد
   function count() {
     var t = ta.value, uni = /[^\x00-\x7F£¥èéùìòÇØøÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ¡ÄÖÑÜ§¿äöñüà€^{}\[~\]|\\]/.test(t), n = t.length;
     var per = uni ? (n > 70 ? 67 : 70) : (n > 160 ? 153 : 160), seg = n ? Math.ceil(n / per) : 0;
