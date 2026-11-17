@@ -132,6 +132,7 @@ render(t('تقييمات العملاء'), 'gmb_reviews', function () use ($z, $
         echo '<div class="mb-4">';
         gmb_no_account_box();
         echo '</div>';
+        return; // مفيش حساب: مفيش لوحة أصفار تحت
     }
     gmb_location_picker($options, $loc, 'gmb_reviews', true, ['stars' => $keep['stars'], 'replied' => $replied]);
     foreach ($failed as $fa): ?>

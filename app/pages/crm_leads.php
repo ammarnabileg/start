@@ -374,7 +374,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($k === 'note' && function_exists('crm_mentions')) crm_mentions($body, (int)$l['id']);
         if ($k === 'call' && in_array($oc, ['no_answer', 'busy'], true)) {
             // محاولة تانية بكرة في نفس الوقت تقريبًا
-            db()->prepare('UPDATE crm_leads SET next_at = ?, next_note = ? WHERE id = ?')->execute([date('Y-m-d H:i:s', strtotime('+1 day')), t('محاولة اتصال تانية (%s)', $ocs[$oc]), (int)$l['id']]);
+            $ra = date('Y-m-d H:i:s', strtotime('+1 day')); db()->prepare('UPDATE crm_leads SET next_note = IF(next_at IS NULL OR next_at > ?, ?, next_note), next_at = IF(next_at IS NULL OR next_at > ?, ?, next_at) WHERE id = ?')->execute([$ra, t('محاولة اتصال تانية (%s)', $ocs[$oc]), $ra, $ra, (int)$l['id']]); // متابعة أقرب (زي اجتماع) تفضل
         }
         if ($k === 'call' && $oc === 'wrong') db()->prepare('UPDATE crm_leads SET phone = NULL WHERE id = ?')->execute([(int)$l['id']]);
         if ($k === 'call' && function_exists('crm_on_call_outcome')) crm_on_call_outcome($l, $oc);

@@ -709,7 +709,7 @@ render(t('المنشورات'), 'posts', function () use ($z, $posts, $pages, $p
         foreach ($posts as $p) { $it = ps_cal_item($p); if ($it) $data[] = $it; }
         ?>
       <div class="card p-0 overflow-hidden" id="ps-cal">
-        <div class="flex items-center gap-2 px-4 h-14 border-b border-ink-200">
+        <div class="flex flex-wrap items-center gap-2 px-4 py-2 min-h-14 border-b border-ink-200">
           <button type="button" data-cal="prev" class="tb w-9 justify-center"><svg class="w-4 h-4 rtl:rotate-180" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
           <b class="text-base text-ink-900 min-w-[10rem] text-center" id="cal-title"></b>
           <button type="button" data-cal="next" class="tb w-9 justify-center"><svg class="w-4 h-4 rtl:rotate-180" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>

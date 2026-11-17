@@ -13,7 +13,7 @@ render(t('الصور والفيديو'), 'studio_media', function () use ($on, $
     <div class="card p-8 text-center"><div class="mx-auto mb-3 w-12 h-12 rounded-2xl bg-ink-900 text-white grid place-items-center font-bold">H</div>
       <b class="block text-ink-900"><?= e(($hf || $oa) ? t('توليد الصور متوقف في إعدادات الذكاء الاصطناعي') : t('اربط OpenRouter أو OpenAI من التكاملات لتوليد الصور')) ?></b>
       <p class="text-sm text-ink-500 mt-1"><?= e(t('الصور تُولَّد بموديل GPT للصور من OpenAI، والفيديو عبر Higgsfield. النتائج تُحفظ في مكتبة الوسائط.')) ?></p>
-      <a href="<?= e(url(($hf || $oa) ? 'assistant' : 'connectors')) ?>" class="btn-primary mt-4 inline-flex"><?= e(($hf || $oa) ? t('إعدادات الذكاء الاصطناعي') : t('فتح التكاملات')) ?></a></div>
+      <?php if (can('integrations.manage') || is_ws_owner()): ?><a href="<?= e(url(($hf || $oa) ? 'assistant' : 'connectors')) ?>" class="btn-primary mt-4 inline-flex"><?= e(($hf || $oa) ? t('إعدادات الذكاء الاصطناعي') : t('فتح التكاملات')) ?></a><?php else: ?><p class="text-xs text-ink-400 mt-3"><?= e(t('اطلب من مالك الشركة ربطه.')) ?></p><?php endif; ?></div>
   <?php else: ?>
   <div class="card p-5 space-y-4" id="sm">
     <div class="relative"><textarea id="sm-p" rows="3" class="input !mt-0 text-base leading-7 pe-28" dir="auto" maxlength="1500" placeholder="<?= e(t('صِف الصورة: مثلًا طبق مشويات على طاولة خشب بإضاءة دافية، تصوير احترافي')) ?>"></textarea>

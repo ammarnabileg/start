@@ -190,7 +190,7 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
         $R['crm_leads'] = [[t('هات عملاء أكتر'), url('crm_capture')], [t('تقارير المبيعات'), url('crm_reports')], [t('الرسائل'), url('inbox')]];
         $R['crm_reports'] = [[t('شغل النهارده'), url('prospects', ['stat' => 'due'])], [t('حسّن المصادر الضعيفة'), url('crm_capture')], [t('أداء المحتوى'), url('analytics')]];
         $R['crm_settings'] = [[t('العملاء'), url('prospects')]];
-        $R['prospects'] = $R['crm_leads'] ?? [[t('شغل النهارده'), url('prospects', ['stat' => 'due'])], [t('مصادر العملاء'), url('crm_capture')], [t('التقارير'), url('crm_reports')]];
+        $R['prospects'] = [[t('شغل النهارده'), url('prospects', ['stat' => 'due'])], [t('مصادر العملاء'), url('crm_capture')], [t('التقارير'), url('crm_reports')]];
       }
       $okU = function ($u) { $dp = function_exists('disabled_pages') ? disabled_pages() : []; return !preg_match('/[?&]p=([a-z_]+)/', (string)$u, $m) || (!in_array($m[1], $dp, true) && (($pp = page_permission($m[1])) === null || can($pp))); };
       $rel = array_values(array_filter($R[$active] ?? [], function ($x) use ($okU) { return $okU($x[1]); }));

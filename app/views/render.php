@@ -32,7 +32,8 @@ function no_api_box(): void
     ][$pg] ?? t('للنشر ومتابعة حساباتك، اربط حسابات التواصل أولًا.');
     echo '<div class="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-5 flex flex-wrap items-center gap-3">';
     echo '<div class="flex-1 min-w-[14rem]"><p class="font-bold mb-1">' . e(t('لم يتم الربط بعد')) . '</p><p class="text-sm">' . e($why) . '</p></div>';
-    if (can('integrations.manage') || is_ws_owner()) echo '<a class="btn-primary" href="' . e(url('connectors')) . '">' . e(t('اربط الآن')) . '</a>';
+    $prov = ['sms' => 'sms_gate', 'sms_mine' => 'sms_gate'][$pg] ?? 'zernio';
+    if (can('integrations.manage') || is_ws_owner()) echo '<a class="btn-primary" href="' . e(url('connectors')) . '#' . $prov . '">' . e(t('اربط الآن')) . '</a>';
     else echo '<p class="text-sm">' . e(t('اطلب من مالك الشركة ربط الحسابات.')) . '</p>';
     echo '</div>';
 }

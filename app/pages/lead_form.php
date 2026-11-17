@@ -60,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $isCall = ($in['_mode'] ?? '') === 'call';
     if ($isCall && $phone === '') $fail(422, t('اكتب رقمك.'));
     $lead = ai_as_workspace($wid, function () use ($name, $phone, $email, $company, $msg, $page, $utm, $qb, $qw, $isCall, $refLead) {
-        $l = crm_lead_upsert(['source' => 'form', 'name' => $name !== '' ? $name : ($email ?: $phone), 'phone' => $phone, 'email' => $email, 'company' => $company, 'owner_id' => null]);
+        $l = crm_lead_upsert(['public' => 1, 'source' => 'form', 'name' => $name !== '' ? $name : ($email ?: $phone), 'phone' => $phone, 'email' => $email, 'company' => $company, 'owner_id' => null]);
         if (!$l) return null;
         if ($page !== '' && empty($l['src_url'])) db()->prepare('UPDATE crm_leads SET src_url = ? WHERE id = ?')->execute([$page, (int)$l['id']]);
         $camp = ''; foreach ($utm as $u) if (strpos($u, 'utm_campaign=') === 0) $camp = preg_replace('/[^A-Za-z0-9]/', '', substr($u, 13));
