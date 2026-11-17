@@ -85,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if ($act === 'dget' || $act === 'ddel') {
         $id = (int)($_POST['id'] ?? 0);
-        if ($act === 'ddel') { db()->prepare('DELETE FROM designs WHERE id = ? AND workspace_id = ?')->execute([$id, $wid]); $J(['ok' => true]); }
+        if ($act === 'ddel') { $q = 'DELETE FROM designs WHERE id = ? AND workspace_id = ?' . (can('posts.manage') ? '' : ' AND user_id = ' . (int)(current_user()['id'] ?? 0)); $st = db()->prepare($q); $st->execute([$id, $wid]); $J($st->rowCount() ? ['ok' => true] : ['ok' => false, 'error' => t('يمكنك حذف تصاميمك فقط.')]); }
         $st = db()->prepare('SELECT id, name, data FROM designs WHERE id = ? AND workspace_id = ?'); $st->execute([$id, $wid]); $r = $st->fetch();
         if (!$r) $J(['error' => t('التصميم مش موجود.')], 404);
         $J(['ok' => true, 'id' => (int)$r['id'], 'name' => $r['name'], 'data' => $r['data']]);

@@ -118,7 +118,7 @@
   function saveDesign() { if (saving) return; saving = true; var b = document.querySelector('[data-cmd="dsave"]'); b.disabled = true; var ps = allPages();
     post({ action: 'dsave', id: designId, name: $('dz-name').value, w: X.W, h: X.H, pages: ps.length, data: JSON.stringify({ v: 2, pages: ps }), thumb: (pages[0] && pages[0].t) || '' }).then(function (j) { saving = false; b.disabled = false;
       if (!j.ok) return X.toast(j.error || L.err, 'error'); designId = j.id; X.toast(L.dsaved); try { localStorage.setItem('dz_last_id', designId); } catch (e) {} mine(); }).catch(function () { saving = false; b.disabled = false; X.toast(L.err, 'error'); }); }
-  function openDesign(id) { post({ action: 'dget', id: id }).then(function (j) { if (!j.ok) return X.toast(j.error || L.err, 'error'); var d = JSON.parse(j.data), ps = d.pages || [d];
+  function openDesign(id) { if (cv.getObjects().length && !confirm(L.newQ || 'Discard unsaved changes?')) return; post({ action: 'dget', id: id }).then(function (j) { if (!j.ok) return X.toast(j.error || L.err, 'error'); var d = JSON.parse(j.data), ps = d.pages || [d];
     designId = j.id; pages = ps.map(function (s) { return { j: typeof s === 'string' ? s : JSON.stringify(s), t: '' }; }); cur = 0; busy = true;
     X.load(pages[0].j, function () { $('dz-name').value = j.name; busy = false; X.resetHist(); drawPages(); }); }); }
   function mine() { post({ action: 'dlist' }).then(function (j) { if (!j.ok) return; $('dz-mine').innerHTML = j.items.length ? j.items.map(function (d) {

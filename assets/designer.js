@@ -94,7 +94,8 @@
   // النص مايطلعش برا مكانه: نصغّر الخط لحد عدد سطور معقول، ولو لسه طويل نقصّه بـ «…»
   function fitT(tb, cap) { var fs0 = tb.fontSize; if (!cap) cap = fs0 >= W * 0.075 ? 2 : fs0 >= W * 0.055 ? 3 : fs0 >= W * 0.04 ? 4 : 6; var n = function () { tb.initDimensions(); return (tb.textLines || []).length; };
     while (n() > cap && tb.fontSize > fs0 * 0.6) tb.set('fontSize', tb.fontSize * 0.92);
-    var guard = 0; while (n() > cap && tb.text.length > 4 && guard++ < 200) { var w = tb.text.replace(/…$/, '').split(' '); if (w.length < 2) break; w.pop(); tb.set('text', w.join(' ') + '…'); }
+    var guard = 0; while (n() > cap && tb.text.length > 4 && guard++ < 300) { var raw = tb.text.replace(/…$/, ''), w = raw.split(' '); if (w.length < 2) tb.set('text', raw.slice(0, -2) + '…'); else { w.pop(); tb.set('text', w.join(' ') + '…'); } }
+    if (tb.width && tb.calcTextWidth && tb.calcTextWidth() > tb.width * 1.02 && tb.text.indexOf(' ') < 0) { while (tb.text.length > 4 && tb.calcTextWidth() > tb.width) { tb.set('text', tb.text.replace(/…$/, '').slice(0, -1) + '…'); tb.initDimensions(); } } // كلمة واحدة طويلة (رابط)
     return tb; }
   function TC(t, o) { return T(t, Object.assign({ textAlign: 'center' }, o || {})); }
   function pill(t, x, y, bg, fg, fs, mid) { var tt = new fabric.Textbox(t, { fontSize: fs, fontWeight: 800, fill: fg, fontFamily: isAr(t) ? 'Cairo' : 'Inter', textAlign: 'center', originX: 'center', originY: 'center', width: fs * Math.max(4, t.length * 0.62) }); var r = new fabric.Rect({ width: tt.width + fs * 1.6, height: fs * 2.1, rx: fs * 1.05, ry: fs * 1.05, fill: bg, originX: 'center', originY: 'center' }); return new fabric.Group([r, tt], { left: x, top: y, originX: mid ? 'center' : 'left' }); }
@@ -123,11 +124,11 @@
       TC(K.pod || K.tagline || L.quote, { top: H * 0.32, fontSize: W * 0.052, fontWeight: 700, left: W * 0.14, width: W * 0.72 }), TC(K.rtb || K.about || '', { top: H * 0.58, fontSize: W * 0.03, fill: '#64748b', left: W * 0.14, width: W * 0.72 }),
       TC(CO, { top: H * 0.88, fontSize: W * 0.035, fill: '#fff', fontWeight: 900 })] }; } },
     { n: L.t5, cat: 'edu', size: '1080x1350', b: function () { var o = [R(0, 0, W, H * 0.24, S), T(L.tip, { top: H * 0.05, fontSize: W * 0.04, fill: A, fontWeight: 700 }), T(C.title || L.faqT, { top: H * 0.1, fontSize: W * 0.065, fill: '#fff', fontWeight: 900 })], qs = FAQ.length ? FAQ.slice(0, 3) : [{ q: L.s1, a: L.sub }, { q: L.s2, a: L.sub }, { q: L.s3, a: L.sub }];
-      for (var i = 0; i < qs.length; i++) { var y = H * (0.32 + i * 0.19); o.push(circ(W * 0.86, y + W * 0.05, W * 0.055, P), TC(String(i + 1), { left: W * 0.805, width: W * 0.11, top: y + W * 0.015, fontSize: W * 0.06, fill: '#fff', fontWeight: 900, fontFamily: 'Inter' }), T(qs[i].q, { top: y, width: W * 0.68, fontSize: W * 0.04, fontWeight: 700 }), T(qs[i].a, { top: y + W * 0.07, width: W * 0.68, fontSize: W * 0.03, fill: '#64748b' })); }
+      for (var i = 0; i < qs.length; i++) { var y = H * (0.32 + i * 0.19); o.push(circ(W * 0.86, y + W * 0.05, W * 0.055, P), TC(String(i + 1), { left: W * 0.805, width: W * 0.11, top: y + W * 0.015, fontSize: W * 0.06, fill: '#fff', fontWeight: 900, fontFamily: 'Inter' }), T(SHORT(qs[i].q, 70), { top: y, width: W * 0.68, fontSize: W * 0.04, fontWeight: 700, maxLines: 1 }), T(SHORT(qs[i].a, 130), { top: y + W * 0.065, width: W * 0.68, fontSize: W * 0.03, fill: '#64748b', maxLines: 3 })); }
       o.push(T(CO + (FOOT ? '   ·   ' + FOOT : ''), { top: H * 0.93, fontSize: W * 0.026, fill: P, fontWeight: 700 })); return { bg: '#fff', objs: o }; } },
     { n: L.t6, cat: 'edu', size: '1080x1080', b: function () { return { bg: grad([S, '#1e293b']), objs: [
       TC('🕛', { top: H * 0.1, fontSize: W * 0.11, fontFamily: 'Inter' }), TC(L.hoursT, { top: H * 0.26, fontSize: W * 0.06, fill: A, fontWeight: 900 }),
-      TC(K.hours || L.date, { top: H * 0.38, fontSize: W * 0.055, fill: '#fff', fontWeight: 700, left: W * 0.1, width: W * 0.8 }), TC(K.branch ? '📍  ' + K.branch : '', { top: H * 0.56, fontSize: W * 0.035, fill: light, left: W * 0.1, width: W * 0.8 }),
+      TC(SHORT(K.hours, 70) || L.date, { maxLines: 2, top: H * 0.38, fontSize: W * 0.055, fill: '#fff', fontWeight: 700, left: W * 0.1, width: W * 0.8 }), TC(K.branch ? '📍  ' + K.branch : '', { top: H * 0.56, fontSize: W * 0.035, fill: light, left: W * 0.1, width: W * 0.8 }),
       R(W * 0.45, H * 0.7, W * 0.1, 5, P), TC(WA ? '📞  ' + WA : CO, { top: H * 0.76, fontSize: W * 0.045, fill: '#fff', fontWeight: 700, fontFamily: 'Inter' }), TC(CO, { top: H * 0.9, fontSize: W * 0.028, fill: light })] }; } },
     { n: L.t7, cat: 'product', size: '1080x1080', b: function () { return { bg: '#fff', objs: [
       ph(0, 0, W / 2, H), ph(W / 2, 0, W / 2, H), R(W / 2 - 3, 0, 6, H, '#fff'),
@@ -156,8 +157,8 @@
       TC(WA ? '💬  ' + L.orderWa + '\n' + WA : '⌃\n' + L.swipe, { top: H * 0.86, fontSize: W * 0.04, fill: '#fff', fontWeight: 700 })] }; } },
     { n: L.t13, cat: 'story', size: '1080x1920', b: function () { return { bg: grad(['#fdf2f8', '#eef2ff']), objs: [
       TC(L.qday, { top: H * 0.16, fontSize: W * 0.05, fill: P, fontWeight: 700 }), TC(C.title || (SVS.length > 1 ? L.which : L.question), { top: H * 0.24, fontSize: W * 0.09, fontWeight: 900, left: W * 0.1, width: W * 0.8 }),
-      R(W * 0.12, H * 0.5, W * 0.76, H * 0.075, '#fff', { rx: H * 0.0375, ry: H * 0.0375, stroke: '#e2e8f0', strokeWidth: 3 }), TC(SVS.length > 1 ? SV.name : '👍  ' + L.yes, { top: H * 0.515, fontSize: W * 0.05, fontWeight: 700 }),
-      R(W * 0.12, H * 0.61, W * 0.76, H * 0.075, '#fff', { rx: H * 0.0375, ry: H * 0.0375, stroke: '#e2e8f0', strokeWidth: 3 }), TC(SVS.length > 1 ? SV2.name : '🤔  ' + L.no, { top: H * 0.625, fontSize: W * 0.05, fontWeight: 700 }),
+      R(W * 0.12, H * 0.5, W * 0.76, H * 0.075, '#fff', { rx: H * 0.0375, ry: H * 0.0375, stroke: '#e2e8f0', strokeWidth: 3 }), TC(SVS.length > 1 ? SV.name : '👍  ' + L.yes, { top: H * 0.515, fontSize: W * 0.05, fontWeight: 700, maxLines: 1, left: W * 0.15, width: W * 0.7 }),
+      R(W * 0.12, H * 0.61, W * 0.76, H * 0.075, '#fff', { rx: H * 0.0375, ry: H * 0.0375, stroke: '#e2e8f0', strokeWidth: 3 }), TC(SVS.length > 1 ? SV2.name : '🤔  ' + L.no, { top: H * 0.625, fontSize: W * 0.05, fontWeight: 700 , maxLines: 1, left: W * 0.15, width: W * 0.7 }),
       TC(CO, { top: H * 0.9, fontSize: W * 0.035, fill: '#64748b', fontWeight: 700 })] }; } },
     { n: L.t14, cat: 'carousel', size: '1080x1350', b: function () { return { bg: A, objs: [
       T('01', { top: H * 0.08, fontSize: W * 0.06, fontWeight: 900, fill: S, fontFamily: 'Inter' }), T(C.title || (SV.name ? L.whySvc.replace('%s', SV.name) : L.hook), { top: H * 0.25, fontSize: W * 0.11, fontWeight: 900, fill: S, lineHeight: 1.05 }),
@@ -168,7 +169,7 @@
       return { bg: grad(['#0b1a3a', S]), objs: o }; } },
     { n: L.t16, cat: 'offer', size: '1080x1350', b: function () { var o = [TC(L.menu, { top: H * 0.07, fontSize: W * 0.08, fontWeight: 900, fill: P }), R(W * 0.42, H * 0.17, W * 0.16, 5, A)], sv = SVS.slice(0, 5);
       if (!sv.length) sv = [{ name: L.item + ' 1', price: '45' }, { name: L.item + ' 2', price: '60' }, { name: L.item + ' 3', price: '85' }];
-      sv.forEach(function (s, i) { var y = H * (0.25 + i * 0.12); o.push(T(s.name, { top: y, fontSize: W * 0.045, fontWeight: 700, width: W * 0.6, left: W * 0.32 }), T(String(s.price || ''), { top: y, fontSize: W * 0.045, fontWeight: 900, fill: P, width: W * 0.24, left: W * 0.08, textAlign: 'left' }), R(W * 0.08, y + W * 0.075, W * 0.84, 2, '#e2e8f0')); });
+      sv.forEach(function (s, i) { var y = H * (0.25 + i * 0.12); o.push(T(s.name, { top: y, fontSize: W * 0.045, fontWeight: 700, width: W * 0.6, left: W * 0.32, maxLines: 1 }), T(String(s.price || ''), { top: y, fontSize: W * 0.045, fontWeight: 900, fill: P, width: W * 0.24, left: W * 0.08, textAlign: 'left' }), R(W * 0.08, y + W * 0.075, W * 0.84, 2, '#e2e8f0')); });
       o.push(TC(CO, { top: H * 0.92, fontSize: W * 0.03, fill: '#64748b', fontWeight: 700 })); return { bg: '#fffaf3', objs: o }; } }
   ];
   function build(t) { var p = t.size.split('x'), ow = W, oh = H; W = +p[0]; H = +p[1]; var r = t.b(); W = ow; H = oh; return r; }
