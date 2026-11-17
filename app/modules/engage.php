@@ -310,7 +310,7 @@ function crm_merge_leads(int $keep, int $drop, array $pick): bool
         $all = array_merge([(string)$a[$k]], json_decode((string)($a[$k . 's'] ?? ''), true) ?: [], [(string)$b[$k]], json_decode((string)($b[$k . 's'] ?? ''), true) ?: []);
         $rest = array_values(array_slice(array_unique(array_filter($all, function ($x) use ($main) { return $x !== '' && $x !== (string)$main; })), 0, 10));
         $set[] = $k . 's = ?'; $vals[] = $rest ? json_encode($rest) : null; }
-    $tags = implode(', ', array_slice(array_unique(array_filter(array_map('trim', array_merge(explode(',', (string)$a['tags']), explode(',', (string)$b['tags']))))), 0, 12)); $set[] = 'tags = ?'; $vals[] = $tags ?: null;
+    $tags = mb_substr(implode(', ', array_slice(array_unique(array_filter(array_map('trim', array_merge(explode(',', (string)$a['tags']), explode(',', (string)$b['tags']))))), 0, 12)), 0, 255); $set[] = 'tags = ?'; $vals[] = $tags ?: null;
     $cf = (json_decode((string)($b['custom'] ?? ''), true) ?: []) + []; $cf = array_merge($cf, json_decode((string)($a['custom'] ?? ''), true) ?: []);
     if (array_key_exists('custom', $a)) { $set[] = 'custom = ?'; $vals[] = $cf ? json_encode($cf, JSON_UNESCAPED_UNICODE) : null; }
     foreach (['ext_id', 'src_url', 'link_code', 'coupon', 'referred_by', 'q_budget', 'q_when'] as $f) if (array_key_exists($f, $a) && ($a[$f] === null || $a[$f] === '') && $b[$f] !== null && $b[$f] !== '') { $set[] = "$f = ?"; $vals[] = $b[$f]; }
@@ -320,6 +320,7 @@ function crm_merge_leads(int $keep, int $drop, array $pick): bool
         $vals[] = $keep; $pdo->prepare('UPDATE crm_leads SET ' . implode(', ', $set) . ' WHERE id = ?')->execute($vals);
         foreach (['crm_acts', 'crm_deals', 'crm_bookings', 'crm_visits', 'crm_mails', 'crm_notifs', 'crm_tasks'] as $tb) { try { $pdo->prepare("UPDATE $tb SET lead_id = ? WHERE lead_id = ? AND workspace_id = ?")->execute([$keep, $drop, $wid]); } catch (Throwable $e) {} }
         $pdo->prepare('UPDATE crm_leads SET referred_by = ? WHERE referred_by = ? AND workspace_id = ?')->execute([$keep, $drop, $wid]);
+        $pdo->prepare('UPDATE crm_leads SET referred_by = NULL WHERE id = ? AND referred_by = ?')->execute([$keep, $keep]); // مايبقاش مُحيل لنفسه
         $pdo->prepare('DELETE FROM crm_leads WHERE id = ? AND workspace_id = ?')->execute([$drop, $wid]);
         $pdo->commit();
     } catch (Throwable $e) { $pdo->rollBack(); throw $e; }
@@ -436,7 +437,6 @@ function crm_monthly_report(bool $force = false): int
     $wid = (int)ws('id'); if (!function_exists('smtp_config') || !smtp_config($wid)) return 0;
     $tz = new DateTimeZone(site_timezone()); $now = new DateTime('now', $tz); $key = $now->format('Y-m');
     if (!$force && (((int)$now->format('j') === 1 && (int)$now->format('G') < 8) || setting('crm_monthly_' . $wid, '') === $key)) return 0;
-    save_setting('crm_monthly_' . $wid, $key);
     [$from, $to] = crm_period('last_month'); $rows = crm_team_report($from, $to);
     $tot = ['leads' => 0, 'won' => 0, 'value' => 0, 'contacts' => 0]; foreach ($rows as $r) foreach ($tot as $k => $_) $tot[$k] += $r[$k];
     $cy = crm_cycle($from, $to); $cp = crm_report_campaigns($from, $to)['rows'];
@@ -452,6 +452,7 @@ function crm_monthly_report(bool $force = false): int
         . '<p><a href="' . e(base_url() . '/' . url('crm_reports', ['period' => 'last_month'])) . '">' . e(t('افتح التقرير الكامل')) . '</a></p></div>';
     $n = 0;
     foreach (crm_members() as $m) if ((($m['role'] ?? '') === 'owner' || (function_exists('role_permissions') && in_array('crm.manage', role_permissions((string)($m['role'] ?? '')), true))) && !empty($m['email'])) { try { send_mail((string)$m['email'], t('تقرير المبيعات لشهر %s', $mName), $html, null, $wid); $n++; } catch (Throwable $e) {} }
+    if ($n) save_setting('crm_monthly_' . $wid, $key); // يتعلّم «اتبعت» بس لو وصل لحد
     return $n;
 }
 

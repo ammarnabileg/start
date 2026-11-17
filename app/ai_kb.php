@@ -718,7 +718,7 @@ function kb_fill_norm(?array $d, string $type, array $def, string $sec): ?array
     if ($type === 'rows' && !isset($d['rows'])) { foreach ($d as $v) if (is_array($v) && array_is_list($v)) { $d = ['rows' => $v]; break; } if (array_is_list($d)) $d = ['rows' => $d]; }
     if ($type === 'fields') {
         $out = []; $low = []; foreach ($d as $k => $v) $low[strtolower((string)$k)] = $v;
-        foreach ($def['fields'] as $k => $f) { $v = $d[$k] ?? $low[strtolower($k)] ?? $d[$f[0]] ?? ''; $out[$k] = is_array($v) ? implode("\n", array_map('strval', array_filter($v, 'is_scalar'))) : (string)$v; }
+        foreach ($def['fields'] as $k => $f) { if (($f[1] ?? '') === 'media') continue; $v = $d[$k] ?? $low[strtolower($k)] ?? $d[$f[0]] ?? ''; $out[$k] = is_array($v) ? implode("\n", array_map('strval', array_filter($v, 'is_scalar'))) : (string)$v; }
         $d = $out;
     }
     if (($type === 'text' || $type === 'list') && !isset($d['text'])) { foreach ($d as $v) if (is_string($v) && trim($v) !== '') { $d = ['text' => $v]; break; } }

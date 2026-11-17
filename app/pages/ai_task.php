@@ -72,11 +72,12 @@ if (in_array($task, ['image', 'image_status'], true)) {
         $prompt = mb_substr(trim((string)($_POST['text'] ?? '')), 0, 1500); if ($prompt === '') $out(['error' => t('اكتب وصف الفيديو أولًا.')], 422);
         $ar = in_array($_POST['aspect'] ?? '', ['1:1', '4:5', '9:16', '16:9'], true) ? ($_POST['aspect'] === '4:5' ? '3:4' : $_POST['aspect']) : '9:16';
         try { $vid = vid_or_start($prompt, $ar); } catch (Throwable $e) { $out(['error' => $e->getMessage()], 502); }
-        $rid = 'orv-' . $vid; $_SESSION['orv'][$rid] = 1; log_activity('ai.video', 'openrouter');
+        $rid = 'orv-' . $vid; $_SESSION['orv'][$rid] = (int)ws('id'); log_activity('ai.video', 'openrouter');
         $out(['id' => $rid, 'ids' => [$rid], 'status' => 'queued', 'provider' => 'openrouter']);
     }
     if ($task === 'image_status' && strpos((string)($_POST['id'] ?? ''), 'orv-') === 0) {
         $rid = (string)$_POST['id']; if (empty($_SESSION['orv'][$rid])) $out(['error' => t('طلب غير صحيح.')], 400);
+        if ((int)$_SESSION['orv'][$rid] !== (int)ws('id')) $out(['status' => 'pending', 'error' => t('ارجع إلى مساحة العمل التي بدأت فيها الفيديو لاستلامه.')]); // مايتحفظش في شركة تانية
         try { $r = vid_or_poll(substr($rid, 4)); } catch (Throwable $e) { $out(['error' => $e->getMessage()], 502); }
         if ($r['status'] === 'completed') { unset($_SESSION['orv'][$rid]); $out(['status' => 'completed', 'images' => array_map(function ($n) { return ['name' => $n, 'src' => url('ai_task', ['img' => $n]), 'video' => true]; }, $r['names'])]); }
         if ($r['status'] === 'failed') { unset($_SESSION['orv'][$rid]); $out(['status' => 'failed', 'error' => $r['error'] ?: t('فشل توليد الفيديو. جرّب وصفًا مختلفًا.')]); }

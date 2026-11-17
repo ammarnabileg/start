@@ -109,7 +109,7 @@
     w.textContent = msgs.join(' · ');
   }
   if (mi) {
-    mi.addEventListener('change', function () { files = [].slice.call(mi.files); if (window.cpSaveDraft) window.cpSaveDraft(); setTimeout(drawMedia, 0); render(); });
+    mi.addEventListener('change', function () { var add = [].slice.call(mi.files); if (!add.length) return; setFiles(files.concat(add.filter(function (f) { return !files.some(function (o) { return o.name === f.name && o.size === f.size; }); }))); }); // الاختيار يضيف على اللي اتسحب قبل كده
     var lab = mi.closest('label'); mi.classList.add('hidden');
     // المستطيل نصين: يمين رفع من الجهاز، شمال مكتبة الوسائط. الإفلات شغال على الاتنين
     var dz = document.createElement('div'); dz.className = 'cp-dz mt-1 grid grid-cols-2 rounded-2xl border-2 border-dashed border-ink-300 bg-ink-50 transition hover:border-brand-400';
@@ -266,7 +266,7 @@
   }
 
   /* ---------- 8) مسودة تلقائية + Ctrl+Enter + تحذير الخروج ---------- */
-  var DK = 'cp_draft_' + (P.ws || ''), sending = false, tm = null;
+  var DK = 'cp_draft_' + (P.ws || '') + (P.uid ? '_' + P.uid : ''), sending = false, tm = null;
   // صور المسودة: صور المكتبة بتتحفظ كبيانات، وملفات الجهاز في IndexedDB
   var idb = function (mode, fn) { try { var rq = indexedDB.open('cp_drafts', 1); rq.onupgradeneeded = function () { rq.result.createObjectStore('f'); }; rq.onsuccess = function () { var tx = rq.result.transaction('f', mode); fn(tx.objectStore('f')); }; } catch (e) {} };
   var putFiles = function (list) { idb('readwrite', function (st) { list.length ? st.put(list.map(function (f) { return { b: f, n: f.name, t: f.type }; }), DK) : st.delete(DK); }); };

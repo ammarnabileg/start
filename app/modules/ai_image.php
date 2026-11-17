@@ -298,7 +298,7 @@ function img_trim_bands(string $bytes): string
     $im = @imagecreatefromstring($bytes); if (!$im) return $bytes;
     $w = imagesx($im); $h = imagesy($im); if ($w < 64 || $h < 64) { imagedestroy($im); return $bytes; }
     // عمود/صف «فاضي» = كل نقطة فيه قريبة من لون الركن وتقريبًا من غير تفاصيل
-    $ref = imagecolorat($im, 0, 0); $rr = ($ref >> 16) & 255; $rg = ($ref >> 8) & 255; $rb = $ref & 255;
+    if (!imageistruecolor($im)) imagepalettetotruecolor($im); $ref = imagecolorat($im, 0, 0); $rr = ($ref >> 16) & 255; $rg = ($ref >> 8) & 255; $rb = $ref & 255;
     $flat = function ($x0, $y0, $dx, $dy, $n) use ($im, $rr, $rg, $rb) {
         $bad = 0; $step = max(1, intdiv($n, 60));
         for ($i = 0; $i < $n; $i += $step) { $c = imagecolorat($im, $x0 + $dx * $i, $y0 + $dy * $i); if (abs((($c >> 16) & 255) - $rr) + abs((($c >> 8) & 255) - $rg) + abs(($c & 255) - $rb) > 40) $bad++; }
@@ -319,7 +319,7 @@ function img_trim_bands(string $bytes): string
     $cw = $w - $l - $r; $ch = $h - $t - $b; if ($cw < $w * 0.4 || $ch < $h * 0.4) { imagedestroy($im); return $bytes; }
     // نرجع لنسبة الصورة الأصلية بقص من المنتصف، وبعدين نكبّر لنفس المقاس
     $ratio = $w / $h; if ($cw / $ch > $ratio) { $nw = (int)round($ch * $ratio); $l += intdiv($cw - $nw, 2); $cw = $nw; } else { $nh = (int)round($cw / $ratio); $t += intdiv($ch - $nh, 2); $ch = $nh; }
-    $out = imagecreatetruecolor($w, $h); imagecopyresampled($out, $im, 0, 0, $l, $t, $w, $h, $cw, $ch);
+    $out = imagecreatetruecolor($w, $h); imagealphablending($out, false); imagesavealpha($out, true); imagecopyresampled($out, $im, 0, 0, $l, $t, $w, $h, $cw, $ch);
     ob_start(); imagepng($out); $png = (string)ob_get_clean(); imagedestroy($im); imagedestroy($out);
     return $png !== '' ? $png : $bytes;
 }
@@ -330,7 +330,7 @@ function img_palette(string $path, int $n = 4): array
 {
     if (!is_file($path) || !function_exists('imagecreatefromstring')) return [];
     $sz = @getimagesize($path); if (!$sz || $sz[0] * $sz[1] > 16000000) return []; // صورة ضخمة: مانفكّهاش في الذاكرة
-    $im = @imagecreatefromstring((string)file_get_contents($path)); if (!$im) return [];
+    $im = @imagecreatefromstring((string)file_get_contents($path)); if (!$im) return []; if (!imageistruecolor($im)) imagepalettetotruecolor($im); // PNG/GIF بلوحة ألوان: imagecolorat بيرجع رقم مش لون
     $w = imagesx($im); $h = imagesy($im); $step = max(1, (int)floor(sqrt($w * $h / 6000))); $bins = [];
     for ($x = 0; $x < $w; $x += $step) for ($y = 0; $y < $h; $y += $step) {
         $c = imagecolorat($im, $x, $y); $a = ($c >> 24) & 127; if ($a > 80) continue; // شفاف
@@ -352,6 +352,6 @@ function kb_logo_palette(int $wid): array
     // متخزنة لكل شعار: الحساب بيحصل مرة واحدة لما الشعار يتغير، مش في كل فتحة صفحة
     $ck = 'logo_pal_' . $wid; $c = json_decode((string)setting($ck, ''), true);
     if (is_array($c) && (int)($c['id'] ?? 0) === (int)$lg['id'] && isset($c['p'])) return (array)$c['p'];
-    $p = img_palette(media_file_path($wid, $lg), 4); save_setting($ck, json_encode(['id' => (int)$lg['id'], 'p' => $p]));
+    $p = img_palette(media_file_path($wid, $lg), 4); if (!$p) return []; save_setting($ck, json_encode(['id' => (int)$lg['id'], 'p' => $p]));
     return $p;
 }

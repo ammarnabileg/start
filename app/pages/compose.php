@@ -992,7 +992,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
       </div>
     </form>
     <?php $cpPlats = array_values(array_unique(array_map(function ($a) { return (string)($a['platform'] ?? ''); }, $accounts))); ?>
-    <script>window.CPX = <?= json_encode(['ws' => (int)ws('id'),
+    <script>window.CPX = <?= json_encode(['ws' => (int)ws('id'), 'uid' => (int)(current_user()['id'] ?? 0),
       'icons' => array_combine($cpPlats, array_map(function ($p) { return platform_icon($p, 'w-3.5 h-3.5'); }, $cpPlats)),
       'plat' => array_combine($cpPlats, array_map('platform_label', $cpPlats)),
       'tooLong' => t('أطول من المسموح بـ %s حرف'), 'tags' => t('%s هاشتاج'), 'emoji' => t('إيموجي'), 'hashtag' => t('هاشتاج'), 'line' => t('سطر جديد'), 'tools' => t('الأدوات'), 'aiMenu' => t('الذكاء الاصطناعي'),

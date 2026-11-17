@@ -77,6 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $m = trim((string)($_POST['vid_model'] ?? ''));
         $ok = $m === '' || (function_exists('vid_or_models') && in_array($m, array_column(vid_or_models($existing), 'id'), true));
         $rs = trim((string)($_POST['vid_res'] ?? '')); if ($rs !== '' && !preg_match('/^[0-9]{3,4}p$|^[124]K$|^4k$/', $rs)) $rs = '';
+        if ($ok && $m !== (string)setting('vid_or_model_' . (int)ws('id'), '')) $rs = ''; // موديل جديد: جودته الافتراضية
         if ($ok) { save_setting('vid_or_model_' . (int)ws('id'), $m); save_setting('vid_or_res_' . (int)ws('id'), $rs); flash('success', t('اتحفظ.')); } else flash('error', t('الموديل غير متاح.'));
     }
     if ($action === 'img_model' && $existing && $provider === 'openrouter') {

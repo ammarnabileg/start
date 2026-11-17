@@ -215,7 +215,7 @@
     b.disabled = true;
     fetch(location.pathname + '?p=knowledge', { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'fetch', 'X-CSRF-Token': tk ? tk.content : '' } }).then(function (r) { return r.json(); }).then(function (j) {
       b.disabled = false; if (!j.ok) { (window.toast || alert)(j.error || '✗'); return; }
-      inp.value = j.colors; inp.dispatchEvent(new Event('input', { bubbles: true })); inp.dispatchEvent(new Event('change', { bubbles: true }));
+      if (inp.value.trim() && inp.value.trim() !== j.colors && !confirm(j.colors + '\n\n' + (document.documentElement.lang === 'en' ? 'Replace the current colors?' : 'استبدال الألوان الحالية؟'))) return; inp.value = j.colors; inp.dispatchEvent(new Event('input', { bubbles: true })); inp.dispatchEvent(new Event('change', { bubbles: true }));
     }).catch(function () { b.disabled = false; });
   });
 })();
