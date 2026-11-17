@@ -912,7 +912,7 @@ function crm_book_slots(array $c): array
     $tz = new DateTimeZone(site_timezone()); $srv = new DateTimeZone(date_default_timezone_get());
     $len = max(15, min(240, (int)$c['len'])); $now = new DateTime('now', $tz); $min = (clone $now)->modify('+' . max(0, (int)$c['notice']) . ' hours');
     $st = db()->prepare('SELECT start_at, len FROM crm_bookings WHERE workspace_id = ? AND start_at >= ?'); $st->execute([(int)ws('id'), date('Y-m-d H:i:s', time() - 6 * 3600)]);
-    $busy = []; foreach ($st->fetchAll() as $b) { $bs = (new DateTime($b['start_at'], $srv))->getTimestamp(); $busy[] = [$bs, $bs + 60 * max(15, (int)($b['len'] ?: $len))]; } // فترات محجوزة (بمدتها)
+    $busy = []; foreach ($st->fetchAll() as $b) { $bs = (new DateTime($b['start_at'], $srv))->getTimestamp(); $busy[] = [$bs, $bs + 60 * max(15, (int)($b['len'] ?: max($len, 60)))]; } // فترات محجوزة (بمدتها)
     $taken = [];
     $out = [];
     for ($i = 0; $i <= max(1, min(60, (int)$c['ahead'])); $i++) {

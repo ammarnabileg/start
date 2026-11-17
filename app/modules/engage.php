@@ -261,13 +261,15 @@ function crm_custom_fields(): array
 }
 function crm_custom_clean(array $in): array
 {
-    $o = [];
+    $o = []; $known = [];
     foreach (crm_custom_fields() as $f) {
+        $known[$f['key']] = 1;
         $v = trim((string)($in[$f['key']] ?? '')); if ($v === '') continue;
         if ($f['type'] === 'number') $v = (string)(float)str_replace(',', '.', $v);
-        if ($f['type'] === 'select' && !in_array($v, (array)$f['opts'], true)) continue;
+        // اختيار قديم اتغير اسمه/اتشال: بيفضل محفوظ بدل ما يتمسح بصمت
         $o[$f['key']] = mb_substr($v, 0, 200);
     }
+    foreach ($in as $k => $v) if (!isset($known[$k]) && is_string($k) && preg_match('/^[a-z0-9_]{1,40}$/i', $k) && is_scalar($v) && trim((string)$v) !== '') $o[$k] = mb_substr(trim((string)$v), 0, 200); // حقل اتمسح من الإعدادات: بياناته تفضل
     return $o;
 }
 

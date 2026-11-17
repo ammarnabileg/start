@@ -279,7 +279,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         if ($s !== $l['stage']) crm_act_add((int)$l['id'], 'stage', ($stages[$l['stage']] ?? $l['stage']) . (is_rtl() ? ' ← ' : ' → ') . $stages[$s]);
         if ($s === 'lost' && $l['stage'] !== 'lost') crm_set_lost_reason((int)$l['id'], (string)($_POST['lost_reason'] ?? ''));
-        $pl = (string)($_POST['pipeline'] ?? ''); $cf = crm_custom_clean((array)($_POST['cf'] ?? []));
+        $pl = (string)($_POST['pipeline'] ?? ''); $oldCf = json_decode((string)($l['custom'] ?? ''), true) ?: []; $cf = crm_custom_clean((array)($_POST['cf'] ?? []) + array_diff_key($oldCf, array_flip(array_column(crm_custom_fields(), 'key')))); // بيانات حقول اتمسحت تفضل
         db()->prepare('UPDATE crm_leads SET pipeline = ?, custom = ? WHERE id = ?')->execute([isset(crm_pipelines()[$pl]) ? $pl : (string)($l['pipeline'] ?? 'sales'), $cf ? json_encode($cf, JSON_UNESCAPED_UNICODE) : null, (int)$l['id']]);
         crm_auto_tag(crm_lead((int)$l['id']));
         log_activity('crm.save', (string)$l['id']);
@@ -321,7 +321,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($stt === 'won' && $l['stage'] !== 'won') { db()->prepare("UPDATE crm_leads SET stage = 'won' WHERE id = ?")->execute([(int)$l['id']]); $pushWon = true; crm_act_add((int)$l['id'], 'stage', $stages[$l['stage']] . (is_rtl() ? ' ← ' : ' → ') . $stages['won']); }
         }
         crm_deals_rollup((int)$l['id']);
-        if (!empty($pushWon) && function_exists('crm_push_ad_stage') && ($fresh = crm_lead((int)$l['id']))) { try { crm_push_ad_stage($fresh); } catch (Throwable $e) {} } // منصة الإعلانات تعرف إنه اشترى، بالقيمة الجديدة
+        if ((!empty($pushWon) || $l['stage'] === 'won') && function_exists('crm_push_ad_stage') && ($fresh = crm_lead((int)$l['id']))) { try { crm_push_ad_stage($fresh); } catch (Throwable $e) {} } // منصة الإعلانات تعرف إنه اشترى، بالقيمة الجديدة
         $json(['ok' => true, 'deals' => crm_deals((int)$l['id']), 'lead' => $out(crm_lead((int)$l['id']))]);
     }
     if ($action === 'track_link') {
@@ -386,6 +386,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'delete' && $canManage) {
         db()->prepare('DELETE FROM crm_acts WHERE lead_id = ? AND workspace_id = ?')->execute([(int)$l['id'], $wid]);
         try { db()->prepare('DELETE FROM crm_bookings WHERE lead_id = ? AND workspace_id = ? AND start_at > NOW()')->execute([(int)$l['id'], $wid]); } catch (Throwable $e) {}
+        foreach (['crm_deals', 'crm_tasks', 'crm_visits', 'crm_notifs'] as $tb) { try { db()->prepare("DELETE FROM $tb WHERE lead_id = ? AND workspace_id = ?")->execute([(int)$l['id'], $wid]); } catch (Throwable $e) {} } // مايفضلش يتحسب في التقارير
         db()->prepare('DELETE FROM crm_leads WHERE id = ? AND workspace_id = ?')->execute([(int)$l['id'], $wid]);
         log_activity('crm.delete', $l['id'] . ' ' . $l['name']);
         $json(['ok' => true]);

@@ -168,7 +168,7 @@ function adc_payload(array $f): array
     return $p;
 }
 
-$form = $_SESSION['adc_form_' . (int)ws('id')] ?? null;
+$form = (!empty($_GET['draft']) || !empty($_GET['dup'])) ? null : ($_SESSION['adc_form_' . (int)ws('id')] ?? null); // رابط مسودة أو نسخة بيفتح هو
 if (!empty($_GET['boost_post'])) { $form = ['mode' => 'boost', 'post' => (string)$_GET['boost_post'], 'boost_acc' => (string)($_GET['boost_acc'] ?? ''), 'goal' => 'engagement']; unset($_SESSION['adc_form_' . (int)ws('id')]); }
 if (!$form && !empty($_GET['dup'])) {
     $form = ['name' => mb_substr(t('نسخة من %s', (string)($_GET['dup_name'] ?? '')), 0, 200), 'dup_acc' => (string)($_GET['dup_acc'] ?? ''),
