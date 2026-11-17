@@ -271,8 +271,8 @@ if (($_GET['ajax'] ?? '') === 'ids') { [$w, $a, $ord] = $buildWhere($_GET); $st 
 if (($_GET['ajax'] ?? '') === 'export') {
     [$w, $a, $ord] = $buildWhere($_GET); $st = db()->prepare("SELECT * FROM crm_leads WHERE $w ORDER BY $ord"); $st->execute($a);
     header('Content-Type: text/csv; charset=utf-8'); header('Content-Disposition: attachment; filename="leads-' . date('Y-m-d') . '.csv"'); $o = fopen('php://output', 'w'); fwrite($o, "\xEF\xBB\xBF");
-    fputcsv($o, [t('الاسم'), t('الرقم'), t('الإيميل'), t('أرقام إضافية'), t('إيميلات إضافية'), t('الشركة'), t('المسمى'), t('الدولة'), t('المصدر'), t('المرحلة'), t('التاجات'), t('القيمة'), t('اتضاف'), t('آخر تواصل'), t('المتابعة الجاية')]);
-    while ($r = $st->fetch()) fputcsv($o, [$r['name'], $r['phone'], $r['email'], implode(' | ', json_decode((string)($r['phones'] ?? ''), true) ?: []), implode(' | ', json_decode((string)($r['emails'] ?? ''), true) ?: []), $r['company'], $r['title'], crm_country_label((string)$r['country']), $sources[$r['source']] ?? $r['source'], $stages[$r['stage']] ?? $r['stage'], $r['tags'], $r['deal_value'], $r['created_at'], $r['last_contact_at'], $r['next_at']]);
+    fputcsv($o, csv_safe([t('الاسم'), t('الرقم'), t('الإيميل'), t('أرقام إضافية'), t('إيميلات إضافية'), t('الشركة'), t('المسمى'), t('الدولة'), t('المصدر'), t('المرحلة'), t('التاجات'), t('القيمة'), t('اتضاف'), t('آخر تواصل'), t('المتابعة الجاية')]));
+    while ($r = $st->fetch()) fputcsv($o, csv_safe([$r['name'], $r['phone'], $r['email'], implode(' | ', json_decode((string)($r['phones'] ?? ''), true) ?: []), implode(' | ', json_decode((string)($r['emails'] ?? ''), true) ?: []), $r['company'], $r['title'], crm_country_label((string)$r['country']), $sources[$r['source']] ?? $r['source'], $stages[$r['stage']] ?? $r['stage'], $r['tags'], $r['deal_value'], $r['created_at'], $r['last_contact_at'], $r['next_at']]));
     fclose($o); log_activity('crm.export', (string)$st->rowCount()); exit;
 }
 // طابور الاتصال: كل اللي ليهم رقم ومش مقفولين (مش بس اللي اتحمّلوا في الصفحة)

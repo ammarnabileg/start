@@ -218,7 +218,7 @@ function current_user(): ?array
                 // حساب موقوف: يخرج فوراً
                 if (($user['status'] ?? 'active') !== 'active') {
                     $user = null;
-                    unset($_SESSION['uid'], $_SESSION['impersonator']);
+                    unset($_SESSION['uid'], $_SESSION['impersonator'], $_SESSION['pwfp']);
                 }
             }
         }
@@ -530,4 +530,10 @@ function ui_icon_paths(): array
         'spark' => 'M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z',
     ];
     return $p;
+}
+
+/** خلايا CSV: اللي بيبدأ بـ = + - @ يتقري كنص مش معادلة في إكسل */
+function csv_safe(array $row): array
+{
+    return array_map(function ($v) { if (!is_string($v) || $v === '' || is_numeric($v)) return $v; return strpos("=+-@\t\r", $v[0]) !== false ? "'" . $v : $v; }, $row);
 }

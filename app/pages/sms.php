@@ -89,9 +89,9 @@ if (($z || $fx) && !$apiError && !empty($_GET['csv'])) {
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename="sms-opt-outs.csv"');
     $out = fopen('php://output', 'w');
-    fputcsv($out, ['phone_number', 'opted_out_at', 'keyword', 'our_number']);
+    fputcsv($out, csv_safe(['phone_number', 'opted_out_at', 'keyword', 'our_number']));
     foreach ($optOuts as $o) {
-        fputcsv($out, [$o['phoneNumber'] ?? '', $o['optedOutAt'] ?? '', $o['keyword'] ?? '', $o['from'] ?? '']);
+        fputcsv($out, csv_safe([$o['phoneNumber'] ?? '', $o['optedOutAt'] ?? '', $o['keyword'] ?? '', $o['from'] ?? '']));
     }
     exit;
 }

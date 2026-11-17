@@ -75,12 +75,12 @@ $comm = function_exists('crm_comm_cfg') ? crm_comm_cfg() : ['def' => 0, 'users' 
 if (($_GET['export'] ?? '') === 'csv' && $canManage) {
     header('Content-Type: text/csv; charset=utf-8'); header('Content-Disposition: attachment; filename="sales-report-' . $period . '-' . date('Y-m-d') . '.csv"');
     $o = fopen('php://output', 'w'); fwrite($o, "\xEF\xBB\xBF");
-    fputcsv($o, [t('الفريق')]); fputcsv($o, [t('الموظف'), t('عملاء جداد'), t('تواصل'), t('مكالمات'), t('بقوا عملاء'), t('القيمة'), t('العمولة')]);
-    foreach ($rows as $r) fputcsv($o, [$r['name'], $r['leads'], $r['contacts'], $r['calls'], $r['won'], $r['value'], round($r['value'] * crm_comm_rate((int)$r['id']) / 100, 2)]);
-    fputcsv($o, []); fputcsv($o, [t('المصادر')]); fputcsv($o, [t('المصدر'), t('عملاء'), t('اتكلمنا معاهم'), t('بقوا عملاء'), t('القيمة')]);
-    foreach ($srcRows as $r) fputcsv($o, [crm_sources()[$r['source']] ?? $r['source'], $r['n'], $r['c'], $r['w'], $r['v']]);
-    if ($camp['rows']) { fputcsv($o, []); fputcsv($o, [t('الحملات الإعلانية')]); fputcsv($o, [t('الحملة'), t('الصرف'), t('عملاء'), t('بقوا عملاء'), t('المبيعات'), t('تكلفة العميل'), t('العائد %')]);
-        foreach ($camp['rows'] as $c) fputcsv($o, [$c['name'], round($c['spend'], 2), $c['leads'], $c['won'], $c['value'], $c['cpl'] !== null ? round($c['cpl'], 2) : '', $c['roi'] !== null ? round($c['roi']) : '']); }
+    fputcsv($o, csv_safe([t('الفريق')])); fputcsv($o, csv_safe([t('الموظف'), t('عملاء جداد'), t('تواصل'), t('مكالمات'), t('بقوا عملاء'), t('القيمة'), t('العمولة')]));
+    foreach ($rows as $r) fputcsv($o, csv_safe([$r['name'], $r['leads'], $r['contacts'], $r['calls'], $r['won'], $r['value'], round($r['value'] * crm_comm_rate((int)$r['id']) / 100, 2)]));
+    fputcsv($o, csv_safe([])); fputcsv($o, csv_safe([t('المصادر')])); fputcsv($o, csv_safe([t('المصدر'), t('عملاء'), t('اتكلمنا معاهم'), t('بقوا عملاء'), t('القيمة')]));
+    foreach ($srcRows as $r) fputcsv($o, csv_safe([crm_sources()[$r['source']] ?? $r['source'], $r['n'], $r['c'], $r['w'], $r['v']]));
+    if ($camp['rows']) { fputcsv($o, csv_safe([])); fputcsv($o, csv_safe([t('الحملات الإعلانية')])); fputcsv($o, csv_safe([t('الحملة'), t('الصرف'), t('عملاء'), t('بقوا عملاء'), t('المبيعات'), t('تكلفة العميل'), t('العائد %')]));
+        foreach ($camp['rows'] as $c) fputcsv($o, csv_safe([$c['name'], round($c['spend'], 2), $c['leads'], $c['won'], $c['value'], $c['cpl'] !== null ? round($c['cpl'], 2) : '', $c['roi'] !== null ? round($c['roi']) : ''])); }
     fclose($o); exit;
 }
 $st = db()->prepare("SELECT lost_reason, COUNT(*) n FROM crm_leads WHERE workspace_id = ? AND stage = 'lost' AND lost_reason IS NOT NULL GROUP BY lost_reason ORDER BY n DESC"); $st->execute([$wid]); $lostRows = $st->fetchAll();

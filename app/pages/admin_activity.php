@@ -29,9 +29,9 @@ if (($_GET['export'] ?? '') === 'csv') {
     header('Content-Disposition: attachment; filename="activity-' . date('Y-m-d') . '.csv"');
     $out = fopen('php://output', 'w');
     fwrite($out, "\xEF\xBB\xBF"); // عشان Excel يفهم العربي
-    fputcsv($out, ['time', 'user', 'workspace', 'action', 'details']);
+    fputcsv($out, csv_safe(['time', 'user', 'workspace', 'action', 'details']));
     while ($r = $st->fetch(PDO::FETCH_NUM)) {
-        fputcsv($out, $r);
+        fputcsv($out, csv_safe($r));
     }
     exit;
 }

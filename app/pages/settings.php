@@ -25,7 +25,7 @@ render(t('الإعدادات العامة'), 'settings', function () use ($w, $z
     $cur = site_timezone();
     if (!in_array($cur, $zones, true)) $zones[] = $cur;
     ?>
-    <form method="post" id="st-form" data-fx-reload class="max-w-3xl space-y-6 pb-24">
+    <form method="post" id="st-form" data-fx-reload class="max-w-5xl space-y-6 pb-24">
       <?= csrf_field() ?>
       <section class="card p-6">
         <h2 class="font-bold text-ink-900 mb-1"><?= e(t('هوية الشركة')) ?></h2>
@@ -175,8 +175,8 @@ render(t('الإعدادات العامة'), 'settings', function () use ($w, $z
       }
       f.addEventListener('input', paint); f.addEventListener('change', paint); f.addEventListener('click', function () { setTimeout(function () { paint(); tick(); }, 0); });
       document.getElementById('st-all').onclick = function () { mods.forEach(function (i) { i.checked = true; }); paint(); };
-      document.getElementById('st-undo').onclick = function () { location.reload(); };
-      f.addEventListener('submit', function () { sending = true; });
+      document.getElementById('st-undo').onclick = function () { sending = true; location.reload(); };
+      f.addEventListener('submit', function () { sending = true; setTimeout(function () { sending = false; }, 4000); }); // لو الحفظ فشل والصفحة ماتنقلتش: التحذير يرجع
       window.addEventListener('beforeunload', function (e) { if (!sending && dirty()) { e.preventDefault(); e.returnValue = LEAVE; return LEAVE; } });
       // ساعة حية بالمنطقة الزمنية المختارة
       var tz = f.querySelector('select[name=timezone]'), ck = document.getElementById('st-clock'), dt = document.getElementById('st-date');

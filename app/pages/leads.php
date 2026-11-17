@@ -83,14 +83,14 @@ if ($z) {
                 header('Content-Disposition: attachment; filename="leads-' . date('Y-m-d') . '.csv"');
                 $out = fopen('php://output', 'w');
                 fwrite($out, "\xEF\xBB\xBF");
-                fputcsv($out, array_merge(['created_time', 'form', 'status', 'campaign_id', 'ad_id'], $cols));
+                fputcsv($out, csv_safe(array_merge(['created_time', 'form', 'status', 'campaign_id', 'ad_id'], $cols)));
                 foreach ($all as $l) {
                     $row = [(string)($l['createdTime'] ?? ''), (string)($l['formName'] ?? $l['formId'] ?? ''), (string)($l['status'] ?? ''), (string)($l['campaignId'] ?? ''), (string)($l['adId'] ?? '')];
                     foreach ($cols as $k) {
                         $v = $l['fields'][$k] ?? '';
                         $row[] = is_scalar($v) ? (string)$v : json_encode($v, JSON_UNESCAPED_UNICODE);
                     }
-                    fputcsv($out, $row);
+                    fputcsv($out, csv_safe($row));
                 }
                 fclose($out);
                 exit;

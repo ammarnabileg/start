@@ -136,7 +136,7 @@ function img_or_generate(string $prompt, string $aspect = '1:1', array $refs = [
             CURLOPT_POSTFIELDS => json_encode(['model' => $model, 'prompt' => mb_substr($prompt, 0, 30000), 'aspect_ratio' => $aspect, 'n' => 1, 'output_format' => 'png'], JSON_UNESCAPED_UNICODE)]);
         $raw = (string)curl_exec($ch); $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch); $j = json_decode($raw, true); $names = [];
         if ($code < 400 && is_array($j)) foreach ((array)($j['data'] ?? []) as $d) { $bytes = !empty($d['b64_json']) ? base64_decode((string)$d['b64_json'], true) : null; if ($bytes) { $nm = img_lib_save_bytes($wid, $bytes, $prompt); if ($nm) $names[] = $nm; } }
-        if ($names) { if (function_exists('ai_log_usage')) { try { ai_log_usage($wid, 'image', 'openrouter', $model, ['cost' => (float)($j['usage']['cost'] ?? 0), 'prompt_tokens' => 0, 'completion_tokens' => 0]); } catch (Throwable $e) {} } return $names; }
+        if ($names) { if (function_exists('ai_log_usage')) { try { ai_log_usage($wid, 'image', 'openrouter', $model, ['cost' => (isset($j['usage']['cost']) ? (float)$j['usage']['cost'] : null), 'prompt_tokens' => 0, 'completion_tokens' => 0]); } catch (Throwable $e) {} } return $names; }
         if ($code >= 400 && $code !== 404 && $code !== 405 && isset($j['error']['message'])) throw new RuntimeException('OpenRouter: ' . mb_substr((string)$j['error']['message'], 0, 300));
     }
     $ch = curl_init(ai_base('openrouter') . '/chat/completions');
@@ -155,7 +155,7 @@ function img_or_generate(string $prompt, string $aspect = '1:1', array $refs = [
         if ($bytes) { $nm = img_lib_save_bytes($wid, $bytes, $prompt); if ($nm) $names[] = $nm; }
     }
     if (!$names) throw new RuntimeException(t('لم يرجع الموديل صورة (%s). جرّب مرة أخرى أو موديلًا آخر.', $model));
-    if (function_exists('ai_log_usage')) { try { ai_log_usage($wid, 'image', 'openrouter', $model, ['cost' => (float)($j['usage']['cost'] ?? 0), 'prompt_tokens' => (int)($j['usage']['prompt_tokens'] ?? 0), 'completion_tokens' => (int)($j['usage']['completion_tokens'] ?? 0)]); } catch (Throwable $e) {} }
+    if (function_exists('ai_log_usage')) { try { ai_log_usage($wid, 'image', 'openrouter', $model, ['cost' => (isset($j['usage']['cost']) ? (float)$j['usage']['cost'] : null), 'prompt_tokens' => (int)($j['usage']['prompt_tokens'] ?? 0), 'completion_tokens' => (int)($j['usage']['completion_tokens'] ?? 0)]); } catch (Throwable $e) {} }
     return $names;
 }
 
@@ -248,7 +248,7 @@ function vid_or_poll(string $id): array
         $names[] = $nm;
     }
     if (function_exists('media_sync_ai')) { try { media_sync_ai($wid); } catch (Throwable $e) {} }
-    if (function_exists('ai_log_usage')) { try { ai_log_usage($wid, 'video', 'openrouter', vid_or_model($c), ['cost' => (float)($r['usage']['cost'] ?? 0), 'prompt_tokens' => 0, 'completion_tokens' => 0]); } catch (Throwable $e) {} }
+    if (function_exists('ai_log_usage')) { try { ai_log_usage($wid, 'video', 'openrouter', vid_or_model($c), ['cost' => (isset($r['usage']['cost']) ? (float)$r['usage']['cost'] : null), 'prompt_tokens' => 0, 'completion_tokens' => 0]); } catch (Throwable $e) {} }
     return ['status' => $names ? 'completed' : 'failed', 'names' => $names, 'error' => $names ? '' : t('اكتمل الفيديو لكن تعذّر تنزيله.')];
 }
 

@@ -141,8 +141,8 @@
     if (k === 'jpg') return dl(exportJPG(), nm + '.jpg');
     if (k === 'all') return eachPage(function () { return X.exportURL(); }, function (urls) { urls.forEach(function (u, i) { setTimeout(function () { dl(u, nm + '-' + (i + 1) + '.png'); }, i * 350); }); });
     if (k === 'pdf') { if (!window.jspdf) return X.toast(L.err, 'error'); var W = X.W, H = X.H;
-      eachPage(function () { return exportJPG(); }, function (urls) { var doc = new window.jspdf.jsPDF({ orientation: W > H ? 'l' : 'p', unit: 'px', format: [W, H], hotfixes: ['px_scaling'] });
-        urls.forEach(function (u, i) { if (i) doc.addPage([W, H], W > H ? 'l' : 'p'); doc.addImage(u, 'JPEG', 0, 0, W, H); }); doc.save(nm + '.pdf'); }); } }
+      eachPage(function () { return exportJPG(); }, function (urls) { var doc = null; // كل صفحة بمقاسها هي (مش مقاس الصفحة الحالية)
+        urls.forEach(function (u, i) { var pr = new window.jspdf.jsPDF().getImageProperties(u), pw = pr.width || W, ph = pr.height || H, o = pw > ph ? 'l' : 'p'; if (!doc) doc = new window.jspdf.jsPDF({ orientation: o, unit: 'px', format: [pw, ph], hotfixes: ['px_scaling'] }); else doc.addPage([pw, ph], o); doc.addImage(u, 'JPEG', 0, 0, pw, ph); }); if (!doc) return; doc.save(nm + '.pdf'); }); } }
   $('dz-exp-b').addEventListener('click', function (e) { e.stopPropagation(); $('dz-exp').classList.toggle('hidden'); });
   document.addEventListener('click', function (e) { var b = e.target.closest('[data-exp]'); if (b) { $('dz-exp').classList.add('hidden'); exportAs(b.dataset.exp); } else if (!e.target.closest('#dz-exp')) $('dz-exp').classList.add('hidden'); });
 
