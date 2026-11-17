@@ -79,8 +79,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$id) { db()->prepare('INSERT INTO designs (workspace_id, user_id, name, w, h, pages, data, thumb) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')->execute([$wid, $uid ?: null, $name, $w, $h, $pg, $data, $thumb ?: null]); $id = (int)db()->lastInsertId(); }
         $J(['ok' => true, 'id' => $id]);
     }
+    if ($act === 'drename' || $act === 'ddup') { // مشاريعي: إعادة تسمية ونسخة
+        $id = (int)($_POST['id'] ?? 0); $mine = can('posts.manage') ? '' : ' AND user_id = ' . (int)(current_user()['id'] ?? 0);
+        if ($act === 'drename') { $nm = mb_substr(trim((string)($_POST['name'] ?? '')), 0, 80); if ($nm === '') $J(['error' => t('اكتب اسمًا للمشروع.')], 400);
+            $st = db()->prepare('UPDATE designs SET name = ? WHERE id = ? AND workspace_id = ?' . $mine); $st->execute([$nm, $id, $wid]); $J(['ok' => true]); }
+        $st = db()->prepare('SELECT * FROM designs WHERE id = ? AND workspace_id = ?'); $st->execute([$id, $wid]); $r = $st->fetch(); if (!$r) $J(['error' => t('التصميم مش موجود.')], 404);
+        db()->prepare('INSERT INTO designs (workspace_id, user_id, name, w, h, pages, data, thumb) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')->execute([$wid, (int)(current_user()['id'] ?? 0), mb_substr($r['name'] . ' — ' . t('نسخة'), 0, 80), $r['w'], $r['h'], $r['pages'], $r['data'], $r['thumb']]);
+        $J(['ok' => true, 'id' => (int)db()->lastInsertId()]);
+    }
     if ($act === 'dlist') {
-        $st = db()->prepare('SELECT id, name, w, h, pages, thumb, updated_at FROM designs WHERE workspace_id = ? ORDER BY updated_at DESC LIMIT 60'); $st->execute([$wid]);
+        $st = db()->prepare('SELECT id, name, w, h, pages, thumb, updated_at FROM designs WHERE workspace_id = ? ORDER BY updated_at DESC LIMIT 200'); $st->execute([$wid]);
         $J(['ok' => true, 'items' => array_map(function ($r) { return ['id' => (int)$r['id'], 'name' => $r['name'], 'w' => (int)$r['w'], 'h' => (int)$r['h'], 'pages' => (int)$r['pages'], 'thumb' => (string)$r['thumb'], 'at' => fmt_date($r['updated_at'], 'd/m H:i')]; }, $st->fetchAll())]);
     }
     if ($act === 'dget' || $act === 'ddel') {
@@ -146,7 +154,7 @@ $branch = trim((string)($co['branches'] ?? '')); $city = trim((string)(preg_spli
 $kbd = ['name' => (string)($co['name'] ?? ''), 'tagline' => (string)($co['tagline'] ?? ''), 'about' => mb_substr(trim((string)($co['about'] ?? '')), 0, 220), 'branch' => preg_replace('/[,،]\s*[A-Z]{2}$/u', '', $branch), 'city' => $city,
     'whatsapp' => (string)($ct['whatsapp'] ?? ''), 'phone' => (string)($ct['phone'] ?? ''), 'handle' => (string)($ig[1] ?? ''), 'hours' => $hoursTxt,
     'focus' => mb_substr(trim((string)($kb['focus']['text'] ?? '')), 0, 120), 'pod' => mb_substr(trim((string)($kb['pod']['text'] ?? $kb['pod']['statement'] ?? '')), 0, 200), 'rtb' => mb_substr(trim((string)($kb['rtb']['text'] ?? '')), 0, 200),
-    'svcs' => array_values(array_map(function ($r) { return ['name' => trim((string)($r['name'] ?? '')), 'price' => trim((string)($r['price'] ?? ''))]; }, array_filter((array)($kb['services']['rows'] ?? []), function ($r) { return trim((string)($r['name'] ?? '')) !== ''; }))),
+    'svcs' => array_values(array_map(function ($r) { return ['name' => trim((string)($r['name'] ?? '')), 'price' => trim((string)($r['price'] ?? '')), 'details' => mb_substr(trim((string)($r['details'] ?? '')), 0, 160)]; }, array_filter((array)($kb['services']['rows'] ?? []), function ($r) { return trim((string)($r['name'] ?? '')) !== ''; }))),
     'faq' => array_values(array_map(function ($r) { return ['q' => trim((string)$r['q']), 'a' => mb_substr(trim((string)$r['a']), 0, 140)]; }, array_filter((array)($kb['faq']['rows'] ?? []), function ($r) { return trim((string)($r['q'] ?? '')) !== '' && trim((string)($r['a'] ?? '')) !== ''; })))];
 if (!empty($kit['colors'])) $brand = $kit['colors'];
 if (!$brand) $brand = ['#2563eb', '#0f172a', '#f59e0b'];
@@ -154,6 +162,7 @@ if (!$brand) $brand = ['#2563eb', '#0f172a', '#f59e0b'];
 $img = (string)($_GET['img'] ?? ''); if (!preg_match('~^index\.php\?p=(ai_task&img=[\w.-]+|media&file=\d+)$~', $img)) $img = '';
 
 $kitOut = $kit + ['colors' => [], 'head' => '', 'body' => '', 'logo' => '', 'auto' => false, 'fonts' => []];
+if ($kitOut['logo'] === '' && function_exists('kb_logo') && ($kl = kb_logo($wid))) { $kitOut['logo'] = 'index.php?p=media&file=' . (int)$kl['id']; if (!isset($kit['auto'])) $kitOut['auto'] = true; } // شعار قاعدة المعرفة يتحط تلقائيًا في القوالب
 $kitOut['fonts'] = array_map(function ($f) { return ['name' => (string)$f['name'], 'url' => url('designer', ['font' => (string)$f['file']])]; }, array_filter((array)$kitOut['fonts'], function ($f) { return is_array($f) && !empty($f['file']); }));
 render(t('المصمم'), 'designer', function () use ($brand, $co, $img, $kbd, $kitOut) {
     $fonts = ['Cairo', 'Tajawal', 'Almarai', 'Alexandria', 'Changa', 'El Messiri', 'Lalezar', 'Amiri', 'Reem Kufi', 'Inter', 'Poppins', 'Playfair Display'];
@@ -191,12 +200,12 @@ render(t('المصمم'), 'designer', function () use ($brand, $co, $img, $kbd, 
       <!-- لوحة الأدوات -->
       <aside class="dz-side">
         <nav class="dz-rail">
-          <?php foreach (['mine' => [t('تصميماتي'), 'folder'], 'ai' => [t('ذكاء'), 'spark'], 'tpl' => [t('قوالب'), 'layers'], 'el' => [t('عناصر'), 'shapes'], 'text' => [t('نص'), 'type'], 'shape' => [t('أشكال'), 'shapes'], 'img' => [t('صور'), 'image'], 'bg' => [t('خلفية'), 'palette'], 'brand' => [t('هويتك'), 'star']] as $k => [$l, $ic]): ?>
+          <?php foreach (['mine' => [t('مشاريعي'), 'folder'], 'ai' => [t('ذكاء'), 'spark'], 'tpl' => [t('قوالب'), 'layers'], 'el' => [t('عناصر'), 'shapes'], 'text' => [t('نص'), 'type'], 'shape' => [t('أشكال'), 'shapes'], 'img' => [t('صور'), 'image'], 'bg' => [t('خلفية'), 'palette'], 'brand' => [t('هويتك'), 'star']] as $k => [$l, $ic]): ?>
             <button type="button" data-tab="<?= $k ?>" class="<?= $k === 'tpl' ? 'on' : '' ?>"><?= ui_icon($ic, 'w-5 h-5') ?><span><?= e($l) ?></span></button>
           <?php endforeach; ?>
         </nav>
         <div class="dz-panel">
-          <section data-pane="mine" hidden><h3><?= e(t('تصميماتك المحفوظة')) ?></h3><div id="dz-mine" class="grid grid-cols-2 gap-2"></div></section>
+          <section data-pane="mine" hidden><div class="flex items-center justify-between mb-2"><h3 class="!mb-0"><?= e(t('مشاريعي')) ?> <span id="dz-mine-n" class="ms-1 rounded-full bg-ink-100 px-1.5 text-[10px] text-ink-600"></span></h3><button type="button" class="text-[11px] font-semibold text-brand-700 hover:underline" data-cmd="new">+ <?= e(t('مشروع جديد')) ?></button></div><input id="dz-mine-q" type="search" class="dz-sel w-full mb-3" placeholder="<?= e(t('ابحث في مشاريعك…')) ?>"><div id="dz-mine" class="grid grid-cols-2 gap-2"></div></section>
           <section data-pane="ai" hidden>
             <h3><?= e(t('صمّم من جملة')) ?></h3>
             <textarea id="dz-ai-brief" rows="3" class="input !mt-0 text-sm" dir="auto" maxlength="300" placeholder="<?= e(t('مثلًا: بوست لعرض المشويات في الويك إند بشكل فخم')) ?>"></textarea>
@@ -316,17 +325,17 @@ render(t('المصمم'), 'designer', function () use ($brand, $co, $img, $kbd, 
       </aside>
     </div>
   </div>
-  <script>window.DZ = <?= json_encode(['kit' => $kitOut, 'pexels' => (bool)connector('pexels'), 'connectUrl' => url('connectors'), 'icons' => ui_icon_paths(), 'hf' => (bool)connector('higgsfield') || (function_exists('img_provider') && img_provider() !== ''), 'kb' => $kbd, 'csrf' => csrf_token(), 'url' => url('designer'), 'brand' => $brand, 'company' => (string)($co['name'] ?? ''), 'tagline' => (string)($co['tagline'] ?? ''), 'img' => $img,
+  <script>window.DZ = <?= json_encode(['tl' => ['a1' => t('عرض رئيسي'), 'offer' => t('عرض خاص'), 'learnMore' => t('اعرف المزيد'), 'a2' => t('خدمة مميزة'), 'service' => t('خدماتنا'), 'a3' => t('لماذا نحن'), 'whyUs' => t('لماذا يختارنا عملاؤنا؟'), 'a4' => t('حلولنا'), 'solutions' => t('حلول متكاملة لأعمالك'), 'a5' => t('رسالتنا'), 'a6' => t('رأي عميل'), 'clientQuote' => t('تعاملنا معهم كان تجربة مختلفة: احترافية في التنفيذ، والتزام بالمواعيد، ونتائج واضحة.'), 'clientName' => t('اسم العميل · المنصب، الشركة'), 'a7' => t('معلومة تهمّك'), 'insight' => t('معلومة تهمّك'), 'a8' => t('أسئلة شائعة'), 'faq' => t('أسئلة شائعة'), 'faqH' => t('إجابات سريعة على أهم أسئلتكم'), 'a9' => t('ندوة أو فعالية'), 'webinar' => t('ندوة عبر الإنترنت'), 'eventDate' => t('الخميس 10 أكتوبر · 7:00 مساءً'), 'eventWhere' => t('أونلاين عبر Zoom · الدخول مجاني'), 'register' => t('سجّل الآن'), 'a10' => t('نحن نوظّف'), 'hiring' => t('نحن نوظّف'), 'joinTeam' => t('انضم إلى فريق يصنع الفرق. نبحث عن كفاءات شغوفة بالتميّز.'), 'role1' => t('مهندس أمن سيبراني'), 'role2' => t('أخصائي مبيعات B2B'), 'role3' => t('مدير مشاريع'), 'apply' => t('قدّم الآن'), 'a11' => t('ستوري احترافية'), 'a12' => t('غلاف كاروسيل'), 'swipe' => t('اسحب للمزيد'), 'a13' => t('شريحة كاروسيل'), 'a14' => t('رقم وإنجاز'), 'stat' => t('مشروع ناجح لعملاء في القطاعين الحكومي والخاص'), 'a15' => t('بانر لينكدإن'), 'a16' => t('تهنئة بمناسبة'), 'greet' => t('كل عام وأنتم بخير'), 'greetSub' => t('نتمنى لكم ولعائلاتكم أيامًا مليئة بالخير والنجاح'), 'a17' => t('إعلان بصورة'), 'a18' => t('مزايا الخدمة'), 'features' => t('لماذا هذه الخدمة؟'), 'a19' => t('خطوات العمل'), 'steps' => t('كيف نعمل معك؟'), 'st1' => t('نفهم احتياجك'), 'st2' => t('نصمم الحل'), 'st3' => t('ننفذ ونتابع'), 'contact' => t('تواصل معنا'), 'a20' => t('كلمة القيادة'), 'ceo' => t('الرئيس التنفيذي'), 'a21' => t('عدّ تنازلي'), 'soon' => t('قريبًا'), 'days' => t('يوم'), 'hours' => t('ساعة'), 'mins' => t('دقيقة'), 'a22' => t('إعلان ستوري'), 'news' => t('جديدنا'), 'a23' => t('رمضان والعيد'), 'ramadan' => t('رمضان كريم'), 'ramadanSub' => t('أعاده الله علينا وعليكم بالخير واليُمن والبركات'), 'a24' => t('إعلان أنيق'), 'announce' => t('إعلان'), 'a25' => t('المشكلة والحل'), 'psH' => t('من التحدي إلى النتيجة'), 'problem' => t('التحدي'), 'problemT' => t('أنظمة متفرقة، ومخاطر غير مرئية، وقرارات بلا بيانات واضحة.'), 'solution' => t('الحل'), 'solutionT' => t('منصة موحّدة تمنحك رؤية كاملة وتحكمًا فوريًا.'), 'a26' => t('ختام كاروسيل'), 'likedIt' => t('أعجبك المحتوى؟'), 'follow' => t('تابعنا لمزيد من الحلول والنصائح، وشاركه مع فريقك.')], 'kit' => $kitOut, 'pexels' => (bool)connector('pexels'), 'connectUrl' => url('connectors'), 'icons' => ui_icon_paths(), 'hf' => (bool)connector('higgsfield') || (function_exists('img_provider') && img_provider() !== ''), 'kb' => $kbd, 'csrf' => csrf_token(), 'url' => url('designer'), 'brand' => $brand, 'company' => (string)($co['name'] ?? ''), 'tagline' => (string)($co['tagline'] ?? ''), 'img' => $img,
     'title' => mb_substr((string)($_GET['title'] ?? ''), 0, 120), 'text' => mb_substr((string)($_GET['text'] ?? ''), 0, 160), 'fonts' => $fonts,
     'L' => ['h1' => t('عنوان كبير'), 'h2' => t('عنوان فرعي'), 'p' => t('اكتب النص هنا'), 'cta' => t('اطلب الآن'), 'quote' => t('«خدمة ممتازة وسرعة في التنفيذ»'), 'quoteBy' => t('— عميل سعيد'), 'company' => t('اسم الشركة'),
-      'saved' => t('اتحفظ في المكتبة ✓'), 'saving' => t('بنحفظ…'), 'err' => t('حصلت مشكلة.'), 'draft' => t('مسودة محفوظة'), 'restore' => t('عندك تصميم لسه شغال عليه. نكمّله؟'), 'replace' => t('القالب هيبدل التصميم الحالي. تكمل؟'),
+      'saved' => t('اتحفظ في المكتبة ✓'), 'saving' => t('بنحفظ…'), 'err' => t('حصلت مشكلة.'), 'draft' => t('مسودة محفوظة'), 'restore' => t('لديك تصميم لم يُحفظ من آخر مرة. هل تريد إكماله؟'), 'replace' => t('سيحل القالب محل التصميم الحالي على اللوحة.'),
       'tpl' => [t('عرض وخصم'), t('خدمة جديدة'), t('نصيحة'), t('رأي عميل'), t('إعلان حدث'), t('ستوري عرض')], 'offer' => t('عرض خاص'), 'off' => t('خصم 30%'), 'limited' => t('لفترة محدودة'), 'newSvc' => t('خدمة جديدة'), 'tip' => t('نصيحة اليوم'), 'tipTxt' => t('اكتب النصيحة هنا في سطرين'), 'event' => t('انضم لنا'), 'date' => t('الخميس 8 م'), 'swipe' => t('اسحب لفوق'),
       'ph' => t('حط صورتك'), 'sub' => t('اكتب التفاصيل هنا'), 's1' => t('السؤال الأول'), 's2' => t('السؤال التاني'), 's3' => t('السؤال التالت'), 'faqT' => t('أسئلة بتوصلنا كتير'), 'why' => t('ليه تختارنا؟'), 'hoursT' => t('مواعيدنا'),
       'before' => t('قبل'), 'after' => t('بعد'), 'month' => t('الشهر'), 'evTitle' => t('اسم الفعالية'), 'place' => t('المكان'), 'register' => t('سجّل دلوقتي'), 'hiring' => t('بنوظّف!'), 'role' => t('اسم الوظيفة'), 'full' => t('دوام كامل'), 'city' => t('المدينة'), 'apply' => t('قدّم الآن'),
       'new' => t('جديد'), 'from' => t('من'), 'news' => t('خبر جديد'), 'qday' => t('سؤال اليوم'), 'question' => t('رأيك يهمنا'), 'which' => t('أنهي تختار؟'), 'yes' => t('أيوه'), 'no' => t('لأ'), 'hook' => t('اكتب جملة تشد هنا'), 'whySvc' => t('ليه %s؟'), 'swipeSide' => t('اسحب للآخر'),
       'greet' => t('كل سنة وانتم طيبين'), 'greetSub' => t('من كل فريقنا'), 'menu' => t('قائمة الأسعار'), 'item' => t('صنف'), 'orderWa' => t('اطلب على واتساب'),
-      'delPage' => t('حذف الصفحة'), 'dupPage' => t('نسخة من الصفحة'), 'delPageQ' => t('تحذف الصفحة دي؟'), 'dsaved' => t('اتحفظ التصميم ✓'), 'pagesN' => t('صفحات'), 'noMine' => t('لسه مفيش تصميمات محفوظة. دوس «حفظ التصميم».'),
-      'del' => t('حذف'), 'delQ' => t('متأكد إنك عاوز تحذفه؟'), 'newQ' => t('تبدأ تصميم جديد؟ اللي مش محفوظ هيتمسح.'), 'untitled' => t('تصميم بدون اسم'), 'aiDone' => t('اتعمل التصميم ✓ عدّل اللي انت عاوزه'), 'pickText' => t('اختار نص على اللوحة الأول.'),
+      'delPage' => t('حذف الصفحة'), 'dupPage' => t('نسخة من الصفحة'), 'delPageQ' => t('تحذف الصفحة دي؟'), 'dsaved' => t('اتحفظ التصميم ✓'), 'pagesN' => t('صفحات'), 'noMine' => t('لا توجد مشاريع بعد. أي تصميم تحفظه يظهر هنا لتفتحه وتعدّله في أي وقت.'),
+      'del' => t('حذف'), 'delQ' => t('سيتم حذف «%s» نهائيًا ولا يمكن استرجاعه.'), 'newQ' => t('سيتم إغلاق التصميم الحالي. أي تعديلات غير محفوظة ستُفقد.'), 'newT' => t('مشروع جديد'), 'newOk' => t('ابدأ مشروعًا جديدًا'), 'ok' => t('تأكيد'), 'cancel' => t('إلغاء'), 'cont' => t('أكمل التصميم'), 'fresh' => t('ابدأ من جديد'), 'restoreT' => t('تصميم غير محفوظ'), 'tplT' => t('استبدال التصميم'), 'tplOk' => t('استخدم القالب'), 'openT' => t('فتح مشروع'), 'openQ' => t('سيتم فتح المشروع بدل التصميم الحالي. احفظ تعديلاتك أولًا إن أردت الاحتفاظ بها.'), 'open' => t('فتح'), 'delT' => t('حذف المشروع'), 'delPageT' => t('حذف الصفحة'), 'rename' => t('إعادة تسمية'), 'renameQ' => t('اكتب الاسم الجديد للمشروع:'), 'saveName' => t('حفظ الاسم'), 'dup' => t('نسخة'), 'duped' => t('تم إنشاء نسخة من المشروع.'), 'deleted' => t('تم حذف المشروع.'), 'nowEditing' => t('مفتوح الآن'), 'noMatch' => t('لا توجد مشاريع بهذا الاسم.'), 'untitled' => t('تصميم بدون اسم'), 'aiDone' => t('اتعمل التصميم ✓ عدّل اللي انت عاوزه'), 'pickText' => t('اختار نص على اللوحة الأول.'),
       'genBusy' => t('بنولّد الصورة… من 10 لـ 60 ثانية'), 'genDone' => t('اتولدت ✓'), 'watch' => t('شاهد'),
       'ramadan' => t('رمضان كريم'), 'ramadanSub' => t('كل عام وأنتم بخير'), 'eid' => t('عيد مبارك'), 'national' => t('اليوم الوطني'), 'nationalSub' => t('دام عزك يا وطن'), 'weekend' => t('عرض الويك إند'), 'fri' => t('الخميس والجمعة بس'),
       'delivery' => t('التوصيل لحد بابك'), 'combo' => t('الوجبة الكاملة'), 'together' => t('الثلاثة مع بعض'), 'special' => t('بسعر خاص'), 'review' => t('رأيك يفرق معانا'), 'reviewSub' => t('لو عجبتك التجربة قيّمنا على جوجل وقولنا رأيك'), 'reviewCta' => t('قيّمنا الآن'),
@@ -346,5 +355,6 @@ render(t('المصمم'), 'designer', function () use ($brand, $co, $img, $kbd, 
   <script src="assets/vendor/jspdf-4.2.1.umd.min.js" defer></script>
   <script src="assets/designer-pro.js?v=<?= e(APP_VERSION) ?>"></script>
   <script src="assets/designer-plus.js?v=<?= e(APP_VERSION) ?>"></script>
+  <script src="assets/designer-tpl.js?v=<?= e(APP_VERSION) ?>"></script>
   <script src="assets/designer-kit.js?v=<?= e(APP_VERSION) ?>"></script>
 <?php }, ['full' => true]);

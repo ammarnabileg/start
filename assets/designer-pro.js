@@ -106,7 +106,7 @@
     var done = function () { busy = false; X.resetHist(); drawPages(); };
     if (p && p.j) X.load(p.j, done); else { X.setLock(true); cv.clear(); cv.setBackgroundColor('#ffffff', function () {}); X.setLock(false); cv.requestRenderAll(); done(); } }
   $('dz-pages').addEventListener('click', function (e) {
-    var d = e.target.closest('[data-pgdel]'); if (d) { e.stopPropagation(); var i = +d.dataset.pgdel; if (!confirm(L.delPageQ)) return; storeCur(); pages.splice(i, 1); var n = Math.min(cur >= i ? Math.max(0, cur - 1) : cur, pages.length - 1); cur = -1; busy = false; cur = n; if (pages[n] && pages[n].j) X.load(pages[n].j, function () { X.resetHist(); drawPages(); }); else { X.setLock(true); cv.clear(); X.setLock(false); X.resetHist(); drawPages(); } return; }
+    var d = e.target.closest('[data-pgdel]'); if (d) { e.stopPropagation(); var i = +d.dataset.pgdel; return window.dzAsk(L.delPageQ, { danger: true, title: L.delPageT, ok: L.del }).then(function (ok) { if (!ok) return; storeCur(); pages.splice(i, 1); var n = Math.min(cur >= i ? Math.max(0, cur - 1) : cur, pages.length - 1); cur = -1; busy = false; cur = n; if (pages[n] && pages[n].j) X.load(pages[n].j, function () { X.resetHist(); drawPages(); }); else { X.setLock(true); cv.clear(); X.setLock(false); X.resetHist(); drawPages(); } }); return; }
     var u = e.target.closest('[data-pgdup]'); if (u) { e.stopPropagation(); storeCur(); var k = +u.dataset.pgdup; pages.splice(k + 1, 0, JSON.parse(JSON.stringify(pages[k]))); go(k + 1); return; }
     var p = e.target.closest('[data-pg]'); if (p) go(+p.dataset.pg); });
   MORE.addpage = function () { storeCur(); pages.splice(cur + 1, 0, null); go(cur + 1); };
@@ -118,16 +118,29 @@
   function saveDesign() { if (saving) return; saving = true; var b = document.querySelector('[data-cmd="dsave"]'); b.disabled = true; var ps = allPages();
     post({ action: 'dsave', id: designId, name: $('dz-name').value, w: X.W, h: X.H, pages: ps.length, data: JSON.stringify({ v: 2, pages: ps }), thumb: (pages[0] && pages[0].t) || '' }).then(function (j) { saving = false; b.disabled = false;
       if (!j.ok) return X.toast(j.error || L.err, 'error'); designId = j.id; X.toast(L.dsaved); try { localStorage.setItem('dz_last_id', designId); } catch (e) {} mine(); }).catch(function () { saving = false; b.disabled = false; X.toast(L.err, 'error'); }); }
-  function openDesign(id) { if (cv.getObjects().length && !confirm(L.newQ || 'Discard unsaved changes?')) return; post({ action: 'dget', id: id }).then(function (j) { if (!j.ok) return X.toast(j.error || L.err, 'error'); var d = JSON.parse(j.data), ps = d.pages || [d];
+  function openDesign(id, force) { if (!force && id !== designId && cv.getObjects().length) return window.dzAsk(L.openQ, { title: L.openT, ok: L.open, icon: '↗' }).then(function (ok) { if (ok) openDesign(id, true); }); if (id === designId) return; post({ action: 'dget', id: id }).then(function (j) { if (!j.ok) return X.toast(j.error || L.err, 'error'); var d = JSON.parse(j.data), ps = d.pages || [d];
     designId = j.id; pages = ps.map(function (s) { return { j: typeof s === 'string' ? s : JSON.stringify(s), t: '' }; }); cur = 0; busy = true;
     X.load(pages[0].j, function () { $('dz-name').value = j.name; busy = false; X.resetHist(); drawPages(); }); }); }
-  function mine() { post({ action: 'dlist' }).then(function (j) { if (!j.ok) return; $('dz-mine').innerHTML = j.items.length ? j.items.map(function (d) {
-      return '<div class="dz-dcard" data-dopen="' + d.id + '"><div class="dz-dthumb" style="aspect-ratio:' + d.w + '/' + d.h + (d.thumb ? ';background-image:url(' + d.thumb + ')' : '') + '"></div><b>' + esc(d.name) + '</b><small>' + esc(d.at) + (d.pages > 1 ? ' · ' + d.pages + ' ' + esc(L.pagesN) : '') + '</small><button type="button" class="dz-ddel" data-ddel="' + d.id + '" title="' + esc(L.del) + '">×</button></div>'; }).join('')
-      : '<p class="col-span-2 text-xs text-ink-400 text-center py-6">' + esc(L.noMine) + '</p>'; }); }
-  $('dz-mine').addEventListener('click', function (e) { var d = e.target.closest('[data-ddel]'); if (d) { e.stopPropagation(); if (!confirm(L.delQ)) return; post({ action: 'ddel', id: d.dataset.ddel }).then(function () { if (+d.dataset.ddel === designId) designId = 0; mine(); }); return; }
+  var mineAll = [], mineQ = '';
+  function mineDraw() { var q = mineQ.toLowerCase(), it = mineAll.filter(function (d) { return !q || String(d.name).toLowerCase().indexOf(q) > -1; });
+    $('dz-mine').innerHTML = it.length ? it.map(function (d) { var on = d.id === designId;
+      return '<div class="dz-pj' + (on ? ' on' : '') + '" data-dopen="' + d.id + '"><div class="dz-pj-th" style="aspect-ratio:' + d.w + '/' + d.h + (d.thumb ? ';background-image:url(' + d.thumb + ')' : '') + '">' + (on ? '<span class="dz-pj-now">' + esc(L.nowEditing) + '</span>' : '') + '</div>'
+        + '<div class="dz-pj-b"><b title="' + esc(d.name) + '">' + esc(d.name) + '</b><small>' + esc(d.at) + ' · ' + d.w + '×' + d.h + (d.pages > 1 ? ' · ' + d.pages + ' ' + esc(L.pagesN) : '') + '</small></div>'
+        + '<div class="dz-pj-a"><button type="button" data-dren="' + d.id + '" title="' + esc(L.rename) + '">✎</button><button type="button" data-ddup="' + d.id + '" title="' + esc(L.dup) + '">⧉</button><button type="button" class="hover:!text-red-600" data-ddel="' + d.id + '" title="' + esc(L.del) + '">🗑</button></div></div>'; }).join('')
+      : '<div class="col-span-2 text-center py-10 px-3"><div class="text-3xl mb-2">🗂</div><p class="text-xs text-ink-500 leading-6">' + esc(mineQ ? L.noMatch : L.noMine) + '</p></div>'; }
+  function mine() { post({ action: 'dlist' }).then(function (j) { if (!j.ok) return; mineAll = j.items; var c = $('dz-mine-n'); if (c) c.textContent = mineAll.length; mineDraw(); }); }
+  if ($('dz-mine-q')) $('dz-mine-q').addEventListener('input', function () { mineQ = this.value.trim(); mineDraw(); });
+  $('dz-mine').addEventListener('click', function (e) {
+    var d = e.target.closest('[data-ddel]'); if (d) { e.stopPropagation(); var id = +d.dataset.ddel, nm = (mineAll.filter(function (x) { return x.id === id; })[0] || {}).name || '';
+      window.dzAsk(L.delQ.replace('%s', nm), { danger: true, title: L.delT, ok: L.del }).then(function (ok) { if (!ok) return; post({ action: 'ddel', id: id }).then(function (j) { if (!j.ok) return X.toast(j.error || L.err, 'error'); if (id === designId) designId = 0; X.toast(L.deleted); mine(); }); }); return; }
+    var r = e.target.closest('[data-dren]'); if (r) { e.stopPropagation(); var rid = +r.dataset.dren, cur0 = (mineAll.filter(function (x) { return x.id === rid; })[0] || {}).name || '';
+      window.dzAsk(L.renameQ, { title: L.rename, ok: L.saveName, input: cur0, icon: '✎' }).then(function (v) { if (!v || v === cur0) return; post({ action: 'drename', id: rid, name: v }).then(function (j) { if (!j.ok) return X.toast(j.error || L.err, 'error'); if (rid === designId) $('dz-name').value = v; mine(); }); }); return; }
+    var u = e.target.closest('[data-ddup]'); if (u) { e.stopPropagation(); post({ action: 'ddup', id: u.dataset.ddup }).then(function (j) { if (!j.ok) return X.toast(j.error || L.err, 'error'); X.toast(L.duped); mine(); }); return; }
     var o = e.target.closest('[data-dopen]'); if (o) openDesign(+o.dataset.dopen); });
+  // تغيير الاسم من الشريط العلوي يتحفظ للمشروع المفتوح
+  $('dz-name').addEventListener('change', function () { var v = this.value.trim(); if (designId && v) post({ action: 'drename', id: designId, name: v }).then(function () { mine(); }); });
   MORE.dsave = saveDesign;
-  MORE['new'] = function () { if (!confirm(L.newQ)) return; designId = 0; pages = [null]; cur = 0; $('dz-name').value = L.untitled; X.setLock(true); cv.clear(); cv.setBackgroundColor('#ffffff', function () {}); X.setLock(false); cv.requestRenderAll(); X.resetHist(); drawPages(); };
+  MORE['new'] = function (force) { if (force !== true && cv.getObjects().length) return window.dzAsk(L.newQ, { title: L.newT, ok: L.newOk, icon: '+' }).then(function (ok) { if (ok) MORE['new'](true); }); designId = 0; pages = [null]; cur = 0; $('dz-name').value = L.untitled; X.setLock(true); cv.clear(); cv.setBackgroundColor('#ffffff', function () {}); X.setLock(false); cv.requestRenderAll(); X.resetHist(); drawPages(); };
 
   /* ---------- 8) التصدير: PNG / JPG / كل الصفحات / PDF ---------- */
   // التحميل عن طريق Blob: روابط data الكبيرة المتصفح بيتجاهل اسم الملف معاها
@@ -158,7 +171,7 @@
   MORE.aidesign = function () { var b = document.querySelector('[data-cmd="aidesign"]'); btnBusy(b, true);
     post({ action: 'ai', mode: 'design', topic: $('dz-ai-topic').value }).then(function (j) { btnBusy(b, false); if (!j.ok) return X.toast(j.error || L.err, 'error');
       var map = { offer: 0, product: 1, quote: 2, edu: 4, event: 7, story: 11 }, i = map[j.kind] != null ? map[j.kind] : 0; C.title = j.title; C.text = j.sub;
-      var keep = window.confirm; window.confirm = function () { return true; }; X.useTpl(i); window.confirm = keep; C.title = ''; C.text = '';
+      X.useTplNow(i); C.title = ''; C.text = '';
       if (j.cta) cv.getObjects().forEach(function (o) { if (o.type === 'group') o.getObjects().forEach(function (t) { if (t.type === 'textbox' && (t.text === L.cta || t.text === L.orderWa)) { t.set('text', j.cta); } }); });
       cv.requestRenderAll(); X.snap(); X.toast(L.aiDone); }).catch(function () { btnBusy(b, false); X.toast(L.err, 'error'); }); };
   MORE.aihead = function () { var o = cv.getActiveObject(), b = document.querySelector('[data-cmd="aihead"]'); if (!o || o.type !== 'textbox') return X.toast(L.pickText, 'error'); btnBusy(b, true);

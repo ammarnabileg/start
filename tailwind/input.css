@@ -245,6 +245,15 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
   .dz-padd { @apply shrink-0 w-12 h-12 rounded-lg border-2 border-dashed border-ink-300 text-2xl text-ink-400 hover:border-brand-400 hover:text-brand-600; }
   .dz-mi { @apply flex w-full items-baseline gap-2 rounded-lg px-3 py-2 text-start font-semibold text-ink-800 hover:bg-ink-50; }
   .dz-mi small { @apply font-normal text-[11px] text-ink-400; }
+  .dz-pj { @apply relative cursor-pointer rounded-xl border border-ink-200 bg-white p-1.5 transition hover:border-brand-400 hover:shadow-md; }
+  .dz-pj.on { @apply border-brand-500 ring-2 ring-brand-500/20; }
+  .dz-pj-th { @apply relative w-full rounded-lg bg-ink-100 bg-cover bg-center max-h-44; }
+  .dz-pj-now { @apply absolute top-1.5 start-1.5 rounded-full bg-brand-600 px-2 py-0.5 text-[9px] font-bold text-white; }
+  .dz-pj-b { @apply px-1 pt-1.5; } .dz-pj-b b { @apply block truncate text-[12px] font-semibold text-ink-900; } .dz-pj-b small { @apply block truncate text-[10px] text-ink-400; }
+  .dz-pj-a { @apply absolute top-2.5 end-2.5 flex gap-1 opacity-0 transition; }
+  .dz-pj:hover .dz-pj-a, .dz-pj.on .dz-pj-a { @apply opacity-100; }
+  .dz-pj-a button { @apply w-7 h-7 grid place-items-center rounded-lg bg-white/95 text-[12px] text-ink-600 shadow hover:text-brand-700; }
+  @media (hover: none) { .dz-pj-a { @apply opacity-100; } }
   .dz-dcard { @apply relative cursor-pointer rounded-xl border border-ink-200 p-1.5 transition hover:border-brand-400 hover:shadow; }
   .dz-dcard b { @apply block truncate text-[11px] text-ink-800 mt-1 px-0.5; } .dz-dcard small { @apply block text-[10px] text-ink-400 px-0.5; }
   .dz-dthumb { @apply w-full rounded-lg bg-ink-100 bg-cover bg-center max-h-40; }

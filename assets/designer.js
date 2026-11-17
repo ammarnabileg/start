@@ -1,6 +1,20 @@
 /* المصمم (زي كانفا) مبني على Fabric.js: مقاسات، قوالب بألوان الشركة، نص/أشكال/صور، خصائص، طبقات، تراجع، حفظ تلقائي، تصدير وحفظ في المكتبة */
 (function () {
   var C = window.DZ; if (!C || !window.fabric) return; var L = C.L;
+  /* نافذة تأكيد بشكل المنصة بدل confirm() بتاعة المتصفح. بترجع Promise: true/false (أو النص لو فيها حقل) */
+  window.dzAsk = function (msg, o) { o = o || {}; var es = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+    return new Promise(function (res) { var d = document.createElement('dialog'), out = o.input != null ? null : false;
+      d.className = 'w-[min(440px,92vw)] p-0 rounded-2xl border border-ink-200 bg-white text-ink-900 shadow-2xl';
+      d.innerHTML = '<form method="dialog" class="p-6"><div class="flex items-start gap-4"><span class="shrink-0 w-11 h-11 rounded-2xl grid place-items-center text-lg font-black ' + (o.danger ? 'bg-red-50 text-red-600' : 'bg-brand-50 text-brand-600') + '">' + (o.icon || (o.danger ? '!' : '?')) + '</span><div class="flex-1 min-w-0">'
+        + (o.title ? '<h3 class="text-base font-bold text-ink-900 mb-1">' + es(o.title) + '</h3>' : '') + '<p class="text-sm text-ink-600 leading-7">' + es(msg) + '</p>'
+        + (o.input != null ? '<input data-v class="input w-full mt-3" maxlength="80" value="' + es(o.input) + '">' : '') + '</div></div>'
+        + '<div class="flex flex-wrap justify-end gap-2 mt-6"><button type="button" class="btn-ghost" data-x>' + es(o.cancel || L.cancel || 'Cancel') + '</button><button type="submit" class="btn-primary' + (o.danger ? ' !bg-red-600 hover:!bg-red-700 !border-red-600' : '') + '" data-ok>' + es(o.ok || L.ok || 'OK') + '</button></div></form>';
+      document.body.appendChild(d);
+      d.querySelector('[data-x]').onclick = function () { d.close(); };
+      d.querySelector('form').onsubmit = function (e) { e.preventDefault(); var v = d.querySelector('[data-v]'); out = v ? v.value.trim() : true; if (v && !out) { v.focus(); return; } d.close(); };
+      d.addEventListener('close', function () { d.remove(); res(out); });
+      d.showModal(); var f = d.querySelector('[data-v]') || d.querySelector('[data-ok]'); setTimeout(function () { f.focus(); if (f.select) f.select(); }, 30); }); };
+
   var KEY = 'dz_draft_' + (location.host || ''), W = 1080, H = 1080, zoom = 1, hist = [], fut = [], lock = false, saveT = null;
   var B = C.brand.concat(['#0f172a', '#ffffff']), P = B[0], S = B[1] || '#0f172a', A = B[2] || '#f59e0b';
   var cv = new fabric.Canvas('dz-c', { preserveObjectStacking: true, backgroundColor: '#ffffff', selectionColor: 'rgba(37,99,235,.08)', selectionBorderColor: '#2563eb' });
@@ -179,7 +193,10 @@
   function build(t) { var p = t.size.split('x'), ow = W, oh = H; W = +p[0]; H = +p[1]; var r = t.b(); W = ow; H = oh; return r; }
   function bgOf(v, w, h) { return Array.isArray(v) ? grad(v) : v; }
   function useTpl(i) {
-    if (cv.getObjects().length && hist.length > 1 && !confirm(L.replace)) return;
+    if (cv.getObjects().length && hist.length > 1) { window.dzAsk(L.replace, { title: L.tplT, ok: L.tplOk, icon: '▦' }).then(function (ok) { if (ok) useTplNow(i); }); return; }
+    useTplNow(i);
+  }
+  function useTplNow(i) {
     var t = TPL[i]; lock = true; cv.clear(); setSize(t.size); var r = t.b();
     cv.setBackgroundColor(r.bg, function () {}); r.objs.forEach(function (o) { cv.add(o); });
     lock = false; cv.discardActiveObject(); cv.requestRenderAll(); document.dispatchEvent(new CustomEvent('dz:tpl')); snap();
@@ -277,15 +294,15 @@
   var draft = null; try { draft = localStorage.getItem(KEY); } catch (e) {}
   function start() {
     if (C.img) { setSize('1080x1080'); addImg(C.img); }
-    else if (C.title || C.text) { useTpl(10); }
-    else if (draft && confirm(L.restore)) { load(draft, function () { hist = [draft]; }); return; }
-    else { useTpl(0); }
+    else if (C.title || C.text) { useTplNow(6); }
+    else if (draft) { window.dzAsk(L.restore, { title: L.restoreT, ok: L.cont, cancel: L.fresh, icon: '✎' }).then(function (ok) { if (ok) load(draft, function () { hist = [draft]; }); else { try { localStorage.removeItem(KEY); } catch (e) {} useTplNow(0); snap(); } }); return; }
+    else { useTplNow(0); }
     snap();
   }
   (document.fonts && document.fonts.load ? Promise.all(['900 40px Cairo', '700 40px Cairo', '400 40px Cairo', '900 40px Inter', '700 40px "Playfair Display"'].map(function (f) { return document.fonts.load(f); })).catch(function () {}) : Promise.resolve()).then(function () { fit(); start(); sync(); thumbs(); });
   window.dzCanvas = cv; // للاختبارات
   // واجهة للإضافات (designer-pro.js): الأدوات الاحترافية والصفحات وتصميماتي والذكاء الاصطناعي
-  window.DZX = { cv: cv, CMD: CMD, snap: snap, sync: sync, load: load, json: json, setSize: setSize, fillPh: fillPh, useTpl: useTpl, exportURL: exportURL, addImg: addImg, layers: layers, fit: fit, apply: apply,
+  window.DZX = { cv: cv, CMD: CMD, snap: snap, sync: sync, load: load, json: json, setSize: setSize, fillPh: fillPh, useTpl: useTpl, useTplNow: useTplNow, exportURL: exportURL, addImg: addImg, layers: layers, fit: fit, apply: apply,
     T: T, TC: TC, pill: pill, R: R, circ: circ, ph: ph, grad: grad, TPL: TPL, thumbs: thumbs, isAr: isAr, toast: toast, P: P, S: S, A: A, K: K, SVS: SVS, CO: CO, WA: WA, HANDLE: HANDLE, FOOT: FOOT, L: L, C: C,
     get W() { return W; }, get H() { return H; }, get zoom() { return zoom; }, setZoom: function (z) { zoom = z; apply(); },
     setLock: function (v) { lock = v; }, resetHist: function () { hist = []; fut = []; snap(); }, setBuilderSize: function (w, h) { W = w; H = h; } };
