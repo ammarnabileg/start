@@ -318,11 +318,12 @@ function crm_merge_leads(int $keep, int $drop, array $pick): bool
     try {
         if (array_key_exists('ext_id', $b) && $b['ext_id']) $pdo->prepare('UPDATE crm_leads SET ext_id = NULL WHERE id = ?')->execute([$drop]); // unique لو موجود
         $vals[] = $keep; $pdo->prepare('UPDATE crm_leads SET ' . implode(', ', $set) . ' WHERE id = ?')->execute($vals);
-        foreach (['crm_acts', 'crm_deals', 'crm_bookings', 'crm_visits', 'crm_mails', 'crm_notifs'] as $tb) { try { $pdo->prepare("UPDATE $tb SET lead_id = ? WHERE lead_id = ? AND workspace_id = ?")->execute([$keep, $drop, $wid]); } catch (Throwable $e) {} }
+        foreach (['crm_acts', 'crm_deals', 'crm_bookings', 'crm_visits', 'crm_mails', 'crm_notifs', 'crm_tasks'] as $tb) { try { $pdo->prepare("UPDATE $tb SET lead_id = ? WHERE lead_id = ? AND workspace_id = ?")->execute([$keep, $drop, $wid]); } catch (Throwable $e) {} }
         $pdo->prepare('UPDATE crm_leads SET referred_by = ? WHERE referred_by = ? AND workspace_id = ?')->execute([$keep, $drop, $wid]);
         $pdo->prepare('DELETE FROM crm_leads WHERE id = ? AND workspace_id = ?')->execute([$drop, $wid]);
         $pdo->commit();
     } catch (Throwable $e) { $pdo->rollBack(); throw $e; }
+    if (function_exists('crm_sync_next_from_tasks')) { try { crm_sync_next_from_tasks($keep); } catch (Throwable $e) {} }
     crm_act_add($keep, 'note', '🔗 ' . t('اتدمج معاه: %s', (string)$b['name']));
     if (function_exists('crm_deals_rollup')) crm_deals_rollup($keep);
     return true;

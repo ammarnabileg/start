@@ -116,7 +116,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
             if ($limit && count($list) >= $limit) break;
         }
         // المحددين اللي مش في أول صفحات القائمة: نضيفهم من غير معلومات إضافية
-        if ($mode !== 'all') foreach ($items as $cid => $ac) if (!isset($rows[(string)$cid]) && (!$limit || count($list) < $limit) && !$only24) $list[] = [(string)$cid, $ac, '', '', ''];
+        if ($mode !== 'all') foreach ($items as $cid => $ac) if (!isset($rows[(string)$cid]) && (!$limit || count($list) < $limit)) { if ($only24) { $skipped++; continue; } $list[] = [(string)$cid, $ac, '', '', '']; } // مش لاقيين آخر رسالة: مانقدرش نتأكد من الـ 24 ساعة
         if (!$list) $J(['error' => t('مفيش محادثات تنطبق عليها الشروط (%s اتستبعدت).', $skipped)], 422);
         $id = camp_create($wid, trim((string)($_POST['name'] ?? '')) ?: t('حملة %s', fmt_date(gmdate('c'), 'd/m h:i A')), $message, $list, !empty($_POST['personalize']), (int)($_POST['per_minute'] ?? 20));
         $J(['ok' => true, 'id' => $id, 'total' => count($list), 'skipped' => $skipped]);

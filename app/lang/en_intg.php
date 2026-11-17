@@ -6065,4 +6065,7 @@ If you know someone who needs our services, send them this link. They get {get},
     'المشتريات والعمليات' => 'Procurement & operations',
     'اختبار A/B غير متاح للمنشورات التي تحتاج موافقة المدير. احذف النسخة (ب) أو اطلب من المدير النشر.' => 'A/B testing is not available for posts that need manager approval. Remove version B or ask a manager to publish.',
     'المقارنة غير متاحة' => 'Comparison unavailable',
+    'المتغيرات لازم تكون متسلسلة من غير تكرار: {{1}}، {{2}}، {{3}}...' => 'Variables must be sequential with no gaps: {{1}}, {{2}}, {{3}}...',
+    'الروابط المتغيرة ({{1}}) في الأزرار غير مدعومة هنا. استخدم رابطًا ثابتًا.' => 'Dynamic URLs ({{1}}) in buttons are not supported here. Use a fixed link.',
+    'الدعوة دي مبقتش موجودة.' => 'This invitation no longer exists.',
 ];

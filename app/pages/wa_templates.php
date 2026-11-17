@@ -65,6 +65,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $acc) {
                 foreach ($bv as $k) {
                     if (!ctype_digit($k)) { $errors[] = t('استخدم متغيرات بأرقام بس زي {{1}} و {{2}}.'); break; }
                 }
+                $nums = array_map('intval', array_filter($bv, 'ctype_digit')); sort($nums);
+                if ($nums && $nums !== range(1, count($nums))) $errors[] = t('المتغيرات لازم تكون متسلسلة من غير تكرار: {{1}}، {{2}}، {{3}}...');
                 $samples = array_values(array_filter(array_map('trim', preg_split('/\R/', (string)($_POST['body_samples'] ?? ''))), 'strlen'));
                 if (count($samples) < count($bv)) {
                     $errors[] = t('الرسالة فيها %s متغير، اكتب مثال لكل واحد (سطر لكل متغير).', count($bv));
@@ -84,6 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $acc) {
                     $buttons[] = ['type' => 'quick_reply', 'text' => $text];
                 } elseif ($type === 'url') {
                     if (!preg_match('~^https://~i', $val)) { $errors[] = t('رابط الزرار لازم يبدأ بـ https://'); continue; }
+                    if (strpos($val, '{{') !== false) { $errors[] = t('الروابط المتغيرة ({{1}}) في الأزرار غير مدعومة هنا. استخدم رابطًا ثابتًا.'); continue; }
                     $buttons[] = ['type' => 'url', 'text' => $text, 'url' => $val];
                 } elseif ($type === 'phone_number') {
                     if (!preg_match('/^\+?[0-9]{8,15}$/', $val)) { $errors[] = t('رقم زرار الاتصال مش صحيح (مثال: %s).', cx_phone()); continue; }

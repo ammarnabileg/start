@@ -31,7 +31,7 @@
   function close() { box.classList.add('hidden'); box.classList.remove('flex'); box.setAttribute('aria-hidden', 'true'); }
   inp.addEventListener('input', function () {
     render(); clearTimeout(tmr); var q = inp.value.trim(); if (q.length < 2) return;
-    var my = ++seq; tmr = setTimeout(function () { fetch(C.search + '&q=' + encodeURIComponent(q), { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) { if (my === seq) render(j.leads); }).catch(function () {}); }, 180);
+    var my = ++seq; tmr = setTimeout(function () { fetch(C.search + '&q=' + encodeURIComponent(q), { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) { if (my === seq) render(j.leads); }).catch(function () { if (my === seq && list) { var er = document.createElement('div'); er.className = 'px-4 py-3 text-xs text-red-600'; er.textContent = (C.tr && C.tr.searchErr) || 'Search unavailable — reload the page'; list.prepend(er); } }); }, 180);
   });
   inp.addEventListener('keydown', function (e) {
     if (e.key === 'ArrowDown') { e.preventDefault(); idx = Math.min(items.length - 1, idx + 1); hl(); }

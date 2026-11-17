@@ -29,7 +29,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'accept' || $action === 'decline') {
         $st = $pdo->prepare("SELECT 1 FROM workspace_users WHERE workspace_id = ? AND user_id = ? AND status = 'pending'");
         $st->execute([$id, $me['id']]);
-        if ($st->fetchColumn()) {
+        if (!$st->fetchColumn()) { flash('error', t('الدعوة دي مبقتش موجودة.')); redirect(url('workspaces')); }
+        {
             if ($action === 'accept') {
                 $pdo->prepare("UPDATE workspace_users SET status = 'active' WHERE workspace_id = ? AND user_id = ?")->execute([$id, $me['id']]);
                 $_SESSION['ws'] = $id; user_workspaces(true); // القائمة كانت متخزنة قبل الإضافة
