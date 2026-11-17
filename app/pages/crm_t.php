@@ -20,7 +20,8 @@ if (!empty($_GET['x'])) {
 }
 if ($u !== '') {
     if (!preg_match('~^https?://~i', $u)) { http_response_code(400); exit('bad link'); }
-    if (!$m) { http_response_code(404); exit('link expired'); } // من غير إيميل حقيقي: مانحوّلش لأي موقع (محوّل مفتوح)
+    if (!$m) { http_response_code(404); exit('link expired'); }
+    if (!hash_equals(crm_url_sig((int)$m['workspace_id'], $u), (string)($_GET['s'] ?? ''))) { http_response_code(404); exit('link expired'); } // الرابط لازم يكون نفس اللي في الإيميل // من غير إيميل حقيقي: مانحوّلش لأي موقع (محوّل مفتوح)
     if ($m) {
         db()->prepare('UPDATE crm_mails SET clicks = clicks + 1, clicked_at = COALESCE(clicked_at, NOW()), opens = GREATEST(opens, 1), opened_at = COALESCE(opened_at, NOW()) WHERE id = ?')->execute([(int)$m['id']]);
         if ((int)$m['clicks'] === 0) ai_as_workspace((int)$m['workspace_id'], function () use ($m, $u) {

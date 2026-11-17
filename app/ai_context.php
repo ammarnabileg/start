@@ -3,11 +3,11 @@
 function assistant_context(bool $extended = false): string
 {
     $wid = (int)ws('id');
-    $ck = $wid . ($extended ? 'x' : '');
+    $ck = $wid . ($extended ? 'x' : '') . (function_exists('can') && can('analytics.view') ? '' : 'n');
     $cache = $_SESSION['ai_ctx'][$ck] ?? null;
     if ($cache && $cache['t'] > time() - 600) return $cache['v'];
 
-    $z = zernio_or_null($err);
+    $z = (function_exists('can') && !can('analytics.view')) ? null : zernio_or_null($err); // من غير صلاحية التحليلات: مفيش أرقام ولا رسايل في سياق الذكاء الاصطناعي
     $pid = zernio_profile();
     $ctx = ['company' => ws('name'), 'today' => (new DateTime('now', new DateTimeZone(site_timezone())))->format('Y-m-d l'), 'timezone' => site_timezone()];
     if ($z) {

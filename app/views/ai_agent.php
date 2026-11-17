@@ -111,17 +111,22 @@ function ai_agent_ajax(string $a): void
             'cost' => isset($d['cost']) || isset($d['routeCost']) ? round((float)($d['cost'] ?? 0) + (float)($d['routeCost'] ?? 0), 5) : null, 'ms' => $ms]);
     }
     if ($a === 'agent_draft') {
-        $id = (string)($_POST['id'] ?? ''); $do = (string)($_POST['do'] ?? ''); $dr = ai_drafts($wid); $x = $dr[$id] ?? null;
-        if (!$x) $J(['ok' => false, 'error' => t('المسودة غير موجودة.')]);
+        $id = (string)($_POST['id'] ?? ''); $do = (string)($_POST['do'] ?? '');
+        // حجز المسودة الأول (تحت قفل): ضغطتين أو تابين مايبعتوش للعميل مرتين، والمسودة اللي اتغيّرت بعد ما فتحتها مابتتبعتش/تتمسح من غير ما تشوفها
+        if (function_exists('ai_lock') && !ai_lock('reply', $wid, 8)) $J(['ok' => false, 'error' => t('جارٍ تحديث الردود، حاول بعد ثوانٍ.')]);
+        $dr = ai_drafts($wid); $x = $dr[$id] ?? null;
+        if (!$x) { if (function_exists('ai_unlock')) ai_unlock('reply', $wid); $J(['ok' => false, 'error' => t('المسودة غير موجودة.')] + ai_agent_state($wid)); }
+        $ver = (string)($_POST['v'] ?? ''); if ($ver !== '' && $ver !== md5((string)$x['text'])) { if (function_exists('ai_unlock')) ai_unlock('reply', $wid); $J(['ok' => false, 'error' => t('وصلت رسالة جديدة وتغيّرت المسودة. راجعها مرة أخرى.')] + ai_agent_state($wid)); }
+        unset($dr[$id]); save_setting('ai_drafts_' . $wid, json_encode($dr, JSON_UNESCAPED_UNICODE)); if (function_exists('ai_unlock')) ai_unlock('reply', $wid);
+        $restore = function () use ($wid, $id, $x) { $d2 = ai_drafts($wid); if (!isset($d2[$id])) { $d2[$id] = $x; save_setting('ai_drafts_' . $wid, json_encode($d2, JSON_UNESCAPED_UNICODE)); } };
         if ($do === 'send') {
-            $text = trim((string)($_POST['text'] ?? $x['text'])); if ($text === '') $J(['ok' => false, 'error' => t('الرد فارغ.')]);
-            if (empty($x['acc'])) $J(['ok' => false, 'error' => t('افتح المحادثة وأرسلها من هناك.')]);
-            $z = zernio_or_null($err); if (!$z) $J(['ok' => false, 'error' => $err]);
-            try { $z->sendMessage($id, (string)$x['acc'], $text); } catch (Throwable $e) { $J(['ok' => false, 'error' => $e->getMessage()]); }
+            $text = trim((string)($_POST['text'] ?? $x['text'])); if ($text === '') { $restore(); $J(['ok' => false, 'error' => t('الرد فارغ.')]); }
+            if (empty($x['acc'])) { $restore(); $J(['ok' => false, 'error' => t('افتح المحادثة وأرسلها من هناك.')]); }
+            $z = zernio_or_null($err); if (!$z) { $restore(); $J(['ok' => false, 'error' => $err]); }
+            try { $z->sendMessage($id, (string)$x['acc'], $text); } catch (Throwable $e) { $restore(); $J(['ok' => false, 'error' => $e->getMessage()]); }
             ai_sent_mark($wid, $text, 'c:' . $id); log_activity('ai.draft_sent', $id);
             ai_agent_log_add($wid, ['kind' => 'msg', 'who' => (string)($x['who'] ?? ''), 'platform' => (string)($x['platform'] ?? ''), 'in' => (string)($x['in'] ?? ''), 'out' => $text, 'edited' => $text !== $x['text'], 'link' => url('inbox', ['c' => $id, 'a' => $x['acc']])]);
         }
-        unset($dr[$id]); save_setting('ai_drafts_' . $wid, json_encode($dr, JSON_UNESCAPED_UNICODE));
         $J(['ok' => true] + ai_agent_state($wid));
     }
     if ($a === 'agent_rate') {
@@ -207,7 +212,7 @@ function ai_agent_state(int $wid): array
             'link' => preg_match('/^c:(.+)$/', (string)($x['link'] ?? ''), $mm) ? url('inbox', ['c' => $mm[1]]) : '']; }, array_slice(json_decode((string)setting('ai_skip_' . $wid, ''), true) ?: [], -15))),
         'paused' => array_map(function ($k, $x) use ($fmt) { return ['key' => $k, 'name' => (string)($x['name'] ?? ''), 'platform' => (string)($x['platform'] ?? ''), 'kind' => (string)($x['kind'] ?? ''), 'until' => $fmt($x['until']), 'mins' => max(1, (int)ceil(($x['until'] - time()) / 60))]; }, array_keys(ai_agent_paused($wid)), ai_agent_paused($wid)),
         'log' => array_map(function ($x) use ($fmt) { return $x + ['at' => $fmt($x['t'])]; }, array_slice($log, 0, 25)),
-        'drafts' => array_map(function ($k, $x) use ($fmt) { return ['id' => (string)$k, 'text' => (string)$x['text'], 'who' => (string)($x['who'] ?? ''), 'platform' => (string)($x['platform'] ?? ''), 'in' => (string)($x['in'] ?? ''), 'handoff' => !empty($x['handoff']), 'reason' => (string)($x['reason'] ?? ''), 'canSend' => !empty($x['acc']), 'at' => $fmt($x['t']), 'link' => url('inbox', ['c' => $k, 'a' => (string)($x['acc'] ?? '')])]; }, array_keys(ai_drafts($wid)), ai_drafts($wid)),
+        'drafts' => array_map(function ($k, $x) use ($fmt) { return ['id' => (string)$k, 'v' => md5((string)$x['text']), 'text' => (string)$x['text'], 'who' => (string)($x['who'] ?? ''), 'platform' => (string)($x['platform'] ?? ''), 'in' => (string)($x['in'] ?? ''), 'handoff' => !empty($x['handoff']), 'reason' => (string)($x['reason'] ?? ''), 'canSend' => !empty($x['acc']), 'at' => $fmt($x['t']), 'link' => url('inbox', ['c' => $k, 'a' => (string)($x['acc'] ?? '')])]; }, array_keys(ai_drafts($wid)), ai_drafts($wid)),
         'suggest' => array_map(function ($k, $x) { return ['id' => (string)$k, 'q' => (string)$x['q'], 'a' => (string)$x['a'], 'human' => ($x['src'] ?? '') === 'human']; }, array_keys(ai_agent_suggest($wid)), ai_agent_suggest($wid)),
         'rated' => ['up' => count(array_filter($log, function ($x) { return ($x['rate'] ?? '') === 'up'; })), 'down' => count(array_filter($log, function ($x) { return ($x['rate'] ?? '') === 'down'; }))]];
 }
@@ -336,7 +341,7 @@ function ai_agent_render(): void
       function post(d) { var f = new FormData(); f.append('_csrf', C.csrf); Object.keys(d).forEach(function (k) { f.append(k, d[k]); }); return fetch(C.url, { method: 'POST', body: f, credentials: 'same-origin', headers: { 'X-Requested-With': 'fetch' } }).then(function (r) { return r.json(); }); }
       function toast(m, t) { if (window.fxToast) fxToast(m, t); }
       var lf = '';
-      function paint() { var c = st.cfg;
+      var DE = {}; function paint() { var c = st.cfg;
         $('[data-on]').classList.toggle('on', st.on);
         var s = $('[data-status]'); s.className = 'ag-s ' + (st.active ? 'ok' : st.on ? 'warn' : '');
         s.textContent = !st.on ? T.off : st.issues.length ? T.blocked : T.on;
@@ -354,9 +359,12 @@ function ai_agent_render(): void
         $('[data-free]').textContent = T.freeToday.replace('%s', st.saved.free).replace('%s', st.saved.ai);
         $('[data-cachen]').textContent = T.cacheN.replace('%s', st.saved.cached); $('[data-model]').textContent = st.model || '—';
         $('[data-dn]').textContent = st.drafts.length || ''; $('[data-drafts-box]').classList.toggle('hidden', c.mode !== 'draft' && !st.drafts.length);
-        $('[data-drafts]').innerHTML = st.drafts.length ? st.drafts.map(function (d) { return '<div class="ag-dr" data-did="' + esc(d.id) + '"><div class="ag-lh"><b>' + esc(d.who || '') + '</b><small>' + esc([d.platform, d.at].filter(Boolean).join(' · ')) + '</small>' + (d.handoff ? '<span class="ag-tag hand">' + esc(T.handDraft) + '</span>' : '') + '<a href="' + esc(d.link) + '" class="ms-auto link text-xs">' + esc(T.open) + '</a></div>' +
+        // تعديلات المستخدم على المسودات تفضل بعد أي تحديث (طالما المسودة نفسها ماتغيّرتش)
+        document.querySelectorAll('[data-drafts] [data-did]').forEach(function (x) { var ta = x.querySelector('textarea'); if (ta && ta.value !== ta.defaultValue) DE[x.dataset.did + '|' + x.dataset.v] = ta.value; });
+        $('[data-drafts]').innerHTML = st.drafts.length ? st.drafts.map(function (d) { return '<div class="ag-dr" data-did="' + esc(d.id) + '" data-v="' + esc(d.v || '') + '"><div class="ag-lh"><b>' + esc(d.who || '') + '</b><small>' + esc([d.platform, d.at].filter(Boolean).join(' · ')) + '</small>' + (d.handoff ? '<span class="ag-tag hand">' + esc(T.handDraft) + '</span>' : '') + '<a href="' + esc(d.link) + '" class="ms-auto link text-xs">' + esc(T.open) + '</a></div>' +
           (d.in ? '<p class="ag-in" dir="auto">' + esc(d.in) + '</p>' : '') + '<textarea dir="auto" rows="2">' + esc(d.text) + '</textarea><div class="ag-dra">' + (d.canSend && C.owner ? '<button type="button" class="btn-primary !py-1 !text-xs" data-dsend>' + esc(T.send) + '</button>' : '<a class="btn-ghost !py-1 !text-xs" href="' + esc(d.link) + '">' + esc(T.openToSend) + '</a>') + (C.owner ? '<button type="button" class="btn-ghost !py-1 !text-xs" data-ddrop>' + esc(T.discard) + '</button>' : '') + '</div></div>'; }).join('') : '<p class="ag-empty">' + esc(T.noDrafts) + '</p>';
         $('[data-sn]').textContent = st.suggest.length || '';
+        document.querySelectorAll('[data-drafts] [data-did]').forEach(function (x) { var k = x.dataset.did + '|' + x.dataset.v, ta = x.querySelector('textarea'); if (ta && DE[k] != null) ta.value = DE[k]; });
         $('[data-sugs]').innerHTML = st.suggest.length ? st.suggest.map(function (x) { return '<div class="ag-sgi" data-sid="' + esc(x.id) + '">' + (x.human ? '<small class="ag-src">' + esc(T.fromStaff) + '</small>' : '') + '<input dir="auto" data-q value="' + esc(x.q) + '"><textarea dir="auto" rows="2" data-a>' + esc(x.a) + '</textarea><div class="ag-dra"><button type="button" class="btn-primary !py-1 !text-xs" data-sadd>' + esc(T.add) + '</button><button type="button" class="btn-ghost !py-1 !text-xs" data-sdrop>' + esc(T.discard) + '</button></div></div>'; }).join('') : '<p class="ag-empty">' + esc(T.noSug) + '</p>';
         $('[data-rated]').textContent = T.rated.replace('%s', st.rated.up).replace('%s', st.rated.down);
         var hk = $('[data-hook]'); hk.className = 'ag-hook ' + (st.hook.on ? 'ok' : st.on ? 'warn' : '');
@@ -380,7 +388,7 @@ function ai_agent_render(): void
         if ((b = e.target.closest('[data-pl]'))) { var ps = st.cfg.platforms.slice(), ix = ps.indexOf(b.dataset.pl); if (ix > -1) ps.splice(ix, 1); else ps.push(b.dataset.pl); save({ platforms: ps.join(',') }); return; }
         if ((b = e.target.closest('[data-opt] [data-v]'))) { var o2 = {}; o2[b.closest('[data-opt]').dataset.opt] = b.dataset.v; save(o2); return; }
         if ((b = e.target.closest('[data-dsend],[data-ddrop]'))) { var dr = b.closest('[data-did]'), snd = b.hasAttribute('data-dsend'); b.disabled = true;
-          post({ action: 'agent_draft', id: dr.dataset.did, do: snd ? 'send' : 'drop', text: dr.querySelector('textarea').value }).then(function (j) { if (!j.ok) { b.disabled = false; return toast(j.error || T.err, 'error'); } st = j; paint(); if (snd) toast(T.sent); }).catch(function () { b.disabled = false; toast(T.err, 'error'); }); return; }
+          post({ action: 'agent_draft', id: dr.dataset.did, v: dr.dataset.v || '', do: snd ? 'send' : 'drop', text: dr.querySelector('textarea').value }).then(function (j) { if (!j.ok) { b.disabled = false; return toast(j.error || T.err, 'error'); } st = j; paint(); if (snd) toast(T.sent); }).catch(function () { b.disabled = false; toast(T.err, 'error'); }); return; }
         if ((b = e.target.closest('[data-rate]'))) { var rw = b.closest('[data-lid]'), v = b.dataset.rate;
           if (v === 'up') { post({ action: 'agent_rate', id: rw.dataset.lid, v: 'up' }).then(function (j) { if (j.ok) { st = j; paint(); toast(T.thanks); } }); return; }
           if (rw.querySelector('.ag-fix')) return; var fx = document.createElement('div'); fx.className = 'ag-fix'; fx.innerHTML = '<textarea dir="auto" rows="2" placeholder="' + esc(T.fixPh) + '"></textarea><button type="button" class="btn-primary !py-1 !text-xs">' + esc(T.saveFix) + '</button>'; rw.after(fx); fx.querySelector('textarea').focus();

@@ -180,7 +180,7 @@ function media_fmt_size(int $b): string
 function media_lib_file(string $field): ?array
 {
     $id = (int)($_POST['lib_' . $field] ?? 0); if (!$id) return null;
-    $r = media_get((int)ws('id'), $id); if (!$r) return null;
+    $r = media_get((int)ws('id'), $id); if (!$r || !empty($r['deleted_at'])) return null; // ملف في سلة المحذوفات
     $p = media_file_path((int)ws('id'), $r); if (!is_file($p)) return null;
     return ['name' => (string)$r['name'], 'type' => (string)$r['mime'], 'tmp_name' => $p, 'error' => UPLOAD_ERR_OK, 'size' => (int)filesize($p), 'lib' => true, 'lib_id' => $id];
 }

@@ -447,7 +447,7 @@ function crm_send_email(array $l, string $subject, string $text, string $via = '
     $tok = bin2hex(random_bytes(16));
     $base = base_url() . '/index.php?p=crm_t&k=' . $tok;
     // الروابط بتتحول عشان نعرف إنه ضغط، وبعدها بيروح للرابط الأصلي
-    $html = preg_replace_callback('~https?://[^\s<>"\']+~u', function ($m) use ($base) { return '<a href="' . e($base . '&u=' . rawurlencode($m[0])) . '">' . e($m[0]) . '</a>'; }, nl2br(e($text)));
+    $html = preg_replace_callback('~https?://[^\s<>"\']+~u', function ($m) use ($base, $wid) { return '<a href="' . e($base . '&u=' . rawurlencode($m[0]) . '&s=' . crm_url_sig($wid, $m[0])) . '">' . e($m[0]) . '</a>'; }, nl2br(e($text)));
     $html = crm_mail_wrap($html, $base . '&x=1') . '<img src="' . e($base . '&o=1') . '" width="1" height="1" alt="" style="display:block;border:0">';
     // كل إيميلات العميل (الأساسي + الإضافي)؛ كل عنوان بإيميل لوحده عشان التتبع يبقى لكل واحد
     $to = array_values(array_unique(array_filter(array_merge([(string)$l['email']], json_decode((string)($l['emails'] ?? ''), true) ?: []), function ($x) { return filter_var($x, FILTER_VALIDATE_EMAIL); })));
