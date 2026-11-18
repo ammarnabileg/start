@@ -136,8 +136,8 @@
     }).catch(function () { b.disabled = false; b.textContent = L.reveal; toast(L.err, 'error'); });
   });
   document.getElementById('tg-remove').addEventListener('click', function () {
-    if (!confirm(L.confirmRm)) return; post({ action: 'remove', id: cur }).then(function (j) { if (j.ok) { var r = list.querySelector('[data-mk-row][data-id="' + cur + '"]'); if (r) mk.remove(r); dlg.close(); } });
-  });
+    (window.fxAsk ? fxAsk(L.confirmRm, { danger: true }) : Promise.resolve(confirm(L.confirmRm))).then(function (ok) { if (!ok) return; post({ action: 'remove', id: cur }).then(function (j) { if (j.ok) { var r = list.querySelector('[data-mk-row][data-id="' + cur + '"]'); if (r) mk.remove(r); dlg.close(); } }); });
+});
   dlg.addEventListener('click', function (e) { if (e.target === dlg || e.target.closest('[data-close]')) dlg.close(); });
   var m = /[?&]open=(\d+)/.exec(location.search); if (m) open(m[1]);
 })();

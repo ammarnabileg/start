@@ -89,8 +89,8 @@
   hm.addEventListener('change', function (e) { if (!e.target.matches('[data-hat]') || !e.target.value) return; var i = $('pd-next-at'); i.value = e.target.value; i.dispatchEvent(new Event('change')); hmClose(); });
   $('pd-contact').addEventListener('click', function (e) { var b = e.target.closest('[data-cmain]'); if (!b) return; e.preventDefault(); var r = cur, k = b.dataset.k; b.disabled = true;
     post(C.selfUrl, { action: 'contacts', id: jd(r).id, k: k, op: 'main', v: b.dataset.v }).then(function (j) { if (!j.ok) { b.disabled = false; return toast(j.error || L.err, 'error'); } cApply(r, k, j); toast(L.cMkDone); }).catch(function () { b.disabled = false; toast(L.err, 'error'); }); });
-  $('pd-contact').addEventListener('click', function (e) { var b = e.target.closest('[data-cdel]'); if (!b) return; e.preventDefault(); var r = cur, k = b.dataset.k; if (!confirm((L.cDelQ || '%s').replace('%s', b.dataset.v))) return;
-    post(C.selfUrl, { action: 'contacts', id: jd(r).id, k: k, op: 'del', v: b.dataset.v }).then(function (j) { if (!j.ok) return toast(j.error || L.err, 'error'); cApply(r, k, j); toast(L.saved); }).catch(function () { toast(L.err, 'error'); }); });
+  $('pd-contact').addEventListener('click', function (e) { var b = e.target.closest('[data-cdel]'); if (!b) return; e.preventDefault(); var r = cur, k = b.dataset.k; (window.fxAsk ? fxAsk((L.cDelQ || '%s').replace('%s', b.dataset.v), { danger: true }) : Promise.resolve(confirm((L.cDelQ || '%s').replace('%s', b.dataset.v)))).then(function (ok) { if (!ok) return; post(C.selfUrl, { action: 'contacts', id: jd(r).id, k: k, op: 'del', v: b.dataset.v }).then(function (j) { if (!j.ok) return toast(j.error || L.err, 'error'); cApply(r, k, j); toast(L.saved); }).catch(function () { toast(L.err, 'error'); }); });
+});
   // المتابعة وسجل التواصل
   var AIC = { call: 'phone', wa: 'chat', email: 'mail', meet: 'users', note: 'pencil', stage: 'refresh' };
   var KC = { call: '#16a34a', wa: '#22c55e', email: '#2563eb', meet: '#d97706', note: '#64748b', stage: '#7c3aed' };

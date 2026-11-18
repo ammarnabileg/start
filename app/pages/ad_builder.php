@@ -277,11 +277,11 @@ render(t('منشئ الحملات'), 'ad_builder', function () use ($z, $apiErro
       <script>
       document.addEventListener('click', function (e) {
         var b = e.target.closest('[data-ab]'); if (!b) return; var row = b.closest('.ab-proj');
-        if (b.dataset.ab === 'delete' && !confirm(<?= json_encode(t('تمسح المشروع ده؟ (الحملات اللي اتطلقت على المنصة مش هتتمسح)')) ?>)) return;
-        var fd = new FormData(); fd.append('_csrf', <?= json_encode(csrf_token()) ?>); fd.append('action', b.dataset.ab); fd.append('id', row.dataset.id);
+        var q0 = b.dataset.ab === 'delete' ? (window.fxAsk ? fxAsk(<?= json_encode(t('تمسح المشروع ده؟ (الحملات اللي اتطلقت على المنصة مش هتتمسح)')) ?>, { danger: true }) : Promise.resolve(confirm(<?= json_encode(t('تمسح المشروع ده؟ (الحملات اللي اتطلقت على المنصة مش هتتمسح)')) ?>))) : Promise.resolve(true);
+        q0.then(function (ok) { if (!ok) return; var fd = new FormData(); fd.append('_csrf', <?= json_encode(csrf_token()) ?>); fd.append('action', b.dataset.ab); fd.append('id', row.dataset.id);
         fetch(<?= json_encode(url('ad_builder')) ?>, { method: 'POST', body: fd, credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) {
-          if (!j.ok) return alert(j.error || 'error'); if (j.id) location.href = <?= json_encode(url('ad_builder')) ?> + '&id=' + j.id; else row.remove();
-        });
+          if (!j.ok) return (window.fxToast ? fxToast(j.error || 'Error', 'error') : alert(j.error || 'error')); if (j.id) location.href = <?= json_encode(url('ad_builder')) ?> + '&id=' + j.id; else row.remove();
+        }); });
       });
       </script>
     </div>

@@ -202,7 +202,8 @@
     var ins = e.target.closest('[data-cp-insight]'); if (ins) { if (!isOpen()) setOpen(true); insight(ins.dataset.cpInsight); }
   });
   document.getElementById('cp-wide').onclick = function () { setWide(!wide); };
-  document.getElementById('cp-clear').onclick = function () { if (!confirm(C.confirmClear)) return; post({ task: 'chat_clear' }); thread.innerHTML = ''; welcome(); };
+  document.getElementById('cp-clear').onclick = function () { (window.fxAsk ? fxAsk(C.confirmClear, { danger: true }) : Promise.resolve(confirm(C.confirmClear))).then(function (ok) { if (!ok) return; post({ task: 'chat_clear' }); thread.innerHTML = ''; welcome(); });
+};
   document.addEventListener('keydown', function (e) {
     if ((e.ctrlKey || e.metaKey) && (e.key === 'j' || e.key === 'J')) { e.preventDefault(); setOpen(!isOpen()); }
     if (e.key === 'Escape' && isOpen() && !document.querySelector('dialog[open]')) setOpen(false);

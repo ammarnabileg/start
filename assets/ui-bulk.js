@@ -656,7 +656,8 @@
     e.preventDefault();
     if (!rows.length) return alert(S.pick);
     var m = mode();
-    if (m === 'create') { var now = rows.filter(function (r) { return truthy(r[col('publish_now')]); }).length; if (!confirm(f(S.confirm, rows.length, now))) return; }
+    if (m === 'create') { var now = rows.filter(function (r) { return truthy(r[col('publish_now')]); }).length; (window.fxAsk ? fxAsk(f(S.confirm, rows.length, now), { danger: false }) : Promise.resolve(confirm(f(S.confirm, rows.length, now)))).then(function (ok) { if (!ok) return;  });
+}
     run(m);
   });
   function run(m) {

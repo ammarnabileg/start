@@ -207,15 +207,15 @@
       t.innerHTML = '<span></span><button type="button" class="font-semibold text-brand-300 hover:text-[#fff]">' + esc(S.undo) + '</button>'; t.firstChild.textContent = msg;
       var gone = false, kill = function () { if (!gone) { gone = true; t.remove(); } }; t.querySelector('button').onclick = function () { kill(); undo(); }; document.body.appendChild(t); setTimeout(kill, 8000);
     }
+    function ask(m, d) { return window.fxAsk ? fxAsk(m, { danger: d !== false }) : Promise.resolve(confirm(m)); }
     function del(keys, hard) {
       var files = keys.filter(function (k) { return k[0] === 'f'; }).map(function (k) { return +k.slice(1); }), dirs = keys.filter(function (k) { return k[0] === 'd'; }).map(function (k) { return k.slice(1); });
       if (!files.length && !dirs.length) return;
-      if (st.loc.t === 'trash' || hard) { if (!confirm(fmt(S.purgeQ, files.length))) return; return post({ action: 'purge', 'ids[]': files }).then(function () { st.sel = []; load(); }); }
-      if (dirs.length && !confirm(fmt(S.delMixed, files.length, dirs.length))) return;
-      Promise.all([files.length ? post({ action: 'delete', 'ids[]': files }) : null].concat(dirs.map(function (d) { return post({ action: 'folder_delete', folder: d }); }))).then(function (rs) {
+      if (st.loc.t === 'trash' || hard) { return ask(fmt(S.purgeQ, files.length)).then(function (ok) { if (ok) post({ action: 'purge', 'ids[]': files }).then(function () { st.sel = []; load(); }); }); }
+      (dirs.length ? ask(fmt(S.delMixed, files.length, dirs.length)) : Promise.resolve(true)).then(function (ok) { if (!ok) return; Promise.all([files.length ? post({ action: 'delete', 'ids[]': files }) : null].concat(dirs.map(function (d) { return post({ action: 'folder_delete', folder: d }); }))).then(function (rs) {
         if (rs.some(function (j) { return j && j.ok === false; })) return load();
         st.sel = []; load(); if (files.length) undoToast(fmt(S.trashed, files.length), function () { post({ action: 'restore', 'ids[]': files }).then(function () { toast(S.restored, 'ok'); load(); }); });
-      });
+      }); });
     }
     function restore(keys) { var ids = keys.filter(function (k) { return k[0] === 'f'; }).map(function (k) { return +k.slice(1); }); if (ids.length) post({ action: 'restore', 'ids[]': ids }).then(function (j) { if (!j || j.ok === false) return; toast(S.restored, 'ok'); st.sel = []; load(); }); }
     function star(keys) { var fs = selFiles(), on = !fs.every(function (f) { return f.star; }); post({ action: 'star', on: on ? 1 : '', 'ids[]': fs.map(function (f) { return f.id; }) }).then(load); }
@@ -370,7 +370,7 @@
       if (cmd === 'open') return st.sel[0] && openKey(st.sel[0]); if (cmd === 'rename') return st.sel[0] && renameKey(st.sel[0]); if (cmd === 'del') return del(st.sel.slice());
       if (cmd === 'link' && one) return copyLink(one); if (cmd === 'crop' && one) return cropper(one); if (cmd === 'dl' && one) { location.href = one.url + '&dl=1'; return; }
       if (cmd === 'move') return moveDialog(st.sel.slice());
-      if (cmd === 'restore') return restore(st.sel.slice()); if (cmd === 'purge') return del(st.sel.slice(), true); if (cmd === 'emptytrash') { if (confirm(fmt(S.purgeQ, (st.counts || {}).trash || st.all.length))) post({ action: 'empty_trash' }).then(load); return; }
+      if (cmd === 'restore') return restore(st.sel.slice()); if (cmd === 'purge') return del(st.sel.slice(), true); if (cmd === 'emptytrash') { ask(fmt(S.purgeQ, (st.counts || {}).trash || st.all.length)).then(function (ok) { if (ok) post({ action: 'empty_trash' }).then(load); }); return; }
       if (cmd === 'edit' && one) return editor(one); if (cmd === 'share') return shareDialog(st.sel.length === 1 && st.sel[0][0] === 'd' ? st.sel[0].slice(1) : (st.loc.t === 'folder' ? st.loc.f : ''));
       if (cmd === 'ai') return aiTag(selFiles().filter(function (f) { return f.kind === 'image'; }).map(function (f) { return f.id; }));
       if (cmd === 'autoai') { store.set('autoai', !store.get('autoai', false)); return toast(store.get('autoai', false) ? S.autoOn : S.autoOff, 'ok'); }

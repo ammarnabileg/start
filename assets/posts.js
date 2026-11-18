@@ -1,4 +1,5 @@
 /* المنشورات: بحث وفلترة بالمنصة، وقت نسبي، تحديد وحذف من غير تحميل، نسخ النص، تقويم شهري، اختصارات */
+  function ask(m, d) { return window.fxAsk ? fxAsk(m, { danger: d !== false }) : Promise.resolve(confirm(m)); }
 (function () {
   var X = window.PSX; if (!X) return;
   var $ = function (s, r) { return (r || document).querySelector(s); }, $$ = function (s, r) { return [].slice.call((r || document).querySelectorAll(s)); };
@@ -50,7 +51,7 @@
     }).catch(function (er) { toast(er.message || X.err); });
   }
   document.addEventListener('click', function (e) {
-    var d = e.target.closest('.ps-del'); if (d) { if (confirm(X.del)) { d.disabled = true; del([d.closest('.ps-card').dataset.id]).finally(function () { d.disabled = false; }); } return; }
+    var d = e.target.closest('.ps-del'); if (d) { ask(X.del).then(function (ok) { if (!ok) return; d.disabled = true; del([d.closest('.ps-card').dataset.id]).finally(function () { d.disabled = false; }); }); return; }
     var c = e.target.closest('.ps-copy'); if (c) { var t = c.closest('.ps-card').querySelector('.ps-txt'); navigator.clipboard && navigator.clipboard.writeText(t ? t.textContent : ''); var o = c.textContent; c.textContent = '✓ ' + X.copied; setTimeout(function () { c.textContent = o; }, 1200); }
   });
   function psQuick(op, ids, extra) {
@@ -70,7 +71,7 @@
   function siteNow() { var p = siteParts(new Date()); return new Date(p.y, p.m - 1, p.d, p.h, p.mi); } // ساعة الشركة كـ Date محلي (الخلايا مبنية بتاريخ الشركة)
   function siteDT(d) { var p = siteParts(d); return p.y + '-' + pad2(p.m) + '-' + pad2(p.d) + 'T' + pad2(p.h) + ':' + pad2(p.mi); }
   window.__siteDT = siteDT;
-  var bd = $('#ps-bulkdel'); if (bd) bd.onclick = function () { if (sel.size && confirm(X.delN.replace('%s', sel.size))) del(Array.from(sel)); };
+  var bd = $('#ps-bulkdel'); if (bd) bd.onclick = function () { if (sel.size) ask(X.delN.replace('%s', sel.size)).then(function (ok) { if (ok) del(Array.from(sel)); }); };
 
   /* ---------- التقويم ---------- */
   var grid = $('#cal-grid');
@@ -544,7 +545,7 @@
       var a = e.target.closest('#ps-dr-acts [data-a]'); if (!a) return;
       if (a.dataset.a === 'retry') quick('retry', [cur]).then(function (d) { report(d, Q.retried); }).catch(function (er) { toast(er.message || X.err); });
       else if (a.dataset.a === 'dup') quick('dup', [cur]).then(function (d) { report(d, Q.duped); }).catch(function (er) { toast(er.message || X.err); });
-      else if (a.dataset.a === 'del' && confirm(X.del)) { del([cur]); close(); }
+      else if (a.dataset.a === 'del') { var c0 = cur; ask(X.del).then(function (ok) { if (ok) { del([c0]); close(); } }); }
     });
     var cb = $('#ps-csv'); if (cb) cb.onclick = function () {
       var q = function (v) { v = String(v == null ? '' : v); return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
