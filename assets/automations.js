@@ -130,7 +130,7 @@
       sending = true;
     });
     window.addEventListener('beforeunload', function (e) { if (!sending && dirty()) { e.preventDefault(); e.returnValue = A.leave; return A.leave; } });
-    document.addEventListener('click', function (e) { var a = e.target.closest('a[href]'); if (a && !sending && dirty() && !a.target && !confirm(A.leave)) e.preventDefault(); }, true);
+    document.addEventListener('click', function (e) { var a = e.target.closest('a[href]'); if (a && !sending && dirty() && !a.target && !(window.fxRe ? fxRe : confirm)(A.leave)) e.preventDefault(); }, true);
     document.addEventListener('keydown', function (e) { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); if (form.requestSubmit) form.requestSubmit(); else form.submit(); } });
     drawChips(); drawModes(); platUi(); preview(); cnts(); onLbl(); snap = state(); dirty();
     if (!form.elements['name'].value) form.elements['name'].focus();

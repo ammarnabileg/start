@@ -26,6 +26,7 @@ $walk($j);
 $n = 0;
 foreach ($people as $p) {
     $phone = crm_intl_phone(crm_pick_phone($p), ws_country($wid));
+    if ($phone) { try { $dq = db()->prepare('SELECT d.id, d.name, l.id AS me FROM crm_leads d JOIN crm_leads l ON l.workspace_id = d.workspace_id AND l.ext_id = ? WHERE d.workspace_id = ? AND d.phone = ? AND d.id <> l.id LIMIT 1'); $dq->execute([mb_substr($p['id'], 0, 64), $wid, $phone]); if ($dup = $dq->fetch()) { db()->prepare('INSERT INTO crm_acts (workspace_id, lead_id, kind, body) VALUES (?, ?, \'note\', ?)')->execute([$wid, (int)$dup['me'], t('رقم الهاتف %s مسجّل أيضًا لدى العميل «%s» (#%s). قد يكون مكررًا، راجعه وادمجه.', $phone, (string)$dup['name'], (int)$dup['id'])]); } } catch (Throwable $e) {} }
     $q = db()->prepare('UPDATE crm_leads SET phone = COALESCE(phone, ?), phone_pending = 0 WHERE workspace_id = ? AND ext_id = ?');
     $q->execute([$phone ?: null, $wid, mb_substr($p['id'], 0, 64)]);
     $n += $q->rowCount();

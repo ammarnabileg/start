@@ -25,11 +25,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach ($all as $x) if ($x['slug'] === $slug && $x['slug'] !== $old) { flash('error', t('الرابط ده مستخدم. اختار اسم تاني.')); redirect(url('crm_capture') . '#lp'); } // تغيير الرابط لرابط صفحة تانية
         foreach ($all as &$x) if ($x['slug'] === ($old ?: $slug)) { $row['views'] = (int)($x['views'] ?? 0); $x = $row; $found = true; } unset($x);
         if (!$found) { if (count($all) >= 30) { flash('error', t('وصلت للحد الأقصى (30 صفحة). احذف صفحة قديمة أولًا.')); redirect(url('crm_capture') . '#lp'); } $all[] = $row; }
+        if ($found && $old !== '' && $old !== $slug) { $ov = (int)setting('lpv_' . $wid . '_' . $old, '0'); if ($ov) { save_setting('lpv_' . $wid . '_' . $slug, (string)((int)setting('lpv_' . $wid . '_' . $slug, '0') + $ov)); save_setting('lpv_' . $wid . '_' . $old, '0'); } }
         save_setting('crm_lp_' . $wid, json_encode(array_slice($all, 0, 30), JSON_UNESCAPED_UNICODE)); log_activity('crm.lp_save', $slug);
         flash('success', t('اتحفظت الصفحة ✓')); redirect(url('crm_capture') . '#lp');
     }
     if ($a === 'lp_del') {
-        $s = (string)($_POST['slug'] ?? ''); save_setting('crm_lp_' . $wid, json_encode(array_values(array_filter(lp_list(), function ($x) use ($s) { return $x['slug'] !== $s; })), JSON_UNESCAPED_UNICODE));
+        $s = (string)($_POST['slug'] ?? ''); if ($s !== '') { save_setting('lpv_' . $wid . '_' . $s, '0'); log_activity('crm.lp_del', $s); } save_setting('crm_lp_' . $wid, json_encode(array_values(array_filter(lp_list(), function ($x) use ($s) { return $x['slug'] !== $s; })), JSON_UNESCAPED_UNICODE));
         redirect(url('crm_capture') . '#lp');
     }
     if ($a === 'wa_make') { $r = cap_wa_link((string)($_POST['phone'] ?? ''), (string)($_POST['msg'] ?? ''), mb_substr(trim((string)($_POST['label'] ?? '')), 0, 160)); $r ? $J(['ok' => true] + $r) : $J(['error' => t('اكتب رقم واتساب صحيح بكود الدولة.')], 422); }

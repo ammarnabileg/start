@@ -40,10 +40,10 @@
     var s = mk.selected(); if (!s.length) return; var q = function (v) { v = String(v == null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
     var lines = [L.csv.map(q).join(',')].concat(s.map(function (r) { var d = r.dataset, c = r.children; return [d.name, d.domain, d.industry, d.emp > 0 ? d.emp : '', d.loc, r.getAttribute('data-s-ppl'), c[6].textContent.trim(), c[7].textContent.trim()].map(q).join(','); }));
     var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv;charset=utf-8' })); a.download = 'target-companies.csv'; a.click(); });
-  root.addEventListener('click', function (e) { var b = e.target.closest('[data-rm]'); if (!b) return; var r = b.closest('[data-mk-row]'); if (!confirm(L.confirmRm)) return;
+  root.addEventListener('click', function (e) { var b = e.target.closest('[data-rm]'); if (!b) return; var r = b.closest('[data-mk-row]'); if (!(window.fxRe ? fxRe : confirm)(L.confirmRm)) return;
     post({ action: 'remove', id: r.dataset.id }).then(function (j) { if (j.ok) mk.remove(r); }); });
   var rmSel = document.getElementById('tg-rm-sel');
-  if (rmSel) rmSel.addEventListener('click', function () { var s = mk.selected(); if (!s.length || !confirm(L.confirmRmN.replace('%s', s.length))) return;
+  if (rmSel) rmSel.addEventListener('click', function () { var s = mk.selected(); if (!s.length || !(window.fxRe ? fxRe : confirm)(L.confirmRmN.replace('%s', s.length))) return;
     Promise.all(s.map(function (r) { return post({ action: 'remove', id: r.dataset.id }).then(function (j) { if (j.ok) mk.remove(r); }); })); });
 
   // إضافة

@@ -99,7 +99,7 @@
     foot.innerHTML = '<p class="text-[11px] text-ink-500">' + esc(fmt(P2.summary, sets.length, nAds)) + ' · ' + esc(I.applyNote) + '</p><div class="flex justify-end gap-2 mt-2"><button type="button" class="btn-ghost again">' + esc(I.again) + '</button><button type="button" class="btn-primary apply">' + esc(I.apply) + '</button></div>';
     $('.again', d).onclick = function () { $('.out', d).innerHTML = ''; $('.ai-in', d).classList.remove('hidden'); };
     $('.apply', d).onclick = function () {
-      if (D.adSets.some(function (s) { return s.ads.some(function (a) { return a.body; }); }) && !confirm(I.replaceQ)) return;
+      if (D.adSets.some(function (s) { return s.ads.some(function (a) { return a.body; }); }) && !(window.fxRe ? fxRe : confirm)(I.replaceQ)) return;
       var btn = this; btn.disabled = true; btn.textContent = I.resolving;
       Promise.all(sets.map(function (s) { return resolveInterests((s.targeting || {}).interestQueries); })).then(function (ints) {
         if (c.name) D.campaign.name = String(c.name).slice(0, 200); D.campaign.goal = goal;

@@ -101,7 +101,7 @@
       $('#wf-err').textContent = err; if (err) { e.preventDefault(); return; } sending = true;
     });
     window.addEventListener('beforeunload', function (e) { if (!sending && dirty()) { e.preventDefault(); e.returnValue = W.leave; return W.leave; } });
-    document.addEventListener('click', function (e) { var a = e.target.closest('a[href]'); if (a && !sending && dirty() && !a.target && !confirm(W.leave)) e.preventDefault(); }, true);
+    document.addEventListener('click', function (e) { var a = e.target.closest('a[href]'); if (a && !sending && dirty() && !a.target && !(window.fxRe ? fxRe : confirm)(W.leave)) e.preventDefault(); }, true);
     document.addEventListener('keydown', function (e) { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); form.requestSubmit ? form.requestSubmit() : form.submit(); } });
     platUi(); sync(); snap = state(); dirty(); form.elements['name'].focus();
   }

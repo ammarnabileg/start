@@ -382,7 +382,7 @@
         });
         return;
       }
-      if (e.target.closest('.kb-rm')) { if (!confirm(K.del)) return; var fd = new FormData(); fd.append('action', 'kb_file_delete'); fd.append('id', row.dataset.id); post(fd).then(function () { row.remove(); if (!list.querySelector('.kb-file')) dot('files', false); }); }
+      if (e.target.closest('.kb-rm')) { if (!(window.fxRe ? fxRe : confirm)(K.del)) return; var fd = new FormData(); fd.append('action', 'kb_file_delete'); fd.append('id', row.dataset.id); post(fd).then(function () { row.remove(); if (!list.querySelector('.kb-file')) dot('files', false); }); }
     });
     list.addEventListener('change', function (e) {
       var c = e.target.closest('.kb-on'); if (!c) return; var row = c.closest('.kb-file');

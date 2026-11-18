@@ -266,7 +266,7 @@
       if (k === 'copyw') {
         var ws0 = calV === 'week' ? new Date(wk) : (function () { var d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - d.getDay()); return d; })(), we = new Date(ws0); we.setDate(we.getDate() + 7);
         var ids2 = sched().filter(function (p) { var d = new Date(p.at); return d >= ws0 && d < we; }).map(function (p) { return p.id; });
-        if (!ids2.length) return toast(X.q.cwNone); if (!confirm(X.q.cwQ.replace('%s', ids2.length))) return;
+        if (!ids2.length) return toast(X.q.cwNone); if (!(window.fxRe ? fxRe : confirm)(X.q.cwQ.replace('%s', ids2.length))) return;
         return runSeq(ids2, 'copyshift', function () { return { n: 7 }; }, X.q.cwDone);
       }
       if (k === 'gaps') {
@@ -280,7 +280,7 @@
           plan.push({ id: drafts[plan.length].id, when: when, txt: drafts[plan.length].txt });
         }
         if (!plan.length) return toast(X.q.gNone);
-        if (!confirm(X.q.gQ.replace('%s', plan.length) + '\n\n' + plan.map(function (x) { return x.when.replace('T', ' ') + ' — ' + x.txt.slice(0, 40); }).join('\n'))) return;
+        if (!(window.fxRe ? fxRe : confirm)(X.q.gQ.replace('%s', plan.length) + '\n\n' + plan.map(function (x) { return x.when.replace('T', ' ') + ' — ' + x.txt.slice(0, 40); }).join('\n'))) return;
         var byW = {}; plan.forEach(function (x) { byW[x.id] = x.when; });
         return runSeq(plan.map(function (x) { return x.id; }), 'from_draft', function (id) { return { when: byW[id] }; }, X.q.gDone);
       }
@@ -582,12 +582,12 @@
     var all = $('#ps-all'); if (all) all.onchange = function () { visibleIds().forEach(function (id) { if (all.checked) sel.add(id); else sel.delete(id); }); $$('.ps-card').forEach(function (c) { var cb = $('.ps-sel', c); if (cb) cb.checked = sel.has(c.dataset.id); }); bar(); };
     var sh = $('#ps-shift'); if (sh) sh.onclick = function () {
       if (!sel.size) return toast(Q.noSel); var n = +$('#ps-sh-n').value || 0, u = $('#ps-sh-u').value; if (!n) return;
-      if (!confirm(Q.shiftQ.replace('%s', sel.size).replace('%s', n + ' ' + $('#ps-sh-u').selectedOptions[0].textContent))) return;
+      if (!(window.fxRe ? fxRe : confirm)(Q.shiftQ.replace('%s', sel.size).replace('%s', n + ' ' + $('#ps-sh-u').selectedOptions[0].textContent))) return;
       sh.disabled = true; quick('shift', Array.from(sel), { n: n, unit: u }).then(function (d) { sh.disabled = false; report(d, Q.shifted); }).catch(function (er) { sh.disabled = false; toast(er.message || X.err); });
     };
     var br = $('#ps-bretry'); if (br) br.onclick = function () {
       var ids = Array.from(sel).filter(function (id) { return P[id] && (P[id].st === 'failed' || P[id].st === 'partial'); });
-      if (!ids.length) return toast(Q.noSel); if (!confirm(Q.retryQ.replace('%s', ids.length))) return;
+      if (!ids.length) return toast(Q.noSel); if (!(window.fxRe ? fxRe : confirm)(Q.retryQ.replace('%s', ids.length))) return;
       quick('retry', ids).then(function (d) { report(d, Q.retried); }).catch(function (er) { toast(er.message || X.err); });
     };
     var rm = $('#ps-rep'), rb = $('#ps-brep');
@@ -602,7 +602,7 @@
       rb.onclick = function () { if (!sel.size) return toast(Q.noSel); rm.classList.remove('hidden'); rm.setAttribute('aria-hidden', 'false'); $('#ps-rep-f').focus(); rInfo(); };
       $('#ps-rep-f').addEventListener('input', rInfo);
       $('#ps-rep-go').onclick = function () {
-        var hit = rInfo(); if (!hit.length || !confirm(Q.repQ.replace('%s', hit.length))) return;
+        var hit = rInfo(); if (!hit.length || !(window.fxRe ? fxRe : confirm)(Q.repQ.replace('%s', hit.length))) return;
         var go = this; go.disabled = true;
         quick('replace', hit, { find: $('#ps-rep-f').value, repl: $('#ps-rep-r').value }).then(function (d) { go.disabled = false; rClose(); report(d, Q.replaced); }).catch(function (er) { go.disabled = false; toast(er.message || X.err); });
       };
@@ -614,7 +614,7 @@
       rpB.onclick = function () {
         if (!sel.size) return toast(Q.noSel); if (!rpAt.value) return rpAt.focus();
         var gap = Math.max(0, +$('#ps-rp-gap').value || 0), ids = visibleIds().filter(function (i) { return sel.has(i); });
-        if (!confirm(Q.rpQ.replace('%s', ids.length).replace('%s', rpAt.value.replace('T', ' ')).replace('%s', gap))) return;
+        if (!(window.fxRe ? fxRe : confirm)(Q.rpQ.replace('%s', ids.length).replace('%s', rpAt.value.replace('T', ' ')).replace('%s', gap))) return;
         rpB.disabled = true; quick('repost', ids, { when: rpAt.value, gap: gap }).then(function (r) { rpB.disabled = false; report(r, Q.reposted); }).catch(function (er) { rpB.disabled = false; toast(er.message || X.err); });
       };
     }

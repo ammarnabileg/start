@@ -65,7 +65,7 @@
   function cfg() { return { action: 'c_spamcfg', on: $('#sp-on').checked ? 1 : '', links: $('#sp-links').checked ? 1 : '', words: $('#sp-words').value }; }
   if (ss) ss.onclick = function () { post(cfg()).then(function (j) { note(j.ok ? C.saved : (j.error || C.err)); }).catch(function () { note(C.err); }); };
   if (sr) sr.onclick = function () {
-    if (!confirm(C.confirmRun)) return; sr.disabled = true;
+    if (!(window.fxRe ? fxRe : confirm)(C.confirmRun)) return; sr.disabled = true;
     post(cfg()).then(function () { return post({ action: 'c_spamrun' }); }).then(function (j) { sr.disabled = false; note(j.ok ? C.hidden.replace('%s', j.done) : (j.error || C.err)); if (j.ok && j.done) setTimeout(function () { location.reload(); }, 900); }).catch(function () { sr.disabled = false; note(C.err); });
   };
   }

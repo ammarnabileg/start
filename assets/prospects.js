@@ -143,7 +143,7 @@
   root.addEventListener('click', function (e) { var b = e.target.closest('[data-qcmain]'); if (!b) return; e.preventDefault(); e.stopPropagation(); b.disabled = true;
     cPost(b.closest('[data-mk-row]'), b.dataset.k, 'main', b.dataset.v).then(function (j) { if (!j.ok) { b.disabled = false; return toast(j.error || L.err, 'error'); } toast(QT.cMkDone); list.reload(); }).catch(function () { b.disabled = false; toast(L.err, 'error'); }); }, true);
   root.addEventListener('click', function (e) { var b = e.target.closest('[data-qcdel]'); if (!b) return; e.preventDefault(); e.stopPropagation(); var r = b.closest('[data-mk-row]');
-    if (!confirm(QT.cDelQ.replace('%s', b.dataset.v))) return;
+    if (!(window.fxRe ? fxRe : confirm)(QT.cDelQ.replace('%s', b.dataset.v))) return;
     cPost(r, b.dataset.k, 'del', b.dataset.v).then(function (j) { if (!j.ok) return toast(j.error || L.err, 'error'); var ln = b.closest('.pr-cl'); if (ln) ln.remove(); toast(L.saved || QT.qDone); }).catch(function () { toast(L.err, 'error'); }); }, true);
 
   // كشف البيانات من Apollo من خانة التواصل
@@ -166,7 +166,7 @@
     var sb = root.querySelector('[data-mk-stat="' + (s.stat || '_all') + '"]'); if (sb && !sb.classList.contains('mk-on')) sb.click(); else list.apply();
     if (s.sort) { var h = root.querySelector('[data-mk-sort="' + s.sort + '"]'); if (h) { h.click(); if ((s.dir || 1) < 0) h.click(); } }
     setTimeout(paintViews, 300); }
-  vbar.addEventListener('click', function (e) { var d = e.target.closest('[data-vdel]'); if (d) { e.stopPropagation(); if (!confirm(VT.vDel)) return; post(C.selfUrl, { action: 'view_del', id: d.dataset.vdel }).then(function (j) { if (j.ok) { views = j.views; paintViews(); } }); return; }
+  vbar.addEventListener('click', function (e) { var d = e.target.closest('[data-vdel]'); if (d) { e.stopPropagation(); if (!(window.fxRe ? fxRe : confirm)(VT.vDel)) return; post(C.selfUrl, { action: 'view_del', id: d.dataset.vdel }).then(function (j) { if (j.ok) { views = j.views; paintViews(); } }); return; }
     var b = e.target.closest('[data-vw]'); if (b) applyView(views.filter(function (v) { return v.id === b.dataset.vw; })[0]); });
   if ($('pf-save')) $('pf-save').addEventListener('click', function () { var st = curState(); if (!Object.keys(st).length) return toast(VT.vEmpty, 'error'); var n = (prompt(VT.vName) || '').trim(); if (!n) return;
     post(C.selfUrl, { action: 'view_save', name: n, state: JSON.stringify(st) }).then(function (j) { if (!j.ok) return toast(j.error || L.err, 'error'); views = j.views; paintViews(); toast(VT.vSaved); }); });
@@ -188,7 +188,7 @@
     function step() { if (i >= n) return Promise.resolve(last); var part = all.slice(i, i + 200); i += part.length;
       return fn(part).then(function (j) { last = j; if (!j.ok) return j; if (n > 400) toast(P2.working.replace('%s', i.toLocaleString('en-US')).replace('%s', n.toLocaleString('en-US'))); return step(); }); }
     return step(); }
-  function run(fn, local) { return scope().then(function (sc) { if (!sc.ids.length) return; if (sc.all && sc.ids.length > 400 && !confirm(P2.bigAsk.replace('%s', sc.ids.length.toLocaleString('en-US')))) return;
+  function run(fn, local) { return scope().then(function (sc) { if (!sc.ids.length) return; if (sc.all && sc.ids.length > 400 && !(window.fxRe ? fxRe : confirm)(P2.bigAsk.replace('%s', sc.ids.length.toLocaleString('en-US')))) return;
     return batched(sc.ids, fn).then(function (j) { done(j, sc.ids.length); if (j.ok) { if (sc.all) list.reload(); else if (local) local(); } }); }); }
   function done(j, n) { if (!j.ok) return toast(j.error || L.err, 'error'); toast(L.done2.replace('%s', n)); }
   $('pb-stage').addEventListener('change', function () { var v = this.value, s0 = list.selected(), el = this; if (!v || !s0.length) return; el.value = '';

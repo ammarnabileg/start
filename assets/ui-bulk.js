@@ -333,7 +333,7 @@
     var d = blank(); rows = [['', X.connected.length ? X.connected.slice(0, 2).join('|') : 'facebook', fmt(d), '']];
     show(); var c = $('[contenteditable]', grid); if (c) c.focus();
   };
-  $('#bk-reset').onclick = function () { if (dirty && !confirm(S.reset)) return; head = []; rows = []; srvErr = {}; sel = {}; undo = []; file.value = ''; resBox.innerHTML = ''; clearDraft(); $('#bk-draft').classList.add('hidden'); show(); };
+  $('#bk-reset').onclick = function () { if (dirty && !(window.fxRe ? fxRe : confirm)(S.reset)) return; head = []; rows = []; srvErr = {}; sel = {}; undo = []; file.value = ''; resBox.innerHTML = ''; clearDraft(); $('#bk-draft').classList.add('hidden'); show(); };
   $('#bk-add').onclick = function () { snap(); var last = rows[rows.length - 1] || []; rows.push(head.map(function (h, i) { return h === 'post_content' || h === 'media_urls' || /^custom_content_/.test(h) ? '' : (last[i] || ''); })); dirty = true; render(); var t = grid.querySelector('tbody tr:last-child [contenteditable]'); if (t) t.focus(); };
   $('#bk-dl').onclick = function () { var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + toCsv(head, rows)], { type: 'text/csv' })); a.download = fname.replace(/\.(csv|txt|tsv)$/i, '') + '-edited.csv'; a.click(); };
   $('#bk-undo').onclick = doUndo;

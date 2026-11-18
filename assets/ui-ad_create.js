@@ -252,7 +252,7 @@
     }).join('') + '</div>';
     (document.getElementById('adcTpls') || form.querySelector('section')).insertAdjacentElement('beforebegin', dc);
     dc.addEventListener('click', function (e) {
-      var b = e.target.closest('[data-del]'); if (!b || !confirm(P.delQ)) return;
+      var b = e.target.closest('[data-del]'); if (!b || !(window.fxRe ? fxRe : confirm)(P.delQ)) return;
       var f = document.createElement('form'); f.method = 'post'; f.hidden = true; f.innerHTML = '<input name="_csrf"><input name="action" value="draft_delete"><input name="draft_id">';
       f.elements._csrf.value = X.csrf; f.elements.draft_id.value = b.dataset.del; document.body.appendChild(f); f.submit();
     });

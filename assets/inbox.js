@@ -107,7 +107,7 @@
   function bulk(op, keys, btn) {
     if (!keys.length) { toast(X.pickFirst, true); return; }
     // التحليل بيستهلك رصيد: تأكيد بعدد المحادثات قبل ما يبدأ
-    if (op === 'classify' && keys.length > 1 && !confirm(X.confirmAi.replace('%s', keys.length))) return;
+    if (op === 'classify' && keys.length > 1 && !(window.fxRe ? fxRe : confirm)(X.confirmAi.replace('%s', keys.length))) return;
     btn.disabled = true; btn.classList.add('animate-pulse');
     post({ action: 'bulk', op: op, items: keys }).then(function (d) {
       if (d.error) { toast(d.error, true); return; }

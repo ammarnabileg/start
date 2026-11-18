@@ -58,7 +58,7 @@
   sv.addEventListener('click', function (e) {
     var box = e.target.closest('[data-s]'); if (!box) return; var id = +box.dataset.s, s = byS(id), fd = new FormData();
     if (e.target.closest('.fd-s-load')) { fillForm(s.filters); search(1); return; }
-    if (e.target.closest('.fd-s-del')) { if (!confirm(T.del)) return; fd.append('action', 'del_search'); fd.append('id', id); post(fd).then(function (r) { if (r.ok) { D.searches = r.searches; drawSaved(); } }); return; }
+    if (e.target.closest('.fd-s-del')) { if (!(window.fxRe ? fxRe : confirm)(T.del)) return; fd.append('action', 'del_search'); fd.append('id', id); post(fd).then(function (r) { if (r.ok) { D.searches = r.searches; drawSaved(); } }); return; }
     if (e.target.closest('.fd-s-run')) { fd.append('action', 'run_search'); fd.append('id', id); box.classList.add('animate-pulse'); post(fd).then(function (r) { box.classList.remove('animate-pulse'); if (!r.ok) return toast(r.error, 'error'); D.searches = r.searches; drawSaved(); }); return; }
     if (e.target.closest('.fd-s-new')) {
       fillForm(s.filters); fd.append('action', 'show_new'); fd.append('id', id);

@@ -162,7 +162,7 @@
     toast(T.linking);
     post({ action: 'from_link', url: u.trim() }).then(function (r) {
       if (!r.ok) return toast(r.error, 'error');
-      if (ta.value.trim() && !confirm(T.replaceQ)) return;
+      if (ta.value.trim() && !(window.fxRe ? fxRe : confirm)(T.replaceQ)) return;
       setText(r.text);
       if (r.lib && window.cpAddLib) { window.cpAddLib(r.lib); toast(T.imgAdded); }
     }); });
@@ -280,12 +280,12 @@
     if (x.dataset.tlang) { tlang = x.dataset.tlang; if (view === 'ind') tab = ''; return tplPane(tab || undefined); }
     if (x.dataset.use !== undefined) {
       var t = tplList(tab)[+x.dataset.use];
-      if (ta.value.trim() && !confirm(T.replaceQ)) return;
+      if (ta.value.trim() && !(window.fxRe ? fxRe : confirm)(T.replaceQ)) return;
       setText(t.b); hide();
       var m = /\[[^\]]+\]/.exec(ta.value); if (m) { ta.setSelectionRange(m.index, m.index + m[0].length); } // أول خانة تتملي بتبقى متعلّمة
       return;
     }
-    if (x.dataset.del !== undefined) { if (!confirm(T.delQ)) return; X.mine.splice(+x.dataset.del, 1); return saveTpl(T.deleted, '__mine'); }
+    if (x.dataset.del !== undefined) { if (!(window.fxRe ? fxRe : confirm)(T.delQ)) return; X.mine.splice(+x.dataset.del, 1); return saveTpl(T.deleted, '__mine'); }
     if (x.dataset.x === 'savetpl') {
       if (!ta.value.trim()) return toast(T.empty); var n = prompt(T.tplName); if (!n) return;
       X.mine = (X.mine || []).concat([{ n: n.slice(0, 40), b: ta.value.slice(0, 3000) }]).slice(-30);
@@ -296,7 +296,7 @@
       if (inPost(h)) ta.value = ta.value.replace(new RegExp('\\s?' + h.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?=\\s|$)', 'g'), '').replace(/\s+$/, '');
       else ta.value = ta.value.replace(/\s*$/, '') + (ta.value.trim() ? ' ' : '') + h;
       ta.dispatchEvent(new Event('input', { bubbles: true })); return tagsPane(); }
-    if (x.dataset.deltags !== undefined) { if (!confirm(T.delQ)) return; X.tags.splice(+x.dataset.deltags, 1); return saveTags(T.deleted); }
+    if (x.dataset.deltags !== undefined) { if (!(window.fxRe ? fxRe : confirm)(T.delQ)) return; X.tags.splice(+x.dataset.deltags, 1); return saveTags(T.deleted); }
     if (x.dataset.x === 'savetags') {
       var nm = document.getElementById('cpt-tn').value.trim(), tv = (document.getElementById('cpt-tv').value.match(/#[^\s#]+/g) || []).join(' ');
       if (!nm || !tv) return toast(T.tagNeed);

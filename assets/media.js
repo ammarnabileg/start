@@ -437,7 +437,7 @@
       else if (c.classList.contains('mx-upl')) $('.mx-file').click();
       else if (c.classList.contains('mx-ref')) load();
       else if (c.classList.contains('mx-share')) run('share');
-      else if (c.classList.contains('mx-ai')) { var un = current().filter(function (x) { return x.f && x.f.kind === 'image' && !x.f.ai; }).map(function (x) { return x.f.id; }); if (!un.length) toast(S.aiNone, 'ok'); else if (confirm(fmt(S.aiOrgQ, un.length))) aiTag(un); }
+      else if (c.classList.contains('mx-ai')) { var un = current().filter(function (x) { return x.f && x.f.kind === 'image' && !x.f.ai; }).map(function (x) { return x.f.id; }); if (!un.length) toast(S.aiNone, 'ok'); else if ((window.fxRe ? fxRe : confirm)(fmt(S.aiOrgQ, un.length))) aiTag(un); }
       else if (c.classList.contains('mx-help')) helpDialog();
       else if (c.classList.contains('mx-navt')) { var nv = $('.mx-nav'); ['hidden', 'absolute', 'z-30', 'inset-y-0', 'start-0', '!bg-white', 'shadow-2xl'].forEach(function (k) { nv.classList.toggle(k); }); }
       else if (c.classList.contains('mx-pn')) { st.pane = !st.pane; store.set('pane', st.pane); toolbar(); pane(); }
@@ -529,7 +529,7 @@
         d.querySelector('.ls').innerHTML = (j.shares || []).map(function (x) { return '<div class="rounded-xl border ' + (x.expired ? 'border-ink-200 opacity-60' : 'border-brand-200 bg-brand-50/50') + ' p-3"><div class="flex items-center gap-2"><input readonly class="flex-1 min-w-0 rounded-lg border border-ink-200 bg-white px-2 py-1 text-[11px]" dir="ltr" value="' + esc(x.url) + '"><button type="button" data-cp="' + esc(x.url) + '" class="btn-ghost !py-1 text-xs">' + esc(S.copy) + '</button><button type="button" data-rv="' + x.id + '" class="text-xs text-red-600 hover:underline">' + esc(S.revoke) + '</button></div>'
           + '<p class="text-[11px] text-ink-500 mt-1.5">' + esc([x.expired ? S.expired : x.exp ? fmt(S.until, when(x.exp)) : S.d0, x.dl ? S.allowDl : S.viewOnly, fmt(S.views, x.views)].join(' · ')) + '</p></div>'; }).join('') || '<p class="text-xs text-ink-400">' + esc(S.noLinks) + '</p>'; }); };
       d.querySelector('.mk').onclick = function () { post({ action: 'share_create', folder: folder, days: d.querySelector('.dy').value, dl: d.querySelector('.dl').checked ? 1 : '' }).then(function (j) { if (!j.ok) return toast(S.publicErr, 'err'); (navigator.clipboard ? navigator.clipboard.writeText(j.url) : Promise.reject()).then(function () { toast(S.linkCopied, 'ok'); }).catch(function () {}); list(); }); };
-      d.querySelector('.ls').onclick = function (e) { var cp = e.target.closest('[data-cp]'), rv = e.target.closest('[data-rv]'); if (cp) (navigator.clipboard ? navigator.clipboard.writeText(cp.dataset.cp) : Promise.reject()).then(function () { toast(S.copied, 'ok'); }).catch(function () {}); if (rv && confirm(S.revokeQ)) post({ action: 'share_revoke', sid: rv.dataset.rv }).then(list); };
+      d.querySelector('.ls').onclick = function (e) { var cp = e.target.closest('[data-cp]'), rv = e.target.closest('[data-rv]'); if (cp) (navigator.clipboard ? navigator.clipboard.writeText(cp.dataset.cp) : Promise.reject()).then(function () { toast(S.copied, 'ok'); }).catch(function () {}); if (rv && (window.fxRe ? fxRe : confirm)(S.revokeQ)) post({ action: 'share_revoke', sid: rv.dataset.rv }).then(list); };
       list();
     }
     // محرر الصور: تدوير/قلب/سطوع/تباين/تشبع/مقاس/جودة — بيحفظ نسخة جديدة

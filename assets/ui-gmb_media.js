@@ -98,7 +98,7 @@
     return fetch(X.post, { method: 'POST', body: fd, credentials: 'same-origin' }).then(function (r) { return r.json(); });
   }
   function del() {
-    var i = view[cur]; if (!i || !confirm(S.confirmDel)) return;
+    var i = view[cur]; if (!i || !(window.fxRe ? fxRe : confirm)(S.confirmDel)) return;
     var fd = new FormData(); fd.append('action', 'delete'); fd.append('media_id', i.id);
     post(fd).then(function (r) {
       if (!r.ok) return toast(r.error || S.failed);

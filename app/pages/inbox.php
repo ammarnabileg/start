@@ -99,7 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
             $res = $z->conversations(array_filter(['limit' => 100, 'cursor' => $cursorC, 'profileId' => zernio_profile(), 'status' => 'active']));
             foreach ($res['data'] ?? [] as $c) $rows[(string)$c['id']] = $c;
             $cursorC = $res['pagination']['nextCursor'] ?? null; $pages++;
-        } while ($mode === 'all' && $cursorC && $pages < 10);
+        } while ($cursorC && $pages < 10 && ($mode === 'all' || count(array_intersect_key($rows, $items)) < count($items)));
         if ($mode !== 'all') $rows = array_intersect_key($rows, $items);
         $rows = array_combine(array_map('strval', array_keys($rows)), array_values($rows)) ?: [];
         $labels = $skipBad ? ai_labels($wid) : [];
