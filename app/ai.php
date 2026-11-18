@@ -233,6 +233,34 @@ function ai_text_lang(string $t): string
     return $ar >= $la ? 'Arabic' : ($la >= 2 * $ar ? 'English' : '');
 }
 
+/** قواعد الكتابة البشرية (Humanizer): بتتضاف لكل مهمة بتكتب نص للناس، عشان الكلام مايبانش مكتوب بالذكاء الاصطناعي */
+function ai_humanize_rules(): string
+{
+    return "WRITING STYLE (apply to every piece of prose you write, in any language; never change a required output format, JSON keys or field structure):\n"
+        . "- State points directly. No 'not X but Y' / 'ليس فقط... بل' / 'لا يتعلق الأمر بـ... بل' contrasts unless correcting a belief the reader actually holds.\n"
+        . "- No one-line closers that repeat the point ('That is the real win.', 'وهذا هو الفرق.'), no dramatic fragments, no ALL CAPS emphasis.\n"
+        . "- No staged openers or run-ups: 'Let's dive in', 'Here's the thing', 'Honestly?', 'في عالم اليوم', 'هل تعلم؟', 'دعنا نستكشف'. Start with the point.\n"
+        . "- No deep-sounding sayings ('at its core', 'the real question', 'في جوهره', 'الحقيقة أن') and no arguing with objections nobody raised.\n"
+        . "- Do not force lists of three. Use as many items as the facts have. Vary sentence openings and length.\n"
+        . "- Do not use em dashes (—) or en dashes (–) as connectors; use a period, comma, colon or parentheses.\n"
+        . "- No inflated or sales words: pivotal, crucial, robust, seamless, elevate, unlock, testament, landscape, vibrant, nestled, breathtaking, 'رحلة', 'شغف', 'استثنائي', 'لا مثيل له', 'نقلة نوعية', 'يأخذك إلى آفاق'. Say what the thing is and what it does.\n"
+        . "- No significance padding ('marks a pivotal moment', 'reflects a broader trend', 'the future looks bright', 'يمثل علامة فارقة'). End on the last concrete fact.\n"
+        . "- Prefer simple verbs (is, has / هو، لديه) over 'serves as', 'boasts', 'يُعد بمثابة', 'يتميز بكونه'.\n"
+        . "- No chatbot residue: 'Certainly!', 'Great question!', 'I hope this helps', 'Let me know if...', 'بالتأكيد!', 'سؤال رائع!', 'أتمنى أن يكون مفيدًا', 'لا تتردد في التواصل'.\n"
+        . "- No decorative bold, no emoji on every line, no bold label + colon on every list item. At most one or two emoji in social posts, none in formal text.\n"
+        . "- Never add a fact, number, name, price, date, quote or claim that is not in the provided context. If a detail is missing, write a simpler sentence instead of guessing.\n"
+        . "- Sound like a specific person from this company talking to one customer, not like a template written for everyone.";
+}
+function ai_with_style(array $messages, string $task): array
+{
+    if (!in_array($task, ['assistant', 'compose', 'reply', 'reply_fast', 'analyze', 'ads_copy', 'ads_builder', 'ads_advisor', 'reviews'], true)) return $messages;
+    if (setting('ai_humanize_' . (int)ws('id'), '1') !== '1') return $messages;
+    $r = ai_humanize_rules();
+    foreach ($messages as $i => $m) if (($m['role'] ?? '') === 'system' && is_string($m['content'] ?? null)) { $messages[$i]['content'] .= "\n\n" . $r; return $messages; }
+    array_unshift($messages, ['role' => 'system', 'content' => $r]);
+    return $messages;
+}
+
 function ai_with_kb(array $messages, string $task): array
 {
     // آخر رسالة من المستخدم = اللي بندور على أجزاء الملفات المناسبة ليها
@@ -506,7 +534,7 @@ function ai_chat(array $messages, int $maxTokens = 900, string $task = 'assistan
     if ($budget > 0 && ai_month_spend($wid) >= $budget) {
         throw new AiException(t('وصلت الشركة لحد استهلاك الذكاء الاصطناعي هذا الشهر ($%s). صاحب الشركة يقدر يرفعه من صفحة التكاملات.', number_format($budget, 2)));
     }
-    $messages = ai_with_kb($messages, $task);
+    $messages = ai_with_style(ai_with_kb($messages, $task), $task);
     $conns = ai_task_chain($task);
     if (!$conns) throw new AiException(t('اربط مزود ذكاء اصطناعي الأول من صفحة التكاملات (OpenRouter أو Anthropic أو OpenAI أو Gemini).'));
     $errors = [];

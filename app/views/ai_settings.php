@@ -53,6 +53,11 @@ function ai_settings_post(string $action): void
         flash('success', $on ? t('تم التفعيل. يعمل مع التشغيل الدوري للمنصة.') : t('تم الإيقاف.'));
         redirect(url('assistant', ['tab' => $_POST['back'] ?? 'models']));
     }
+    if ($action === 'ai_humanize') {
+        if (!is_ws_owner()) { flash('error', t('هذا الإعداد متاح لمالك الشركة فقط.')); redirect(url('assistant', ['tab' => $_POST['back'] ?? 'models'])); }
+        save_setting('ai_humanize_' . $wid, !empty($_POST['on']) ? '1' : '0'); flash('success', !empty($_POST['on']) ? t('تم التفعيل: كل ما يكتبه الذكاء الاصطناعي يتبع قواعد الكتابة البشرية.') : t('تم الإيقاف.'));
+        redirect(url('assistant', ['tab' => $_POST['back'] ?? 'models']));
+    }
     if (in_array($action, ['ai_budget', 'ai_kb'], true)) {
         if (!is_ws_owner()) { flash('error', t('هذا الإعداد متاح لمالك الشركة فقط.')); redirect(url('assistant', ['tab' => $_POST['back'] ?? 'models'])); }
         if ($action === 'ai_budget') {
@@ -134,6 +139,13 @@ function ai_settings_render(string $tab): void
               <?= csrf_field() ?><input type="hidden" name="provider" value="openrouter"><input type="hidden" name="back" value="<?= e($tab) ?>"><input type="hidden" name="action" value="ai_budget">
               <label class="block flex-1"><span class="label"><?= e(t('حد الاستهلاك الشهري ($)')) ?></span><input name="budget" type="number" min="0" step="0.01" dir="ltr" class="input" value="<?= $budget > 0 ? e((string)$budget) : '' ?>" placeholder="<?= e(t('بدون حد')) ?>" <?= $owner ? '' : 'disabled' ?>></label>
               <button class="btn-ghost" <?= $owner ? '' : 'disabled' ?>><?= e(t('حفظ')) ?></button>
+            </form>
+            <?php $hum = setting('ai_humanize_' . (int)ws('id'), '1') === '1'; ?>
+            <form method="post" class="mt-4 pt-4 border-t border-ink-100 flex items-start gap-3">
+              <?= csrf_field() ?><input type="hidden" name="action" value="ai_humanize"><input type="hidden" name="back" value="<?= e($tab) ?>"><input type="hidden" name="on" value="<?= $hum ? '' : '1' ?>">
+              <div class="flex-1"><b class="text-sm text-ink-900"><?= e(t('كتابة بشرية (Humanizer)')) ?></b> <span class="badge <?= $hum ? 'badge-green' : '' ?>"><?= e($hum ? t('مفعّل') : t('متوقف')) ?></span>
+                <p class="text-xs text-ink-500 mt-1"><?= e(t('قواعد تُضاف لكل ما يكتبه الذكاء الاصطناعي (المنشورات، والردود، والإعلانات، والتقارير، والتقييمات): بلا مبالغات، ولا عبارات قوالب مثل «في عالم اليوم» و«لا تتردد في التواصل»، ولا تضخيم، ولا معلومات غير موجودة في ملف الشركة.')) ?></p></div>
+              <button class="btn-ghost" <?= $owner ? '' : 'disabled' ?>><?= e($hum ? t('إيقاف') : t('تفعيل')) ?></button>
             </form>
             <?php if ($byTask): ?>
             <div class="mt-4 pt-4 border-t border-ink-100 space-y-2">
