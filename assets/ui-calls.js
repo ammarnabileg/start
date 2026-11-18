@@ -84,6 +84,8 @@
           + (t ? '' : '<div class="w-full h-0.5 bg-ink-100 rounded"></div>') + '</div>';
       }).join('') + '</div>'
       + '<div class="flex gap-1.5 mt-1 text-[10px] text-ink-400" dir="ltr">' + days.map(function (x, i) { return '<span class="flex-1 text-center">' + (i % 2 ? '' : x.d.getDate()) + '</span>'; }).join('') + '</div>';
-    ch.addEventListener('click', function (e) { var b = e.target.closest('[data-day]'); if (!b) return; dayF = dayF === b.dataset.day ? '' : b.dataset.day; $$('.cl-bar', ch).forEach(function (x) { x.style.opacity = !dayF || x.dataset.day === dayF ? '' : '.35'; }); apply(); });
+    ch.addEventListener('click', function (e) { var b = e.target.closest('[data-day]'); if (!b) return; dayF = dayF === b.dataset.day ? '' : b.dataset.day; paintDay(); apply(); });
+    function paintDay() { $$('.cl-bar', ch).forEach(function (x) { x.style.opacity = !dayF || x.dataset.day === dayF ? '' : '.35'; }); var pl = $('#cl-dayf'); if (!dayF) { if (pl) pl.remove(); return; } if (!pl) { pl = document.createElement('button'); pl.type = 'button'; pl.id = 'cl-dayf'; pl.className = 'rounded-full px-3 py-1 bg-amber-100 text-amber-900 text-xs inline-flex items-center gap-1'; pl.onclick = function () { dayF = ''; paintDay(); apply(); }; chips && chips.appendChild(pl); } pl.textContent = dayF.slice(5).split('-').reverse().join('/') + ' ×'; }
+    if (chips) chips.addEventListener('click', function (e) { var b = e.target.closest('[data-f]'); if (b && b.dataset.f === '' && dayF) { dayF = ''; paintDay(); apply(); } });
   }
 })();

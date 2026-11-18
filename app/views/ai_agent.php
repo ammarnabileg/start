@@ -132,6 +132,7 @@ function ai_agent_ajax(string $a): void
     }
     if ($a === 'agent_rate') {
         $id = (string)($_POST['id'] ?? ''); $v = (string)($_POST['v'] ?? ''); $fix = mb_substr(trim((string)($_POST['fix'] ?? '')), 0, 1000);
+        if ($id === '') $J(['ok' => false, 'error' => t('طلب غير صحيح.')], 400);
         $l = ai_agent_log($wid); $row = null;
         foreach ($l as &$x) if (($x['id'] ?? '') === $id) { $x['rate'] = $v === 'up' ? 'up' : 'down'; if ($fix !== '') $x['fix'] = $fix; $row = $x; } unset($x);
         if (!$row) $J(['ok' => false, 'error' => t('غير موجود.')]);

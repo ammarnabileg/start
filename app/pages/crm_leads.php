@@ -132,6 +132,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ((int)$prefs['daily_limit'] - crm_reveals_today($uid) <= 0) { $err = t('خلصت حد الكشف بتاعك النهارده (%s). بيتجدد بكرة.', (int)$prefs['daily_limit']); break; }
                     crm_enrich_lead($l, $prefs);
                 } elseif ($op === 'seq') {
+                    if (!preg_match('/^[\w-]{1,64}$/', (string)($_POST['seq'] ?? '')) || !preg_match('/^[\w-]{1,64}$/', (string)($_POST['acc'] ?? ''))) { $err = t('بيانات ناقصة'); break; }
                     if (empty($l['email']) || !empty($l['unsub'])) { $skip++; continue; }
                     crm_add_to_sequence($l, (string)($_POST['seq'] ?? ''), (string)($_POST['acc'] ?? ''), mb_substr((string)($_POST['seq_name'] ?? ''), 0, 120));
                 } else { $skip++; continue; }

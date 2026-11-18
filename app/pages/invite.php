@@ -63,7 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         flash('success', t('أهلاً بيك في %s.', $inv['ws_name']));
         redirect(url('dashboard'));
     }
-    if ($status === 'pending') {
+    if ($status === 'pending' && !empty($inv['email'])) {
         $pdo->prepare("DELETE FROM workspace_users WHERE workspace_id = ? AND user_id = ?")->execute([$inv['workspace_id'], $me['id']]);
     }
     if (!empty($inv['email']) && !empty($inv['id'])) $pdo->prepare('DELETE FROM workspace_invites WHERE id = ?')->execute([(int)$inv['id']]); // دعوة باسمه: رفضها تتلغي

@@ -40,13 +40,13 @@ if ($aj !== '' && ($z || $fx0)) {
         }
         if ($aj === 'lead') {
             $ph = ph_e164((string)($_GET['phone'] ?? '')); if ($ph === '') $cj(['ok' => true, 'lead' => null]);
-            $st = db()->prepare('SELECT id, name, company, stage FROM crm_leads WHERE workspace_id = ? AND phone = ? LIMIT 1'); $st->execute([(int)ws('id'), $ph]); $r = $st->fetch();
+            $st = db()->prepare('SELECT id, name, company, stage FROM crm_leads WHERE workspace_id = ? AND phone = ?' . ((can('crm.manage') || is_ws_owner()) ? '' : ' AND (owner_id IS NULL OR owner_id = ' . (int)(current_user()['id'] ?? 0) . ')') . ' LIMIT 1'); $st->execute([(int)ws('id'), $ph]); $r = $st->fetch();
             $cj(['ok' => true, 'lead' => $r ? ['id' => (int)$r['id'], 'name' => (string)$r['name'], 'co' => (string)$r['company'], 'url' => url('prospects', ['lead' => (int)$r['id']])] : null]);
         }
         if ($aj === 'latest') {
-            $to = ph_e164((string)($_GET['to'] ?? '')); $since = (string)($_GET['since'] ?? '');
-            $list = $fx0 ? [] : (ph_calls($z, ['direction' => 'outbound', 'limit' => 10])['calls'] ?? []);
-            foreach ($list as $c) if (ph_e164((string)($c['to'] ?? '')) === $to && (string)($c['startedAt'] ?? $c['createdAt'] ?? '') >= $since) $cj(['ok' => true, 'call' => ['id' => (string)($c['_id'] ?? ''), 'status' => (string)($c['status'] ?? ''), 'end' => (string)($c['endReason'] ?? ''), 'dur' => (int)($c['durationSeconds'] ?? 0)]]);
+            $to = ph_e164((string)($_GET['to'] ?? '')); $from = ph_e164((string)($_GET['from'] ?? '')); $since = strtotime((string)($_GET['since'] ?? '')) ?: 0;
+            $list = $fx0 ? [] : (ph_calls($z, ['direction' => 'outbound', 'limit' => 50])['calls'] ?? []);
+            foreach ($list as $c) if (ph_e164((string)($c['to'] ?? '')) === $to && ($from === '' || ph_e164((string)($c['from'] ?? '')) === $from) && (strtotime((string)($c['startedAt'] ?? $c['createdAt'] ?? '')) ?: 0) >= $since - 5) $cj(['ok' => true, 'call' => ['id' => (string)($c['_id'] ?? ''), 'status' => (string)($c['status'] ?? ''), 'end' => (string)($c['endReason'] ?? ''), 'dur' => (int)($c['durationSeconds'] ?? 0)]]);
             $cj(['ok' => true, 'call' => null]);
         }
     } catch (ZernioException $ex) { $cj(['ok' => false, 'error' => $ex->getMessage()]); }
@@ -66,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'call_
         log_activity('call.place', $from . ' -> ' . $to);
         $st = db()->prepare('SELECT id FROM crm_leads WHERE workspace_id = ? AND phone = ? LIMIT 1'); $st->execute([(int)ws('id'), $to]); $lid = (int)$st->fetchColumn();
         if ($lid) crm_act_add($lid, 'call', t('مكالمة من رقم الشركة %s', $from));
-        $cj(['ok' => true, 'at' => gmdate('Y-m-d\TH:i:s'), 'lead' => $lid]);
+        $cj(['ok' => true, 'at' => gmdate('Y-m-d\TH:i:s\Z'), 'lead' => $lid]);
     } catch (ZernioException $ex) { $cj(['ok' => false, 'error' => $ex->getMessage()]); }
 }
 

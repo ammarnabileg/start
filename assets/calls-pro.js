@@ -138,7 +138,7 @@
       LS.s('cx_fwd', norm(inFwd.value));
       post({ action: 'call_json', to: norm(inTo.value), from: from, forward: norm(inFwd.value), greeting: $('.cq-gr', p).value, confirm: '1' }).then(function (j) {
         if (!j.ok) { go.disabled = false; $('span', go).textContent = T.callNow; toast(j.error || T.err, 'error'); return; }
-        live(norm(inTo.value), norm(inFwd.value), j.at, lead);
+        live(norm(inTo.value), norm(inFwd.value), j.at, lead, from);
       }).catch(function () { go.disabled = false; $('span', go).textContent = T.callNow; toast(T.err, 'error'); });
     };
     paintFrom(); state(); if (to) { est(); findLead(); }
@@ -146,7 +146,7 @@
   }
 
   /* ===== بعد الطلب: متابعة حية ===== */
-  function live(to, fwd, at, lead) {
+  function live(to, fwd, at, lead, from) {
     var p = open(head(T.liveTitle, '<span dir="ltr">' + esc(to) + '</span>') +
       '<div class="flex-1 overflow-y-auto px-5 py-8 text-center">' +
       '<div class="relative mx-auto w-28 h-28"><span class="absolute inset-0 rounded-full bg-lime-400/30 animate-ping"></span><span class="relative w-28 h-28 rounded-full bg-lime-600 text-white grid place-items-center">' + ic.ph.replace('w-5 h-5', 'w-10 h-10') + '</span></div>' +
@@ -162,7 +162,7 @@
     function step(i) { $$('.cq-steps li', p).forEach(function (li) { var k = +li.dataset.i, d = $('.cq-dot', li); d.className = 'cq-dot mt-0.5 w-6 h-6 shrink-0 rounded-full grid place-items-center text-xs font-bold ' + (k < i ? 'bg-lime-100 text-lime-700' : k === i ? 'bg-lime-600 text-white' : 'bg-ink-100 text-ink-500'); if (k < i) d.textContent = '✓'; li.lastChild.className = k <= i ? 'text-ink-900 font-medium' : 'text-ink-500'; }); }
     function tick() {
       if (++n > 30 || !p.isConnected) { clearInterval(tm); return; }
-      get('ajax=latest&to=' + encodeURIComponent(to) + '&since=' + encodeURIComponent(at)).then(function (j) {
+      get('ajax=latest&to=' + encodeURIComponent(to) + '&from=' + encodeURIComponent(from || '') + '&since=' + encodeURIComponent(at)).then(function (j) {
         var c = j.call; if (!c) return; var ls = $('.cq-ls', p);
         if (c.status === 'completed' || c.end) { clearInterval(tm); step(3); ls.textContent = c.dur ? f(T.lsEnded, Math.floor(c.dur / 60) + ':' + ('0' + c.dur % 60).slice(-2)) : T.lsNoAns; $('.animate-ping', p) && $('.animate-ping', p).remove(); }
         else if (c.status === 'in_progress' || c.status === 'answered') { step(2); ls.textContent = T.lsTalking; }

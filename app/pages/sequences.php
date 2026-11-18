@@ -208,7 +208,7 @@ render(t('السلاسل التلقائية'), 'sequences', function () use ($z,
                     <span class="text-[11px] text-ink-500 ms-1"><?= e(!empty($en['nextStepAt']) && $es === 'active' ? t('الجاية: %s', fmt_date($en['nextStepAt'], 'd/m h:i A')) : t('اتبعت %s خطوة', $sent)) ?></span></div>
                 </div>
                 <?php if ($es === 'active' || $es === 'paused'): ?>
-                <form method="post" data-confirm="<?= e(t('شيل جهة الاتصال دي من السلسلة؟')) ?>"><?= csrf_field() ?><input type="hidden" name="action" value="unenroll"><input type="hidden" name="id" value="<?= e($id) ?>"><input type="hidden" name="contact" value="<?= e($en['contactId'] ?? '') ?>"><button class="w-8 h-8 rounded-lg text-ink-400 hover:bg-red-50 hover:text-red-600" title="<?= e(t('شيله')) ?>">✕</button></form>
+                <form method="post" data-confirm="<?= e(t('هل تريد إزالة جهة الاتصال هذه من السلسلة؟')) ?>"><?= csrf_field() ?><input type="hidden" name="action" value="unenroll"><input type="hidden" name="id" value="<?= e($id) ?>"><input type="hidden" name="contact" value="<?= e($en['contactId'] ?? '') ?>"><button class="btn-danger-ghost !py-1 !px-2.5 !text-xs"><?= e(t('إزالة')) ?></button></form>
                 <?php endif; ?>
               </div>
             <?php endforeach; ?>
