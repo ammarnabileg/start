@@ -121,7 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 if ($op === 'stage' && isset($stages[$_POST['stage'] ?? ''])) {
                     $s = $_POST['stage'];
-                    if ($s === 'lost') crm_set_lost_reason($id, (string)($_POST['lost_reason'] ?? ''));
+                    if ($s === 'lost' && $l['stage'] !== 'lost') crm_set_lost_reason($id, (string)($_POST['lost_reason'] ?? ''));
                     if ($s !== $l['stage']) { db()->prepare('UPDATE crm_leads SET stage = ? WHERE id = ?')->execute([$s, $id]); crm_act_add($id, 'stage', $stages[$l['stage']] . (is_rtl() ? ' ← ' : ' → ') . $stages[$s]); crm_push_ad_stage(crm_lead($id)); }
                 } elseif ($op === 'owner' && $canManage) {
                     $o = (int)($_POST['owner'] ?? 0); db()->prepare('UPDATE crm_leads SET owner_id = ? WHERE id = ?')->execute([in_array($o, $memberIds, true) ? $o : null, $id]);
@@ -261,7 +261,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!isset($stages[$s])) $json(['ok' => false, 'error' => t('بيانات ناقصة')]);
         db()->prepare('UPDATE crm_leads SET stage = ? WHERE id = ?')->execute([$s, (int)$l['id']]);
         if ($s !== $l['stage']) crm_act_add((int)$l['id'], 'stage', $stages[$l['stage']] . (is_rtl() ? ' ← ' : ' → ') . $stages[$s]);
-        if ($s === 'lost') crm_set_lost_reason((int)$l['id'], (string)($_POST['lost_reason'] ?? ''));
+        if ($s === 'lost' && $l['stage'] !== 'lost') crm_set_lost_reason((int)$l['id'], (string)($_POST['lost_reason'] ?? ''));
         log_activity('crm.stage', $l['id'] . ' ' . $s);
         $nl = crm_lead((int)$l['id']);
         crm_push_ad_stage($nl);

@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if (in_array($a, ['kw_add', 'kw_off', 'kw_on', 'kw_del', 'cfg'], true)) {
         if (!$mgr) $J(['ok' => false, 'error' => t('مالكش صلاحية.')], 403);
-        $c = tnd_cfg(); $w = mb_substr(trim((string)($_POST['w'] ?? '')), 0, 40); $k = tnd_norm($w);
+        $c = tnd_cfg(); $w = mb_substr(trim((string)($_POST['w'] ?? '')), 0, $a === 'kw_add' ? 40 : 255); $k = tnd_norm($w);
         $drop = function (array $l) use ($k) { return array_values(array_filter($l, function ($x) use ($k) { return tnd_norm($x) !== $k; })); };
         if ($a === 'kw_add' && mb_strlen($k) < 2) $J(['ok' => false, 'error' => t('الكلمة قصيرة جدًا.')]);
         if ($a === 'kw_add' && count($c['add']) >= 60) $J(['ok' => false, 'error' => t('وصلت للحد الأقصى (60 كلمة).')]);

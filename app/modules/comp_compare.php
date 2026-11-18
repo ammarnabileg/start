@@ -133,8 +133,10 @@ function cmp_digest_tick(bool $force = false): bool
 {
     $wid = (int)ws('id'); $R = cmp_rules($wid); if (!$force && !$R['digest']['on']) return false;
     $k = 'cmp_digest_at_' . $wid; if (!$force && (int)setting($k, '0') > time() - 7 * 86400 + 3600) return false;
-    $html = cmp_digest_html(); save_setting($k, (string)time()); if ($html === '') return false;
-    $n = 0; foreach (cmp_recipients() as $to) { try { send_mail($to, t('ملخص المنافسين الأسبوعي'), $html, null, $wid); $n++; } catch (Throwable $e) {} }
+    if ($force && (int)setting('cmp_digest_manual_' . $wid, '0') > time() - 600) return false; // إرسال يدوي: مرة كل 10 دقايق
+    $html = cmp_digest_html(); if ($html === '') return false;
+    $n = 0; foreach (cmp_recipients() as $to) { try { if (send_mail($to, t('ملخص المنافسين الأسبوعي'), $html, null, $wid) !== false) $n++; } catch (Throwable $e) {} }
+    if ($n) { save_setting($k, (string)time()); if ($force) save_setting('cmp_digest_manual_' . $wid, (string)time()); }
     return $n > 0;
 }
 

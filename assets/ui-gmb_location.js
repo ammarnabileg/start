@@ -311,7 +311,7 @@
     frm.addEventListener('submit', function (e) {
       var p = picked(); if (!p.length) return;
       var names = p.map(function (i) { return '• ' + $$('span span', i.closest('label')).map(function (s) { return s.textContent.trim(); }).join(' — '); }).join('\n');
-      if (!confirm(f(S.confirmN, p.length) + '\n' + names + '\n\n' + S.confirmEnd)) { e.preventDefault(); e.stopImmediatePropagation(); submitting = false; }
+      var q = f(S.confirmN, p.length) + '\n' + names + '\n\n' + S.confirmEnd; if (!(window.fxGate ? fxGate(e, q, { danger: false }) : confirm(q))) { e.preventDefault(); e.stopImmediatePropagation(); submitting = false; }
     }, true);
     paint();
   });

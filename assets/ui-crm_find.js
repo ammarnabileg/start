@@ -93,7 +93,7 @@
   document.getElementById('fd-all').addEventListener('change', function () { var on = this.checked; list.querySelectorAll('.fd-c').forEach(function (c) { c.checked = on; }); count(); });
   if (rv) rv.addEventListener('click', function () {
     var pick = Array.prototype.map.call(list.querySelectorAll('.fd-c:checked'), function (c) { return people[+c.dataset.i]; });
-    if (!pick.length || !confirm(T.confirm.replace('%s', pick.length))) return;
+    if (!pick.length || !(window.fxRe ? fxRe : confirm)(T.confirm.replace('%s', pick.length), { danger: false })) return;
     rv.disabled = true; rv.textContent = T.revealing;
     var fd = new FormData(); fd.append('action', 'reveal'); var ln = document.getElementById('fd-list-name'); fd.append('list', ln ? ln.value.trim() : ''); fd.append('people', JSON.stringify(pick.map(function (p) { return { id: p.id, company: p.company, country: p.country }; })));
     post(fd).then(function (r) {

@@ -344,7 +344,7 @@
     if ((b = t.closest('[data-gfind]'))) { b.disabled = true; revLoad(openId, 'reviews_find').then(function (j) { if (j && j.ok) toast(T.gFinding); }); return; }
     if ((b = t.closest('[data-gsave]'))) { b.disabled = true; revLoad(openId, 'maps_save', { maps: root.querySelector('[data-gmaps]').value }).then(function (j) { if (j && j.ok) toast(j.bad ? f(T.gBadLinks, j.bad) : T.gStarted, j.bad ? 'error' : 'success'); }); return; }
     if ((b = t.closest('[data-wcheck]'))) { b.disabled = true; b.querySelector('span').textContent = T.checking; siteLoad(openId, 'site_check').then(function () { toast(T.sSaved); }); return; }
-    if ((b = t.closest('[data-wkwsave]'))) { b.disabled = true; var kwv = root.querySelector('[data-wkw]').value; siteLoad(openId, 'kw_save', { kw: kwv }).then(function (j) { b.disabled = false; if (j && j.ok) toast(j.started ? T.wRankStarted : T.sSaved); }); return; }
+    if ((b = t.closest('[data-wkwsave]'))) { b.disabled = true; var kwv = root.querySelector('[data-wkw]').value; siteLoad(openId, 'kw_save', { kw: kwv }).then(function (j) { b.disabled = false; if (j && j.ok) toast(j.msg || (j.started ? T.wRankStarted : T.sSaved)); }); return; }
     if ((b = t.closest('[data-arefresh]'))) { b.disabled = true; b.querySelector('span').textContent = T.sReading; adsLoad(openId, 'ads_refresh').then(function (j) { if (j && j.ok) toast(T.aStarted); }); return; }
     if (t.closest('[data-amore]')) { adF.more += 20; adsPaint(); return; }
     if ((b = t.closest('[data-srefresh]'))) { b.disabled = true; b.querySelector('span').textContent = T.sReading; socLoad(openId, 'social_refresh').then(function (j) { if (j && j.ok) toast(j.started ? f(T.sStarted, j.started) : T.sNoAcc); }); return; }

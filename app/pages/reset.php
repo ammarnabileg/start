@@ -22,6 +22,7 @@ if ($row && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->prepare('UPDATE users SET password_hash = ? WHERE id = ?')->execute([password_hash($p1, PASSWORD_DEFAULT), (int)$row['user_id']]);
             $pdo->prepare('DELETE FROM password_resets WHERE user_id = ? AND id <> ?')->execute([(int)$row['user_id'], (int)$row['id']]);
             $pdo->prepare("INSERT INTO activity_log (user_id, action) VALUES (?, 'auth.password_reset')")->execute([(int)$row['user_id']]);
+            try { $pdo->prepare('DELETE FROM login_attempts WHERE ip = ?')->execute([client_ip()]); } catch (Throwable $e) {} // الحظر المؤقت يتشال بعد إثبات ملكية الإيميل
             flash('success', t('تم تغيير كلمة السر. سجّل دخولك بالكلمة الجديدة.'));
             redirect(url('login'));
         }

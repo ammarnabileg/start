@@ -60,7 +60,7 @@
   form.addEventListener('change', paint);
   form.addEventListener('submit', function (e) {
     paint();
-    if (go.disabled || !confirm(X.fix ? S.confirmFix : S.confirm)) { e.preventDefault(); return; }
+    var q = X.fix ? S.confirmFix : S.confirm; if (go.disabled || !(window.fxGate ? fxGate(e, q, { danger: false }) : confirm(q))) { e.preventDefault(); return; }
     setTimeout(function () { go.disabled = true; go.textContent = S.sending; }, 0);
   });
   paint();

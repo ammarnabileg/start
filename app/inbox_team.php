@@ -56,6 +56,8 @@ function team_post(string $act): void
     $J = function (array $d, int $c = 200) { http_response_code($c); exit(json_encode($d, JSON_UNESCAPED_UNICODE)); };
     $wid = (int)ws('id');
     $conv = mb_substr(trim((string)($_POST['conv'] ?? '')), 0, 120);
+    if ($conv !== '' && !preg_match('/^[\w.:@-]{1,120}$/', $conv)) $J(['error' => t('طلب غير صحيح.')], 400);
+    if (strpos($act, 'team_') === 0 && !can('inbox.reply') && !can('comments.reply')) $J(['error' => t('مالكش صلاحية.')], 403);
     $uid = (int)(current_user()['id'] ?? 0);
     if ($act === 'team_assign' || $act === 'team_state') {
         if ($conv === '') $J(['error' => t('طلب غير صحيح.')], 400);

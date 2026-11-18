@@ -91,7 +91,7 @@ if (current_user() && !is_admin() && empty($_SESSION['impersonator']) && setting
 }
 
 // نفتكر لغة فريق الشركة عشان الإيميلات اللي بتطلع من التشغيل الدوري تبقى بنفس اللغة
-if (!empty($_COOKIE['lang']) && current_user() && ($cw = current_workspace())) { $lk = 'ws_lang_' . (int)$cw['id']; $lv = $_COOKIE['lang'] === 'ar' ? 'ar' : 'en'; if ((string)setting($lk, '') !== $lv) save_setting($lk, $lv); }
+if (!empty($_COOKIE['lang']) && current_user() && ($cw = current_workspace()) && (is_ws_owner() || can('settings'))) { $lk = 'ws_lang_' . (int)$cw['id']; $lv = $_COOKIE['lang'] === 'ar' ? 'ar' : 'en'; if ((string)setting($lk, '') !== $lv) save_setting($lk, $lv); }
 
 // الويبهوك جاي من موبايل/سيرفر بره ومحمي بتوكن وتوقيع، مش بـ CSRF
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $page !== 'smsgate_hook' && $page !== 'zernio_hook' && $page !== 'crm_hook' && $page !== 'lead_form' && $page !== 'crm_book' && $page !== 'lp') {

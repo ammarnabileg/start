@@ -181,7 +181,7 @@
     firstImage().then(function (src) {
       if (!src) return toast(T.noImg);
       btn.disabled = true; toast(T.capping);
-      post({ action: 'img_caption', image: src, note: ta.value.slice(0, 300) }).then(function (r) { btn.disabled = false; if (!r.ok) return toast(r.error, 'error'); if (ta.value.trim() && !confirm(T.replaceQ)) return; setText(r.text); }).catch(function () { btn.disabled = false; });
+      post({ action: 'img_caption', image: src, note: ta.value.slice(0, 300) }).then(function (r) { btn.disabled = false; if (!r.ok) return toast(r.error, 'error'); if (ta.value.trim() && window.fxOk) return fxOk(T.replaceQ, function () { setText(r.text); }, { danger: false }); if (ta.value.trim() && !confirm(T.replaceQ)) return; setText(r.text); }).catch(function () { btn.disabled = false; });
     });
   }
   /* ---------- #8 #9 هوية الصورة: لوجو + علامة مائية + إطار (في المتصفح، قبل الرفع) ---------- */

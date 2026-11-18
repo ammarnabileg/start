@@ -58,7 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         save_setting('comp_kw_' . $wid, json_encode(array_slice($kw, 0, 10), JSON_UNESCAPED_UNICODE));
         $started = false; if ($kw && cs_on()) { try { $started = cw_rank_start($wid); } catch (Throwable $e) {} }
         $c0 = comp_get((int)($_POST['id'] ?? 0)); header('Content-Type: application/json; charset=utf-8');
-        exit(json_encode(['ok' => true, 'started' => $started, 'r' => $c0 ? cw_report($c0) : null], JSON_UNESCAPED_UNICODE));
+        exit(json_encode(['ok' => true, 'started' => $started, 'dropped' => max(0, count($kw) - 10), 'msg' => count($kw) > 10 ? t('حُفظت أول 10 كلمات فقط (الحد الأقصى)، وتُركت %s.', count($kw) - 10) : '', 'r' => $c0 ? cw_report($c0) : null], JSON_UNESCAPED_UNICODE));
     }
     if ($a === 'add') {
         $name = mb_substr(trim((string)($_POST['name'] ?? '')), 0, 120);

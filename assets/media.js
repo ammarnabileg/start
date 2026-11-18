@@ -233,11 +233,6 @@
       d.querySelector('.nf').onclick = function () { var n = prompt(S.folderQ); if (!n || !n.trim()) return; var f = (chosen ? chosen + '/' : '') + n.trim().replace(/\//g, ''); post({ action: 'folder', name: f }).then(function (j) { if (j.ok) { all[j.folder] = 1; st.folders[j.folder] = st.folders[j.folder] || 0; chosen = j.folder; draw2(); } }); };
       d.querySelector('.cn').onclick = function () { d.close(); }; d.querySelector('.go').onclick = function () { d.close(); moveTo(ids, chosen); };
     }
-    function del_old(keys) {
-      var files = keys.filter(function (k) { return k[0] === 'f'; }).map(function (k) { return +k.slice(1); }), dirs = keys.filter(function (k) { return k[0] === 'd'; }).map(function (k) { return k.slice(1); });
-      if (!files.length && !dirs.length) return; if (!confirm(dirs.length ? fmt(S.delMixed, files.length, dirs.length) : fmt(S.delQ, files.length))) return;
-      Promise.all([files.length ? post({ action: 'delete', 'ids[]': files }) : null].concat(dirs.map(function (d) { return post({ action: 'folder_delete', folder: d }); }))).then(function () { st.sel = []; load(); });
-    }
     function moveTo(keys, folder) { var ids = keys.filter(function (k) { return k[0] === 'f'; }).map(function (k) { return +k.slice(1); }); if (!ids.length) return; post({ action: 'move', folder: folder, 'ids[]': ids }).then(function (j) { if (!j || j.ok === false) return; toast(S.moved, 'ok'); load(); }); }
     function newFolder() {
       if (!['folder', 'all'].includes(st.loc.t)) go({ t: 'all', f: '' });

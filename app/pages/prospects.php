@@ -403,7 +403,7 @@ render(t('العملاء المستهدفين'), 'prospects', function () use ($
     </dialog>
 
     <dialog id="pr-seq" class="mk-dlg !w-[min(480px,96vw)]">
-      <div class="mk-dlg-head"><b class="flex-1 text-ink-900"><?= e(t('ضيفهم لـ Sequence في Apollo')) ?></b><button type="button" data-close class="p-2 rounded-xl text-ink-400 hover:bg-ink-100"><?= ui_icon('x', 'w-5 h-5') ?></button></div>
+      <div class="mk-dlg-head"><b class="flex-1 text-ink-900"><?= e(t('أضفهم إلى تسلسل في Apollo')) ?></b><button type="button" data-close class="p-2 rounded-xl text-ink-400 hover:bg-ink-100"><?= ui_icon('x', 'w-5 h-5') ?></button></div>
       <div class="p-5 space-y-3 text-sm"><div id="pr-seq-l" class="space-y-1.5"></div><label class="block text-xs text-ink-600"><?= e(t('هيتبعت من')) ?><select id="pr-seq-acc" class="input !mt-1 text-sm"></select></label>
         <p class="text-[11px] text-ink-500"><?= e(t('اللي مالهوش إيميل هيتشال لوحده.')) ?></p><button type="button" id="pr-seq-go" class="btn-primary w-full" disabled><?= e(t('ضيفهم')) ?></button></div>
     </dialog>

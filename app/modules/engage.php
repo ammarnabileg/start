@@ -373,9 +373,9 @@ function crm_daily_digest(): int
         $html = '<div style="font-family:Tahoma,Arial,sans-serif;font-size:14px;line-height:1.8" dir="' . (is_rtl() ? 'rtl' : 'ltr') . '"><p>' . e(t('صباح الخير %s، ده شغلك النهارده:', preg_split('/\s+/u', (string)$m['name'])[0] ?? '')) . '</p>'
             . ($li ? '<b>' . e(t('متابعات العملاء (%s)', count($leads))) . '</b><ul>' . $li . '</ul>' : '') . ($ti ? '<b>' . e(t('مهام (%s)', count($tasks))) . '</b><ul>' . $ti . '</ul>' : '')
             . '<p><a href="' . e(base_url() . '/' . url('crm_leads') . '#due') . '" style="display:inline-block;background:#2557e0;color:#fff;padding:8px 16px;border-radius:8px;text-decoration:none">' . e(t('افتح شغل النهارده')) . '</a></p></div>';
-        try { send_mail((string)$m['email'], t('شغلك النهارده: %s متابعة و%s مهمة', count($leads), count($tasks)), $html, null, $wid); $n++; } catch (Throwable $e) {}
-    if ($n) save_setting('crm_digest_day_' . $wid, $day); // اليوم يتعلّم بس لو الإيميل وصل لحد
+        try { if (send_mail((string)$m['email'], t('شغلك النهارده: %s متابعة و%s مهمة', count($leads), count($tasks)), $html, null, $wid) !== false) $n++; } catch (Throwable $e) {}
     }
+    if ($n) save_setting('crm_digest_day_' . $wid, $day); // اليوم يتعلّم بس لو الإيميل وصل لحد
     return $n;
 }
 
