@@ -57,7 +57,7 @@ function team_post(string $act): void
     $wid = (int)ws('id');
     $conv = mb_substr(trim((string)($_POST['conv'] ?? '')), 0, 120);
     if ($conv !== '' && !preg_match('/^[\w.:@-]{1,120}$/', $conv)) $J(['error' => t('طلب غير صحيح.')], 400);
-    if (strpos($act, 'team_') === 0 && !can('inbox.reply') && !can('comments.reply')) $J(['error' => t('مالكش صلاحية.')], 403);
+    if ((strpos($act, 'team_') === 0 || strpos($act, 'reply_') === 0) && !can('inbox.reply') && !can('inbox.manage') && !can('comments.reply') && !is_ws_owner()) $J(['error' => t('ليست لديك صلاحية.')], 403);
     $uid = (int)(current_user()['id'] ?? 0);
     if ($act === 'team_assign' || $act === 'team_state') {
         if ($conv === '') $J(['error' => t('طلب غير صحيح.')], 400);

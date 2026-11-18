@@ -182,7 +182,8 @@ document.addEventListener('click', function (e) {
     .then(function (r) { return r.json(); })
     .then(function (d) {
       if (d.error) { aiToast(d.error); return; }
-      ta.value = d.text; ta.dispatchEvent(new Event('input', { bubbles: true })); ta.focus();
+      var prev = ta.value; ta.value = d.text; ta.dispatchEvent(new Event('input', { bubbles: true })); ta.focus();
+      if (prev.trim() && window.fxToast) { var tt = fxToast(document.documentElement.lang === 'en' ? 'Suggestion inserted. Your text was replaced.' : 'أُدرج الاقتراح مكان نصك.', 'success'); var ub = document.createElement('button'); ub.type = 'button'; ub.className = 'ms-2 underline font-bold'; ub.textContent = document.documentElement.lang === 'en' ? 'Undo' : 'تراجع'; ub.onclick = function () { ta.value = prev; ta.dispatchEvent(new Event('input', { bubbles: true })); ta.focus(); }; if (tt && tt.appendChild) tt.appendChild(ub); }
       ta.classList.add('ring-4', 'ring-brand-500/20'); setTimeout(function () { ta.classList.remove('ring-4', 'ring-brand-500/20'); }, 1200);
     })
     .catch(function () { var m = (window.T && T.liveFailed) || 'Error'; aiToast(m); })

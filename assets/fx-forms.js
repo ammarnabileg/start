@@ -15,7 +15,8 @@
     t.className = 'pointer-events-auto flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm shadow-xl fx-in ' + (ok ? 'bg-ink-900 text-ink-50' : 'bg-red-600 text-[#fff]');
     t.setAttribute('role', ok ? 'status' : 'alert');
     t.innerHTML = (window.uic ? uic(ok ? 'check' : 'alert', 'w-4 h-4') : '') + '<span>' + esc(msg) + '</span>';
-    stack.appendChild(t); setTimeout(function () { t.style.transition = 'opacity .3s, transform .3s'; t.style.opacity = '0'; t.style.transform = 'translateY(6px)'; setTimeout(function () { t.remove(); }, 320); }, ok ? 2600 : 6000);
+    stack.appendChild(t); setTimeout(function () { t.style.transition = 'opacity .3s, transform .3s'; t.style.opacity = '0'; t.style.transform = 'translateY(6px)'; setTimeout(function () { t.remove(); }, 320); }, ok ? 5000 : 6000);
+    return t;
   }
   window.fxToast = toast;
   var AR = (document.documentElement.lang || 'ar').indexOf('ar') === 0;

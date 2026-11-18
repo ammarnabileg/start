@@ -725,7 +725,7 @@ render($editId !== '' ? t('تعديل المنشور') : t('منشور جديد'
               items().forEach(function (x, i) { pop.children[i].querySelector('span').textContent = x[1]; });
               pop.classList.remove('hidden'); btn.setAttribute('aria-expanded', 'true'); });
             pop.addEventListener('click', function (e) { var b = e.target.closest('[data-mai]'); if (!b) return; close(); var k = b.dataset.mai;
-              if (k === 'pst') { var po = document.getElementById('pst-open'); if (po) po.click(); else if (confirm(<?= json_encode(t('تصميم الصور يحتاج ربط OpenRouter أو OpenAI من صفحة التكاملات. تفتحها الآن؟'), JSON_UNESCAPED_UNICODE) ?>)) location.href = <?= json_encode(url('connectors'), JSON_UNESCAPED_SLASHES) ?>; } else { var v = document.querySelector('#vis-box [data-vis="' + k.slice(4) + '"]'); if (v) v.click(); } });
+              if (k === 'pst') { var po = document.getElementById('pst-open'); if (po) po.click(); else if ((window.fxRe ? fxRe : confirm)(<?= json_encode(t('تصميم الصور يحتاج ربط OpenRouter أو OpenAI من صفحة التكاملات. تفتحها الآن؟'), JSON_UNESCAPED_UNICODE) ?>)) location.href = <?= json_encode(url('connectors'), JSON_UNESCAPED_SLASHES) ?>; } else { var v = document.querySelector('#vis-box [data-vis="' + k.slice(4) + '"]'); if (v) v.click(); } });
             document.addEventListener('click', function (e) { if (!e.target.closest('#mai')) close(); });
             window.cpFirstImage = firstImage;
           })();
