@@ -159,7 +159,7 @@
       var list = current(), fs = selFiles();
       var dirsN = list.filter(function (x) { return x.dir; }).length;
       $('.mx-sb').innerHTML = '<span>' + esc(fmt(S.nItems, dirsN + (st.total || 0))) + (st.all.length < (st.total || 0) ? ' <span class="text-ink-400">(' + esc(fmt(S.loadedN, st.all.length)) + ')</span>' : '') + '</span>' + (st.sel.length ? '<span>' + esc(fmt(S.selected, st.sel.length)) + (fs.length ? ' · ' + esc(size(fs.reduce(function (n, f) { return n + f.size; }, 0))) : '') + '</span>' : '') + (st.clip ? '<span class="text-brand-700">' + uic('scissors', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(fmt(S.cutN, st.clip.keys.length)) + '</span>' : '') + '<span class="ms-auto hidden lg:inline truncate">' + esc(S.kbdHint) + '</span>'
-        + (st.loc.t === 'trash' && (st.counts || {}).trash && M.canEdit ? '<button type="button" data-cmd="emptytrash" class="text-red-600 hover:underline">' + esc(S.emptyTrash) + '</button>' : '')
+        + (st.loc.t === 'trash' && (st.counts || {}).trash && M.canEdit && M.canPurge !== false ? '<button type="button" data-cmd="emptytrash" class="text-red-600 hover:underline">' + esc(S.emptyTrash) + '</button>' : '')
         + (st.view !== 'list' ? '<label class="flex items-center gap-1.5" title="' + esc(S.zoomT) + '">' + uic('search', 'w-4 h-4') + '<input type="range" class="mx-zoom w-20 accent-brand-600" min="0.7" max="2" step="0.05" value="' + (st.zoom || 1) + '"></label>' : '');
     }
     function foot() {
@@ -374,7 +374,7 @@
       if (it) {
         if (st.sel.indexOf(it.dataset.k) < 0) { st.sel = [it.dataset.k]; refreshSel(); }
         var fs = selFiles(), one = fs.length === 1 && st.sel.length === 1 ? fs[0] : null, isDir = st.sel.length === 1 && st.sel[0][0] === 'd';
-        if (st.loc.t === 'trash') return showMenu(e.clientX, e.clientY, [['restore', S.restore], '-', ['purge', S.purge, 'Del', true]]);
+        if (st.loc.t === 'trash') return showMenu(e.clientX, e.clientY, M.canPurge === false ? [['restore', S.restore]] : [['restore', S.restore], '-', ['purge', S.purge, 'Del', true]]);
         showMenu(e.clientX, e.clientY, [['open', opt.picker && !isDir ? S.choose : S.open, 'Enter'], '-'].concat(one && one.kind === 'image' && M.canEdit ? [['crop', '✂ ' + S.crop]] : []).concat(one && one.kind === 'image' && M.canEdit ? [['edit', '🎨 ' + S.edit]] : []).concat(M.canAi && M.canEdit && fs.some(function (f) { return f.kind === 'image'; }) ? [['ai', '✦ ' + S.aiTag]] : []).concat(isDir && M.canEdit && !opt.picker ? [['share', '🔗 ' + S.shareT]] : []).concat(one && (one.kind === 'image' || one.kind === 'video') ? [['link', S.copyLink]] : []).concat(one ? [['dl', S.download]] : []).concat(fs.length > 1 ? [['zip', fmt(S.zipN, fs.length)]] : []).concat(fs.length && M.canEdit && !opt.picker ? [['star', fs.every(function (f) { return f.star; }) ? S.unstar : S.star]] : [])
           .concat(M.canEdit ? ['-', ['rename', S.rename, 'F2', false, st.sel.length !== 1], ['cut', S.cut, 'Ctrl+X', false, !fs.length], ['move', S.move, '', false, !fs.length], ['del', S.del, 'Del', true]] : []));
       } else showMenu(e.clientX, e.clientY, (M.canEdit && st.loc.t !== 'trash' ? [['newf', S.newFolder, 'Ctrl+Shift+N'], ['upl', S.upload]].concat(st.clip ? [['paste', fmt(S.pasteN, st.clip.keys.length), 'Ctrl+V']] : []) : []).concat(M.canAi && M.canEdit ? ['-', ['autoai', (store.get('autoai', false) ? '☑ ' : '☐ ') + S.autoAi]] : []).concat(['-', ['v-big', S.vBig], ['v-icons', S.vIcons], ['v-list', S.vList], '-', ['all', S.selAll, 'Ctrl+A'], ['ref', S.refresh, 'F5']]));

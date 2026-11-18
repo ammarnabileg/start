@@ -67,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $loc) {
     try {
         if ($action === 'basic') {
             $web = trim((string)($_POST['website'] ?? ''));
-            if ($web !== '' && !filter_var($web, FILTER_VALIDATE_URL)) throw new ZernioException(t('رابط الموقع مش صحيح.'));
+            if ($web !== '' && (!filter_var($web, FILTER_VALIDATE_URL) || !preg_match('~^https?://~i', $web))) throw new ZernioException(t('رابط الموقع مش صحيح.'));
             $desc = trim((string)($_POST['description'] ?? ''));
             if (mb_strlen($desc) > 750) throw new ZernioException(t('الوصف لازم يكون 750 حرف أو أقل.'));
             $body = [

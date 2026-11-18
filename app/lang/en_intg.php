@@ -6325,4 +6325,5 @@ If you know someone who needs our services, send them this link. They get {get},
     'تشغيل الحملات وإيقافها متاح لمن لديه صلاحية الإنفاق.' => 'Starting and pausing campaigns requires spend permission.',
     'الحذف النهائي متاح للمدير فقط.' => 'Only managers can delete permanently.',
     'هوية الشركة البصرية يعدّلها المدير فقط.' => 'Only managers can edit the brand kit.',
+    'التشغيل وتعديل الميزانية متاحان لمن لديه صلاحية الإنفاق.' => 'Starting and budget changes require spend permission.',
 ];

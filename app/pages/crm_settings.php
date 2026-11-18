@@ -123,7 +123,7 @@ render(t('إعدادات العملاء'), 'crm_settings', function () use ($mgr
       <div class="grid lg:grid-cols-2 gap-4"><form method="post" class="space-y-2 text-sm" id="mt-form"><?= csrf_field() ?><input type="hidden" name="action" value="mailtpl">
         <label class="flex items-center gap-2"><input type="checkbox" name="on" value="1" <?= $mt['on'] ? 'checked' : '' ?> <?= $dis ?>> <b><?= e(t('استخدم القالب')) ?></b></label>
         <div class="grid grid-cols-[1fr_90px] gap-2"><label class="text-xs text-ink-600"><?= e(t('اللوجو')) ?><input name="logo" value="<?= e($mt['logo']) ?>" class="input text-sm" dir="ltr" <?= $dis ?>></label><label class="text-xs text-ink-600"><?= e(t('اللون')) ?><input type="color" name="color" value="<?= e($mt['color']) ?>" class="input !h-10 !p-1" <?= $dis ?>></label></div>
-        <label class="block text-xs text-ink-600"><?= e(t('التوقيع')) ?><textarea name="sig" rows="3" class="input text-sm" dir="auto" <?= $dis ?>><?= e($mt['sig']) ?></textarea></label>
+        <label class="block text-xs text-ink-600"><?= e(t('التوقيع')) ?><textarea name="sig" data-ai="auto_msg,improve" rows="3" class="input text-sm" dir="auto" <?= $dis ?>><?= e($mt['sig']) ?></textarea></label>
         <label class="block text-xs text-ink-600"><?= e(t('سطر تحت (العنوان، الرقم الضريبي…)')) ?><input name="footer" value="<?= e($mt['footer']) ?>" class="input text-sm" dir="auto" <?= $dis ?>></label>
         <?php if ($mgr): ?><button class="btn-primary !py-1.5 !text-xs"><?= e(t('حفظ')) ?></button><?php endif; ?></form>
         <div><div class="text-xs text-ink-500 mb-1"><?= e(t('معاينة')) ?></div><div class="rounded-xl border border-ink-200 overflow-hidden"><?= crm_mail_wrap(nl2br(e(t("أهلًا أحمد،
