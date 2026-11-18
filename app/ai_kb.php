@@ -250,11 +250,45 @@ function kb_terms(string $s): array
     return array_values(array_unique(array_map(function ($w) { return preg_replace('/^(ال|وال|بال|لل)(?=\p{L}{3,})/u', '', $w); }, $m[0])));
 }
 
+/* ---------- الملفات الضخمة (حتى 1 جيجا): المتصفح بيقرا ويبعت النص على دفعات، ويتخزن أجزاء مفهرسة ---------- */
+const KB_BIG_PREVIEW = 1000000; // أول مليون حرف في content (للمعاينة والملء الذكي)، والباقي في kb_chunks
+function kb_big_start(int $wid, string $name, string $mime, int $size, string $fp, int $total): array
+{
+    $st = db()->prepare("SELECT id, read_done, chars FROM kb_files WHERE workspace_id = ? AND read_fp = ? AND read_state = 'reading' ORDER BY id DESC LIMIT 1"); $st->execute([$wid, $fp]);
+    if ($r = $st->fetch()) { db()->prepare('UPDATE kb_files SET read_total = ? WHERE id = ?')->execute([$total, (int)$r['id']]); return ['id' => (int)$r['id'], 'done' => (int)$r['read_done'], 'chars' => (int)$r['chars'], 'resumed' => true]; }
+    db()->prepare("INSERT INTO kb_files (workspace_id, name, mime, size, method, content, read_state, read_fp, read_total, chunked) VALUES (?, ?, ?, ?, 'big', '', 'reading', ?, ?, 1)")
+        ->execute([$wid, mb_substr($name, 0, 190), mb_substr($mime, 0, 100), $size, $fp, $total]);
+    return ['id' => (int)db()->lastInsertId(), 'done' => 0, 'chars' => 0, 'resumed' => false];
+}
+/** دفعة نص: من الوحدة (صفحة/جزء) رقم $from لحد $to. بتتقبل بس لو بتكمّل من آخر نقطة (عشان التكرار بعد انقطاع) */
+function kb_big_append(int $wid, int $id, int $from, int $to, string $text): array
+{
+    $st = db()->prepare("SELECT read_done, chars, CHAR_LENGTH(content) clen FROM kb_files WHERE id = ? AND workspace_id = ? AND read_state = 'reading'"); $st->execute([$id, $wid]); $f = $st->fetch();
+    if (!$f) return ['ok' => false, 'error' => t('طلب غير صحيح.')];
+    if ($to <= (int)$f['read_done']) return ['ok' => true, 'done' => (int)$f['read_done'], 'chars' => (int)$f['chars'], 'dup' => true]; // اتبعتت قبل كده
+    $text = kb_clean($text); $n = mb_strlen($text);
+    if ($n) {
+        $seq = (int)db()->query('SELECT COALESCE(MAX(seq), 0) FROM kb_chunks WHERE file_id = ' . $id)->fetchColumn();
+        $ins = db()->prepare('INSERT INTO kb_chunks (workspace_id, file_id, seq, body) VALUES (?, ?, ?, ?)');
+        foreach (kb_chunks($text, 1500) as $c) $ins->execute([$wid, $id, ++$seq, $c]);
+        $room = KB_BIG_PREVIEW - (int)$f['clen'];
+        if ($room > 0) db()->prepare("UPDATE kb_files SET content = CONCAT(content, ?) WHERE id = ?")->execute([((int)$f['clen'] ? "
+
+" : '') . mb_substr($text, 0, $room), $id]);
+    }
+    db()->prepare('UPDATE kb_files SET read_done = ?, chars = chars + ? WHERE id = ?')->execute([$to, $n, $id]);
+    return ['ok' => true, 'done' => $to, 'chars' => (int)$f['chars'] + $n];
+}
+function kb_big_finish(int $wid, int $id, string $method): void
+{
+    db()->prepare("UPDATE kb_files SET read_state = 'done', method = ? WHERE id = ? AND workspace_id = ?")->execute([mb_substr(preg_replace('/[^a-z+]/', '', $method) ?: 'big', 0, 30), $id, $wid]);
+}
+
 /** أنسب أجزاء الملفات لسؤال معين (بحث بالكلمات المشتركة) */
 function kb_relevant_chunks(int $wid, string $query, int $limit = 5, ?array $onlyIds = null): array
 {
     try {
-        $st = db()->prepare("SELECT id, name, content FROM kb_files WHERE workspace_id = ? AND enabled = 1 ORDER BY id");
+        $st = db()->prepare("SELECT id, name, IF(chunked = 1, '', content) content, chunked FROM kb_files WHERE workspace_id = ? AND enabled = 1 AND (read_state IS NULL OR read_state = 'done' OR chunked = 1) ORDER BY id");
         $st->execute([$wid]);
         $files = $st->fetchAll();
     } catch (Throwable $e) { return []; }
@@ -262,6 +296,15 @@ function kb_relevant_chunks(int $wid, string $query, int $limit = 5, ?array $onl
     if (!$files) return [];
     $q = kb_terms($query);
     $scored = [];
+    $big = array_values(array_filter($files, function ($f) { return !empty($f['chunked']); }));
+    $files = array_values(array_filter($files, function ($f) { return empty($f['chunked']); }));
+    if ($big && $q) {
+        try { $ids = implode(',', array_map(function ($f) { return (int)$f['id']; }, $big)); $names = array_column($big, 'name', 'id');
+            $st = db()->prepare("SELECT file_id, body FROM kb_chunks WHERE workspace_id = ? AND file_id IN ($ids) AND MATCH(body) AGAINST (? IN NATURAL LANGUAGE MODE) LIMIT 80"); $st->execute([$wid, implode(' ', $q)]);
+            foreach ($st->fetchAll() as $c) { $score = 0; $ct = kb_terms($c['body']); foreach ($q as $w) foreach ($ct as $x) if ($x === $w || (mb_strlen($w) > 4 && mb_strpos($x, $w) === 0)) { $score++; break; }
+                if ($score > 0) $scored[] = [$score, '[' . ($names[$c['file_id']] ?? '') . "]\n" . $c['body']]; }
+        } catch (Throwable $e) {}
+    }
     foreach ($files as $f) {
         foreach (kb_chunks((string)$f['content']) as $i => $c) {
             $score = 0;

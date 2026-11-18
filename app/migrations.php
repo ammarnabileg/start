@@ -528,6 +528,18 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    '069_kb_big_files' => [
+        "ALTER TABLE kb_files ADD COLUMN read_state VARCHAR(12) NULL, ADD COLUMN read_fp VARCHAR(160) NULL, ADD COLUMN read_done INT UNSIGNED NOT NULL DEFAULT 0, ADD COLUMN read_total INT UNSIGNED NOT NULL DEFAULT 0, ADD COLUMN chars BIGINT UNSIGNED NOT NULL DEFAULT 0, ADD COLUMN chunked TINYINT(1) NOT NULL DEFAULT 0",
+        "CREATE TABLE IF NOT EXISTS kb_chunks (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            file_id INT UNSIGNED NOT NULL,
+            seq INT UNSIGNED NOT NULL,
+            body TEXT NOT NULL,
+            INDEX ws_file (workspace_id, file_id, seq),
+            FULLTEXT KEY ft_body (body)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+    ],
     '068_kb_crawl_text' => [
         "ALTER TABLE kb_crawls ADD COLUMN chars BIGINT UNSIGNED NOT NULL DEFAULT 0",
         "ALTER TABLE kb_crawl_urls ADD COLUMN chars INT UNSIGNED NOT NULL DEFAULT 0, ADD COLUMN title VARCHAR(255) NULL, ADD COLUMN txt MEDIUMBLOB NULL",

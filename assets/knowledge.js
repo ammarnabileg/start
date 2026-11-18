@@ -298,6 +298,16 @@
       var ph = document.createElement('div'); ph.className = 'rounded-xl border border-brand-200 bg-brand-50/50 p-3 text-sm flex items-center gap-3';
       ph.innerHTML = '<svg class="w-4 h-4 animate-spin text-brand-600" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity=".25" stroke-width="3"/><path d="M21 12a9 9 0 00-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg><span class="flex-1 truncate"></span><span class="text-xs text-ink-500"></span>';
       ph.querySelector('span').textContent = file.name; var st = ph.querySelectorAll('span')[1]; st.textContent = K.uploading; list.prepend(ph);
+      // الملفات الكبيرة وPDF وWord/PowerPoint/Excel: القارئ الكبير (صفحة صفحة، مع قراءة الصور، ويتحفظ أول بأول ويكمّل بعد أي انقطاع)
+      if (!replace && window.KBBig && KBBig.supports(file) && (file.size > (K.maxUp || 15728640) || /\.(pdf|docx|pptx|xlsx)$/i.test(file.name))) {
+        var nf = function (n) { return Number(n || 0).toLocaleString(document.documentElement.lang === 'ar' ? 'ar-EG' : 'en-US'); };
+        return KBBig.read(file, { images: true, onProgress: function (p) {
+          st.textContent = (p.stage === 'offline' ? K.bigOffline : p.stage === 'ocr' ? K.bigOcr : K.bigRead).replace('%s', nf(p.done)).replace('%s', nf(p.total)) + ' · ' + K.bigChars.replace('%s', nf(p.chars)) + (p.resumed ? ' · ' + K.bigResumed : '');
+        } }).then(function (d) {
+          okAny = true; ph.className = 'rounded-xl border border-lime-200 bg-lime-50 p-3 text-sm flex items-center gap-3'; st.textContent = '✓ ' + K.bigChars.replace('%s', nf(d.chars));
+          if (file.size <= 15728640 && typeof chunkUp === 'function') return chunkUp(d.id, file).catch(function () {});
+        }).catch(function () { bad = true; ph.className = 'rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700'; ph.textContent = file.name + ': ' + K.bigFail; });
+      }
       var fd = new FormData(); fd.append('action', 'kb_upload'); fd.append('file', file); if (replace) fd.append('replace', replace);
       // PDF والصور: المتصفح بيطلّع النص الأول (PDF.js / OCR) عشان مانستخدمش الذكاء الاصطناعي
       var local = (window.extractText && /\.(pdf|png|jpe?g|webp|bmp)$/i.test(file.name))

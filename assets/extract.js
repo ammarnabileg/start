@@ -61,6 +61,7 @@
     }).join('\n');
   }
 
+  window.extractKit = { loadPdf: loadPdf, ocrWorker: ocrWorker, ocrText: ocrText, clean: clean, pageText: pageText }; // للقارئ الكبير (kb-big.js)
   window.extractText = function (file, onProgress) {
     var prog = function (p, label) { if (onProgress) onProgress(Math.max(0, Math.min(1, p)), label || ''); };
     var name = (file.name || '').toLowerCase();
