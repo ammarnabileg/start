@@ -26,6 +26,8 @@
   .btn-ghost { @apply btn bg-ink-100 text-ink-900 border border-ink-200 hover:bg-ink-200; }
   .link { @apply text-brand-600 dark:text-brand-700 font-medium hover:underline underline-offset-4; }
   .badge { @apply inline-flex items-center rounded-lg bg-ink-100 px-2 py-0.5 text-xs font-medium text-ink-600 dark:bg-ink-200 dark:text-ink-800; }
+  .badge-red { @apply bg-red-100 text-red-700; }
+  .badge-amber { @apply bg-amber-100 text-amber-800; }
   .badge-green { @apply bg-lime-100 text-lime-700; }
   .nav-item { @apply flex items-center gap-3 rounded-xl px-3 py-2 text-[15px] text-ink-600 hover:bg-ink-100 hover:text-ink-900; }
   .nav-on { @apply bg-brand-50 text-brand-700 font-medium; }
@@ -1895,3 +1897,6 @@ html.dark [class*="inset-0"][class*="bg-ink-900/"],html.dark .cx-shb,html.dark .
 @media (hover: none) { .dz-pg-x, .dz-pg-d { opacity: 1 !important; } }
 @media (pointer: coarse) { .dz-pg-x, .dz-pg-d { width: 2.25rem; height: 2.25rem; } .mx-tick { min-width: 40px; min-height: 40px; } }
 .dz-pg:focus-within .dz-pg-x, .dz-pg:focus-within .dz-pg-d { opacity: 1; }
+
+@media (pointer: coarse) { .dz-ib2 { min-height: 40px; } }
+.cp-x-del { color: #ef4444; }

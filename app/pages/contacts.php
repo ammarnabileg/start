@@ -223,7 +223,7 @@ Ahmed Ali,<?= e(cx_phone(false)) ?>,ahmed@example.com,ACME,vip;<?= e(preg_replac
             <td class="p-3"><div class="flex items-center gap-2"><?= avatar($c['avatarUrl'] ?? null, $c['name'] ?? '', 'w-8 h-8') ?><div class="min-w-0"><div class="font-medium truncate"><?= e($c['name'] ?? '') ?></div><div class="text-xs text-ink-500 truncate"><?= e(trim(($c['email'] ?? '') . ' ' . ($c['company'] ?? ''))) ?></div></div></div></td>
             <td class="p-3 text-xs"><span dir="ltr"><?= e($c['displayIdentifier'] ?? $c['platformIdentifier'] ?? '') ?></span> <?php if (!empty($c['platform'])): ?><span class="text-ink-500"><?= e(platform_label((string)$c['platform'])) ?></span><?php endif; ?></td>
             <td class="p-3"><?= $tagLinks($c['tags'] ?? []) ?></td>
-            <td class="p-3"><?php if (!empty($c['isBlocked'])): ?><span class="badge bg-red-100 text-red-700"><?= e(t('محظور')) ?></span><?php elseif (!empty($c['isSubscribed'])): ?><span class="badge badge-green"><?= e(t('مشترك')) ?></span><?php else: ?><span class="badge"><?= e(t('غير مشترك')) ?></span><?php endif; ?></td>
+            <td class="p-3"><?php if (!empty($c['isBlocked'])): ?><span class="badge badge-red"><?= e(t('محظور')) ?></span><?php elseif (!empty($c['isSubscribed'])): ?><span class="badge badge-green"><?= e(t('مشترك')) ?></span><?php else: ?><span class="badge"><?= e(t('غير مشترك')) ?></span><?php endif; ?></td>
             <td class="p-3 text-xs text-ink-500 whitespace-nowrap"><?= $last ? e(fmt_date($last, 'd/m h:i A')) : '—' ?></td>
             <td class="p-3 text-end whitespace-nowrap">
               <a class="link text-xs" href="<?= e(url('contacts', ['edit' => $c['id'], 'q' => $q, 'tag' => $tag])) ?>"><?= e(t('تعديل')) ?></a>

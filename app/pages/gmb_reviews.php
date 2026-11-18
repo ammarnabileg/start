@@ -209,7 +209,7 @@ render(t('تقييمات العملاء'), 'gmb_reviews', function () use ($z, $
                   <span class="badge <?= $rv['recommendationType'] === 'positive' ? 'badge-green' : 'bg-red-100 text-red-700' ?>"><?= e($rv['recommendationType'] === 'positive' ? t('بيرشح') : t('مش بيرشح')) ?></span>
                 <?php endif; ?>
                 <?php if (!empty($rv['rating'])): ?><?= gmb_stars((int)$rv['rating']) ?><?php endif; ?>
-                <?php if (empty($rv['hasReply'])): ?><span class="badge bg-amber-100 text-amber-800"><?= e(t('محتاج رد')) ?></span><?php endif; ?>
+                <?php if (empty($rv['hasReply'])): ?><span class="badge badge-amber"><?= e(t('محتاج رد')) ?></span><?php endif; ?>
               </div>
               <p class="text-[11px] text-ink-500 mt-0.5">
                 <?= e(fmt_date($rv['created'] ?? null, 'd/m/Y h:i A')) ?>
