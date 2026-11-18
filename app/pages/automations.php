@@ -338,7 +338,7 @@ render(t('الردود التلقائية'), 'automations', function () use ($z,
                 <?php endif; ?>
                 <div id="au-aiwrap" class="<?= $isAi ? '' : 'hidden' ?> space-y-2">
                   <label class="label !mb-0"><?= e(t('تعليمات للرد (اختياري)')) ?></label>
-                  <textarea name="ai_instructions" rows="2" maxlength="500" class="input" dir="auto" placeholder="<?= e(t('مثال: رد باختصار، واطلب منه يبعت رسالة خاصة لتفاصيل الوظيفة')) ?>"><?= e($a['instructions'] ?? '') ?></textarea>
+                  <textarea name="ai_instructions" data-ai="auto_msg,improve,shorten" rows="2" maxlength="500" class="input" dir="auto" placeholder="<?= e(t('مثال: رد باختصار، واطلب منه يبعت رسالة خاصة لتفاصيل الوظيفة')) ?>"><?= e($a['instructions'] ?? '') ?></textarea>
                   <p class="text-[11px] text-ink-500"><?= e(t('بيرد رد عام تحت التعليق من ملف شركتك، وعلى التعليقات الجديدة بس (من وقت التشغيل). التعليقات اللي محتاجة إنسان بتتحول لك بدل الرد.')) ?></p>
                 </div>
                 <div id="au-fixedwrap" class="<?= $isAi ? 'hidden' : '' ?> space-y-3">

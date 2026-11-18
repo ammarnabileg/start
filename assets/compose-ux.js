@@ -359,7 +359,7 @@
     };
   }
   window.addEventListener('beforeunload', function (e) { if (!sending && content.value.trim()) { e.preventDefault(); e.returnValue = ''; } });
-  document.addEventListener('keydown', function (e) { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && sb) { e.preventDefault(); sb.click(); } });
+  document.addEventListener('keydown', function (e) { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && sb && (!e.target.closest || !e.target.closest('dialog,[role=dialog],.mk-dlg') && (!e.target.form || e.target.form === sb.form))) { /* الاختصار للفورم الأساسي بس */ e.preventDefault(); sb.click(); } });
 
   /* ---------- تشغيل ---------- */
   function all() { limits(); render(); summary(); if (typeof paintChips === 'function') paintChips(); drawMediaWarn(); }

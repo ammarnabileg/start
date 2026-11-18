@@ -397,7 +397,7 @@
       if (e.key === 'F5') { e.preventDefault(); return load(); }
       if (e.key === '?') { e.preventDefault(); return helpDialog(); }
       if (e.key === 'Escape') { if (menu) return closeMenu(); if (st.sel.length) { e.preventDefault(); st.sel = []; return refreshSel(); } return; }
-      if (e.key === 'Delete' && st.sel.length && M.canEdit) return del(st.sel.slice());
+      if (e.key === 'Delete' && st.sel.length && M.canEdit && !(st.loc.t === 'trash' && M.canPurge === false)) return del(st.sel.slice());
       if (e.key === 'F2' && st.sel.length === 1) { e.preventDefault(); return renameKey(st.sel[0]); }
       if (e.key === 'Enter' && st.sel.length) { e.preventDefault(); return opt.picker && selFiles().length > 1 ? finish() : openKey(st.sel[0]); }
       if (e.key === 'Backspace' || (e.altKey && e.key === 'ArrowUp')) { e.preventDefault(); return upFolder(); }

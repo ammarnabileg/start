@@ -240,7 +240,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$a || !$b || !crm_can_edit($a) || !crm_can_edit($b)) $json(['ok' => false, 'error' => t('مش مسموحلك تعدّل العميل ده.')]);
         if ($action === 'merge_pair') $json(['ok' => true, 'a' => $out($a), 'b' => $out($b), 'acts' => [count(crm_acts((int)$a['id'])), count(crm_acts((int)$b['id']))]]);
         $keep = (int)($_POST['keep'] ?? 0) === (int)$b['id'] ? $b : $a; $drop = $keep === $b ? $a : $b;
-        crm_merge_leads((int)$keep['id'], (int)$drop['id'], array_map('strval', (array)($_POST['pick'] ?? [])));
+        if (!crm_merge_leads((int)$keep['id'], (int)$drop['id'], array_map('strval', (array)($_POST['pick'] ?? [])))) $json(['ok' => false, 'error' => t('تعذّر دمج العميلين.')]);
         log_activity('crm.merge', $keep['id'] . ' <- ' . $drop['id']);
         $json(['ok' => true, 'lead' => $out(crm_lead((int)$keep['id'])), 'gone' => (int)$drop['id']]);
     }

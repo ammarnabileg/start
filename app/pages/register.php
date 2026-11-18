@@ -18,7 +18,7 @@ if ($open && $_SERVER['REQUEST_METHOD'] === 'POST') {
     if (too_many_attempts($pdo)) $errors[] = t('محاولات كتير. استنى 15 دقيقة.');
     if ($old['name'] === '') $errors[] = t('اكتب اسمك.');
     if (!filter_var($old['email'], FILTER_VALIDATE_EMAIL)) $errors[] = t('الإيميل مش صحيح.');
-    if (strlen($pass) < 8) $errors[] = t('كلمة السر لازم تكون 8 حروف على الأقل.');
+    if (mb_strlen($pass) < 8) $errors[] = t('كلمة السر لازم تكون 8 حروف على الأقل.');
     if ($pass !== (string)($_POST['password2'] ?? '')) $errors[] = t('كلمتين السر مش متطابقين.');
     if (!$errors) {
         $st = $pdo->prepare("SELECT 1 FROM users WHERE email = ?");

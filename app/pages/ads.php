@@ -81,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
             // تعديل ميزانية كذا حملة بنسبة: items[] = "id|platform|amount|type"
             $items = array_slice(array_filter((array)($_POST['items'] ?? []), 'is_string'), 0, 50);
             if (!can('ads.spend')) {
-                flash('error', t('التشغيل وتعديل الميزانية لصاحب الشركة بس.'));
+                flash('error', t('التشغيل وتعديل الميزانية متاحان لمن لديه صلاحية الإنفاق.'));
             } elseif (empty($_POST['confirm_spend'])) {
                 flash('error', t('لازم تعلّم على خانة التأكيد الأول.'));
             } else {
@@ -547,7 +547,7 @@ render(t('الحملات الإعلانية'), 'ads', function () use ($z, $apiE
     <script src="assets/ui-ads5.js?v=<?= e(APP_VERSION) ?>"></script>
     <script>window.ADX6 = <?= json_encode(['csrf' => csrf_token(), 'api' => url('ad_campaign'), 'range' => $range, 'spend' => can('ads.spend'), 'T' => ['active' => t('شغالة'), 'paused' => t('متوقفة'), 'pending_review' => t('قيد المراجعة'), 'rejected' => t('مرفوضة'),
       'pauseQ' => t('توقف «%s»؟'), 'pauseHint' => t('الإعلانات هتقف عن الظهور فورًا، وتقدر ترجعها في أي وقت.'), 'pause' => t('إيقاف'), 'resume' => t('تشغيل'), 'resumeQ' => t('تشغيل «%s»'), 'spendOk' => t('موافق إن ده هيبدأ يصرف فلوس فعلًا. الميزانية: %s'),
-      'ownerOnly' => t('التشغيل وتعديل الميزانية لصاحب الشركة بس.'), 'cancel' => t('إلغاء'), 'save' => t('حفظ الميزانية'), 'budgetT' => t('تعديل الميزانية'), 'budgetOk' => t('راجعت المبلغ الجديد وموافق إنه ممكن يزوّد الصرف.'),
+      'ownerOnly' => t('التشغيل وتعديل الميزانية متاحان لمن لديه صلاحية الإنفاق.'), 'cancel' => t('إلغاء'), 'save' => t('حفظ الميزانية'), 'budgetT' => t('تعديل الميزانية'), 'budgetOk' => t('راجعت المبلغ الجديد وموافق إنه ممكن يزوّد الصرف.'),
       'daily' => t('يومي'), 'lifetime' => t('إجمالي'), 'perDay' => t('/يوم'), 'delta' => t('%s عن الحالية'), 'perMonth' => t('≈ %s في الشهر'), 'now' => t('الحالية: %s'), 'bySets' => t('الميزانية على مستوى المجموعات. عدّلها من التفاصيل.'),
       'saved' => t('اتحفظ ✓'), 'err' => t('حصلت مشكلة.'), 'loading' => t('جاري التنفيذ…'), 'details' => t('التفاصيل'), 'dup' => t('كرر'), 'more' => t('خيارات'),
       'share' => t('توزيع الإنفاق'), 'shareHint' => t('اضغط على أي حملة عشان توصلها في الجدول.'), 'otherCur' => t('+ %s حملة بعملات تانية'), 'others' => t('الباقي'),

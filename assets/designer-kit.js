@@ -2,7 +2,7 @@
  * صور مجانية من Pexels، وأيقونات ملونة (ملونة/مصمتة) وإيموجي */
 (function () {
   var X = window.DZX; if (!X) return; var cv = X.cv, L = X.L, C = X.C, $ = function (id) { return document.getElementById(id); };
-  if (C.kitEdit === false) setTimeout(function () { var lg = $('kit-logo'), box = lg && lg.closest('[data-pane]'); if (box) { box.querySelectorAll('[id^=kit-] input,[id^=kit-] select,[id^=kit-] button,select[id^=kit-],input[id^=kit-],button[id^=kit-]').forEach(function (el) { el.disabled = true; }); } }, 0); // هوية الشركة للمدير بس
+  if (C.kitEdit === false) setTimeout(function () { var box = $('dz-kit'); if (box) { box.querySelectorAll('input,select,[data-cmd=kitlogo],[data-cmd=kitsave],[data-cmd=kitlogodel]').forEach(function (el) { el.disabled = true; }); } }, 0); // هوية الشركة للمدير بس
   var kit = C.kit || { colors: [], head: '', body: '', logo: '', auto: false, fonts: [] };
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function post(d, file) { var f = new FormData(); f.append('_csrf', C.csrf); Object.keys(d).forEach(function (k) { f.append(k, d[k]); }); if (file) f.append('file', file); return fetch(C.url, { method: 'POST', body: f, credentials: 'same-origin' }).then(function (r) { return r.json(); }); }

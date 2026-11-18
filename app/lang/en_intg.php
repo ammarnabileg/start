@@ -6326,4 +6326,5 @@ If you know someone who needs our services, send them this link. They get {get},
     'الحذف النهائي متاح للمدير فقط.' => 'Only managers can delete permanently.',
     'هوية الشركة البصرية يعدّلها المدير فقط.' => 'Only managers can edit the brand kit.',
     'التشغيل وتعديل الميزانية متاحان لمن لديه صلاحية الإنفاق.' => 'Starting and budget changes require spend permission.',
+    'تعذّر دمج العميلين.' => 'Could not merge the two leads.',
 ];
