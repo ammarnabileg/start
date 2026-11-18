@@ -12,7 +12,7 @@ function kbc_get(int $wid, int $id): ?array
 }
 function kbc_active(int $wid): ?array
 {
-    $st = db()->prepare("SELECT * FROM kb_crawls WHERE workspace_id = ? AND status IN ('running', 'done') ORDER BY id DESC LIMIT 1"); $st->execute([$wid]);
+    $st = db()->prepare("SELECT * FROM kb_crawls WHERE workspace_id = ? AND status IN ('running', 'done', 'stopped') ORDER BY id DESC LIMIT 1"); $st->execute([$wid]);
     $c = $st->fetch() ?: null;
     return $c && ($c['status'] === 'running' || strtotime((string)$c['updated_at']) > time() - 86400) ? $c : null;
 }
@@ -137,6 +137,7 @@ function kbc_step(array $c, float $budget = 12.0): array
     $c = kbc_get((int)$c['workspace_id'], (int)$c['id']) ?: $c;
     $t0 = microtime(true); $acc = json_decode((string)$c['acc'], true) ?: [];
     while ($c['status'] === 'running' && microtime(true) - $t0 < $budget) {
+        $live = db()->prepare('SELECT status FROM kb_crawls WHERE id = ?'); $live->execute([(int)$c['id']]); if ($live->fetchColumn() !== 'running') { $c['status'] = 'stopped'; $stoppedNow = true; break; }
         $st = db()->prepare('SELECT id, url FROM kb_crawl_urls WHERE crawl_id = ? AND st = 0 ORDER BY id LIMIT 8'); $st->execute([(int)$c['id']]); $batch = $st->fetchAll();
         if (!$batch) { $c['status'] = 'done'; break; }
         $res = kbc_fetch_many(array_column($batch, 'url'), $c['host']); $pages = []; $links = []; $ok = 0; $bad = 0; $chars = 0;
@@ -158,7 +159,8 @@ function kbc_step(array $c, float $budget = 12.0): array
         db()->prepare('UPDATE kb_crawls SET done = done + ?, failed = failed + ?, chars = chars + ? WHERE id = ?')->execute([$ok, $bad, $chars, (int)$c['id']]);
     }
     db()->prepare('UPDATE kb_crawls SET acc = ?, status = ?, updated_at = NOW() WHERE id = ? AND status = \'running\'')->execute([json_encode($acc, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), $c['status'], (int)$c['id']]);
-    if ($c['status'] === 'done') { db()->prepare('DELETE FROM kb_crawl_urls WHERE crawl_id = ? AND st <> 1')->execute([(int)$c['id']]); log_activity('kb.crawl_done', $c['root']); }
+    if (!empty($stoppedNow)) { db()->prepare('UPDATE kb_crawls SET acc = ? WHERE id = ?')->execute([json_encode($acc, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), (int)$c['id']]); kbc_to_kb($c); } // آخر دفعة بعد الإيقاف تدخل في الملف
+    if ($c['status'] === 'done') { db()->prepare('DELETE FROM kb_crawl_urls WHERE crawl_id = ? AND st <> 1')->execute([(int)$c['id']]); log_activity('kb.crawl_done', $c['root']); kbc_to_kb($c); }
     db()->query("SELECT RELEASE_LOCK('kbc_" . (int)$c['id'] . "')");
     return kbc_get((int)$c['workspace_id'], (int)$c['id']);
 }
@@ -185,4 +187,29 @@ function kbc_page_text(array $c, int $pid): ?array
     $st = db()->prepare('SELECT url, title, txt FROM kb_crawl_urls WHERE id = ? AND crawl_id = ? AND st = 1'); $st->execute([$pid, (int)$c['id']]); $r = $st->fetch();
     if (!$r) return null;
     return ['url' => (string)$r['url'], 'title' => (string)$r['title'], 'text' => $r['txt'] !== null ? (string)@gzuncompress((string)$r['txt']) : ''];
+}
+
+/** نص صفحات الموقع المقروءة يتحفظ كملف من ملفات الشركة (يستخدمه الذكاء الاصطناعي في الردود). ملف واحد لكل موقع، بيتبدل لو اتقرا تاني */
+function kbc_to_kb(array $c): int
+{
+    $wid = (int)$c['workspace_id']; $name = mb_substr(t('الموقع: %s', $c['host']), 0, 190);
+    $old = db()->prepare("SELECT id FROM kb_files WHERE workspace_id = ? AND method = 'site' AND name = ?"); $old->execute([$wid, $name]);
+    foreach ($old->fetchAll(PDO::FETCH_COLUMN) as $oid) { db()->prepare('DELETE FROM kb_chunks WHERE file_id = ?')->execute([(int)$oid]); db()->prepare('DELETE FROM kb_files WHERE id = ?')->execute([(int)$oid]); }
+    db()->prepare("INSERT INTO kb_files (workspace_id, name, mime, size, method, content, read_state, chunked) VALUES (?, ?, 'text/html', 0, 'site', '', 'done', 1)")->execute([$wid, $name]);
+    $fid = (int)db()->lastInsertId(); $seq = 0; $chars = 0; $preview = '';
+    $ins = db()->prepare('INSERT INTO kb_chunks (workspace_id, file_id, seq, body) VALUES (?, ?, ?, ?)');
+    $last = 0;
+    while (true) {
+        $st = db()->prepare('SELECT id, url, title, txt FROM kb_crawl_urls WHERE crawl_id = ? AND st = 1 AND id > ? ORDER BY id LIMIT 200'); $st->execute([(int)$c['id'], $last]); $rows = $st->fetchAll();
+        if (!$rows) break;
+        foreach ($rows as $r) {
+            $last = (int)$r['id']; $txt = $r['txt'] !== null ? trim((string)@gzuncompress((string)$r['txt'])) : ''; if ($txt === '') continue;
+            $head = trim((string)$r['title']) !== '' ? $r['title'] . ' — ' . $r['url'] : $r['url'];
+            foreach (kb_chunks($txt, 1500) as $ch) { $ins->execute([$wid, $fid, ++$seq, '[' . $head . "]\n" . $ch]); }
+            $chars += mb_strlen($txt);
+            if (mb_strlen($preview) < 200000) $preview .= ($preview !== '' ? "\n\n" : '') . '[' . $head . "]\n" . mb_substr($txt, 0, 4000);
+        }
+    }
+    db()->prepare('UPDATE kb_files SET content = ?, chars = ?, size = ? WHERE id = ?')->execute([mb_substr($preview, 0, 1000000), $chars, $chars, $fid]);
+    return $fid;
 }

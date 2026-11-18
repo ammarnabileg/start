@@ -46,34 +46,36 @@
       + (c.done ? '<button type="button" data-kbs-pages class="text-xs link mt-2 me-4">' + esc(C.viewPages) + '</button>' : '') + (c.failed ? '<p class="text-[11px] text-ink-400 mt-1">' + esc(C.failed.replace('%s', c.failed)) + '</p>' : '')
       + '<button type="button" data-kbs-stop class="text-xs text-red-600 hover:underline mt-3">' + esc(C.stop) + '</button></div>';
   }
+  var halted = false;
   function step() {
-    if (!crawl || stepping || !dlg.open) return; stepping = true;
+    if (!crawl || stepping || halted || !dlg.open) return; stepping = true;
     post({ action: 'kb_crawl_step', id: crawl.id }).then(function (j) { stepping = false; if (!j.ok) { out.innerHTML = '<p class="text-sm text-red-600 py-4">' + esc(j.error || C.err) + '</p>'; return; } handle(j.crawl); })
       .catch(function () { stepping = false; setTimeout(step, 3000); });
   }
   function handle(c) {
     crawl = c; var b = $('#kbs-f button'); b.disabled = c.status === 'running';
     if (c.status === 'running') { prog(c); setTimeout(step, 200); return; }
-    if (c.status !== 'done') { out.innerHTML = ''; b.disabled = false; return; }
+    if (c.status !== 'done' && c.status !== 'stopped') { out.innerHTML = ''; b.disabled = false; return; }
     render({ ok: true, groups: c.groups || [], pages: { length: c.done } });
   }
   $('#kbs-f').addEventListener('submit', function (e) {
     e.preventDefault(); var b = $('#kbs-f button'); b.disabled = true; foot.classList.add('hidden');
     out.innerHTML = '<div class="flex items-center gap-2 text-sm text-ink-500 py-6 justify-center"><span class="w-4 h-4 rounded-full border-2 border-brand-600 border-t-transparent animate-spin"></span>' + esc(C.reading) + '</div>';
+    halted = false;
     post({ action: 'kb_crawl_start', url: $('#kbs-f [name=url]').value }).then(function (j) {
       if (!j.ok) { b.disabled = false; out.innerHTML = '<p class="text-sm text-red-600 py-4">' + esc(j.error || C.err) + '</p>'; return; }
       handle(j.crawl);
     }).catch(function () { b.disabled = false; out.innerHTML = '<p class="text-sm text-red-600 py-4">' + esc(C.err) + '</p>'; });
   });
-  out.addEventListener('click', function (e) { if (!e.target.closest('[data-kbs-stop]') || !crawl) return; post({ action: 'kb_crawl_cancel', id: crawl.id }).then(function () { crawl = null; out.innerHTML = ''; $('#kbs-f button').disabled = false; }); });
+  out.addEventListener('click', function (e) { if (!e.target.closest('[data-kbs-stop]') || !crawl) return; halted = true; e.target.closest('[data-kbs-stop]').disabled = true; post({ action: 'kb_crawl_cancel', id: crawl.id }).then(function (j) { if (j && j.ok && j.crawl) { stepping = true; handle(j.crawl); setTimeout(function () { stepping = false; }, 50); return; } crawl = null; out.innerHTML = ''; $('#kbs-f button').disabled = false; }); });
   // لو فيه قراءة شغالة أو خلصت النهارده: نكمّل منها لما النافذة تتفتح
   document.getElementById('kbs-open').addEventListener('click', function () { post({ action: 'kb_crawl_status' }).then(function (j) { if (j.ok && j.crawl && (j.crawl.status === 'running' || !groups.length)) { var u = $('#kbs-f [name=url]'); if (u && !u.value) u.value = j.crawl.root; handle(j.crawl); } }).catch(function () {}); });
   function render(j) {
     var b = $('#kbs-f button');
     (function () {
       b.disabled = false; if (!j.ok) { out.innerHTML = '<p class="text-sm text-red-600 py-4">' + esc(j.error || C.err) + '</p>'; return; }
-      groups = j.groups; if (!groups.length) { out.innerHTML = (crawl && crawl.status === 'done' ? '<div class="flex flex-wrap items-center gap-3 text-xs pt-2"><b class="text-ink-900">' + esc(f2(C.stats, num(crawl.done), num(crawl.chars))) + '</b><button type="button" data-kbs-pages class="link">' + esc(C.viewPages) + '</button></div>' : '') + '<p class="text-sm text-ink-500 py-6 text-center">' + esc(C.none) + '</p>'; return; }
-      var h = crawl && crawl.status === 'done' ? '<div class="flex flex-wrap items-center gap-3 text-xs"><b class="text-ink-900">' + esc(f2(C.stats, num(crawl.done), num(crawl.chars))) + '</b><button type="button" data-kbs-pages class="link">' + esc(C.viewPages) + '</button></div>' : '<p class="text-[11px] text-ink-400">' + esc(C.pages.replace('%s', j.pages.length)) + '</p>';
+      groups = j.groups; if (!groups.length) { out.innerHTML = (crawl && (crawl.status === 'done' || crawl.status === 'stopped') ? '<div class="flex flex-wrap items-center gap-3 text-xs pt-2">' + (crawl.status === 'stopped' ? '<span class="w-full text-amber-700">' + esc(C.stoppedAt) + '</span>' : '<span class="w-full text-lime-700">' + esc(C.addedKb) + '</span>') + '<b class="text-ink-900">' + esc(f2(C.stats, num(crawl.done), num(crawl.chars))) + '</b><button type="button" data-kbs-pages class="link">' + esc(C.viewPages) + '</button></div>' : '') + '<p class="text-sm text-ink-500 py-6 text-center">' + esc(C.none) + '</p>'; return; }
+      var h = crawl && (crawl.status === 'done' || crawl.status === 'stopped') ? '<div class="flex flex-wrap items-center gap-3 text-xs">' + (crawl.status === 'stopped' ? '<span class="w-full text-amber-700">' + esc(C.stoppedAt) + '</span>' : '<span class="w-full text-lime-700">' + esc(C.addedKb) + '</span>') + '<b class="text-ink-900">' + esc(f2(C.stats, num(crawl.done), num(crawl.chars))) + '</b><button type="button" data-kbs-pages class="link">' + esc(C.viewPages) + '</button></div>' : '<p class="text-[11px] text-ink-400">' + esc(C.pages.replace('%s', j.pages.length)) + '</p>';
       groups.forEach(function (g, gi) {
         h += '<section class="rounded-2xl border border-ink-200 overflow-hidden"><div class="px-4 py-2 bg-ink-50 font-semibold text-sm text-ink-900 flex items-center gap-2">' + esc(g.label) + (g.type === 'rows' ? '<span class="text-[11px] font-normal text-ink-500">' + esc(C.rows.replace('%s', g.rows.length).replace('%s', g.have)) + '</span>' : '') + '</div><div class="divide-y divide-ink-100">';
         if (g.type === 'fields') g.fields.forEach(function (f, fi) {
