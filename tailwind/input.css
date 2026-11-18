@@ -1886,3 +1886,6 @@ html.dark [class*="inset-0"][class*="bg-ink-900/"],html.dark .cx-shb,html.dark .
 
 @media (hover: none) { .pr-cdel, .pr-cadd { visibility: visible !important; } }
 @media (pointer: coarse) { .pr-cdel, .pr-cadd { min-width: 2.25rem; min-height: 2.25rem; } }
+
+@media (hover: none) { .ld-row .ld-acts { opacity: 1 !important; transform: none !important; } }
+@media (pointer: coarse) { .ld-act { width: 2.5rem; height: 2.5rem; } }

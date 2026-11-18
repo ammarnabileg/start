@@ -118,6 +118,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
                 log_activity('ads.stop_all', (string)$ok);
                 flash($fail ? 'error' : 'success', t('اتوقفت %s حملة.', $ok) . ($fail ? ' ' . t('%s حملة ما اتعدلتش: %s', count($fail), $fail[0]) : ''));
             }
+        } elseif ($action === 'bulk_status' && !can('ads.spend')) {
+            flash('error', t('تشغيل الحملات وإيقافها متاح لمن لديه صلاحية الإنفاق.'));
         } elseif ($action === 'bulk_status') {
             $to = ($_POST['to'] ?? '') === 'active' ? 'active' : 'paused';
             $ids = array_slice(array_filter((array)($_POST['ids'] ?? []), 'is_string'), 0, 50);

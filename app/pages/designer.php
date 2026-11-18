@@ -28,6 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $act = (string)($_POST['action'] ?? '');
     $uid = (int)(current_user()['id'] ?? 0);
     // هوية الشركة: ألوان، خط العناوين والنص، اللوجو، وحطه تلقائي
+    if (in_array($act, ['kit_save', 'kit_font'], true) && !can('settings.manage') && !is_ws_owner()) $J(['ok' => false, 'error' => t('هوية الشركة البصرية يعدّلها المدير فقط.')], 403);
     if ($act === 'kit_save') {
         $cols = array_values(array_slice(array_unique(array_filter(array_map(function ($c) { $c = strtolower(trim((string)$c)); return preg_match('/^#[0-9a-f]{6}$/', $c) ? $c : ''; }, (array)json_decode((string)($_POST['colors'] ?? '[]'), true)))), 0, 10));
         $logo = (string)($_POST['logo'] ?? ''); if (!preg_match('~^index\.php\?p=(media&file=\d+|ai_task&img=[\w.-]+)$~', $logo)) $logo = '';

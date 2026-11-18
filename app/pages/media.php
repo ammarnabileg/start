@@ -79,6 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($act === 'move') { $f = $fclean($_POST['folder'] ?? ''); foreach ($ids as $x) db()->prepare('UPDATE media_files SET folder = ? WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL')->execute([$f, $wid, $x]); $json(['ok' => true]); }
     if ($act === 'delete') { media_trash($wid, $ids); log_activity('media.trash', (string)count($ids)); $json(['ok' => true]); }
     if ($act === 'restore') { media_restore($wid, $ids); $json(['ok' => true]); }
+    if (in_array($act, ['purge', 'empty_trash'], true) && !can('posts.manage') && !is_ws_owner()) $json(['ok' => false, 'error' => t('الحذف النهائي متاح للمدير فقط.')]);
     if ($act === 'purge') { foreach ($ids as $x) { $r = media_get($wid, $x); if ($r && $r['deleted_at']) media_delete($wid, $x); } log_activity('media.delete', (string)count($ids)); $json(['ok' => true]); }
     if ($act === 'empty_trash') { $st = db()->prepare('SELECT id FROM media_files WHERE workspace_id = ? AND deleted_at IS NOT NULL'); $st->execute([$wid]); foreach ($st->fetchAll(PDO::FETCH_COLUMN) as $x) media_delete($wid, (int)$x); $json(['ok' => true]); }
     if ($act === 'star') { $on = !empty($_POST['on']) ? 1 : 0; foreach ($ids as $x) db()->prepare('UPDATE media_files SET starred = ? WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL')->execute([$on, $wid, $x]); $json(['ok' => true]); }
