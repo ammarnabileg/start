@@ -234,7 +234,7 @@
   if (!$('#cp-sum')) { sum.className = 'rounded-xl bg-ink-50 border border-ink-200 p-3 text-xs text-ink-600 space-y-1'; if (sb) sb.parentNode.insertBefore(sum, sb.parentNode.firstChild); }
   function extras() { return $$('#cp-extra input').filter(function (i) { return i.value; }).length; }
   function steps(s, m, issues) {
-    var okAcc = s.length > 0 || (m && m.value === 'draft'), okTxt = !!(content.value.trim() || files.length || $$('input[name="lib_media[]"]').length), okWhen = !(m && m.value === 'schedule' && wi && (!wi.value || new Date(wi.value) < new Date()));
+    var okAcc = s.length > 0 || (m && m.value === 'draft'), okTxt = !!(content.value.trim() || files.length || $$('input[name="lib_media[]"],input[name="keep_media[]"]').length), okWhen = !(m && m.value === 'schedule' && wi && (!wi.value || new Date(wi.value) < new Date()));
     var st = { acc: okAcc, txt: okTxt && !issues.some(function (x) { return x !== P.past && x !== P.emptyText; }), when: okWhen };
     $$('#cp-steps .cp-st').forEach(function (b) {
       var ok = st[b.dataset.go];
@@ -256,7 +256,7 @@
     var s = sel(), m = $('.mode:checked'), issues = [];
     s.forEach(function (c) { var l = LIM[c.dataset.plat]; if (l && Array.from(textFor(c)).length > l) issues.push((P.plat[c.dataset.plat] || '') + ': ' + P.tooLong.replace('%s', Array.from(textFor(c)).length - l)); });
     // الصور/الفيديو من 3 أماكن: رفع من الجهاز، المكتبة، أو صور الذكاء الاصطناعي
-    var hasMedia = files.length || $$('input[name="lib_media[]"], input[name="ai_media[]"]').length;
+    var hasMedia = files.length || $$('input[name="lib_media[]"], input[name="ai_media[]"], input[name="keep_media[]"]').length;
     if ((touched || s.length) && !content.value.trim() && !hasMedia) issues.push(P.emptyText);
     if (m && m.value !== 'draft' && !hasMedia && s.some(function (c) { return ['instagram', 'tiktok', 'pinterest', 'youtube'].indexOf(c.dataset.plat) > -1; })) issues.push(P.needMedia);
     if (m && m.value === 'schedule' && wi && new Date(wi.value) < new Date()) issues.push(P.past);
@@ -266,7 +266,7 @@
   }
 
   /* ---------- 8) مسودة تلقائية + Ctrl+Enter + تحذير الخروج ---------- */
-  var DK = 'cp_draft_' + (P.ws || '') + (P.uid ? '_' + P.uid : ''), sending = false, tm = null;
+  var DK = 'cp_draft_' + (P.ws || '') + (P.uid ? '_' + P.uid : '') + (P.edit ? '_e' + P.edit : ''), sending = false, tm = null;
   // صور المسودة: صور المكتبة بتتحفظ كبيانات، وملفات الجهاز في IndexedDB
   var idb = function (mode, fn) { try { var rq = indexedDB.open('cp_drafts', 1); rq.onupgradeneeded = function () { rq.result.createObjectStore('f'); }; rq.onsuccess = function () { var tx = rq.result.transaction('f', mode); fn(tx.objectStore('f')); }; } catch (e) {} };
   var putFiles = function (list) { idb('readwrite', function (st) { list.length ? st.put(list.map(function (f) { return { b: f, n: f.name, t: f.type }; }), DK) : st.delete(DK); }); };

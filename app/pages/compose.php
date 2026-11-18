@@ -192,7 +192,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['dup_text'])) {
     $old['accounts'] = array_values(array_filter(array_map('trim', explode(',', (string)($_GET['dup_acc'] ?? ''))), function ($x) { return preg_match('/^[\w-]{1,64}$/', $x); }));
 }
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/', (string)($_GET['when'] ?? ''))) $old['when'] = (string)$_GET['when'];
+// تعديل منشور مجدول أو مسودة بنفس واجهة الإنشاء
+$editId = preg_match('/^[\w-]{1,64}$/', (string)($_POST['edit_id'] ?? $_GET['edit'] ?? '')) ? (string)($_POST['edit_id'] ?? $_GET['edit']) : '';
+$editMedia = []; $editPost = null;
+if ($editId !== '' && !can('posts.manage')) { flash('error', t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.')); redirect(url('posts')); }
 
+if ($z && $editId !== '') {
+    try { $editPost = pub_get_post($z, $editId); } catch (Throwable $e) { $editPost = null; }
+    if (!$editPost || !in_array((string)($editPost['status'] ?? ''), ['scheduled', 'draft'], true)) { flash('error', t('يمكن تعديل المنشورات المجدولة والمسودات فقط من هنا.')); redirect(url('post_edit', ['id' => $editId, 'classic' => 1])); }
+    $editMedia = function_exists('ps_media') ? ps_media($editPost) : (array)($editPost['mediaItems'] ?? []);
+    if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+        $old['content'] = (string)($editPost['content'] ?? ''); $old['mode'] = ($editPost['status'] ?? '') === 'draft' ? 'draft' : 'schedule';
+        if (!empty($editPost['scheduledFor'])) { try { $old['when'] = (new DateTime((string)$editPost['scheduledFor']))->setTimezone(new DateTimeZone(site_timezone()))->format('Y-m-d\TH:i'); } catch (Throwable $e) {} }
+        foreach ((array)($editPost['platforms'] ?? []) as $pl) { $aid = pub_acc_id($pl['accountId'] ?? ''); if ($aid === '') continue; $old['accounts'][] = $aid; $d = (array)($pl['platformSpecificData'] ?? []);
+            $o = ['custom' => (string)($pl['customContent'] ?? ''), 'first_comment' => (string)($d['firstComment'] ?? ''), 'title' => (string)($d['title'] ?? ''), 'board' => (string)($d['boardId'] ?? ''), 'link' => (string)($d['link'] ?? ''), 'visibility' => (string)($d['visibility'] ?? ''), 'privacy' => (string)($d['privacyLevel'] ?? '')];
+            if (!empty($d['madeForKids'])) $o['kids'] = 1; if (!empty($d['disableLinkPreview'])) $o['no_preview'] = 1;
+            if (($d['contentType'] ?? '') !== '') $o['type'] = (string)$d['contentType']; elseif (isset($d['shareToFeed']) && !$d['shareToFeed']) $o['type'] = 'reel_only';
+            $old['opt'][$aid] = array_filter($o, function ($v) { return $v !== ''; }); }
+    }
+}
 if ($z) {
     try {
         $profileId = current_profile_id($z);
@@ -348,6 +366,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && !$apiError) {
             $kind = media_kind((string)$mr['mime']); if (!in_array($kind, ['image', 'video'], true) && $mr['mime'] !== 'application/pdf') continue;
             try { $media[] = ['type' => $kind === 'doc' ? 'document' : $kind, 'url' => media_public_url($z, (int)ws('id'), $mid, 'post', mb_substr((string)$old['content'], 0, 80))]; } catch (Throwable $ex) { $errors[] = $ex->getMessage(); }
         }
+        if ($editId !== '') { $keep = []; foreach (array_slice((array)($_POST['keep_media'] ?? []), 0, 10) as $km) { $km = json_decode((string)$km, true); if (is_array($km) && preg_match('~^https://~i', (string)($km['url'] ?? ''))) $keep[] = array_intersect_key($km, array_flip(['type', 'url', 'altText', 'thumbnail'])); } $media = array_merge($keep, $media); }
         if ($old['content'] === '' && !$media) $errors[] = t('اكتب نص المنشور أو ارفع صورة/فيديو.');
         // منصات مابتقبلش منشور من غير صورة/فيديو: كانت بتتبعت وتفشل عند المنصة (وتظهر في «فشل»)
         if ($old['mode'] !== 'draft') {
@@ -410,7 +429,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && !$apiError) {
                 redirect(url('approvals', ['cpd' => (int)ws('id') . '_' . (int)(current_user()['id'] ?? 0)])); /* المسودة المحلية تتمسح: المنشور اتبعت للموافقة */
             } catch (ZernioException $ex) { $errors[] = $ex->getMessage(); }
         }
-        if (!$errors) {
+        if (!$errors && $editId !== '') {
+            try {
+                $byNow = []; foreach ($accounts as $a) $byNow[(string)$a['_id']] = $a; $chosen = array_flip(array_map(function ($x) { return (string)$x['accountId']; }, $platforms));
+                foreach ((array)($editPost['platforms'] ?? []) as $pl) { $aid = pub_acc_id($pl['accountId'] ?? ''); if ($aid !== '' && !isset($chosen[$aid]) && !isset($byNow[$aid])) $platforms[] = $pl; } // حسابات محتاجة إعادة ربط تفضل زي ما هي
+                $payload['platforms'] = $platforms; if (isset($payload['scheduledFor'])) { $u = new DateTime((string)$payload['scheduledFor'], new DateTimeZone(site_timezone())); $u->setTimezone(new DateTimeZone('UTC')); $payload['scheduledFor'] = $u->format('Y-m-d\TH:i:s.000\Z'); }
+                if (!$media) $payload['mediaItems'] = [];
+                pub_update_post($z, $editId, $payload);
+                log_activity('post.update', $editId);
+                flash('success', $old['mode'] === 'now' ? t('تم حفظ التعديلات ونشر المنشور.') : t('تم حفظ التعديلات.'));
+                redirect(url('posts'));
+            } catch (ZernioException $ex) { $errors[] = $ex->getMessage(); }
+        }
+        if (!$errors && $editId === '') {
             if ($extraAt) @set_time_limit(60 + 5 * count($extraAt)); // كل تكرار = منشور منفصل
             try {
                 $r = $z->createPost($payload);
@@ -448,7 +479,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && !$apiError) {
     }
 }
 
-render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boards, $apiError, $old, $validation, $done) {
+render($editId !== '' ? t('تعديل المنشور') : t('منشور جديد'), 'compose', function () use ($z, $accounts, $boards, $apiError, $old, $validation, $done, $editId, $editMedia) {
     if (!$z) { no_api_box(); return; }
     // Zernio مش متاح: الصفحة بتفضل شغالة (الكتابة والمسودة)، والنشر نفسه متوقف لحد ما يرجع
     if ($apiError) { error_box($apiError . ' ' . t('يمكنك كتابة منشورك الآن، وسيُحفظ كمسودة تلقائيًا.')); }
@@ -489,8 +520,9 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
       </div>
     <?php endif; ?>
     <form method="post" enctype="multipart/form-data" data-no-ajax class="grid lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px] gap-6 pb-4">
-      <?= csrf_field() ?>
+      <?= csrf_field() ?><?php if ($editId !== ''): ?><input type="hidden" name="edit_id" value="<?= e($editId) ?>"><?php endif; ?>
       <div class="space-y-6 min-w-0">
+        <?php if ($editId !== ''): ?><div class="rounded-2xl border border-brand-200 bg-brand-50 text-brand-900 px-4 py-3 text-sm flex flex-wrap items-center gap-2"><?= ui_icon('edit', 'w-4 h-4') ?><b><?= e(t('أنت تعدّل منشورًا موجودًا')) ?></b><span class="text-brand-700"><?= e(t('عند الحفظ يُحدَّث المنشور نفسه ولا يُنشأ منشور جديد.')) ?></span><a class="link ms-auto" href="<?= e(url('posts')) ?>"><?= e(t('إلغاء التعديل')) ?></a></div><?php endif; ?>
         <div class="card p-5 space-y-4">
           <div class="flex items-center gap-2"><b class="text-ink-900"><?= e(t('نص المنشور')) ?></b><span id="cp-stack" class="flex items-center -space-x-2 rtl:space-x-reverse ms-2"></span><span class="ms-auto text-[11px] text-ink-400 tabular-nums"><span id="charCount">0</span> <?= e(t('حرف')) ?></span></div>
           <div class="flex flex-wrap items-center gap-2"><div id="cp-kind" class="inline-flex rounded-xl bg-ink-100 p-1 text-sm" role="radiogroup" aria-label="<?= e(t('نوع المنشور')) ?>">
@@ -576,7 +608,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
             <input type="file" name="media[]" id="mediaInput" multiple accept="image/*,video/*,application/pdf" class="input"></label>
           <div id="mediaPreview" class="flex flex-wrap gap-2 mt-3"></div>
           <div class="mt-3 flex flex-wrap items-center gap-1.5" id="cp-mtools"><button type="button" id="libPick" class="cp-tool"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6a1 1 0 011-1h5l2 2h9a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1z"/></svg> <?= e(t('اختار من مكتبة الوسائط')) ?></button></div></div>
-          <div id="libMedia" class="flex flex-wrap gap-2 mt-2"></div>
+          <div id="libMedia" class="flex flex-wrap gap-2 mt-2"><?php foreach ($editMedia as $em): $isV = ($em['type'] ?? '') === 'video'; ?><div class="relative w-20 h-20 rounded-xl overflow-hidden border border-ink-200 bg-ink-100" data-keep><?php if ($isV): ?><video muted preload="metadata" class="w-full h-full object-cover" src="<?= e((string)$em['url']) ?>#t=0.5"></video><?php else: ?><img alt="" class="w-full h-full object-cover" src="<?= e((string)($em['thumbnail'] ?? $em['url'])) ?>"><?php endif; ?><input type="hidden" name="keep_media[]" value="<?= e(json_encode($em, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)) ?>"><button type="button" onclick="this.parentNode.remove()" class="absolute top-1 end-1 w-9 h-9 sm:w-6 sm:h-6 grid place-items-center rounded-full bg-ink-900/70 text-white text-xs" aria-label="<?= e(t('إزالة')) ?>">✕</button></div><?php endforeach; ?></div>
           <script>
           (function () {
             var box = document.getElementById('libMedia'), btn = document.getElementById('libPick'); if (!btn || !window.mediaPick) return;
@@ -995,7 +1027,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
       </div>
     </form>
     <?php $cpPlats = array_values(array_unique(array_map(function ($a) { return (string)($a['platform'] ?? ''); }, $accounts))); ?>
-    <script>window.CPX = <?= json_encode(['ws' => (int)ws('id'), 'uid' => (int)(current_user()['id'] ?? 0),
+    <script>window.CPX = <?= json_encode(['edit' => $editId, 'ws' => (int)ws('id'), 'uid' => (int)(current_user()['id'] ?? 0),
       'icons' => array_combine($cpPlats, array_map(function ($p) { return platform_icon($p, 'w-3.5 h-3.5'); }, $cpPlats)),
       'plat' => array_combine($cpPlats, array_map('platform_label', $cpPlats)),
       'tooLong' => t('أطول من المسموح بـ %s حرف'), 'tags' => t('%s هاشتاج'), 'emoji' => t('إيموجي'), 'hashtag' => t('هاشتاج'), 'line' => t('سطر جديد'), 'tools' => t('الأدوات'), 'aiMenu' => t('الذكاء الاصطناعي'),

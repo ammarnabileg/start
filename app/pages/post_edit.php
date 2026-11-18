@@ -6,6 +6,7 @@ $post = null;
 $accounts = [];
 $apiError = null;
 $back = url('post_edit', ['id' => $id]);
+if ($z && $id !== '' && $_SERVER['REQUEST_METHOD'] === 'GET' && empty($_GET['classic']) && can('posts.manage')) { try { $pp0 = pub_get_post($z, $id); if (in_array((string)($pp0['status'] ?? ''), ['scheduled', 'draft'], true)) redirect(url('compose', ['edit' => $id])); } catch (Throwable $e) {} }
 
 if ($z && $id !== '' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = (string)($_POST['action'] ?? '');
