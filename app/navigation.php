@@ -44,6 +44,7 @@ function nav_items(): array
     $items = [
         ['key' => 'dashboard', 'label' => t('الرئيسية'), 'section' => ''],
         ['key' => 'tenders', 'module' => 'tenders', 'label' => t('آخر المنافسات'), 'section' => $s2],
+        ['key' => 'tender_awards', 'module' => 'tenders', 'label' => t('المنافسات المرساة'), 'section' => $s2],
         ['key' => 'crm', 'label' => t('الشركات المستهدفة'), 'section' => $s2, 'module' => 'crm'],
         ['key' => 'prospects', 'label' => t('العملاء'), 'section' => $s2, 'module' => 'crm', 'also' => ['crm_doc', 'crm_leads', 'crm_find'] + (module_enabled('analytics') ? [] : [3 => 'alerts'])],
         ['key' => 'crm_capture', 'label' => t('المصادر والإعدادات'), 'section' => $s2, 'module' => 'crm', 'also' => ['crm_settings']],
@@ -123,7 +124,7 @@ function module_pages(): array
         'ads' => ['ads', 'ad_builder', 'ad_create', 'ad_audiences', 'leads', 'ad_campaign'],
         'gmb' => ['gmb_reviews', 'gmb_location', 'gmb_media'],
         'phone' => ['phone_numbers', 'sms', 'calls', 'phone_kyc', 'sms_mine'],
-        'tenders' => ['tenders'],
+        'tenders' => ['tenders', 'tender_awards'],
         'competitors' => ['competitors'],
         'studio' => ['studio', 'studio_media', 'designer'],
         'publishing' => ['compose', 'posts', 'calendar', 'approvals', 'post_log', 'post_edit', 'queue', 'bulk'],

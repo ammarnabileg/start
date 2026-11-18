@@ -528,6 +528,34 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    '070_tender_awards' => [
+        "CREATE TABLE IF NOT EXISTS tender_awards (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            ukey CHAR(40) NOT NULL,
+            ref VARCHAR(40) NULL,
+            tender_name VARCHAR(500) NOT NULL,
+            agency VARCHAR(255) NULL,
+            branch VARCHAR(255) NULL,
+            activity VARCHAR(255) NULL,
+            ttype VARCHAR(80) NULL,
+            url VARCHAR(600) NULL,
+            published_at DATETIME NULL,
+            winner VARCHAR(255) NOT NULL,
+            award_sar DECIMAL(16,2) NOT NULL DEFAULT 0,
+            total_sar DECIMAL(16,2) NOT NULL DEFAULT 0,
+            award_type VARCHAR(40) NULL,
+            bidders TEXT NULL,
+            bidder_count SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+            actor VARCHAR(80) NULL,
+            kw VARCHAR(120) NULL,
+            contact TEXT NULL,
+            lead_id INT UNSIGNED NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY ws_key (workspace_id, ukey),
+            INDEX ws_pub (workspace_id, published_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+    ],
     '069_kb_big_files' => [
         "ALTER TABLE kb_files ADD COLUMN read_state VARCHAR(12) NULL, ADD COLUMN read_fp VARCHAR(160) NULL, ADD COLUMN read_done INT UNSIGNED NOT NULL DEFAULT 0, ADD COLUMN read_total INT UNSIGNED NOT NULL DEFAULT 0, ADD COLUMN chars BIGINT UNSIGNED NOT NULL DEFAULT 0, ADD COLUMN chunked TINYINT(1) NOT NULL DEFAULT 0",
         "CREATE TABLE IF NOT EXISTS kb_chunks (
