@@ -83,7 +83,7 @@
   bulk.addEventListener('click', function (e) {
     var b = e.target.closest('[data-b]'); if (!b) return; var s = sel(), ids = s.map(function (d) { return d.id + '|' + d.pf; });
     if (b.dataset.b === 'clr') { $$('.ads-sel').forEach(function (c) { c.checked = false; }); drawBulk(); }
-    else if (b.dataset.b === 'pause') { if (confirm(fmt(S.pauseQ, s.length))) postForm(C.bulkUrl, { action: 'bulk_status', to: 'paused', 'ids[]': ids }); }
+    else if (b.dataset.b === 'pause') { fxOk(fmt(S.pauseQ, s.length), function () { postForm(C.bulkUrl, { action: 'bulk_status', to: 'paused', 'ids[]': ids }); }); }
     else if (b.dataset.b === 'act') {
       var d = dialog(S.actTitle, '<ul class="text-sm text-ink-700 mb-3 space-y-1">' + s.map(function (x) { return '<li>• ' + esc(x.name) + (x.b ? ' <span class="text-ink-500">(' + esc(money(x.b[0], x.cur)) + ')</span>' : '') + '</li>'; }).join('') + '</ul>'
         + '<label class="flex items-start gap-2 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-xl p-3"><input type="checkbox" class="cf mt-0.5"><span>' + esc(fmt(S.actConfirm, s.length)) + '</span></label>'

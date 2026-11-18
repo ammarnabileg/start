@@ -36,11 +36,11 @@
     var ch = e.target.closest('[data-cp-insight-chat]');
     if (ch) { var panel = document.getElementById('cp'), inp = document.getElementById('cp-input'), pg = document.getElementById('cp-page'); if (!panel || !inp) return; if (panel.classList.contains('pointer-events-none')) document.querySelector('[data-cp-toggle]').click(); if (pg) pg.checked = true; inp.value = ch.dataset.cpInsightChat; setTimeout(function () { document.getElementById('cp-form').requestSubmit(); }, 350); }
   });
-  function run(op, btn) {
+  function run(op, btn, ok0) {
     var ids = [...sel]; if (!ids.length) { toast(C.pick, true); return; }
     if (op === 'reply') { openReply(); return; }
-    if (op === 'classify' && ids.length > 1 && !confirm(C.confirmAi.replace('%s', ids.length))) return;
-    if (op === 'hide' && !confirm(C.confirmHide.replace('%s', ids.length))) return;
+    if (!ok0 && op === 'classify' && ids.length > 1) return fxOk(C.confirmAi.replace('%s', ids.length), function () { run(op, btn, 1); }, { danger: false });
+    if (!ok0 && op === 'hide') return fxOk(C.confirmHide.replace('%s', ids.length), function () { run(op, btn, 1); });
     btn.disabled = true; btn.classList.add('animate-pulse');
     post({ action: op === 'classify' ? 'c_classify' : 'c_hide', ids: ids }).then(function (d) {
       if (d.error) { toast(d.error, true); if (d.done > 0) setTimeout(function () { location.reload(); }, 1500); return; } toast(C.done.replace('%s', d.done)); location.reload();

@@ -38,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'when' => ($_POST['when'] ?? '') === 'lead' ? 'lead' : 'won', 'msg' => mb_substr(trim((string)($_POST['msg'] ?? '')), 0, 1000)], JSON_UNESCAPED_UNICODE)); $J(['ok' => true]); }
     if ($a === 'ref_paid') { if (!$mgr) $J(['ok' => false, 'error' => t('مالكش صلاحية.')]); $id = (int)($_POST['lead'] ?? 0); $l = crm_lead($id); if (!$l) $J(['ok' => false, 'error' => t('بيانات ناقصة')]);
         $p = cap_ref_paid($wid); $p[(string)$id] = max(0, (int)($_POST['n'] ?? 0)); save_setting('crm_ref_paid_' . $wid, json_encode($p)); crm_act_add($id, 'note', '🎁 ' . t('اتسلّمت مكافأة الإحالة (%s)', (int)$p[(string)$id])); $J(['ok' => true, 'n' => (int)$p[(string)$id]]); }
-    if ($a === 'ref_link') { $l = crm_lead((int)($_POST['lead'] ?? 0)); $l ? $J(['ok' => true, 'url' => cap_ref_link((int)$l['id']), 'name' => $l['name']]) : $J(['error' => t('بيانات ناقصة')], 422); }
+    if ($a === 'ref_link') { $l = crm_lead((int)($_POST['lead'] ?? 0)); if ($l && function_exists('crm_can_edit') && !crm_can_edit($l)) $l = null; $l ? $J(['ok' => true, 'url' => cap_ref_link((int)$l['id']), 'name' => $l['name']]) : $J(['error' => t('بيانات ناقصة')], 422); }
     if ($a === 'card_parse') {
         $txt = mb_substr((string)($_POST['text'] ?? ''), 0, 4000); $c = crm_extract_contacts($txt);
         $lines = array_values(array_filter(array_map('trim', preg_split('/\r\n|\n/', $txt)), function ($x) { return mb_strlen($x) >= 2; }));

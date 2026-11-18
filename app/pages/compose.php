@@ -429,12 +429,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && !$apiError) {
                 redirect(url('approvals', ['cpd' => (int)ws('id') . '_' . (int)(current_user()['id'] ?? 0)])); /* المسودة المحلية تتمسح: المنشور اتبعت للموافقة */
             } catch (ZernioException $ex) { $errors[] = $ex->getMessage(); }
         }
+        if ($editPost) { $own = false; $myIds = []; foreach ($accounts as $a0) $myIds[(string)$a0['_id']] = 1; $pp = is_array($editPost['profileId'] ?? null) ? (string)($editPost['profileId']['_id'] ?? '') : (string)($editPost['profileId'] ?? ''); if ($pp !== '' && $profileId && $pp === (string)$profileId) $own = true; foreach ((array)($editPost['platforms'] ?? []) as $pl) if (isset($myIds[pub_acc_id($pl['accountId'] ?? '')])) $own = true; if (!$own) { flash('error', t('هذا المنشور لا يخص حساباتك.')); redirect(url('posts')); } }
+        if (!$errors && $editId !== '' && ($extraAt || trim((string)($_POST['ab_text'] ?? '')) !== '')) $errors[] = t('التكرار ونسخة A/B غير متاحين عند تعديل منشور موجود. احذفهما أو أنشئ منشورًا جديدًا.');
         if (!$errors && $editId !== '') {
             try {
                 $byNow = []; foreach ($accounts as $a) $byNow[(string)$a['_id']] = $a; $chosen = array_flip(array_map(function ($x) { return (string)$x['accountId']; }, $platforms));
                 foreach ((array)($editPost['platforms'] ?? []) as $pl) { $aid = pub_acc_id($pl['accountId'] ?? ''); if ($aid !== '' && !isset($chosen[$aid]) && !isset($byNow[$aid])) $platforms[] = $pl; } // حسابات محتاجة إعادة ربط تفضل زي ما هي
                 $payload['platforms'] = $platforms; if (isset($payload['scheduledFor'])) { $u = new DateTime((string)$payload['scheduledFor'], new DateTimeZone(site_timezone())); $u->setTimezone(new DateTimeZone('UTC')); $payload['scheduledFor'] = $u->format('Y-m-d\TH:i:s.000\Z'); }
                 if (!$media) $payload['mediaItems'] = [];
+                $payload['isDraft'] = $old['mode'] === 'draft';
                 pub_update_post($z, $editId, $payload);
                 log_activity('post.update', $editId);
                 flash('success', $old['mode'] === 'now' ? t('تم حفظ التعديلات ونشر المنشور.') : t('تم حفظ التعديلات.'));
@@ -479,6 +482,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && !$apiError) {
     }
 }
 
+if ($editPost) { $own = false; $myIds = []; foreach ($accounts as $a0) $myIds[(string)$a0['_id']] = 1; $pp = is_array($editPost['profileId'] ?? null) ? (string)($editPost['profileId']['_id'] ?? '') : (string)($editPost['profileId'] ?? ''); if ($pp !== '' && $profileId && $pp === (string)$profileId) $own = true; foreach ((array)($editPost['platforms'] ?? []) as $pl) if (isset($myIds[pub_acc_id($pl['accountId'] ?? '')])) $own = true; if (!$own) { flash('error', t('هذا المنشور لا يخص حساباتك.')); redirect(url('posts')); } }
 render($editId !== '' ? t('تعديل المنشور') : t('منشور جديد'), 'compose', function () use ($z, $accounts, $boards, $apiError, $old, $validation, $done, $editId, $editMedia) {
     if (!$z) { no_api_box(); return; }
     // Zernio مش متاح: الصفحة بتفضل شغالة (الكتابة والمسودة)، والنشر نفسه متوقف لحد ما يرجع

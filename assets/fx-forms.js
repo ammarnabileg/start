@@ -20,6 +20,9 @@
   window.fxToast = toast;
   var AR = (document.documentElement.lang || 'ar').indexOf('ar') === 0;
   // الوحدة: نافذة تأكيد واحدة من تصميم المنصة بدل confirm() بتاع المتصفح
+  // تأكيد قبل إرسال فورم: يمنع الإرسال، يسأل، ولو وافق يعيد الإرسال بنفس الزر
+  window.fxGate = function (e, msg, o) { var f = e.target; if (f.dataset.fxOk === '1') { delete f.dataset.fxOk; return true; } e.preventDefault(); var sb = e.submitter; window.fxAsk(msg, o).then(function (ok) { if (!ok) return; f.dataset.fxOk = '1'; if (f.requestSubmit) f.requestSubmit(sb && sb.form === f ? sb : undefined); else f.submit(); }); return false; };
+  window.fxOk = function (msg, fn, o) { (window.fxAsk ? window.fxAsk(msg, o || { danger: true }) : Promise.resolve(confirm(msg))).then(function (ok) { if (ok) fn(); }); };
   window.fxAsk = function (msg, o) { o = o || {}; var es = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
     return new Promise(function (res) { var d = document.createElement('dialog'), out = o.input != null ? null : false;
       d.className = 'w-[min(440px,92vw)] p-0 rounded-2xl border border-ink-200 bg-white text-ink-900 shadow-2xl';

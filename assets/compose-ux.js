@@ -297,7 +297,7 @@
   var LK = 'cp_last_acc_' + (P.ws || '');
   form.addEventListener('submit', function (e) {
     var a = e.submitter, m = $('.mode:checked');
-    if ((!a || a.value !== 'validate') && m && m.value === 'now' && !confirm(P.confirmNow)) { e.preventDefault(); return; }
+    if ((!a || a.value !== 'validate') && m && m.value === 'now' && !(window.fxGate ? fxGate(e, P.confirmNow, { danger: false }) : confirm(P.confirmNow))) { e.preventDefault(); return; }
     if (a && a.value === 'validate') sending = true; // الفحص بيعمل تنقل عادي: مايطلعش تحذير المغادرة
     if (!a || a.value !== 'validate') { sending = true; clearTimeout(tm); var o2 = draftObj(); if (o2.t.trim() || o2.m.length || o2.nf) { store.set(DK, JSON.stringify(o2)); putFiles(files); } store.set(LK, JSON.stringify(sel().map(function (c) { return c.value; }))); }
   });

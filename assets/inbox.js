@@ -161,7 +161,7 @@
         + '<div class="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[11px] text-ink-500"><span>' + X.sent + ': <b class="text-ink-900">' + c.sent + '</b>/' + c.total + '</span>' + (c.failed ? '<span class="text-red-600">' + X.failed + ': ' + c.failed + '</span>' : '') + '<span>' + X.left + ': ' + c.left + '</span>' + (c.eta_min ? '<span>' + X.eta.replace('%s', c.eta_min) + '</span>' : '') + '<span class="ms-auto">' + c.created + '</span></div>'
         + '<div class="flex gap-1.5 mt-2.5 ctl"></div>';
       row.querySelector('b').textContent = c.name;
-      var ctl = row.querySelector('.ctl'), btn = function (op, label, cls) { var b = document.createElement('button'); b.type = 'button'; b.className = 'btn-ghost !py-1 !px-2.5 !text-xs ' + (cls || ''); b.textContent = label; b.onclick = function () { if (op === 'cancel' && !confirm(X.confirmCancel)) return; post({ action: 'camp_ctl', id: c.id, op: op }).then(function () { tick(true); }); }; ctl.appendChild(b); };
+      var ctl = row.querySelector('.ctl'), btn = function (op, label, cls) { var b = document.createElement('button'); b.type = 'button'; b.className = 'btn-ghost !py-1 !px-2.5 !text-xs ' + (cls || ''); b.textContent = label; b.onclick = function () { var go = function () { post({ action: 'camp_ctl', id: c.id, op: op }).then(function () { tick(true); }); }; if (op === 'cancel') fxOk(X.confirmCancel, go); else go(); }; ctl.appendChild(b); };
       if (c.status === 'running') btn('pause', X.pause);
       if (c.status === 'paused') btn('resume', X.resume);
       if (c.status === 'running' || c.status === 'paused') btn('cancel', X.cancel, '!text-red-600');

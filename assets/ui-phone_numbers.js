@@ -96,7 +96,7 @@
     form.addEventListener('change', paintSel);
     form.addEventListener('submit', function (e) {
       var r = $('input[name=phoneNumber]:checked', form);
-      if (!r || !ok.checked || !confirm(f(S.confirm, r.value, B.price))) { e.preventDefault(); return; }
+      if (!r || !ok.checked || !(window.fxGate ? fxGate(e, f(S.confirm, r.value, B.price), { danger: false }) : confirm(f(S.confirm, r.value, B.price)))) { e.preventDefault(); return; }
       if (btn) btn.disabled = true; // منع الضغط مرتين
     });
     paintSel();

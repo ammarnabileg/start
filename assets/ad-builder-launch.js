@@ -36,17 +36,17 @@
     box.innerHTML = h + '</section>';
     var cf = document.getElementById('ab-cf'), go = document.getElementById('ab-go');
     if (cf) cf.onchange = function () { go.disabled = !cf.checked || running; };
-    if (go) go.onclick = launch;
+    if (go) go.onclick = function () { launch(); };
     var v = document.getElementById('ab-validate'); if (v) v.onclick = validate;
-    var r = document.getElementById('ab-inflight'); if (r) r.onclick = function () { if (!confirm(L.markRetryQ)) return; post({ action: 'reset_inflight' }).then(function () { prog.inflight = null; draw(); }); };
+    var r = document.getElementById('ab-inflight'); if (r) r.onclick = function () { fxOk(L.markRetryQ, function () { post({ action: 'reset_inflight' }).then(function () { prog.inflight = null; draw(); }); }); };
   }
   function post(f) { var fd = new FormData(); fd.append('_csrf', A.csrf); fd.append('id', A.id); Object.keys(f).forEach(function (k) { fd.append(k, f[k]); }); return fetch(A.url, { method: 'POST', body: fd, credentials: 'same-origin' }).then(function (r) { return r.json(); }); }
   function validate() {
     running = true; var b = document.getElementById('ab-validate'); b.disabled = true; b.textContent = L.validating;
     Promise.resolve(X.save(true)).then(function (ok) { if (ok === false) { running = false; b.disabled = false; aiToast(L.netErr); draw(); return; } post({ action: 'validate' }).then(function (j) { running = false; if (!j.ok) { aiToast(j.error); draw(); return; } vres = j.results; draw(); }).catch(function () { running = false; draw(); }); });
   }
-  function launch() {
-    if (!confirm(L.lastQ)) return; running = true;
+  function launch(ok0) { ok0 = ok0 === 1;
+    if (!ok0) return fxOk(L.lastQ, function () { launch(1); }, { danger: false }); running = true;
     var step = function () {
       post({ action: 'launch_step', confirm_spend: '1' }).then(function (j) {
         if (j.progress) prog = j.progress;

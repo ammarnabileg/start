@@ -358,7 +358,7 @@
         fetch(location.pathname + '?p=posts', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': csrf() } }).then(function (r) { return r.json(); }).then(function (j) {
           vb.disabled = false; vb.textContent = o; if (!j.ok) return toast(j.error || X.err);
           var byId = {}; l.forEach(function (p) { byId[p.id] = p; });
-          $('.cal-vlist', box).innerHTML = '<p class="text-[11px] text-ink-500">' + esc(Hq.varyNote) + '</p>' + j.items.map(function (it) { return '<label class="block"><span class="text-[11px] text-ink-500">' + uic('calendar', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(when(byId[it.id] || { at: '' })) + '</span><textarea data-id="' + esc(it.id) + '" rows="4" class="input text-sm mt-0.5" dir="auto">' + esc(it.text) + '</textarea></label>'; }).join('') +
+          $('.cal-vlist', box).innerHTML = '<p class="text-[11px] text-ink-500">' + esc(Hq.varyNote) + '</p>' + j.items.map(function (it) { return '<label class="block"><span class="text-[11px] text-ink-500">' + uic('calendar', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(when(byId[it.id] || { at: '' })) + '</span><textarea data-ai="improve,shorten" data-id="' + esc(it.id) + '" rows="4" class="input text-sm mt-0.5" dir="auto">' + esc(it.text) + '</textarea></label>'; }).join('') +
             '<button type="button" class="cal-apply btn-primary !text-xs w-full mt-2">' + esc(Hq.applyV) + '</button>';
         }).catch(function () { vb.disabled = false; vb.textContent = o; toast(X.err); });
         return;

@@ -45,7 +45,7 @@
   ta.addEventListener('input', seg); to.addEventListener('input', checkOpt); to.addEventListener('change', checkOpt);
   $$('input[name=from]', form).forEach(function (r) { r.addEventListener('change', paintFrom); });
   $('#sms-stop').onclick = function () { if (ta.value.indexOf('STOP') < 0) { ta.value = ta.value.replace(/\s+$/, '') + (ta.value.trim() ? '\n' : '') + S.stop; seg(); ta.focus(); } };
-  form.addEventListener('submit', function (e) { if (!confirm((isOpt() ? S.optConfirm + '\n' : '') + (kind() === 'mine' ? S.confirmMine : S.confirmPaid))) e.preventDefault(); });
+  form.addEventListener('submit', function (e) { var q = (isOpt() ? S.optConfirm + '\n' : '') + (kind() === 'mine' ? S.confirmMine : S.confirmPaid); if (!(window.fxGate ? fxGate(e, q, { danger: false }) : confirm(q))) e.preventDefault(); });
 
   /* قوالب */
   var KEY = 'sms_tpl_' + X.ws, tBox = $('#sms-tpl');

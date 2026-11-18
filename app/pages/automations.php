@@ -69,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && function_exists('acr_put') && (($_P
 // تشغيل/إيقاف من القائمة من غير تحميل الصفحة
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'toggle_json') {
     header('Content-Type: application/json; charset=utf-8');
-    if (!$z) { http_response_code(422); exit(json_encode(['error' => 'Zernio'])); }
+    if (!$z) { http_response_code(422); exit(json_encode(['error' => t('اربط حساب النشر من صفحة التكاملات أولًا.')], JSON_UNESCAPED_UNICODE)); }
     $id = (string)($_POST['id'] ?? ''); $on = ($_POST['on'] ?? '') === '1';
     try {
         ip_update_automation($z, $id, ['isActive' => $on]);
