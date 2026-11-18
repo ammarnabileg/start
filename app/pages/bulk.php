@@ -619,7 +619,7 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
           <div class="absolute inset-0 bg-ink-900/40" data-close></div>
           <div class="relative card p-5 w-full max-w-lg space-y-3" role="dialog" aria-modal="true" aria-labelledby="bk-ai-h">
             <h3 id="bk-ai-h" class="font-bold text-ink-900"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg> <?= e(t('اكتب المنشورات بالذكاء الاصطناعي')) ?></h3>
-            <textarea id="bk-ai-topic" class="input" rows="4" maxlength="1500" placeholder="<?= e(t('الفكرة: مثلاً "عروض رمضان على المشويات، توصيل مجاني فوق 300 جنيه، فرع مدينة نصر والتجمع"')) ?>"></textarea>
+            <textarea id="bk-ai-topic" data-ai="from_idea,improve" class="input" rows="4" maxlength="1500" placeholder="<?= e(t('الفكرة: مثلاً "عروض رمضان على المشويات، توصيل مجاني فوق 300 جنيه، فرع مدينة نصر والتجمع"')) ?>"></textarea>
             <div>
               <span class="label"><?= e(t('العدد')) ?></span>
               <div class="flex flex-wrap gap-1.5" id="bk-ai-n"><?php foreach ([5, 10, 20, 30] as $i => $n): ?><label class="cursor-pointer"><input type="radio" name="bk-ai-n" value="<?= $n ?>" class="peer sr-only" <?= $n === 10 ? 'checked' : '' ?>><span class="inline-block px-3 py-1 rounded-lg border border-ink-200 text-sm peer-checked:bg-violet-600 peer-checked:text-white peer-checked:border-violet-600"><?= $n ?></span></label><?php endforeach; ?></div>
@@ -679,7 +679,7 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
           <div class="relative card p-5 w-full max-w-lg space-y-3" role="dialog" aria-modal="true" aria-labelledby="bk-cap-h">
             <h3 id="bk-cap-h" class="font-bold text-ink-900"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg> <?= e(t('اكتب نص لكل سطر فاضي')) ?></h3>
             <p class="text-sm text-ink-600" id="bk-cap-info"></p>
-            <textarea id="bk-cap-brief" class="input" rows="3" maxlength="800" placeholder="<?= e(t('معلومة عن الحملة (اختياري): مثلاً "خصم 20% لحد آخر الشهر، التوصيل مجاني"')) ?>"></textarea>
+            <textarea id="bk-cap-brief" data-ai="improve,shorten" class="input" rows="3" maxlength="800" placeholder="<?= e(t('معلومة عن الحملة (اختياري): مثلاً "خصم 20% لحد آخر الشهر، التوصيل مجاني"')) ?>"></textarea>
             <label id="bk-cap-vis-l" class="flex items-start gap-2 rounded-xl border border-violet-200 bg-violet-50/60 p-3 cursor-pointer">
               <input type="checkbox" id="bk-cap-vis" class="mt-1" checked>
               <span><span class="font-semibold text-ink-900 text-sm"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 15a3 3 0 100-6 3 3 0 000 6z"/></svg> <?= e(t('خلّي الذكاء الاصطناعي يشوف الصور')) ?></span>

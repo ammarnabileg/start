@@ -232,7 +232,7 @@ render(t('المصمم'), 'designer', function () use ($brand, $co, $img, $kbd, 
               <input id="dz-ai-car" class="input !mt-0 text-sm" dir="auto" maxlength="300" placeholder="<?= e(t('مثلًا: 5 أسباب تطلب من عندنا')) ?>">
               <button type="button" class="btn-primary w-full mt-3" data-cmd="aicarousel"><?= ui_icon('layers', 'w-4 h-4') ?><span><?= e(t('اعمل الكاروسيل')) ?></span></button></div>
             <div class="dz-aiform" data-aiform="img" hidden><b class="dz-aiform-t"><?= e(t('ولّد صورة')) ?></b><p class="dz-aiform-h"><?= e(t('تُوضع في مكان الصورة المحدد أو على اللوحة.')) ?></p>
-              <textarea id="dz-ai-img" rows="3" class="input !mt-0 text-sm" dir="auto" maxlength="1200" placeholder="<?= e(t('صِف الصورة بالتفصيل')) ?>"></textarea>
+              <textarea id="dz-ai-img" data-ai="img_prompt,improve" rows="3" class="input !mt-0 text-sm" dir="auto" maxlength="1200" placeholder="<?= e(t('صِف الصورة بالتفصيل')) ?>"></textarea>
               <button type="button" class="btn-primary w-full mt-3" data-cmd="aiimg"><?= ui_icon('image', 'w-4 h-4') ?><span><?= e(t('ولّد')) ?></span></button></div>
             <div class="dz-aiform" data-aiform="head" hidden><b class="dz-aiform-t"><?= e(t('عناوين جذابة')) ?></b><p class="dz-aiform-h"><?= e(t('حدّد نصًا على اللوحة، ثم اختر من العناوين المقترحة.')) ?></p>
               <button type="button" class="btn-primary w-full" data-cmd="aihead"><?= ui_icon('type', 'w-4 h-4') ?><span><?= e(t('اقترح عناوين')) ?></span></button><div id="dz-heads" class="space-y-1.5 mt-2"></div></div>

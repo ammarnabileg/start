@@ -181,7 +181,7 @@
 
   function setOpen(on) {
     panel.classList.toggle('translate-x-full', !on); panel.classList.toggle('rtl:-translate-x-full', !on);
-    panel.classList.toggle('opacity-0', !on); panel.classList.toggle('pointer-events-none', !on);
+    panel.classList.toggle('opacity-0', !on); panel.classList.toggle('pointer-events-none', !on); panel.inert = !on; panel.setAttribute('aria-hidden', on ? 'false' : 'true'); /* مقفول: مايخدش تركيز الكيبورد */
     // العمود كله زرار: بيختفي لما الشات يتفتح ويرجع لما يتقفل
     var rail = document.getElementById('cp-rail');
     if (rail) { rail.classList.toggle('lg:flex', !on); }
