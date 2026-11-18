@@ -528,6 +528,10 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    '068_kb_crawl_text' => [
+        "ALTER TABLE kb_crawls ADD COLUMN chars BIGINT UNSIGNED NOT NULL DEFAULT 0",
+        "ALTER TABLE kb_crawl_urls ADD COLUMN chars INT UNSIGNED NOT NULL DEFAULT 0, ADD COLUMN title VARCHAR(255) NULL, ADD COLUMN txt MEDIUMBLOB NULL",
+    ],
     '067_kb_crawl' => [
         "CREATE TABLE IF NOT EXISTS kb_crawls (
             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

@@ -72,6 +72,7 @@ function kbc_start(int $wid, string $url): array
     $home = kbi_fetch($url); if (!empty($home['err'])) return ['err' => $home['err']];
     $root = kbc_norm((string)$home['url']); $host = kbc_host($root);
     db()->prepare("UPDATE kb_crawls SET status = 'cancelled' WHERE workspace_id = ? AND status = 'running'")->execute([$wid]);
+    db()->prepare('DELETE u FROM kb_crawl_urls u JOIN kb_crawls c ON c.id = u.crawl_id WHERE c.workspace_id = ?')->execute([$wid]);
     // robots.txt: المسارات الممنوعة + روابط الـ sitemap
     $dis = []; $sm = [];
     $rb = safe_fetch(preg_replace('~^(https?://[^/]+).*$~', '$1', $root) . '/robots.txt', ['max' => 300000, 'timeout' => 8]);
@@ -138,21 +139,26 @@ function kbc_step(array $c, float $budget = 12.0): array
     while ($c['status'] === 'running' && microtime(true) - $t0 < $budget) {
         $st = db()->prepare('SELECT id, url FROM kb_crawl_urls WHERE crawl_id = ? AND st = 0 ORDER BY id LIMIT 8'); $st->execute([(int)$c['id']]); $batch = $st->fetchAll();
         if (!$batch) { $c['status'] = 'done'; break; }
-        $res = kbc_fetch_many(array_column($batch, 'url'), $c['host']); $pages = []; $links = []; $ok = 0; $bad = 0;
+        $res = kbc_fetch_many(array_column($batch, 'url'), $c['host']); $pages = []; $links = []; $ok = 0; $bad = 0; $chars = 0;
         foreach ($batch as $b) {
             $r = $res[$b['url']] ?? ['err' => 'x'];
             if (isset($r['redirect'])) { $links[] = kbi_abs($r['redirect'], $b['url']); $st2 = 2; $bad++; }
             elseif (isset($r['html'])) { $pages[$b['url']] = $r['html']; $st2 = 1; $ok++;
+                // النص المقروء يتحفظ عشان المستخدم يرجعله في أي وقت (حتى لو النت فصل أو الجهاز قفل)
+                $tt = preg_match('~<title[^>]*>(.*?)</title>~is', $r['html'], $tm) ? mb_substr(kbi_txt($tm[1]), 0, 250) : '';
+                $plain = trim(preg_replace("/[ \t]+/u", ' ', preg_replace("/\n{3,}/", "\n\n", html_entity_decode(strip_tags(preg_replace(['~<(head|script|style|noscript|svg)\b.*?</\1>~is', '~<(br|/p|/li|/h[1-6]|/div|/tr)\b[^>]*>~i'], [' ', "\n"], $r['html'])), ENT_QUOTES | ENT_HTML5, 'UTF-8'))));
+                $plain = mb_substr($plain, 0, 200000); $ch = mb_strlen($plain); $chars += $ch;
+                db()->prepare('UPDATE kb_crawl_urls SET chars = ?, title = ?, txt = ? WHERE id = ?')->execute([$ch, $tt !== '' ? $tt : null, gzcompress($plain, 6), (int)$b['id']]);
                 if (preg_match_all('~<a\b[^>]*href=["\']([^"\'#]+)["\']~i', $r['html'], $m)) foreach ($m[1] as $h) $links[] = kbi_abs(html_entity_decode($h), $b['url']); }
             else { $st2 = 2; $bad++; }
             db()->prepare('UPDATE kb_crawl_urls SET st = ? WHERE id = ?')->execute([$st2, (int)$b['id']]);
         }
         if ($links) kbc_enqueue($c, array_unique($links));
         if ($pages) { $r = kb_import_site($c['root'], $pages); if (empty($r['err'])) $acc = kbc_merge($acc, $r); }
-        db()->prepare('UPDATE kb_crawls SET done = done + ?, failed = failed + ? WHERE id = ?')->execute([$ok, $bad, (int)$c['id']]);
+        db()->prepare('UPDATE kb_crawls SET done = done + ?, failed = failed + ?, chars = chars + ? WHERE id = ?')->execute([$ok, $bad, $chars, (int)$c['id']]);
     }
     db()->prepare('UPDATE kb_crawls SET acc = ?, status = ?, updated_at = NOW() WHERE id = ? AND status = \'running\'')->execute([json_encode($acc, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), $c['status'], (int)$c['id']]);
-    if ($c['status'] === 'done') { db()->prepare('DELETE FROM kb_crawl_urls WHERE crawl_id = ?')->execute([(int)$c['id']]); log_activity('kb.crawl_done', $c['root']); }
+    if ($c['status'] === 'done') { db()->prepare('DELETE FROM kb_crawl_urls WHERE crawl_id = ? AND st <> 1')->execute([(int)$c['id']]); log_activity('kb.crawl_done', $c['root']); }
     db()->query("SELECT RELEASE_LOCK('kbc_" . (int)$c['id'] . "')");
     return kbc_get((int)$c['workspace_id'], (int)$c['id']);
 }
@@ -163,4 +169,20 @@ function kbc_tick(int $wid): int
     if (!$c) return 0;
     $before = (int)$c['done']; $c = kbc_step($c, 40.0);
     return (int)$c['done'] - $before;
+}
+
+/** الصفحات المقروءة (للعرض والبحث) */
+function kbc_pages(array $c, string $q = '', int $off = 0): array
+{
+    $w = 'crawl_id = ? AND st = 1'; $p = [(int)$c['id']];
+    if ($q !== '') { $w .= ' AND (url LIKE ? OR title LIKE ?)'; $p[] = '%' . $q . '%'; $p[] = '%' . $q . '%'; }
+    $st = db()->prepare("SELECT id, url, title, chars FROM kb_crawl_urls WHERE $w ORDER BY id LIMIT 50 OFFSET " . max(0, $off)); $st->execute($p);
+    $n = db()->prepare("SELECT COUNT(*) FROM kb_crawl_urls WHERE $w"); $n->execute($p);
+    return ['items' => array_map(function ($r) { return ['id' => (int)$r['id'], 'url' => (string)$r['url'], 'title' => (string)$r['title'], 'chars' => (int)$r['chars']]; }, $st->fetchAll()), 'total' => (int)$n->fetchColumn()];
+}
+function kbc_page_text(array $c, int $pid): ?array
+{
+    $st = db()->prepare('SELECT url, title, txt FROM kb_crawl_urls WHERE id = ? AND crawl_id = ? AND st = 1'); $st->execute([$pid, (int)$c['id']]); $r = $st->fetch();
+    if (!$r) return null;
+    return ['url' => (string)$r['url'], 'title' => (string)$r['title'], 'text' => $r['txt'] !== null ? (string)@gzuncompress((string)$r['txt']) : ''];
 }
