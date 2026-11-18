@@ -81,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($act === 'restore') { media_restore($wid, $ids); $json(['ok' => true]); }
     if (in_array($act, ['purge', 'empty_trash'], true) && !can('posts.manage') && !is_ws_owner()) $json(['ok' => false, 'error' => t('الحذف النهائي متاح للمدير فقط.')]);
     if ($act === 'purge') { foreach ($ids as $x) { $r = media_get($wid, $x); if ($r && $r['deleted_at']) media_delete($wid, $x); } log_activity('media.delete', (string)count($ids)); $json(['ok' => true]); }
-    if ($act === 'empty_trash') { $st = db()->prepare('SELECT id FROM media_files WHERE workspace_id = ? AND deleted_at IS NOT NULL'); $st->execute([$wid]); $n0 = 0; foreach ($st->fetchAll(PDO::FETCH_COLUMN) as $x) { media_delete($wid, (int)$x); $n0++; } log_activity('media.delete', t('تفريغ السلة: %s', $n0)); $json(['ok' => true]); }
+    if ($act === 'empty_trash') { $st = db()->prepare('SELECT id FROM media_files WHERE workspace_id = ? AND deleted_at IS NOT NULL'); $st->execute([$wid]); $n0 = 0; foreach ($st->fetchAll(PDO::FETCH_COLUMN) as $x) { if (media_delete($wid, (int)$x) !== false) $n0++; } if ($n0) log_activity('media.delete', t('تفريغ السلة: %s', $n0)); $json(['ok' => true]); }
     if ($act === 'star') { $on = !empty($_POST['on']) ? 1 : 0; foreach ($ids as $x) db()->prepare('UPDATE media_files SET starred = ? WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL')->execute([$on, $wid, $x]); $json(['ok' => true]); }
     if ($act === 'folder_rename') { // بيغيّر الفولدر وكل اللي جواه
         $old = $fclean($_POST['from'] ?? ''); $new = $fclean($_POST['to'] ?? ''); if ($old === '' || $new === '') $json(['ok' => false, 'error' => t('اكتب اسمًا صالحًا للمجلد.')]);
@@ -116,7 +116,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $f = $fclean($_POST['folder'] ?? ''); $days = max(0, min(365, (int)($_POST['days'] ?? 7)));
         $sh = media_share_create($wid, $f, $days, !empty($_POST['dl'])); log_activity('media.share', $f); $json(['ok' => true] + $sh);
     }
-    if ($act === 'share_revoke') { db()->prepare('DELETE FROM media_shares WHERE workspace_id = ? AND id = ?')->execute([$wid, (int)($_POST['sid'] ?? 0)]); $json(['ok' => true]); }
+    if ($act === 'share_revoke') { $q = db()->prepare('DELETE FROM media_shares WHERE workspace_id = ? AND id = ?'); $q->execute([$wid, (int)($_POST['sid'] ?? 0)]); if ($q->rowCount()) log_activity('media.share_revoke', (string)(int)$_POST['sid']); $json(['ok' => true]); }
     if ($act === 'public') {
         $err = null; $z = zernio_or_null($err); if (!$z) $json(['ok' => false, 'error' => $err ?: t('زيرنيو مش مربوط')]);
         $out = [];

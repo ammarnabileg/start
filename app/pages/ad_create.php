@@ -125,7 +125,8 @@ function adc_read_form(array $in, array $goals, array $ctas): array
     $ints = json_decode($f['interests'], true);
     $f['interest_list'] = [];
     foreach (is_array($ints) ? $ints : [] as $i) {
-        if (!empty($i['id']) && !empty($i['name'])) $f['interest_list'][] = ['id' => (string)$i['id'], 'name' => (string)$i['name']];
+        if (count($f['interest_list']) >= 25) break;
+        if (!empty($i['id']) && !empty($i['name']) && preg_match('/^\d{1,32}$/', (string)$i['id'])) $f['interest_list'][] = ['id' => (string)$i['id'], 'name' => mb_substr((string)$i['name'], 0, 100)];
     }
     $f['interests'] = json_encode($f['interest_list'], JSON_UNESCAPED_UNICODE);
     if ($f['launch'] === 'active' && !can('ads.spend')) $errors[] = t('تشغيل الحملة فوراً لصاحب الشركة بس. اختار "متوقفة".');

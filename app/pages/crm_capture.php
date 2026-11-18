@@ -39,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'when' => ($_POST['when'] ?? '') === 'lead' ? 'lead' : 'won', 'msg' => mb_substr(trim((string)($_POST['msg'] ?? '')), 0, 1000)], JSON_UNESCAPED_UNICODE)); $J(['ok' => true]); }
     if ($a === 'ref_paid') { if (!$mgr) $J(['ok' => false, 'error' => t('مالكش صلاحية.')]); $id = (int)($_POST['lead'] ?? 0); $l = crm_lead($id); if (!$l) $J(['ok' => false, 'error' => t('بيانات ناقصة')]);
         $p = cap_ref_paid($wid); $p[(string)$id] = max(0, (int)($_POST['n'] ?? 0)); save_setting('crm_ref_paid_' . $wid, json_encode($p)); crm_act_add($id, 'note', '🎁 ' . t('اتسلّمت مكافأة الإحالة (%s)', (int)$p[(string)$id])); $J(['ok' => true, 'n' => (int)$p[(string)$id]]); }
-    if ($a === 'ref_link') { $l = crm_lead((int)($_POST['lead'] ?? 0)); if ($l && function_exists('crm_can_edit') && !crm_can_edit($l)) $l = null; $l ? $J(['ok' => true, 'url' => cap_ref_link((int)$l['id']), 'name' => $l['name']]) : $J(['error' => t('بيانات ناقصة')], 422); }
+    if ($a === 'ref_link') { $l = crm_lead((int)($_POST['lead'] ?? 0)); if ($l && function_exists('crm_can_edit') && !crm_can_edit($l)) $J(['error' => t('لا تملك صلاحية على هذا العميل.')], 403); $l ? $J(['ok' => true, 'url' => cap_ref_link((int)$l['id']), 'name' => $l['name']]) : $J(['error' => t('بيانات ناقصة')], 422); }
     if ($a === 'card_parse') {
         $txt = mb_substr((string)($_POST['text'] ?? ''), 0, 4000); $c = crm_extract_contacts($txt);
         $lines = array_values(array_filter(array_map('trim', preg_split('/\r\n|\n/', $txt)), function ($x) { return mb_strlen($x) >= 2; }));
@@ -77,7 +77,7 @@ $formUrl = crm_form_url(); $bookUrl = crm_book_url(); $callUrl = $formUrl . '&m=
 $lps = lp_list(); foreach ($lps as &$lpx) $lpx['views'] = (int)($lpx['views'] ?? 0) + (int)setting('lpv_' . $wid . '_' . $lpx['slug'], '0'); unset($lpx); $sheet = cap_sheet_cfg();
 // "Infinity" بعد json لو اخترت تتخطى القديم: نعرضه كأنه صفر
 if ((int)$sheet['seen'] > 1e9) $sheet['seen'] = 0;
-$st = db()->prepare("SELECT id, name, company FROM crm_leads WHERE workspace_id = ? AND stage IN ('won','proposal','qualified') ORDER BY stage = 'won' DESC, id DESC LIMIT 300"); $st->execute([$wid]); $refLeads = $st->fetchAll();
+$st = db()->prepare("SELECT id, name, company FROM crm_leads WHERE workspace_id = ? AND stage IN ('won','proposal','qualified')" . ((can('crm.manage') || is_ws_owner()) ? '' : ' AND (owner_id IS NULL OR owner_id = ' . (int)(current_user()['id'] ?? 0) . ')') . " ORDER BY stage = 'won' DESC, id DESC LIMIT 300"); $st->execute([$wid]); $refLeads = $st->fetchAll();
 $st = db()->prepare("SELECT r.id, r.name, COUNT(x.id) n, SUM(x.stage = 'won') w FROM crm_leads x JOIN crm_leads r ON r.id = x.referred_by WHERE x.workspace_id = ? GROUP BY r.id, r.name ORDER BY n DESC LIMIT 10"); $st->execute([$wid]); $refTop = $st->fetchAll();
 $st = db()->prepare("SELECT l.label, l.code, l.clicks, (SELECT COUNT(*) FROM crm_leads x WHERE x.workspace_id = l.workspace_id AND x.link_code = l.code) leads FROM crm_links l WHERE l.workspace_id = ? AND l.url LIKE 'https://wa.me/%' ORDER BY l.id DESC LIMIT 20"); $st->execute([$wid]); $waLinks = $st->fetchAll();
 

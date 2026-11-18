@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($z || $gate)) {
     $_SESSION['sms_draft'] = ['to' => (string)($_POST['to'] ?? ''), 'text' => $text, 'from' => $from];
     try {
         if ($to === '') {
-            flash('error', t('اكتب رقم المستلم بالصيغة الدولية، مثلاً +14155550100.'));
+            flash('error', function_exists('cx_phone') ? t('اكتب رقم المستلم بالصيغة الدولية، مثل %s.', cx_phone()) : t('اكتب رقم المستلم بالصيغة الدولية، مثلاً +14155550100.'));
         } elseif ($text === '' || mb_strlen($text) > 1530) {
             flash('error', t('اكتب نص الرسالة (أقصى حد 1530 حرف).'));
         } elseif ($from === 'mine') {
