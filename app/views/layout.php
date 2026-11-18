@@ -191,6 +191,12 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
       $R['phone_kyc'] = [[t('الأرقام'), url('phone_numbers')]];
       $R['automations'] = $R['automations'] ?? [[t('قاعدة المعرفة'), url('knowledge')], [t('الرسائل'), url('inbox')]];
       foreach (['automations', 'inbox', 'comments'] as $rk) if (isset($R[$rk])) $R[$rk][] = [t('الرد الذكي بالذكاء الاصطناعي'), url('assistant', ['tab' => 'agent'])];
+      $R['studio'] = $R['studio_media'] = $R['designer'] = [[t('منشور جديد'), url('compose')], [t('مكتبة الوسائط'), url('media')]];
+      $R['media'] = [[t('منشور جديد'), url('compose')], [t('المصمم'), url('designer')]];
+      $R['tenders'] = $R['competitors'] = $R['crm'] = $R['tenders'] ?? [[t('العملاء'), url('prospects')], [t('منشور جديد'), url('compose')]];
+      $R['broadcasts'] = $R['contacts'] = [[t('الرسائل'), url('inbox')], [t('العملاء'), url('prospects')]];
+      $R['accounts'] = [[t('منشور جديد'), url('compose')], [t('الرسائل'), url('inbox')]];
+      $R['ad_create'] = $R['ad_builder'] = [[t('الحملات الإعلانية'), url('ads')], [t('الجماهير'), url('ad_audiences')], [t('عملاء الإعلانات'), url('leads')]];
       $R['goals'] = [[t('أداء المنشورات'), url('analytics')], [t('منشور جديد'), url('compose')], [t('التنبيهات'), url('alerts')]];
       if ($crmOn2) {
         $R['crm_capture'] = [[t('العملاء اللي اتجمعوا'), url('prospects')], [t('أنهي مصدر بيجيب أكتر'), url('crm_reports')], [t('اكتب منشور بلينك متتبع'), url('compose')]];
