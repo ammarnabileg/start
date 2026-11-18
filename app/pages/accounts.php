@@ -162,7 +162,7 @@ render(t('الحسابات المربوطة'), 'accounts', function () use ($z, 
           <?php foreach ($badList as $a): $pl = (string)($a['platform'] ?? ''); ?>
             <form method="post" class="inline-flex items-center gap-2 rounded-full bg-white border border-red-200 ps-1.5 pe-1 py-1" data-no-ajax><?= csrf_field() ?><input type="hidden" name="action" value="connect"><input type="hidden" name="platform" value="<?= e($pl) ?>"><?php if ($multi && !empty($a['_connectionId'])): ?><input type="hidden" name="conn" value="<?= (int)$a['_connectionId'] ?>"><?php endif; ?>
               <?= platform_icon($pl, 'w-5 h-5') ?><span class="text-sm text-ink-800"><?= e(trim($a['displayName'] ?? $a['username'] ?? '')) ?></span>
-              <?php if (in_array($pl, $connectable, true)): ?><button class="rounded-full bg-red-600 text-white text-xs px-3 py-1 hover:bg-red-700"><?= e(t('إعادة ربط')) ?></button><?php endif; ?>
+              <?php if (in_array($pl, $connectable, true)): ?><button class="btn-primary !py-1 !px-3 !text-xs"><?= e(t('إعادة ربط')) ?></button><?php endif; ?>
             </form>
           <?php endforeach; ?>
         </div>
@@ -249,7 +249,7 @@ render(t('الحسابات المربوطة'), 'accounts', function () use ($z, 
                   <button class="btn-primary !py-1.5 text-xs"><?= e(t('إعادة ربط')) ?></button></form>
               <?php endif; ?>
               <?php if (can('accounts.manage')): ?>
-                <form method="post" class="ms-auto" onsubmit="return confirm('<?= tjs('فصل الحساب ده؟ مش هتقدر تنشر عليه لحد ما تربطه تاني.') ?>')"><?= csrf_field() ?>
+                <form method="post" class="ms-auto" data-confirm="<?= e(t('فصل الحساب ده؟ مش هتقدر تنشر عليه لحد ما تربطه تاني.')) ?>"><?= csrf_field() ?>
                   <input type="hidden" name="action" value="disconnect"><input type="hidden" name="id" value="<?= e($a['_id']) ?>">
                   <button class="text-xs text-ink-400 hover:text-red-600 px-2 py-1.5 rounded-lg hover:bg-red-50 transition"><?= e(t('فصل')) ?></button></form>
               <?php endif; ?>

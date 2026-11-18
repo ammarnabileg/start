@@ -146,7 +146,7 @@ render(t('شركاتي'), 'workspaces', function () use ($list, $invites, $cur, 
                 <a class="btn-ghost !py-1.5" href="<?= e(url('settings')) ?>"><?= e(t('الإعدادات')) ?></a>
                 <?php if (!$linked): ?><a class="btn-primary !py-1.5" href="<?= e(url('connectors')) ?>"><?= e(t('اربطها')) ?></a><?php endif; ?>
               <?php endif; ?>
-              <form method="post" class="ms-auto" onsubmit="return confirm('<?= tjs('تخرج من الشركة دي؟') ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="leave"><input type="hidden" name="id" value="<?= $wid ?>">
+              <form method="post" class="ms-auto" data-confirm="<?= e(t('تخرج من الشركة دي؟')) ?>"><?= csrf_field() ?><input type="hidden" name="action" value="leave"><input type="hidden" name="id" value="<?= $wid ?>">
                 <button class="text-xs text-ink-500 hover:bg-ink-100 rounded-lg px-2.5 py-1.5"><?= e(t('خروج منها')) ?></button></form>
             </div>
             <?php if ($owner): ?>

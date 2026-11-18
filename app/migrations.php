@@ -528,6 +528,18 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    '066_crm_trash' => [
+        "CREATE TABLE IF NOT EXISTS crm_trash (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            lead_id INT UNSIGNED NOT NULL,
+            name VARCHAR(255) NULL,
+            data LONGTEXT NOT NULL,
+            deleted_by INT UNSIGNED NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX ws_time (workspace_id, created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+    ],
     '065_booking_len' => [
         "ALTER TABLE crm_bookings ADD COLUMN len SMALLINT UNSIGNED NULL",
     ],

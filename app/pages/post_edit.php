@@ -134,12 +134,12 @@ render(t('تفاصيل المنشور'), 'posts', function () use ($z, $fx, $id,
       <span class="text-xs px-2 py-0.5 rounded-full font-semibold <?= $cls ?>"><?= e($label) ?></span>
       <?php if (!empty($post['scheduledFor'])): ?><span class="text-sm text-ink-600"><?= e(t('موعد النشر:')) ?> <?= e(fmt_date($post['scheduledFor'], 'd/m h:i A')) ?></span><?php endif; ?>
       <div class="ms-auto flex flex-wrap gap-2">
-        <form method="post" onsubmit="return confirm('<?= tjs('هيتعمل نسخة جديدة من المنشور ده كمسودة. تكمل؟') ?>')">
+        <form method="post" data-confirm="<?= e(t('هيتعمل نسخة جديدة من المنشور ده كمسودة. تكمل؟')) ?>">
           <?= csrf_field() ?><input type="hidden" name="action" value="duplicate">
           <button class="btn-ghost text-sm"><?= e(t('اعمل نسخة كمسودة')) ?></button>
         </form>
         <?php if ($hasFailed): ?>
-        <form method="post" onsubmit="return confirm('<?= tjs('هنحاول ننشر تاني على المنصات اللي فشلت. تكمل؟') ?>')">
+        <form method="post" data-confirm="<?= e(t('هنحاول ننشر تاني على المنصات اللي فشلت. تكمل؟')) ?>">
           <?= csrf_field() ?><input type="hidden" name="action" value="retry">
           <button class="btn-primary text-sm"><?= e(t('أعد المحاولة للمنصات اللي فشلت')) ?></button>
         </form>
@@ -233,7 +233,7 @@ render(t('تفاصيل المنشور'), 'posts', function () use ($z, $fx, $id,
             <?php if ($isPub && in_array($plat, pub_editable_platforms(), true)): ?>
               <details>
                 <summary class="text-sm link cursor-pointer"><?= e(t('عدّل النص المنشور')) ?></summary>
-                <form method="post" class="mt-2 space-y-2" onsubmit="return confirm('<?= tjs('التعديل هيظهر على المنصة فوراً. تكمل؟') ?>')">
+                <form method="post" class="mt-2 space-y-2" data-confirm="<?= e(t('التعديل هيظهر على المنصة فوراً. تكمل؟')) ?>">
                   <?= csrf_field() ?><input type="hidden" name="action" value="edit_published">
                   <input type="hidden" name="platform" value="<?= e($plat) ?>"><input type="hidden" name="accountId" value="<?= e($accId) ?>">
                   <textarea data-ai="improve,shorten,hashtags,translate_en,translate_ar" name="content" rows="4" class="input"><?= e($pl['customContent'] ?? $post['content'] ?? '') ?></textarea>
@@ -243,7 +243,7 @@ render(t('تفاصيل المنشور'), 'posts', function () use ($z, $fx, $id,
               </details>
             <?php endif; ?>
             <?php if ($isPub && can('posts.manage') && in_array($plat, pub_unpublishable_platforms(), true)): ?>
-              <form method="post" onsubmit="return confirm('<?= tjs('تحذير: المنشور هيتمسح نهائياً من المنصة دي ومش هينفع يرجع. متأكد؟') ?>')">
+              <form method="post" data-confirm="<?= e(t('تحذير: المنشور هيتمسح نهائياً من المنصة دي ومش هينفع يرجع. متأكد؟')) ?>">
                 <?= csrf_field() ?><input type="hidden" name="action" value="unpublish">
                 <input type="hidden" name="platform" value="<?= e($plat) ?>"><input type="hidden" name="accountId" value="<?= e($accId) ?>">
                 <button class="text-sm text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg"><?= e(t('امسح من المنصة')) ?></button>

@@ -164,7 +164,7 @@ render(t('المستخدمين'), 'admin_users', function () use ($list, $worksp
               <?php if (!$self): ?>
               <div class="flex items-center justify-end gap-2">
                 <?php if (!$susp): ?>
-                <form method="post" onsubmit="return confirm('<?= tjs('هتدخل بحساب %s وتشوف البرنامج زيه بالظبط. العملية بتتسجل. تكمل؟', $u['name']) ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="impersonate"><input type="hidden" name="id" value="<?= (int)$u['id'] ?>">
+                <form method="post" data-confirm="<?= e(t('هتدخل بحساب %s وتشوف البرنامج زيه بالظبط. العملية بتتسجل. تكمل؟', $u['name'])) ?>"><?= csrf_field() ?><input type="hidden" name="action" value="impersonate"><input type="hidden" name="id" value="<?= (int)$u['id'] ?>">
                   <button class="btn-ghost !py-1 text-xs"><?= e(t('ادخل كـ')) ?></button></form>
                 <?php endif; ?>
                 <details class="relative" data-dropdown>
@@ -176,8 +176,8 @@ render(t('المستخدمين'), 'admin_users', function () use ($list, $worksp
                       <button class="menu-item"><?= e($u['role'] === 'admin' ? t('شيل صلاحية مدير النظام') : t('اعمله مدير نظام')) ?></button></form>
                     <form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="<?= $susp ? 'activate' : 'suspend' ?>"><input type="hidden" name="id" value="<?= (int)$u['id'] ?>">
                       <button class="menu-item <?= $susp ? '' : 'text-amber-700' ?>"><?= e($susp ? t('تشغيل الحساب') : t('إيقاف الحساب')) ?></button></form>
-                    <form method="post" onsubmit="return confirm('<?= tjs('حذف حساب %s نهائياً؟', $u['email']) ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int)$u['id'] ?>">
-                      <button class="menu-item text-red-600"><?= e(t('حذف الحساب')) ?></button></form>
+                    <form method="post" data-confirm="<?= e(t('حذف حساب %s نهائياً؟', $u['email'])) ?>"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int)$u['id'] ?>">
+                      <button class="btn-danger-ghost !py-1.5 !px-3 !text-sm"><?= e(t('حذف الحساب')) ?></button></form>
                   </div>
                 </details>
               </div>

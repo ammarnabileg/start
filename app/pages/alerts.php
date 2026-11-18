@@ -144,7 +144,7 @@ render(t('التنبيهات'), 'alerts', function () use ($alerts, $rules, $cat
             <?php endforeach; ?>
           </ul>
           <?php if ($canManage): ?>
-            <form method="post" class="mt-3" onsubmit="return confirm('<?= tjs('نمسح التنبيهات المقروءة؟') ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="clear">
+            <form method="post" class="mt-3" data-confirm="<?= e(t('نمسح التنبيهات المقروءة؟')) ?>"><?= csrf_field() ?><input type="hidden" name="action" value="clear">
               <button class="text-xs text-ink-500 hover:text-red-600"><?= e(t('امسح التنبيهات المقروءة')) ?></button></form>
           <?php endif; ?>
         <?php endif; ?>

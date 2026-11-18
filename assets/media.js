@@ -176,7 +176,19 @@
         n.classList.toggle('outline', fo); n.classList.toggle('outline-1', fo); n.classList.toggle('outline-brand-400', fo);
         var tk = n.querySelector('.mx-tick'); if (tk) { tk.textContent = on ? '✓' : ''; tk.classList.toggle('bg-brand-600', on); tk.classList.toggle('border-brand-600', on); tk.classList.toggle('text-white', on); tk.classList.toggle('bg-white/90', !on); tk.classList.toggle('border-ink-300', !on); } });
     }
-    function refreshSel() { paintSel(); pane(); status(); foot(); var one = selFiles(); if (one.length === 1 && st.pane) loadUses(one[0]); }
+    function refreshSel() { paintSel(); pane(); status(); foot(); var one = selFiles(); if (one.length === 1 && st.pane) loadUses(one[0]); mobBar(); }
+    // الموبايل: شريط أوامر تحت لما تحدد ملفات (اللوحة الجانبية والكليك اليمين مش متاحين على اللمس)
+    function mobBar() { var bar = document.getElementById('mx-mob');
+      if (!st.sel.length || innerWidth >= 1024) { if (bar) bar.remove(); return; }
+      if (!bar) { bar = document.createElement('div'); bar.id = 'mx-mob'; bar.className = 'fixed bottom-3 inset-x-3 z-[60] flex items-center gap-1.5 rounded-2xl bg-ink-900 text-ink-50 p-2 shadow-2xl overflow-x-auto'; document.body.appendChild(bar);
+        bar.addEventListener('click', function (e) { var b = e.target.closest('[data-mb]'); if (!b) return; var c = b.dataset.mb, ks = st.sel.slice();
+          if (c === 'x') { st.sel = []; return refreshSel(); } if (c === 'ren') return renameKey(ks[0]); if (c === 'mv') return moveDialog(ks); if (c === 'zip') return zip(ks); if (c === 'res') return restore(ks); if (c === 'del') return del(ks); }); }
+      var tr = st.loc.t === 'trash', one = st.sel.length === 1, b = function (c, l, cls) { return '<button type="button" data-mb="' + c + '" class="shrink-0 min-h-[40px] px-3 rounded-xl text-sm ' + (cls || 'hover:bg-white/10') + '">' + esc(l) + '</button>'; };
+      bar.innerHTML = '<span class="shrink-0 px-2 text-xs opacity-80">' + st.sel.length + '</span>'
+        + (tr ? b('res', S.restore) + (M.canPurge === false ? '' : b('del', S.purge, 'text-red-300 hover:bg-red-500/20 ms-auto'))
+              : (one && M.canEdit ? b('ren', S.rename) : '') + (M.canEdit ? b('mv', S.move) : '') + b('zip', S.download) + (M.canEdit ? b('del', S.del, 'text-red-300 hover:bg-red-500/20 ms-auto') : ''))
+        + b('x', '✕', 'shrink-0'); }
+    addEventListener('resize', function () { mobBar(); });
 
     function itemOf(k) { if (k[0] === 'd') return { dir: true, path: k.slice(1) }; var id = +k.slice(1); return { f: st.all.filter(function (f) { return f.id === id; })[0] }; }
     function openKey(k) { if (st.loc.t === 'trash') { var tf = st.all.filter(function (f) { return 'f' + f.id === k; })[0]; if (tf && (tf.kind === 'image' || tf.kind === 'video')) window.open(tf.url, '_blank'); return; } var it = itemOf(k); if (it.dir) return go({ t: 'folder', f: it.path }); if (!it.f) return; if (opt.picker) { if (okKind(it.f.kind)) { st.sel = [k]; finish(); } else toast(S.notAllowed, 'err'); return; } if (it.f.kind === 'image' || it.f.kind === 'video') lightbox(it.f.id); else window.open(it.f.url, '_blank'); }

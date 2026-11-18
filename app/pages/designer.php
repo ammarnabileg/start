@@ -342,7 +342,7 @@ render(t('المصمم'), 'designer', function () use ($brand, $co, $img, $kbd, 
           <div class="grid grid-cols-4 gap-1 mt-3" data-for="any">
             <button type="button" class="dz-ib2" data-cmd="front" title="<?= e(t('لقدام')) ?>"><?= ui_icon('up', 'w-4 h-4') ?></button><button type="button" class="dz-ib2" data-cmd="back" title="<?= e(t('لورا')) ?>"><?= ui_icon('down', 'w-4 h-4') ?></button>
             <button type="button" class="dz-ib2" data-cmd="center" title="<?= e(t('في النص')) ?>">⊕</button><button type="button" class="dz-ib2" data-cmd="lock" title="<?= e(t('قفل')) ?>"><?= ui_icon('lock', 'w-4 h-4') ?></button>
-            <button type="button" class="dz-ib2 col-span-2" data-cmd="dup"><?= ui_icon('copy', 'w-4 h-4') ?><?= e(t('نسخة')) ?></button><button type="button" class="dz-ib2 col-span-2 hover:!text-red-600" data-cmd="del"><?= ui_icon('trash', 'w-4 h-4') ?><?= e(t('حذف')) ?></button></div>
+            <button type="button" class="dz-ib2 col-span-2" data-cmd="dup"><?= ui_icon('copy', 'w-4 h-4') ?><?= e(t('نسخة')) ?></button><button type="button" class="btn-danger-ghost !py-1.5 !px-3 !text-sm" data-cmd="del"><?= ui_icon('trash', 'w-4 h-4') ?><?= e(t('حذف')) ?></button></div>
         </div>
         <div class="border-t border-ink-100 p-3 flex-1 min-h-0 flex flex-col"><b class="block text-xs text-ink-500 mb-2"><?= e(t('الطبقات')) ?></b><ol id="dz-layers" class="space-y-1 flex-1 min-h-[8rem] overflow-y-auto text-xs"></ol></div>
       </aside>

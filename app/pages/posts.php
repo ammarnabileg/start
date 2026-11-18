@@ -580,7 +580,7 @@ render(t('المنشورات'), 'posts', function () use ($z, $posts, $pages, $p
         <?php endif; ?>
         <?php if (can('posts.create')): ?><button type="button" id="ps-bdup" class="btn-ghost !py-1.5 !text-xs"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8h11v12H8zM5 16V4h11"/></svg> <?= e(t('نسخ كمسودات')) ?></button><?php endif; ?>
         <?php if (can('posts.manage')): ?><button type="button" id="ps-brep" class="btn-ghost !py-1.5 !text-xs"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 00-14.9-4M4 4v4h4M4 13a8 8 0 0014.9 4M20 20v-4h-4"/></svg> <?= e(t('استبدال')) ?></button><?php endif; ?>
-        <?php if (can('posts.manage')): ?><button type="button" id="ps-bulkdel" class="btn-ghost !py-1.5 !text-xs text-red-600"><?= e(t('حذف المحدد')) ?></button><?php endif; ?>
+        <?php if (can('posts.manage')): ?><button type="button" id="ps-bulkdel" class="btn-danger-ghost !py-1 !px-2.5 !text-xs"><?= e(t('حذف المحدد')) ?></button><?php endif; ?>
         <button type="button" id="ps-clear" class="ms-auto link text-xs !text-ink-500"><?= e(t('إلغاء التحديد')) ?></button>
       </div>
       <div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-4" id="ps-grid">

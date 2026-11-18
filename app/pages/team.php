@@ -274,7 +274,7 @@ render(t('فريق %s', $w['name']), 'team', function () use ($members, $links, 
                     <button class="btn-primary !py-1.5 !text-xs w-full"><?= e(t('حفظ')) ?></button></form></details>
                 <?php endif; ?>
                 <?php if (!$self): ?>
-                <form method="post" onsubmit="return confirm('<?= tjs('تشيل %s من الشركة؟', $m['name']) ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="remove"><input type="hidden" name="user_id" value="<?= (int)$m['id'] ?>">
+                <form method="post" data-confirm="<?= e(t('تشيل %s من الشركة؟', $m['name'])) ?>"><?= csrf_field() ?><input type="hidden" name="action" value="remove"><input type="hidden" name="user_id" value="<?= (int)$m['id'] ?>">
                   <button class="text-sm text-red-600 rounded-lg px-3 py-1.5 hover:bg-red-50"><?= e(t('شيله')) ?></button></form>
                 <?php endif; ?>
               <?php endif; ?>
@@ -354,7 +354,7 @@ render(t('فريق %s', $w['name']), 'team', function () use ($members, $links, 
                 <?php if (!$builtin): ?>
                   <div class="flex items-center gap-3">
                     <button class="btn-primary"><?= e(t('حفظ الدور')) ?></button>
-                    <button formaction="<?= e(url('team')) ?>" name="action" value="role_delete" class="text-sm text-red-600 hover:underline" onclick="return confirm('<?= tjs('حذف الدور "%s"؟ الأعضاء اللي عليه هيبقوا محررين.', $rname) ?>')"><?= e(t('حذف الدور')) ?></button>
+                    <button formaction="<?= e(url('team')) ?>" name="action" value="role_delete" class="text-sm text-red-600 hover:underline" data-confirm="<?= e(t('حذف الدور "%s"؟ الأعضاء اللي عليه هيبقوا محررين.', $rname)) ?>"><?= e(t('حذف الدور')) ?></button>
                   </div>
                 <?php else: ?>
                   <p class="text-xs text-ink-500"><?= e($rk === 'owner' ? t('المالك ليه كل الصلاحيات دايماً.') : t('الدور الجاهز مش بيتعدل. اعمل دور جديد لو محتاج صلاحيات مختلفة.')) ?></p>
@@ -386,7 +386,7 @@ render(t('فريق %s', $w['name']), 'team', function () use ($members, $links, 
         <?php $others = array_values(array_filter($members, function ($m) use ($me) { return $m['status'] === 'active' && (int)$m['id'] !== (int)$me['id']; }));
           if (is_ws_owner() && $others): ?>
         <!-- نقل الملكية -->
-        <form method="post" class="card p-5 space-y-4 border-amber-200" id="transfer" onsubmit="return confirm('<?= tjs('متأكد إنك عاوز تنقل ملكية %s؟', $w['name']) ?>')">
+        <form method="post" class="card p-5 space-y-4 border-amber-200" id="transfer" data-confirm="<?= e(t('متأكد إنك عاوز تنقل ملكية %s؟', $w['name'])) ?>">
           <?= csrf_field() ?><input type="hidden" name="action" value="transfer">
           <div><b class="text-ink-900"><?= e(t('نقل ملكية الشركة')) ?></b>
             <p class="text-xs text-ink-500 mt-0.5"><?= e(t('العضو اللي هتختاره هيبقى مالك الشركة، وانت هتاخد الدور اللي تختاره تحت.')) ?></p></div>

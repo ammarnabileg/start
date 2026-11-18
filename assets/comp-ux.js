@@ -353,8 +353,8 @@
     if (t.closest('[data-shx]')) { closeSheet(); return; }
     var card = t.closest('[data-cid]'); if (!card) return; var id = +card.dataset.cid;
     if ((b = t.closest('[data-check]'))) { b.disabled = true; b.classList.add('pd-busy'); b.querySelector('span').textContent = T.checking; post({ action: 'check', id: id }).then(after).catch(function () { toast(T.err, 'error'); paint(); }); return; }
-    if ((b = t.closest('[data-del]'))) { if (!b.classList.contains('sure')) { b.classList.add('sure'); b.innerHTML = esc(T.delQ); setTimeout(function () { if (b.isConnected) { b.classList.remove('sure'); b.innerHTML = ic('trash'); } }, 3000); return; }
-      card.classList.add('pd-out'); post({ action: 'del', id: id }).then(function (j) { if (j && j.ok === false) { card.classList.remove('pd-out'); toast(j.error || T.err, 'error'); return; } after(j); }).catch(function () { card.classList.remove('pd-out'); toast(T.err, 'error'); }); return; }
+    if ((b = t.closest('[data-del]'))) { var bb = b; (window.fxAsk ? fxAsk(T.delFull || T.delQ, { danger: true }) : Promise.resolve(confirm(T.delFull || T.delQ))).then(function (ok) { if (!ok) return; b = bb; // تأكيد بنافذة المنصة: الحذف بيمسح كل بيانات المتابعة
+      card.classList.add('pd-out'); post({ action: 'del', id: id }).then(function (j) { if (j && j.ok === false) { card.classList.remove('pd-out'); toast(j.error || T.err, 'error'); return; } after(j); }).catch(function () { card.classList.remove('pd-out'); toast(T.err, 'error'); }); }); return; }
     if (t.closest('[data-stop]')) return; openSheet(id); });
   root.addEventListener('keydown', function (e) { var c = e.target.closest('[data-cid]'); if (c && e.key === 'Enter' && e.target === c) openSheet(+c.dataset.cid); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && openId) closeSheet(); });

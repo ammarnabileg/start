@@ -234,10 +234,10 @@ render(t('قوالب واتساب'), 'wa_templates', function () use ($z, $accou
             <button type="button" class="wa-copy rounded-lg px-2 py-1 text-ink-600 hover:bg-ink-100"><?= e(t('نسخ النص')) ?></button>
           </div>
           <?php if (can('whatsapp.manage') && !$sb): ?>
-          <form method="post" class="mt-3 text-end" onsubmit="return confirm('<?= tjs('حذف القالب ده نهائياً من واتساب؟ مش هينفع ترجعه، ولازم تستنى قبل ما تستخدم نفس الاسم تاني.') ?>')">
+          <form method="post" class="mt-3 text-end" data-confirm="<?= e(t('حذف القالب ده نهائياً من واتساب؟ مش هينفع ترجعه، ولازم تستنى قبل ما تستخدم نفس الاسم تاني.')) ?>">
             <?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="wa" value="<?= e($acc) ?>">
             <input type="hidden" name="name" value="<?= e($tpl['name'] ?? '') ?>"><input type="hidden" name="language" value="<?= e($tpl['language'] ?? '') ?>">
-            <button class="text-sm text-red-600"><?= e(t('حذف')) ?></button>
+            <button class="btn-danger-ghost !py-1.5 !px-3 !text-sm"><?= e(t('حذف')) ?></button>
           </form>
           <?php endif; ?>
         </div>

@@ -235,11 +235,11 @@ render(t('تقييمات العملاء'), 'gmb_reviews', function () use ($z, $
                   <p class="text-sm whitespace-pre-line break-words mt-1"><?= e($rv['reply']['text'] ?? '') ?></p>
                   <div class="flex gap-3 mt-2 text-xs">
                     <button type="button" class="link" data-toggle="<?= e($rid) ?>"><?= e(t('تعديل الرد')) ?></button>
-                    <form method="post" class="inline" onsubmit="return confirm('<?= tjs('حذف الرد على التقييم؟') ?>')">
+                    <form method="post" class="inline" data-confirm="<?= e(t('حذف الرد على التقييم؟')) ?>">
                       <?= csrf_field() ?><input type="hidden" name="action" value="delete_reply">
                       <input type="hidden" name="review_id" value="<?= e($rv['id']) ?>"><input type="hidden" name="account_id" value="<?= e($rv['accountId'] ?? '') ?>">
                       <?php if (!empty($rv['_gmb'])): ?><input type="hidden" name="gmb" value="1"><?php endif; ?>
-                      <button class="text-red-600"><?= e(t('حذف الرد')) ?></button>
+                      <button class="btn-danger-ghost !py-1.5 !px-3 !text-sm"><?= e(t('حذف الرد')) ?></button>
                     </form>
                   </div>
                 </div>

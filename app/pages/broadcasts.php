@@ -173,10 +173,10 @@ render(t('الرسائل الجماعية'), 'broadcasts', function () use ($z, 
             </div>
             <div class="flex gap-2">
               <?php if (in_array($st, ['scheduled', 'sending'], true)): ?>
-                <form method="post" onsubmit="return confirm('<?= tjs('إلغاء الحملة؟ الرسايل اللي اتبعتت خلاص مش هترجع.') ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="cancel"><input type="hidden" name="id" value="<?= e($id) ?>"><button class="btn-ghost"><?= e(t('إلغاء الحملة')) ?></button></form>
+                <form method="post" data-confirm="<?= e(t('إلغاء الحملة؟ الرسايل اللي اتبعتت خلاص مش هترجع.')) ?>"><?= csrf_field() ?><input type="hidden" name="action" value="cancel"><input type="hidden" name="id" value="<?= e($id) ?>"><button class="btn-ghost"><?= e(t('إلغاء الحملة')) ?></button></form>
               <?php endif; ?>
               <?php if (can('whatsapp.manage') && in_array($st, ['draft', 'cancelled', 'completed', 'failed'], true)): ?>
-                <form method="post" onsubmit="return confirm('<?= tjs('حذف الحملة دي؟') ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= e($id) ?>"><button class="btn-ghost text-red-600"><?= e(t('حذف')) ?></button></form>
+                <form method="post" data-confirm="<?= e(t('حذف الحملة دي؟')) ?>"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= e($id) ?>"><button class="btn-danger-ghost !py-1.5 !px-3 !text-sm"><?= e(t('حذف')) ?></button></form>
               <?php endif; ?>
             </div>
           </div>
@@ -202,7 +202,7 @@ render(t('الرسائل الجماعية'), 'broadcasts', function () use ($z, 
           <label class="flex items-start gap-2 text-sm font-medium"><input type="checkbox" name="confirm" value="1" required class="mt-1">
             <span><?= e(t('أنا متأكد إني عايز أبعت الرسالة دي لـ %s شخص، وفاهم إن ده بيتكلف فلوس ومش هينفع يتلغي بعد الإرسال.', $count)) ?></span></label>
           <div class="flex flex-wrap items-end gap-3">
-            <button name="action" value="send" class="bg-red-600 text-white font-semibold rounded-xl px-5 py-2.5 text-sm hover:brightness-110" onclick="return confirm('<?= tjs('آخر تأكيد: إرسال لـ %s شخص دلوقتي؟', $count) ?>')"><?= e(t('ابعت دلوقتي لـ %s شخص', $count)) ?></button>
+            <button name="action" value="send" class="btn-danger" data-confirm="<?= e(t('آخر تأكيد: إرسال لـ %s شخص دلوقتي؟', $count)) ?>"><?= e(t('ابعت دلوقتي لـ %s شخص', $count)) ?></button>
             <span class="text-ink-400 text-sm"><?= e(t('أو')) ?></span>
             <label class="block"><span class="label"><?= e(t('جدولة (بتوقيت الشركة)')) ?></span><input type="datetime-local" name="scheduledAt" class="input"></label>
             <button name="action" value="schedule" class="btn-ghost"><?= e(t('جدولة')) ?></button>

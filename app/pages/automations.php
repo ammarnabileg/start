@@ -359,13 +359,13 @@ render(t('الردود التلقائية'), 'automations', function () use ($z,
               <span id="au-dirty" class="hidden text-xs text-amber-700">● <?= e(t('تعديلات مش محفوظة')) ?></span>
               <span id="au-err" class="text-xs text-red-600"></span>
               <?php if ($current && can('automations.manage')): ?>
-                <button type="submit" form="au-del" class="btn-ghost !text-xs text-red-600 ms-auto"><?= e(t('حذف')) ?></button>
+                <button type="submit" form="au-del" class="btn-danger-ghost !py-1 !px-2.5 !text-xs"><?= e(t('حذف')) ?></button>
               <?php endif; ?>
               <button class="btn-primary <?= $current && can('automations.manage') ? '' : 'ms-auto' ?>"><?= e($current ? t('حفظ') : t('إنشاء')) ?> <kbd class="hidden sm:inline text-[10px] opacity-70">Ctrl S</kbd></button>
             </div>
           </form>
           <?php if ($current && can('automations.manage')): ?>
-            <form method="post" id="au-del" class="hidden" onsubmit="return confirm('<?= tjs('حذف هذا الرد التلقائي؟') ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= e($a['id'] ?? '') ?>"></form>
+            <form method="post" id="au-del" class="hidden" data-confirm="<?= e(t('حذف هذا الرد التلقائي؟')) ?>"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= e($a['id'] ?? '') ?>"></form>
           <?php endif; ?>
         <?php endif; ?>
       </div>

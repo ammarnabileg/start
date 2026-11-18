@@ -208,7 +208,7 @@ render(t('الجماهير'), 'ad_audiences', function () use ($z, $apiError, $t
         <div id="px-codebox" class="hidden mt-3"><textarea readonly rows="7" class="input font-mono text-[11px]" dir="ltr" id="px-code"></textarea>
           <div class="flex items-center gap-2 mt-2"><button type="button" class="btn-primary !text-xs" id="px-copy"><?= e(t('انسخ الكود')) ?></button><span class="text-[11px] text-ink-500"><?= e(t('حطّه في <head> في كل صفحات موقعك.')) ?></span></div></div>
         <?php if (can('ads.spend')): ?>
-        <form method="post" id="px-newform" class="hidden mt-3 flex flex-wrap items-end gap-2" onsubmit="return confirm('<?= tjs('البيكسل لا يمكن حذفه بعد إنشائه على أي منصة. تريد المتابعة؟') ?>')">
+        <form method="post" id="px-newform" class="hidden mt-3 flex flex-wrap items-end gap-2" data-confirm="<?= e(t('البيكسل لا يمكن حذفه بعد إنشائه على أي منصة. تريد المتابعة؟')) ?>">
           <?= csrf_field() ?><input type="hidden" name="action" value="pixel_create"><input type="hidden" name="t" value="<?= e($sel) ?>">
           <div class="flex-1 min-w-[12rem]"><label class="label"><?= e(t('اسم البيكسل')) ?></label><input name="pixel_name" class="input" required minlength="3" maxlength="100" value="<?= e(ws('name') . ' — ' . t('الموقع')) ?>"></div>
           <button class="btn-primary"><?= e(t('إنشاء')) ?></button>
@@ -244,9 +244,9 @@ render(t('الجماهير'), 'ad_audiences', function () use ($z, $apiError, $t
 </div>
                 </div>
                 <?php if (can('ads.spend') && !empty($a['id'])): ?>
-                  <form method="post" onsubmit="return confirm('<?= tjs('حذف الجمهور ده من المنصة نهائياً؟ أي إعلان بيستخدمه ممكن يتأثر.') ?>')">
+                  <form method="post" data-confirm="<?= e(t('حذف الجمهور ده من المنصة نهائياً؟ أي إعلان بيستخدمه ممكن يتأثر.')) ?>">
                     <?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="t" value="<?= e($sel) ?>"><input type="hidden" name="audience_id" value="<?= e($a['id']) ?>">
-                    <button class="text-sm text-red-600 hover:underline"><?= e(t('حذف')) ?></button>
+                    <button class="btn-danger-ghost !py-1.5 !px-3 !text-sm"><?= e(t('حذف')) ?></button>
                   </form>
                 <?php endif; ?>
               </div>

@@ -18,6 +18,31 @@
     stack.appendChild(t); setTimeout(function () { t.style.transition = 'opacity .3s, transform .3s'; t.style.opacity = '0'; t.style.transform = 'translateY(6px)'; setTimeout(function () { t.remove(); }, 320); }, ok ? 2600 : 6000);
   }
   window.fxToast = toast;
+  var AR = (document.documentElement.lang || 'ar').indexOf('ar') === 0;
+  // الوحدة: نافذة تأكيد واحدة من تصميم المنصة بدل confirm() بتاع المتصفح
+  window.fxAsk = function (msg, o) { o = o || {}; var es = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+    return new Promise(function (res) { var d = document.createElement('dialog'), out = o.input != null ? null : false;
+      d.className = 'w-[min(440px,92vw)] p-0 rounded-2xl border border-ink-200 bg-white text-ink-900 shadow-2xl';
+      d.innerHTML = '<form method="dialog" class="p-6"><div class="flex items-start gap-4"><span class="shrink-0 w-11 h-11 rounded-2xl grid place-items-center text-lg font-black ' + (o.danger ? 'bg-red-50 text-red-600' : 'bg-brand-50 text-brand-600') + '">' + (o.icon || (o.danger ? '!' : '?')) + '</span><div class="flex-1 min-w-0">'
+        + (o.title ? '<h3 class="text-base font-bold text-ink-900 mb-1">' + es(o.title) + '</h3>' : '') + '<p class="text-sm text-ink-600 leading-7">' + es(msg) + '</p>'
+        + (o.input != null ? '<input data-v class="input w-full mt-3" maxlength="80" value="' + es(o.input) + '">' : '') + '</div></div>'
+        + '<div class="flex flex-wrap justify-end gap-2 mt-6"><button type="button" class="btn-ghost" data-x>' + es(o.cancel || (AR ? 'إلغاء' : 'Cancel')) + '</button><button type="submit" class="btn-primary' + (o.danger ? ' !bg-none !bg-red-600 hover:!bg-red-700 !border-red-600' : '') + '" data-ok>' + es(o.ok || (o.danger ? (AR ? 'حذف' : 'Delete') : (AR ? 'تأكيد' : 'OK'))) + '</button></div></form>';
+      document.body.appendChild(d);
+      d.querySelector('[data-x]').onclick = function () { d.close(); };
+      d.querySelector('form').onsubmit = function (e) { e.preventDefault(); var v = d.querySelector('[data-v]'); out = v ? v.value.trim() : true; if (v && !out) { v.focus(); return; } d.close(); };
+      d.addEventListener('close', function () { d.remove(); res(out); });
+      d.showModal(); var f = d.querySelector('[data-v]') || d.querySelector('[data-ok]'); setTimeout(function () { f.focus(); if (f.select) f.select(); }, 30); }); };
+  if (!window.dzAsk) window.dzAsk = window.fxAsk;
+  // <form data-confirm="..."> أو <button data-confirm="..."> : تأكيد بنافذة المنصة قبل الإرسال
+  document.addEventListener('submit', function (e) {
+    var f = e.target, b = e.submitter, m = (b && b.getAttribute('data-confirm')) || f.getAttribute('data-confirm') || (f.hasAttribute('data-confirm-q') && f.dataset.q);
+    if (!m) return; if (f.dataset.confirmed === '1') { delete f.dataset.confirmed; return; }
+    var cond = f.getAttribute('data-confirm-if'); if (cond && !f.querySelector(cond)) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    var danger = (b && b.hasAttribute('data-confirm-danger')) || f.hasAttribute('data-confirm-danger') || /حذف|إزالة|delete|remove|فصل|إلغاء/i.test(m);
+    window.fxAsk(m, { danger: danger }).then(function (ok) { if (!ok) return; f.dataset.confirmed = '1'; if (f.requestSubmit) f.requestSubmit(b || undefined); else f.submit(); });
+  }, true);
+
   // الوحدة: أي alert قديم في المنصة يطلع بنفس رسالة المنصة بدل نافذة المتصفح
   window.alert = function (m) { toast(String(m == null ? '' : m), 'error'); };
   function pageOf(u) { try { return new URL(u, location.href).searchParams.get('p') || 'dashboard'; } catch (e) { return ''; } }

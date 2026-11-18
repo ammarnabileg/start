@@ -184,9 +184,15 @@
     api({ action: 'enrich', id: lead().id }).then(function (j) { busy(b, false); b.innerHTML = old; if (!j.ok) return fail(j); toast(j.got && j.got.length ? T.got : j.pending ? T.pending : T.nothing, j.got && j.got.length ? 'success' : 'info'); LP.refresh(); }).catch(function () { busy(b, false); b.innerHTML = old; fail(); }); });
 
   /* ---------- حذف ---------- */
+  // تراجع عن حذف العميل: سلة المحذوفات بتحتفظ بيه 30 يوم
+  function undoBar(tid) { var o = document.getElementById('ld-undo'); if (o) o.remove(); var d = document.createElement('div'); d.id = 'ld-undo'; d.className = 'fixed bottom-20 inset-x-0 z-[111] flex justify-center pointer-events-none px-4';
+    d.innerHTML = '<div class="pointer-events-auto flex items-center gap-3 rounded-xl bg-ink-900 text-ink-50 px-4 py-2.5 text-sm shadow-xl"><span></span><button type="button" class="font-bold underline underline-offset-4"></button></div>';
+    d.querySelector('span').textContent = T.deletedUndo || T.deleted; var bt = d.querySelector('button'); bt.textContent = T.undo || 'Undo'; document.body.appendChild(d);
+    var tm = setTimeout(function () { d.remove(); }, 10000);
+    bt.onclick = function () { clearTimeout(tm); bt.disabled = true; api({ action: 'restore', trash: tid }).then(function (j) { d.remove(); if (!j.ok) return fail(j); toast(T.restored || '✓'); setTimeout(function () { location.reload(); }, 600); }).catch(function () { bt.disabled = false; fail({}); }); }; }
   var del = $('pd-del');
   if (del) del.addEventListener('click', function () { var b = this; if (!b.classList.contains('arm')) { b.classList.add('arm'); b.lastChild.textContent = T.delSure; setTimeout(function () { b.classList.remove('arm'); b.lastChild.textContent = b.dataset.l; }, 3000); return; }
-    var r = LP.cur(); b.disabled = true; api({ action: 'delete', id: LP.jd(r).id }).then(function (j) { b.disabled = false; if (!j.ok) return fail(j); dl.close(); toast(T.deleted); var H = LP.H(); if (H.onDelete) H.onDelete(r); else if (r.isConnected) r.remove(); }).catch(function () { b.disabled = false; fail({}); }); });
+    var r = LP.cur(); b.disabled = true; api({ action: 'delete', id: LP.jd(r).id }).then(function (j) { b.disabled = false; if (!j.ok) return fail(j); dl.close(); toast(T.deleted); if (j.trash) undoBar(j.trash); var H = LP.H(); if (H.onDelete) H.onDelete(r); else if (r.isConnected) r.remove(); }).catch(function () { b.disabled = false; fail({}); }); });
   if (del) del.dataset.l = del.lastChild.textContent;
 
   /* ---------- ملاحظة صوتية + إملاء ---------- */

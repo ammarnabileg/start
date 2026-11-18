@@ -157,7 +157,7 @@ render(t('الشركات'), 'admin_workspaces', function () use ($list, $users, 
                       <button class="menu-item <?= $susp ? '' : 'text-amber-700' ?>"><?= e($susp ? t('تشغيل الشركة') : t('إيقاف الشركة')) ?></button></form>
                     <form method="post" class="border-t border-ink-100 pt-3 space-y-2"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int)$w['id'] ?>">
                       <input name="confirm" class="input !mt-0 text-xs" placeholder="<?= e(t('اكتب: %s', $w['name'])) ?>">
-                      <button class="btn-ghost w-full text-xs text-red-600"><?= e(t('حذف نهائي')) ?></button></form>
+                      <button class="btn-danger-ghost !py-1 !px-2.5 !text-xs"><?= e(t('حذف نهائي')) ?></button></form>
                   </div>
                 </details>
               </div>

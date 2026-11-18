@@ -485,7 +485,7 @@ render(t('بيانات الفرع على جوجل'), 'gmb_location', function ()
                 <button class="btn-ghost !py-1.5"><?= e(t('حفظ')) ?></button>
               </form>
               <?php if (can('gmb.manage')): ?>
-              <form method="post" onsubmit="return confirm('<?= tjs('حذف الرابط ده؟') ?>')">
+              <form method="post" data-confirm="<?= e(t('حذف الرابط ده؟')) ?>">
                 <?= csrf_field() ?><?= $hidden ?><input type="hidden" name="action" value="action_delete"><input type="hidden" name="name" value="<?= e($a['name'] ?? '') ?>">
                 <button class="w-8 h-8 rounded-lg text-ink-400 hover:bg-red-50 hover:text-red-600" title="<?= e(t('حذف')) ?>">✕</button>
               </form>

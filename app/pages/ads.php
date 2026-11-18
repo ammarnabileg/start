@@ -447,7 +447,7 @@ render(t('الحملات الإعلانية'), 'ads', function () use ($z, $apiE
                   <td class="p-3 text-end"><?= e(ads_num(ads_results($m))) ?></td>
                   <td class="p-3 whitespace-nowrap">
                     <?php if ($st === 'active' || $st === 'pending_review'): ?>
-                      <form method="post" onsubmit="return confirm('<?= tjs('إيقاف الحملة دي؟') ?>')">
+                      <form method="post" data-confirm="<?= e(t('إيقاف الحملة دي؟')) ?>">
                         <?= csrf_field() ?><input type="hidden" name="action" value="status"><input type="hidden" name="to" value="paused">
                         <input type="hidden" name="campaign_id" value="<?= e($cid) ?>"><input type="hidden" name="platform" value="<?= e($cpf) ?>">
                         <button class="btn-ghost !py-1 !px-3"><?= e(t('إيقاف')) ?></button>

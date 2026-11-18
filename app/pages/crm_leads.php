@@ -244,6 +244,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         log_activity('crm.merge', $keep['id'] . ' <- ' . $drop['id']);
         $json(['ok' => true, 'lead' => $out(crm_lead((int)$keep['id'])), 'gone' => (int)$drop['id']]);
     }
+    if ($action === 'restore' && $canManage) {
+        $q = db()->prepare('SELECT * FROM crm_trash WHERE id = ? AND workspace_id = ?'); $q->execute([(int)($_POST['trash'] ?? 0), $wid]); $tr = $q->fetch();
+        if (!$tr) $json(['ok' => false, 'error' => t('لم يعد هذا العميل في سلة المحذوفات.')]);
+        $snap = json_decode((string)$tr['data'], true) ?: []; $ins = function ($tb, $row) { $cols = array_keys($row); db()->prepare('INSERT IGNORE INTO ' . $tb . ' (`' . implode('`,`', $cols) . '`) VALUES (' . implode(',', array_fill(0, count($cols), '?')) . ')')->execute(array_values($row)); };
+        try { db()->beginTransaction(); if (!empty($snap['lead'])) $ins('crm_leads', $snap['lead']); foreach ((array)($snap['rel'] ?? []) as $tb => $rows) { if (!in_array($tb, ['crm_acts', 'crm_deals', 'crm_tasks', 'crm_visits', 'crm_notifs', 'crm_mails', 'crm_bookings'], true)) continue; foreach ((array)$rows as $row) { try { $ins($tb, $row); } catch (Throwable $e) {} } }
+            db()->prepare('DELETE FROM crm_trash WHERE id = ?')->execute([(int)$tr['id']]); db()->commit(); } catch (Throwable $e) { if (db()->inTransaction()) db()->rollBack(); $json(['ok' => false, 'error' => t('تعذّر استرجاع العميل.')]); }
+        log_activity('crm.restore', (string)$tr['lead_id']);
+        $json(['ok' => true, 'id' => (int)$tr['lead_id']]);
+    }
     $l = crm_lead((int)($_POST['id'] ?? 0));
     if ($l && $action === 'acts' && crm_can_edit($l)) { $ac = crm_acts((int)$l['id']); $mails = crm_mails((int)$l['id']); $json(['ok' => true, 'acts' => $ac, 'run' => null, 'intel' => crm_intel($l, $ac), 'mails' => $mails, 'deals' => crm_deals((int)$l['id']), 'visits' => crm_visits((int)$l['id'])]); }
     if (!$l || !crm_can_edit($l)) $json(['ok' => false, 'error' => t('مش مسموحلك تعدّل العميل ده.')]);
@@ -388,12 +397,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $json(['ok' => true, 'lead' => $out(crm_lead((int)$l['id'])), 'acts' => crm_acts((int)$l['id'])]);
     }
     if ($action === 'delete' && $canManage) {
+        $trashId = 0; try { $snap = ['lead' => null, 'rel' => []]; $q = db()->prepare('SELECT * FROM crm_leads WHERE id = ? AND workspace_id = ?'); $q->execute([(int)$l['id'], $wid]); $snap['lead'] = $q->fetch(PDO::FETCH_ASSOC);
+            foreach (['crm_acts', 'crm_deals', 'crm_tasks', 'crm_visits', 'crm_notifs', 'crm_mails', 'crm_bookings'] as $tb) { try { $q = db()->prepare("SELECT * FROM $tb WHERE lead_id = ? AND workspace_id = ?"); $q->execute([(int)$l['id'], $wid]); $snap['rel'][$tb] = $q->fetchAll(PDO::FETCH_ASSOC); } catch (Throwable $e) {} }
+            if ($snap['lead']) { db()->prepare('INSERT INTO crm_trash (workspace_id, lead_id, name, data, deleted_by) VALUES (?, ?, ?, ?, ?)')->execute([$wid, (int)$l['id'], mb_substr((string)$l['name'], 0, 255), json_encode($snap, JSON_UNESCAPED_UNICODE), $uid]); $trashId = (int)db()->lastInsertId(); }
+            db()->prepare('DELETE FROM crm_trash WHERE workspace_id = ? AND created_at < (NOW() - INTERVAL 30 DAY)')->execute([$wid]); } catch (Throwable $e) {} // سلة المحذوفات: تراجع لحد 30 يوم
         db()->prepare('DELETE FROM crm_acts WHERE lead_id = ? AND workspace_id = ?')->execute([(int)$l['id'], $wid]);
         try { db()->prepare('DELETE FROM crm_bookings WHERE lead_id = ? AND workspace_id = ? AND start_at > NOW()')->execute([(int)$l['id'], $wid]); } catch (Throwable $e) {}
         foreach (['crm_deals', 'crm_tasks', 'crm_visits', 'crm_notifs', 'crm_mails'] as $tb) { try { db()->prepare("DELETE FROM $tb WHERE lead_id = ? AND workspace_id = ?")->execute([(int)$l['id'], $wid]); } catch (Throwable $e) {} } // مايفضلش يتحسب في التقارير
         db()->prepare('DELETE FROM crm_leads WHERE id = ? AND workspace_id = ?')->execute([(int)$l['id'], $wid]);
         log_activity('crm.delete', $l['id'] . ' ' . $l['name']);
-        $json(['ok' => true]);
+        $json(['ok' => true, 'trash' => $trashId]);
     }
     $json(['ok' => false, 'error' => t('بيانات ناقصة')]);
 }

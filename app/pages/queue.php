@@ -238,7 +238,7 @@ render(t('طوابير النشر'), 'queue', function () use ($z, $fx, $apiErro
           <div class="flex gap-2 pt-2">
             <a class="btn-ghost text-sm" href="<?= e(url('queue', ['edit' => $q['_id']])) ?>"><?= e(t('تعديل')) ?></a>
             <?php if (can('posts.manage')): ?>
-            <form method="post" onsubmit="return confirm('<?= tjs('متأكد إنك عاوز تحذف الطابور ده؟ المنشورات اللي متحطة فيه ممكن تتأثر.') ?>')">
+            <form method="post" data-confirm="<?= e(t('متأكد إنك عاوز تحذف الطابور ده؟ المنشورات اللي متحطة فيه ممكن تتأثر.')) ?>">
               <?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="queueId" value="<?= e($q['_id']) ?>">
               <button class="text-sm text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg"><?= e(t('حذف')) ?></button>
             </form>

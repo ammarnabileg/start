@@ -600,7 +600,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
                   <button class="tb w-9 h-9 !h-9 justify-center" title="<?= e($archived ? t('رجّعها للنشطة') : t('أرشفة')) ?> (E)" data-ibx-archive><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 5h18v4H3zM5 9v10h14V9M10 13h4"/></svg></button></form>
               <?php endif; ?>
               <?php if (can('inbox.manage')): ?>
-                <form method="post" onsubmit="return confirm('<?= tjs('حذف المحادثة دي وكل رسايلها من Zernio؟ مش هينفع ترجعها.') ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="delete_conv">
+                <form method="post" data-confirm="<?= e(t('حذف المحادثة دي وكل رسايلها من Zernio؟ مش هينفع ترجعها.')) ?>"><?= csrf_field() ?><input type="hidden" name="action" value="delete_conv">
                   <button class="tb w-9 h-9 !h-9 justify-center hover:!text-red-600 hover:!border-red-200" title="<?= e(t('حذف المحادثة')) ?>"><?= ui_icon('trash', 'w-4 h-4') ?></button></form>
               <?php endif; ?>
             </div>
@@ -627,7 +627,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
                       <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="label_add"><input type="hidden" name="label_id" value="<?= e($l['id']) ?>"><button class="link" title="<?= e(t('حط التصنيف على المحادثة')) ?>">+</button></form>
                     <?php endif; ?>
                     <?php if (can('inbox.manage')): ?>
-                      <form method="post" class="inline" onsubmit="return confirm('<?= tjs('حذف التصنيف من الصفحة كلها؟') ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="label_delete"><input type="hidden" name="label_id" value="<?= e($l['id']) ?>"><button class="text-red-600" title="<?= e(t('حذف التصنيف')) ?>">×</button></form>
+                      <form method="post" class="inline" data-confirm="<?= e(t('حذف التصنيف من الصفحة كلها؟')) ?>"><?= csrf_field() ?><input type="hidden" name="action" value="label_delete"><input type="hidden" name="label_id" value="<?= e($l['id']) ?>"><button class="text-red-600" title="<?= e(t('حذف التصنيف')) ?>">×</button></form>
                     <?php endif; ?>
                   </span>
                 <?php endforeach; ?>
@@ -682,7 +682,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
                         </details><?php endif; ?>
                       <?php endif; ?>
                       <?php if ($out && ip_can_delete($plat)): ?>
-                        <form method="post" class="inline" onsubmit="return confirm('<?= tjs('حذف الرسالة دي؟') ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="delete_msg"><input type="hidden" name="message_id" value="<?= e($mid) ?>"><button class="text-red-600"><?= e(t('حذف')) ?></button></form>
+                        <form method="post" class="inline" data-confirm="<?= e(t('حذف الرسالة دي؟')) ?>"><?= csrf_field() ?><input type="hidden" name="action" value="delete_msg"><input type="hidden" name="message_id" value="<?= e($mid) ?>"><button class="btn-danger-ghost !py-1.5 !px-3 !text-sm"><?= e(t('حذف')) ?></button></form>
                       <?php endif; ?>
                     </div>
                   <?php endif; ?>

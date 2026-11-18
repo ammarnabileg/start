@@ -166,7 +166,7 @@ render(t('المصادر والإعدادات'), 'crm_capture', function () use 
             <span class="flex-1 min-w-[180px]"><b class="text-ink-900"><?= e($x['title']) ?></b> <span class="text-[11px] text-ink-400" dir="ltr">/<?= e($x['slug']) ?></span> <span class="text-[11px] text-ink-500"> · <?= e(t('%s زيارة', (int)($x['views'] ?? 0))) ?></span></span>
             <?= $copy($u) ?><a href="<?= e($u) ?>" target="_blank" class="btn-ghost !py-1 !text-xs"><?= e(t('افتح')) ?></a><?= $qrBtn($u, $x['title']) ?>
             <button type="button" class="btn-ghost !py-1 !text-xs" data-lp-edit='<?= e(json_encode($x, JSON_UNESCAPED_UNICODE)) ?>'><?= e(t('تعديل')) ?></button>
-            <form method="post" onsubmit="return confirm('<?= tjs('تمسح الصفحة؟') ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="lp_del"><input type="hidden" name="slug" value="<?= e($x['slug']) ?>"><button class="text-xs text-red-600 px-2"><?= e(t('حذف')) ?></button></form></div>
+            <form method="post" data-confirm="<?= e(t('تمسح الصفحة؟')) ?>"><?= csrf_field() ?><input type="hidden" name="action" value="lp_del"><input type="hidden" name="slug" value="<?= e($x['slug']) ?>"><button class="btn-danger-ghost !py-1 !px-2.5 !text-xs"><?= e(t('حذف')) ?></button></form></div>
         <?php endforeach; ?>
       </div>
       <form method="post" id="lp-form" class="hidden mt-3 grid md:grid-cols-2 gap-2 rounded-2xl border border-ink-200 bg-ink-50/50 p-3 text-sm"><?= csrf_field() ?><input type="hidden" name="action" value="lp_save"><input type="hidden" name="old">

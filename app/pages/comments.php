@@ -176,7 +176,7 @@ function comment_block(array $c, array $labels, bool $isReply = false): void
             <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="hide"><input type="hidden" name="comment_id" value="<?= e($c['id']) ?>"><button class="hover:text-ink-900"><?= e(t('إخفاء')) ?></button></form>
           <?php endif; ?>
           <?php if (!empty($c['canDelete'])): ?>
-            <form method="post" class="inline" onsubmit="return confirm('<?= tjs('حذف التعليق نهائياً؟') ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="comment_id" value="<?= e($c['id']) ?>"><button class="hover:text-red-600"><?= e(t('حذف')) ?></button></form>
+            <form method="post" class="inline" data-confirm="<?= e(t('حذف التعليق نهائياً؟')) ?>"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="comment_id" value="<?= e($c['id']) ?>"><button class="btn-danger-ghost !py-1.5 !px-3 !text-sm"><?= e(t('حذف')) ?></button></form>
           <?php endif; ?>
           <?php if (!empty($c['url'])): ?><a href="<?= e($c['url']) ?>" target="_blank" rel="noopener" class="hover:text-ink-900"><?= e(t('فتح ↗')) ?></a><?php endif; ?>
           <?php if (!$mine && module_enabled('crm') && can('crm.view')): $cext = 'cm:' . (string)($c['platform'] ?? $GLOBALS['__cm_pf'] ?? '') . ':' . (string)($from['id'] ?? $from['username'] ?? $nm); $cl = crm_lead_by_ext($cext); ?>

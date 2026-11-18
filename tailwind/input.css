@@ -24,6 +24,8 @@
   .btn { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition disabled:opacity-60; }
   .btn-primary { @apply btn text-[#fff] bg-gradient-to-l from-brand-600 to-cyan-600 hover:brightness-110 shadow-sm shadow-brand-600/25; }
   .btn-ghost { @apply btn bg-ink-100 text-ink-900 border border-ink-200 hover:bg-ink-200; }
+  .btn-danger { @apply btn text-[#fff] bg-red-600 hover:bg-red-700 shadow-sm shadow-red-600/20; }
+  .btn-danger-ghost { @apply btn bg-white text-red-600 border border-red-200 hover:bg-red-50; }
   .link { @apply text-brand-600 dark:text-brand-700 font-medium hover:underline underline-offset-4; }
   .badge { @apply inline-flex items-center rounded-lg bg-ink-100 px-2 py-0.5 text-xs font-medium text-ink-600 dark:bg-ink-200 dark:text-ink-800; }
   .badge-red { @apply bg-red-100 text-red-700; }

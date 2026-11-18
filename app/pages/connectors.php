@@ -311,7 +311,7 @@ render(t('التكاملات'), 'connectors', function () use ($registry, $detai
               <form method="post"><?= csrf_field() ?><input type="hidden" name="provider" value="<?= e($key) ?>"><input type="hidden" name="cid" value="<?= (int)$c['id'] ?>"><input type="hidden" name="action" value="retest">
                 <button class="btn-ghost !py-1.5 !px-3 !text-xs"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4v6h6M20 20v-6h-6M5 13a7 7 0 0012.9 3M19 11A7 7 0 006.1 8"/></svg><?= e(t('اختبار الاتصال')) ?></button></form>
 
-              <form method="post" class="ms-auto" onsubmit="return confirm('<?= tjs('تشيل الاتصال "%s"؟ الحسابات اللي عليه هتختفي من البرنامج (مش هتتمسح من عندهم).', $c['label']) ?>')">
+              <form method="post" class="ms-auto" data-confirm="<?= e(t('تشيل الاتصال "%s"؟ الحسابات اللي عليه هتختفي من البرنامج (مش هتتمسح من عندهم).', $c['label'])) ?>">
                 <?= csrf_field() ?><input type="hidden" name="provider" value="<?= e($key) ?>"><input type="hidden" name="cid" value="<?= (int)$c['id'] ?>"><input type="hidden" name="action" value="delete">
                 <button class="!py-1.5 !px-3 !text-xs btn text-red-600 hover:bg-red-50"><?= e(t('فصل')) ?></button>
               </form>

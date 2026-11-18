@@ -192,7 +192,7 @@ render(t('بروفايل واتساب'), 'wa_profile', function () use ($z, $fx,
             <span class="flex-1"><span class="block font-bold text-ink-900"><?= e(t('تسجيل الرقم للإرسال')) ?></span>
               <span class="block text-xs <?= $notReg ? 'text-red-700' : 'text-ink-500' ?>"><?= e($notReg ? t('الرقم مش متسجل للإرسال (الحالة: %s). الرسايل مش هتتبعت لحد ما تسجله.', (string)$ph['status']) : t('لو ظهرلك خطأ 133010 "Account not registered" وانت بتبعت، سجّل الرقم من هنا.')) ?></span></span>
           </summary>
-          <form method="post" class="px-5 pb-5 space-y-3" onsubmit="return confirm('<?= tjs('هنسجّل الرقم عند Meta بالـ PIN ده. نكمل؟') ?>')">
+          <form method="post" class="px-5 pb-5 space-y-3" data-confirm="<?= e(t('هنسجّل الرقم عند Meta بالـ PIN ده. نكمل؟')) ?>">
             <?= csrf_field() ?><input type="hidden" name="action" value="register"><input type="hidden" name="wa" value="<?= e($acc) ?>">
             <ul class="text-xs text-ink-600 space-y-1 list-disc ps-5">
               <li><?= e(t('لو الرقم عليه "التحقق بخطوتين" في WhatsApp Manager، اكتب نفس الـ PIN بتاعه.')) ?></li>

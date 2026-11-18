@@ -145,7 +145,7 @@ $__sec = function () use ($wid, $accounts, $accErr, $sched, $token, $canManage) 
               <div id="rp-rc" class="flex flex-wrap gap-1"></div>
               <button class="btn-primary"><?= e(t('حفظ')) ?></button>
             </form>
-            <form method="post" action="<?= e(url('reports')) ?>" class="mt-3" onsubmit="return confirm('<?= tjs('نبعت تقرير تجريبي دلوقتي؟') ?>')">
+            <form method="post" action="<?= e(url('reports')) ?>" class="mt-3" data-confirm="<?= e(t('نبعت تقرير تجريبي دلوقتي؟')) ?>">
               <?= csrf_field() ?>
               <input type="hidden" name="action" value="send_test">
               <button class="btn-ghost w-full"><?= e(t('ابعت تجربة دلوقتي')) ?></button>

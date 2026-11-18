@@ -228,7 +228,7 @@ Ahmed Ali,<?= e(cx_phone(false)) ?>,ahmed@example.com,ACME,vip;<?= e(preg_replac
             <td class="p-3 text-end whitespace-nowrap">
               <a class="link text-xs" href="<?= e(url('contacts', ['edit' => $c['id'], 'q' => $q, 'tag' => $tag])) ?>"><?= e(t('تعديل')) ?></a>
               <?php if (can('whatsapp.manage')): ?>
-              <form method="post" class="inline ms-2" onsubmit="return confirm('<?= tjs('حذف جهة الاتصال دي نهائياً؟') ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= e($c['id']) ?>"><button class="text-xs text-red-600"><?= e(t('حذف')) ?></button></form>
+              <form method="post" class="inline ms-2" data-confirm="<?= e(t('حذف جهة الاتصال دي نهائياً؟')) ?>"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= e($c['id']) ?>"><button class="btn-danger-ghost !py-1 !px-2.5 !text-xs"><?= e(t('حذف')) ?></button></form>
               <?php endif; ?>
             </td>
           </tr>

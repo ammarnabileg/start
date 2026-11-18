@@ -149,10 +149,10 @@ render(t('السلاسل التلقائية'), 'sequences', function () use ($z,
             <div class="flex gap-2">
               <form method="post"><?= csrf_field() ?><input type="hidden" name="id" value="<?= e($id) ?>">
                 <?php if ($st === 'active'): ?><button name="action" value="pause" class="btn-ghost"><?= e(t('إيقاف مؤقت')) ?></button>
-                <?php else: ?><button name="action" value="activate" class="btn-primary" onclick="return confirm('<?= tjs('تفعيل السلسلة؟ الرسايل هتبدأ تتبعت للمسجلين حسب المواعيد، وكل رسالة بتتحاسب.') ?>')"><?= e(t('تفعيل')) ?></button><?php endif; ?>
+                <?php else: ?><button name="action" value="activate" class="btn-primary" data-confirm="<?= e(t('تفعيل السلسلة؟ الرسايل هتبدأ تتبعت للمسجلين حسب المواعيد، وكل رسالة بتتحاسب.')) ?>"><?= e(t('تفعيل')) ?></button><?php endif; ?>
               </form>
               <?php if (can('whatsapp.manage')): ?>
-              <form method="post" onsubmit="return confirm('<?= tjs('حذف السلسلة دي نهائياً؟') ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= e($id) ?>"><button class="btn-ghost text-red-600"><?= e(t('حذف')) ?></button></form>
+              <form method="post" data-confirm="<?= e(t('حذف السلسلة دي نهائياً؟')) ?>"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= e($id) ?>"><button class="btn-danger-ghost !py-1.5 !px-3 !text-sm"><?= e(t('حذف')) ?></button></form>
               <?php endif; ?>
             </div>
           </div>
@@ -208,7 +208,7 @@ render(t('السلاسل التلقائية'), 'sequences', function () use ($z,
                     <span class="text-[11px] text-ink-500 ms-1"><?= e(!empty($en['nextStepAt']) && $es === 'active' ? t('الجاية: %s', fmt_date($en['nextStepAt'], 'd/m h:i A')) : t('اتبعت %s خطوة', $sent)) ?></span></div>
                 </div>
                 <?php if ($es === 'active' || $es === 'paused'): ?>
-                <form method="post" onsubmit="return confirm('<?= tjs('شيل جهة الاتصال دي من السلسلة؟') ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="unenroll"><input type="hidden" name="id" value="<?= e($id) ?>"><input type="hidden" name="contact" value="<?= e($en['contactId'] ?? '') ?>"><button class="w-8 h-8 rounded-lg text-ink-400 hover:bg-red-50 hover:text-red-600" title="<?= e(t('شيله')) ?>">✕</button></form>
+                <form method="post" data-confirm="<?= e(t('شيل جهة الاتصال دي من السلسلة؟')) ?>"><?= csrf_field() ?><input type="hidden" name="action" value="unenroll"><input type="hidden" name="id" value="<?= e($id) ?>"><input type="hidden" name="contact" value="<?= e($en['contactId'] ?? '') ?>"><button class="w-8 h-8 rounded-lg text-ink-400 hover:bg-red-50 hover:text-red-600" title="<?= e(t('شيله')) ?>">✕</button></form>
                 <?php endif; ?>
               </div>
             <?php endforeach; ?>
