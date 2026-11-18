@@ -313,9 +313,9 @@ render(t('السلاسل التلقائية'), 'sequences', function () use ($z,
     </div>
     <?php if ($list): ?>
     <div class="grid grid-cols-3 gap-3 mb-5">
-      <div class="rounded-2xl border border-ink-200 bg-white p-4"><div class="text-xs text-ink-500"><?= e(t('سلاسل شغالة')) ?></div><div class="text-2xl font-bold text-ink-900 mt-1"><?= $act ?> / <?= count($list) ?></div></div>
-      <div class="rounded-2xl border border-ink-200 bg-white p-4"><div class="text-xs text-ink-500"><?= e(t('اتسجلوا إجمالاً')) ?></div><div class="text-2xl font-bold text-ink-900 mt-1"><?= $totE ?></div></div>
-      <div class="rounded-2xl border border-ink-200 bg-white p-4"><div class="text-xs text-ink-500"><?= e(t('نسبة اللي خلصوا')) ?></div><div class="text-2xl font-bold text-ink-900 mt-1"><?= $pct($totC, $totE) ?>%</div></div>
+      <div class="card p-4"><div class="text-xs text-ink-500"><?= e(t('سلاسل شغالة')) ?></div><div class="text-2xl font-bold text-ink-900 mt-1"><?= $act ?> / <?= count($list) ?></div></div>
+      <div class="card p-4"><div class="text-xs text-ink-500"><?= e(t('اتسجلوا إجمالاً')) ?></div><div class="text-2xl font-bold text-ink-900 mt-1"><?= $totE ?></div></div>
+      <div class="card p-4"><div class="text-xs text-ink-500"><?= e(t('نسبة اللي خلصوا')) ?></div><div class="text-2xl font-bold text-ink-900 mt-1"><?= $pct($totC, $totE) ?>%</div></div>
     </div>
     <?php endif; ?>
     <?php if (!$list): ?>

@@ -234,7 +234,7 @@ render(t('فريق %s', $w['name']), 'team', function () use ($members, $links, 
     ?>
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
       <?php foreach ([[t('أعضاء'), $activeN, ''], [t('مستنيين يوافقوا'), $pendN, $pendN ? 'text-amber-700' : ''], [t('نشطين آخر 7 أيام'), $live7 . ' / ' . $activeN, ''], [t('لينكات دعوة شغالة'), count($links), count(array_filter($links, function ($l) { return !$l['email']; })) ? 'text-amber-700' : '']] as [$l, $v, $c]): ?>
-        <div class="rounded-2xl border border-ink-200 bg-white p-4"><div class="text-xs text-ink-500"><?= e($l) ?></div><div class="text-2xl font-bold mt-1 <?= $c ?: 'text-ink-900' ?>"><?= e((string)$v) ?></div></div>
+        <div class="card p-4"><div class="text-xs text-ink-500"><?= e($l) ?></div><div class="text-2xl font-bold mt-1 <?= $c ?: 'text-ink-900' ?>"><?= e((string)$v) ?></div></div>
       <?php endforeach; ?>
     </div>
 

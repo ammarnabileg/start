@@ -1891,3 +1891,7 @@ html.dark [class*="inset-0"][class*="bg-ink-900/"],html.dark .cx-shb,html.dark .
 @media (pointer: coarse) { .ld-act { width: 2.5rem; height: 2.5rem; } }
 
 @media (pointer: coarse) { .cp-x-del { min-width: 40px; min-height: 40px; } }
+
+@media (hover: none) { .dz-pg-x, .dz-pg-d { opacity: 1 !important; } }
+@media (pointer: coarse) { .dz-pg-x, .dz-pg-d { width: 2.25rem; height: 2.25rem; } .mx-tick { min-width: 40px; min-height: 40px; } }
+.dz-pg:focus-within .dz-pg-x, .dz-pg:focus-within .dz-pg-d { opacity: 1; }
