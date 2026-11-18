@@ -11,7 +11,7 @@ $form = $base . '?' . http_build_query(['p' => 'lead_form', 'w' => $wid, 't' => 
 $wa = preg_replace('/\D/', '', (string)$c['wa']);
 $color = preg_match('/^#[0-9a-f]{6}$/i', (string)$c['color']) ? $c['color'] : '#4f46e5';
 $cfg = ['v' => $base . '?p=crm_v&w=' . $wid, 'form' => setting('crm_form_on_' . $wid, '1') === '1' ? $form : '', 'wa' => $wa, 'btn' => (int)$c['btn'], 'color' => $color,
-    'label' => trim((string)$c['label']) ?: 'تواصل معانا', 'waLabel' => 'WhatsApp', 'formLabel' => 'ابعتلنا'];
+    'label' => trim((string)$c['label']) ?: 'تواصل معنا', 'waLabel' => 'WhatsApp', 'formLabel' => 'راسلنا'];
 ?>
 (function(){var C=<?= json_encode($cfg, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 var K=null;try{var m=location.search.match(/[?&]ap=([0-9]+\.[0-9a-f]{12})/);if(m){K=m[1];localStorage.setItem('ap_k',K);}else K=localStorage.getItem('ap_k');}catch(e){}

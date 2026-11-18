@@ -78,7 +78,7 @@ render(t('إعدادات المنصة'), 'system', function () {
 
       <div class="card p-6 space-y-4 lg:col-span-2">
         <h2 class="font-semibold text-ink-900"><?= e(t('رسالة عامة لكل المستخدمين')) ?></h2>
-        <textarea name="announcement" rows="3" class="input" placeholder="<?= e(t('مثلاً: هيكون فيه تحديث يوم الجمعة الساعة 10 بالليل.')) ?>"><?= e(setting('announcement', '')) ?></textarea>
+        <textarea name="announcement" dir="auto" data-ai="auto_msg,improve,shorten,translate_en,translate_ar" rows="3" class="input" placeholder="<?= e(t('مثلاً: هيكون فيه تحديث يوم الجمعة الساعة 10 بالليل.')) ?>"><?= e(setting('announcement', '')) ?></textarea>
         <div class="flex flex-wrap items-center gap-4 text-sm">
           <label class="flex items-center gap-2"><input type="radio" name="announcement_type" value="info" <?= setting('announcement_type', 'info') !== 'warning' ? 'checked' : '' ?>> <?= e(t('معلومة')) ?></label>
           <label class="flex items-center gap-2"><input type="radio" name="announcement_type" value="warning" <?= setting('announcement_type', 'info') === 'warning' ? 'checked' : '' ?>> <?= e(t('تنبيه')) ?></label>
