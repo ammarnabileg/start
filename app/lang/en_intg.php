@@ -6475,4 +6475,5 @@ If you know someone who needs our services, send them this link. They get {get},
     'عرض نهاية الشهر' => 'End-of-month offer',
     'منشور مجدول · إنستجرام وتيك توك' => 'Scheduled post · Instagram and TikTok',
     'صفقة جديدة: عرض سعر بقيمة 48,000 ريال أُرسل للعميل' => 'New deal: a SAR 48,000 quote was sent to the client',
+    'مفتاح OpenRouter غير صالح أو أُلغي (OpenRouter: %s). أنشئ مفتاحًا جديدًا من openrouter.ai/keys وضعه في صفحة التكاملات.' => 'Your OpenRouter key is invalid or was revoked (OpenRouter: %s). Create a new key at openrouter.ai/keys and add it on the Integrations page.',
 ];

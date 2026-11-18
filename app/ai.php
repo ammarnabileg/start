@@ -29,6 +29,10 @@ function ai_http(string $method, string $path, ?string $key, $body = null, int $
     $data = json_decode($raw, true) ?: [];
     if ($status >= 400) {
         $msg = $data['error']['message'] ?? $data['message'] ?? ('HTTP ' . $status);
+        // "User not found" = المفتاح اتمسح أو اتجدد أو الحساب اتقفل: رسالة مفهومة بدل نص OpenRouter
+        if (in_array($status, [401, 403], true) || preg_match('/user not found|invalid api key|no auth credentials|key (is )?(disabled|revoked)/i', (string)(is_string($msg) ? $msg : ''))) {
+            throw new AiException(t('مفتاح OpenRouter غير صالح أو أُلغي (OpenRouter: %s). أنشئ مفتاحًا جديدًا من openrouter.ai/keys وضعه في صفحة التكاملات.', is_string($msg) ? $msg : 'HTTP ' . $status), 401);
+        }
         throw new AiException(is_string($msg) ? $msg : json_encode($msg), $status);
     }
     return $data;
@@ -593,6 +597,7 @@ function ai_chat_openrouter(array $c, array $messages, int $maxTokens): array
     $code = $last ? $last->getCode() : 0;
     if ($code === 402) throw new AiException(t('رصيد OpenRouter خلص. اشحن الرصيد أو خلّي المستوى "مجاني بس".'));
     if ($code === 429) throw new AiException(t('الموديلات المجانية زحمة دلوقتي. جرب بعد دقيقة، أو اسمح بالموديلات الرخيصة.'));
+    if ($code === 401 || $code === 403) throw $last; // رسالة المفتاح نفسها أوضح
     throw new AiException(t('المساعد مش قادر يرد دلوقتي: %s', $last ? $last->getMessage() : ''));
 }
 
