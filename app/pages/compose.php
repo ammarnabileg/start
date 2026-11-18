@@ -841,7 +841,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
                   </select></label>
                 <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="<?= e($n) ?>[kids]" value="1" <?= $chk($id, 'kids', false) ?>> <?= e(t('الفيديو معمول للأطفال')) ?></label>
                 <label class="block"><span class="label"><?= e(t('أول تعليق (اختياري)')) ?></span>
-                  <input name="<?= e($n) ?>[first_comment]" class="input" value="<?= e($o($id, 'first_comment')) ?>"></label>
+                  <input name="<?= e($n) ?>[first_comment]" data-ai="hashtags,cta,improve,translate_en,translate_ar" class="input" value="<?= e($o($id, 'first_comment')) ?>"></label>
               <?php elseif ($p === 'pinterest'): ?>
                 <label class="block"><span class="label"><?= e(t('اللوحة (Board)')) ?></span>
                   <select name="<?= e($n) ?>[board]" class="input">
@@ -865,10 +865,10 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
                     <?php endforeach; ?>
                   </select></label>
                 <label class="block"><span class="label"><?= e(t('أول تعليق (اختياري، مش للستوري)')) ?></span>
-                  <input name="<?= e($n) ?>[first_comment]" class="input" value="<?= e($o($id, 'first_comment')) ?>"></label>
+                  <input name="<?= e($n) ?>[first_comment]" data-ai="hashtags,cta,improve,translate_en,translate_ar" class="input" value="<?= e($o($id, 'first_comment')) ?>"></label>
               <?php elseif ($p === 'linkedin'): ?>
                 <label class="block"><span class="label"><?= e(t('أول تعليق (اختياري)')) ?></span>
-                  <input name="<?= e($n) ?>[first_comment]" class="input" value="<?= e($o($id, 'first_comment')) ?>"></label>
+                  <input name="<?= e($n) ?>[first_comment]" data-ai="hashtags,cta,improve,translate_en,translate_ar" class="input" value="<?= e($o($id, 'first_comment')) ?>"></label>
                 <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="<?= e($n) ?>[no_preview]" value="1" <?= $chk($id, 'no_preview', false) ?>> <?= e(t('متعرضش معاينة للروابط')) ?></label>
               <?php endif; ?>
               </div>

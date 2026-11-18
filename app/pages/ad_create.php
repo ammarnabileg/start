@@ -11,6 +11,8 @@ $z = zernio_or_null($err);
 // الذكاء الاصطناعي: نسخ إعلان / اقتراح جمهور — JSON
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['ai_copy', 'ai_audience'], true)) {
     header('Content-Type: application/json; charset=utf-8');
+    if (!can('ai.use')) exit(json_encode(['ok' => false, 'error' => t('مالكش صلاحية.')], JSON_UNESCAPED_UNICODE));
+    if (!ai_connection()) exit(json_encode(['ok' => false, 'error' => t('اربط مزود ذكاء اصطناعي أولًا من التكاملات.')], JSON_UNESCAPED_UNICODE));
     $act = $_POST['action'];
     $focus = mb_substr(trim((string)($_POST['focus'] ?? '')), 0, 300);
     $goal = mb_substr((string)($_POST['goal'] ?? ''), 0, 40);

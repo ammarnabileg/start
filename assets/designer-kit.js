@@ -2,7 +2,8 @@
  * صور مجانية من Pexels، وأيقونات ملونة (ملونة/مصمتة) وإيموجي */
 (function () {
   var X = window.DZX; if (!X) return; var cv = X.cv, L = X.L, C = X.C, $ = function (id) { return document.getElementById(id); };
-  if (C.kitEdit === false) setTimeout(function () { var box = $('dz-kit'); if (box) { box.querySelectorAll('input,select,[data-cmd=kitlogo],[data-cmd=kitsave],[data-cmd=kitlogodel]').forEach(function (el) { el.disabled = true; }); } }, 0); // هوية الشركة للمدير بس
+  function kitLock() { if (C.kitEdit !== false) return; var box = $('dz-kit'); if (box) { box.querySelectorAll('input,select,[data-cmd=kitlogo],[data-cmd=kitsave],[data-cmd=kitlogodel]').forEach(function (el) { el.disabled = true; }); } } // هوية الشركة للمدير بس
+  setTimeout(kitLock, 0);
   var kit = C.kit || { colors: [], head: '', body: '', logo: '', auto: false, fonts: [] };
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function post(d, file) { var f = new FormData(); f.append('_csrf', C.csrf); Object.keys(d).forEach(function (k) { f.append(k, d[k]); }); if (file) f.append('file', file); return fetch(C.url, { method: 'POST', body: f, credentials: 'same-origin' }).then(function (r) { return r.json(); }); }
@@ -16,7 +17,7 @@
 
   /* ---------- 2) محرر الهوية ---------- */
   function fontsSel(id, val) { var s = $(id); s.innerHTML = '<option value="">' + esc(L.defFont) + '</option>' + C.fonts.map(function (f) { return '<option value="' + esc(f) + '"' + (f === val ? ' selected' : '') + ' style="font-family:\'' + esc(f) + '\'">' + esc(f) + '</option>'; }).join(''); }
-  function drawKit() {
+  function drawKit() { setTimeout(kitLock, 0);
     $('kit-logo').innerHTML = kit.logo ? '<img src="' + esc(kit.logo) + '" class="max-w-full max-h-full object-contain">' : esc(L.noLogo);
     var cols = kit.colors && kit.colors.length ? kit.colors : [X.P, X.S, X.A];
     $('kit-cols').innerHTML = cols.map(function (c, i) { return '<span class="relative"><input type="color" value="' + esc(c) + '" data-kc="' + i + '" class="w-9 h-9 rounded-lg border border-ink-200 cursor-pointer"><button type="button" data-kcx="' + i + '" class="absolute -top-1.5 -end-1.5 w-4 h-4 rounded-full bg-white border border-ink-200 text-[10px] leading-3 text-ink-500">×</button></span>'; }).join('') +
