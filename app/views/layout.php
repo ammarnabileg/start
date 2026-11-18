@@ -223,16 +223,9 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
     <div class="flex items-center gap-2 mb-6 min-w-0">
       <?php if ($hasPop): ?>
         <button type="button" id="pg-sw-btn" popovertarget="pg-sw" class="group flex items-center gap-2 min-w-0 rounded-xl -ms-2 px-2 py-1 hover:bg-ink-100 transition text-start" aria-haspopup="menu">
-          <span class="min-w-0"><?php if ($sibs && ($navActive['label'] ?? '') !== $title): ?><span class="block text-xs text-ink-500"><?= e($navActive['label']) ?><?= $cur !== null ? ' · ' . ($cur + 1) . '/' . count($sibs) : '' ?></span><?php endif; ?>
+          <span class="min-w-0"><?php if ($sibs && ($navActive['label'] ?? '') !== $title): ?><span class="block text-xs text-ink-500"><?= e($navActive['label']) ?></span><?php endif; ?>
             <span class="flex items-center gap-2"><h1 class="text-2xl sm:text-3xl font-semibold text-ink-900 truncate"><?= e($title) ?></h1><?= $icon('M6 9l6 6 6-6', 'w-5 h-5 text-ink-400 group-hover:text-ink-700 transition') ?></span></span>
         </button>
-        <?php if ($sibs && count($sibs) > 1 && $cur !== null): ?>
-          <span class="ms-1 hidden sm:inline-flex items-center rounded-xl border border-ink-200 bg-white">
-            <a href="<?= e(url($keys[($cur - 1 + count($keys)) % count($keys)])) ?>" class="p-2 text-ink-500 hover:text-ink-900" title="<?= e($sibs[$keys[($cur - 1 + count($keys)) % count($keys)]]) ?> ([)"><?= $icon(is_rtl() ? 'M9 6l6 6-6 6' : 'M15 6l-6 6 6 6', 'w-4 h-4') ?></a>
-            <span class="w-px h-5 bg-ink-200"></span>
-            <a href="<?= e(url($keys[($cur + 1) % count($keys)])) ?>" class="p-2 text-ink-500 hover:text-ink-900" title="<?= e($sibs[$keys[($cur + 1) % count($keys)]]) ?> (])"><?= $icon(is_rtl() ? 'M15 6l-6 6 6 6' : 'M9 6l6 6-6 6', 'w-4 h-4') ?></a>
-          </span>
-        <?php endif; ?>
         <div id="pg-sw" popover class="m-0 w-[min(560px,94vw)] rounded-2xl border border-ink-200 bg-white p-0 shadow-2xl text-ink-900 backdrop:bg-transparent">
           <div class="grid <?= $sibs && $rel ? 'sm:grid-cols-[1.3fr_1fr]' : '' ?>">
             <?php if ($sibs): ?><div class="p-2"><div class="px-2 pt-1 pb-2 text-[11px] font-semibold text-ink-400"><?= e($navActive['label']) ?></div>

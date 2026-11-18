@@ -1584,3 +1584,105 @@ function crm_ar_norm(string $s): string
     $s = preg_replace('/[\x{064B}-\x{065F}\x{0640}]/u', '', $s);
     return strtr($s, ['أ' => 'ا', 'إ' => 'ا', 'آ' => 'ا', 'ة' => 'ه', 'ى' => 'ي', 'ؤ' => 'و', 'ئ' => 'ي']);
 }
+
+/* ---------- Apollo: نتائج السلاسل ترجع للعملاء (ردود، فتح، نقر، ارتداد، إلغاء اشتراك) — بدون كريديت ---------- */
+function crm_reply_classes(): array
+{
+    return ['willing_to_meet' => t('مستعد للاجتماع'), 'follow_up_question' => t('سؤال متابعة'), 'person_referral' => t('أحالنا لشخص آخر'), 'out_of_office' => t('خارج المكتب'),
+        'already_left_company_or_not_right_person' => t('ليس الشخص المناسب'), 'not_interested' => t('غير مهتم'), 'unsubscribe' => t('طلب إلغاء الاشتراك'), 'none_of_the_above' => t('رد آخر')];
+}
+/** يسحب رسائل السلاسل المكتملة في آخر 3 أيام ويحوّلها لنشاط عند العميل. بيرجع عدد الأحداث الجديدة. */
+function crm_seq_sync(bool $force = false): array
+{
+    $wid = (int)ws('id'); $out = ['events' => 0, 'replies' => 0, 'error' => ''];
+    if (!crm_has_key()) return $out;
+    $kAt = 'crm_seqsync_at_' . $wid;
+    if (!$force && (int)setting($kAt, '0') > time() - 3600) return $out;
+    save_setting($kAt, (string)time());
+    $seen = json_decode((string)setting('crm_seqsync_seen_' . $wid, '[]'), true) ?: [];
+    $seenSet = array_flip($seen); $new = [];
+    $range = ['emailer_message_date_range_mode' => 'completed_at', 'emailer_message_date_range[min]' => gmdate('Y-m-d', time() - 3 * 86400), 'emailer_message_date_range[max]' => gmdate('Y-m-d', time() + 86400), 'per_page' => 100];
+    $lead = function (string $email) use ($wid) {
+        static $c = []; $e = strtolower(trim($email)); if ($e === '') return null;
+        if (!array_key_exists($e, $c)) { $st = db()->prepare('SELECT * FROM crm_leads WHERE workspace_id = ? AND LOWER(email) = ? LIMIT 1'); $st->execute([$wid, $e]); $c[$e] = $st->fetch() ?: null; }
+        return $c[$e];
+    };
+    $cls = crm_reply_classes();
+    try {
+        // 1) كل الرسائل المكتملة: ردود وارتداد
+        foreach ([null, 'opened', 'clicked'] as $stat) {
+            for ($pg = 1; $pg <= 5; $pg++) {
+                $q = $range + ['page' => $pg]; if ($stat) $q['emailer_message_stats[]'] = $stat;
+                $j = crm_api('/emailer_messages/search', $q, null, 'GET');
+                $ms = (array)($j['emailer_messages'] ?? []);
+                foreach ($ms as $m) {
+                    $id = (string)($m['id'] ?? ''); $l = $lead((string)($m['to_email'] ?? '')); if ($id === '' || !$l) continue;
+                    $subj = mb_substr((string)($m['subject'] ?? ''), 0, 120); $camp = (string)($m['campaign_name'] ?? '');
+                    $ev = [];
+                    if ($stat === 'opened') $ev[] = ['o', '👁 ' . t('فتح إيميل السلسلة «%s»', $subj)];
+                    elseif ($stat === 'clicked') $ev[] = ['c', '🔗 ' . t('ضغط رابطًا في إيميل السلسلة «%s»', $subj)];
+                    else {
+                        if (!empty($m['bounce'])) $ev[] = ['b', '⚠ ' . t('ارتدّ إيميل السلسلة «%s»: العنوان غير صالح.', $subj)];
+                        if (!empty($m['replied'])) { $rc = (string)($m['reply_class'] ?? ''); $ev[] = ['r', '↩ ' . t('ردّ على إيميل السلسلة «%s»', $subj) . ($rc !== '' && isset($cls[$rc]) ? ' · ' . $cls[$rc] : ''), $rc]; }
+                    }
+                    foreach ($ev as $e) {
+                        $key = $e[0] . ':' . $id; if (isset($seenSet[$key])) continue; $seenSet[$key] = 1; $new[] = $key;
+                        crm_act_add((int)$l['id'], 'email', $e[1] . ($camp !== '' ? ' (' . $camp . ')' : ''));
+                        $out['events']++;
+                        if ($e[0] === 'b') db()->prepare("UPDATE crm_leads SET email_status = 'bounced' WHERE id = ?")->execute([(int)$l['id']]);
+                        if ($e[0] === 'r') {
+                            $out['replies']++; $rc = $e[2] ?? '';
+                            if ($rc === 'unsubscribe') db()->prepare('UPDATE crm_leads SET unsub = 1 WHERE id = ?')->execute([(int)$l['id']]);
+                            if (in_array($rc, ['willing_to_meet', 'follow_up_question', 'person_referral', ''], true)) {
+                                db()->prepare("UPDATE crm_leads SET next_at = IF(next_at IS NULL OR next_at > NOW(), NOW(), next_at), next_note = ?, last_contact_at = NOW() WHERE id = ?")->execute([t('ردّ على السلسلة: تابِع الآن'), (int)$l['id']]);
+                                crm_notify($l['owner_id'] ? (int)$l['owner_id'] : null, (int)$l['id'], 'reply', t('%s ردّ على سلسلة Apollo: %s', (string)$l['name'], $cls[$rc] ?? t('رد جديد')));
+                            }
+                        }
+                    }
+                }
+                if (count($ms) < 100) break;
+            }
+        }
+    } catch (CrmException $ex) { $out['error'] = $ex->getMessage(); }
+    $seen = array_slice(array_merge($seen, $new), -4000);
+    save_setting('crm_seqsync_seen_' . $wid, json_encode($seen));
+    save_setting('crm_seqsync_last_' . $wid, json_encode(['at' => time(), 'events' => $out['events'], 'replies' => $out['replies'], 'error' => $out['error']], JSON_UNESCAPED_UNICODE));
+    return $out;
+}
+
+/* ---------- Apollo: إشارات الشراء لشركة العميل (وظائف مفتوحة + أخبار) — بطلب من المستخدم، تُحفظ 7 أيام ---------- */
+function crm_lead_domain(array $l): string
+{
+    $free = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'live.com', 'icloud.com', 'aol.com', 'msn.com', 'proton.me', 'protonmail.com', 'yandex.com', 'mail.ru', 'gmx.com', 'me.com'];
+    $e = strtolower(trim((string)($l['email'] ?? '')));
+    if (($p = strrpos($e, '@')) !== false) { $d = substr($e, $p + 1); if ($d !== '' && !in_array($d, $free, true)) return $d; }
+    $u = (string)($l['src_url'] ?? ''); $h = strtolower((string)parse_url($u, PHP_URL_HOST));
+    $h = preg_replace('/^www\./', '', $h);
+    if ($h !== '' && !preg_match('/(facebook|instagram|linkedin|tiktok|twitter|x|youtube|google|wa)\.(com|me)$/', $h)) return $h;
+    return '';
+}
+function crm_signals(array $l, bool $fetch): array
+{
+    $wid = (int)ws('id'); $dom = crm_lead_domain($l);
+    if ($dom === '') return ['ok' => false, 'error' => t('لا يوجد نطاق شركة لهذا العميل. أضف بريد عمل أو موقع الشركة.')];
+    $k = 'crm_sig_' . $wid . '_' . md5($dom);
+    $c = json_decode((string)setting($k, ''), true);
+    if (is_array($c) && ($c['at'] ?? 0) > time() - 7 * 86400) return ['ok' => true, 'domain' => $dom, 'data' => $c];
+    if (!$fetch) return ['ok' => true, 'domain' => $dom, 'data' => null];
+    if (!crm_has_key()) return ['ok' => false, 'error' => t('اربط حساب Apollo.io من التكاملات الأول.')];
+    try {
+        $o = (array)(crm_api('/organizations/enrich', ['domain' => $dom], null, 'GET')['organization'] ?? []);
+        if (empty($o['id'])) return ['ok' => false, 'error' => t('لم نجد هذه الشركة في Apollo (%s).', $dom)];
+        $jobs = []; foreach (array_slice((array)(crm_api('/organizations/' . rawurlencode((string)$o['id']) . '/job_postings', ['per_page' => 10], null, 'GET')['organization_job_postings'] ?? []), 0, 10) as $j)
+            $jobs[] = ['title' => mb_substr((string)($j['title'] ?? ''), 0, 140), 'url' => preg_match('~^https?://~', (string)($j['url'] ?? '')) ? (string)$j['url'] : '', 'city' => trim((string)($j['city'] ?? '') . ' ' . (string)($j['country'] ?? '')), 'at' => substr((string)($j['posted_at'] ?? $j['last_seen_at'] ?? ''), 0, 10)];
+        $news = []; foreach (array_slice((array)(crm_api('/news_articles/search?' . http_build_query(['organization_ids' => [(string)$o['id']], 'published_at' => ['min' => date('Y-m-d', time() - 180 * 86400)], 'per_page' => 10]), [])['news_articles'] ?? []), 0, 10) as $n)
+            $news[] = ['title' => mb_substr((string)($n['title'] ?? ''), 0, 200), 'url' => preg_match('~^https?://~', (string)($n['url'] ?? '')) ? (string)$n['url'] : '', 'at' => substr((string)($n['published_at'] ?? ''), 0, 10), 'cats' => array_slice(array_map('strval', (array)($n['event_categories'] ?? [])), 0, 3), 'snip' => mb_substr((string)($n['snippet'] ?? ''), 0, 240)];
+        $data = ['at' => time(), 'org' => ['name' => (string)($o['name'] ?? ''), 'industry' => (string)($o['industry'] ?? ''), 'emp' => (int)($o['estimated_num_employees'] ?? 0), 'founded' => (int)($o['founded_year'] ?? 0),
+            'funding' => trim((string)($o['latest_funding_stage'] ?? '') . ' ' . (string)($o['total_funding_printed'] ?? '')), 'tech' => array_slice(array_map('strval', (array)($o['technology_names'] ?? [])), 0, 12)], 'jobs' => $jobs, 'news' => $news];
+        save_setting($k, json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        log_activity('crm.signals', $l['id'] . ' ' . $dom);
+        if ($jobs || $news) crm_act_add((int)$l['id'], 'note', '📡 ' . t('إشارات شراء من Apollo: %s وظيفة مفتوحة، %s خبرًا حديثًا', count($jobs), count($news)));
+        return ['ok' => true, 'domain' => $dom, 'data' => $data];
+    } catch (CrmException $ex) { return ['ok' => false, 'error' => $ex->getMessage()]; }
+}
+

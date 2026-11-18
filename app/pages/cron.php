@@ -136,6 +136,13 @@ try {
         } catch (Throwable $t) {
             $line .= ' meet=error';
         }
+        // Apollo: ردود وفتح وارتداد إيميلات السلاسل ترجع للعملاء (كل ساعة، بدون كريديت)
+        try {
+            $r = ai_as_workspace($wid, function () { return module_enabled('crm') && function_exists('crm_seq_sync') ? crm_seq_sync() : ['events' => 0]; });
+            if (!empty($r['events'])) $line .= ' seq+' . (int)$r['events'];
+        } catch (Throwable $t) {
+            $line .= ' seq=error';
+        }
         // #69 #70: سرعة الرد على العملاء الجداد
         try {
             $n = (int)ai_as_workspace($wid, function () { return module_enabled('crm') ? crm_sla_tick() : 0; });

@@ -23,6 +23,7 @@ function lead_popup_X(): array
           'subject' => t('عنوان الإيميل'), 'body' => t('اكتب الرسالة… استخدم المتغيرات تحت'), 'undo' => t('تراجع'), 'restored' => t('تم استرجاع العميل.'), 'deletedUndo' => t('حُذف العميل. يمكنك التراجع خلال 30 يومًا.'), 'needSmtp' => t('لإرسال الإيميلات اربط بريدك (SMTP) أولًا، وGmail يصلح مجانًا.'), 'connectNow' => t('اربط الآن'), 'send' => t('ابعت الإيميل'), 'sending' => t('بيتبعت…'), 'sent' => t('اتبعت ✓'), 'preview' => t('معاينة'), 'noEmail' => t('العميل ده مالوش إيميل. ضيفه من فوق الأول.'), 'unsub' => t('العميل ده لغى الاشتراك في الإيميلات.'),
           'opened' => t('اتفتح %s مرة'), 'clicked' => t('ضغط على رابط'), 'notOpened' => t('لسه ما اتفتحش'), 'history' => t('اللي اتبعت'), 'smtp' => t('بيتبعت من SMTP بتاعك، وبتعرف لو اتفتح أو حد ضغط على رابط.'),
           'pipe' => t('الـ Pipeline'), 'byDeals' => t('محسوبة من الصفقات'), 'saved' => t('اتحفظ ✓'), 'noFields' => t('ممكن تضيف حقول مخصصة من الإعدادات.'), 'fields' => t('حقول مخصصة'),
+          'sgIntro' => t('هل الشركة تتوسع الآن؟ نجلب من Apollo وظائفها المفتوحة وأخبارها في آخر 6 أشهر (توظيف، تمويل، عقود). أفضل وقت للتواصل هو وقت التغيير.'), 'sgFetch' => t('اجلب الإشارات'), 'sgCost' => t('يستهلك نحو 3 أرصدة من Apollo، وتُحفظ النتيجة 7 أيام. نكمل؟'), 'sgJobs' => t('وظائف مفتوحة'), 'sgNews' => t('أخبار حديثة'), 'sgNone' => t('لا شيء حاليًا'), 'sgHiring' => t('تُوظّف الآن: %s وظيفة'), 'sgAt' => t('حُدّثت %s'), 'sgRefresh' => t('تحديث'), 'sgEmp' => t('%s موظف'), 'sgNoPerm' => t('جلب الإشارات يحتاج صلاحية الكشف.'),
           'intel' => t('ملخص سريع'), 'best' => t('أحسن وقت تكلّمه'), 'first' => t('رسالة مقترحة'), 'copy' => t('نسخ'), 'copied' => t('اتنسخ ✓'), 'useWa' => t('ابعتها واتساب'),
           'enriching' => t('بنكشف…'), 'got' => t('لقينا بيانات جديدة ✓'), 'pending' => t('الرقم هيوصل خلال دقايق'), 'nothing' => t('مالقيناش بيانات جديدة'), 'deleted' => t('اتحذف'), 'delSure' => t('اضغط تاني للتأكيد'),
           'rec' => t('بيسجّل…'), 'noMic' => t('المتصفح مش سامح بالمايك.'), 'vSaved' => t('اتحفظت الملاحظة الصوتية ✓'), 'lang' => is_rtl() ? 'ar-EG' : 'en-US',
@@ -64,7 +65,7 @@ function lead_popup(): string
           <div class="pd-card"><span class="text-xs font-semibold text-ink-500"><?= e(t('التاجات')) ?></span><div class="flex flex-wrap items-center gap-1.5 mt-2"><span id="pd-tags" class="contents"></span><form id="pd-tag-f" class="inline-flex m-0" data-no-ajax><input name="t" list="pd-tagl" autocomplete="off" class="input !mt-0 !py-1 !w-28 text-xs" dir="auto" placeholder="<?= e(t('+ تاج')) ?>"><datalist id="pd-tagl"><?php $allT = []; foreach ($rows as $r) foreach (explode(',', (string)$r['tags']) as $x) { $x = trim($x); if ($x !== '') $allT[$x] = 1; } foreach (array_slice(array_keys($allT), 0, 200) as $x): ?><option value="<?= e($x) ?>"><?php endforeach; ?></datalist></form></div></div>
         </div>
         <div class="flex flex-col min-h-0">
-          <div id="pd-tabs" class="pd-tabs" role="tablist"><?php foreach (['ct' => ['chat', t('التواصل')], 'dl' => ['wallet', t('الصفقات')], 'em' => ['mail', t('البريد')]] as $k => $v): ?><button type="button" role="tab" data-pt="<?= $k ?>"<?= $k === 'ct' ? ' class="on"' : '' ?>><?= ui_icon($v[0], 'w-4 h-4') ?><span><?= e($v[1]) ?></span><i data-ptn="<?= $k ?>"></i></button><?php endforeach; ?><span class="pd-tabs-ink" aria-hidden="true"></span></div>
+          <div id="pd-tabs" class="pd-tabs" role="tablist"><?php foreach (['ct' => ['chat', t('التواصل')], 'dl' => ['wallet', t('الصفقات')], 'em' => ['mail', t('البريد')]] + (crm_has_key() ? ['sg' => ['spark', t('إشارات الشراء')]] : []) as $k => $v): ?><button type="button" role="tab" data-pt="<?= $k ?>"<?= $k === 'ct' ? ' class="on"' : '' ?>><?= ui_icon($v[0], 'w-4 h-4') ?><span><?= e($v[1]) ?></span><i data-ptn="<?= $k ?>"></i></button><?php endforeach; ?><span class="pd-tabs-ink" aria-hidden="true"></span></div>
           <div class="p-5 flex flex-col min-h-0 pd-pane overflow-y-auto max-h-[62vh]" data-pane="ct">
           <div id="pd-intel"></div>
           <div id="pd-oc" class="pd-oc hidden"></div>
@@ -78,7 +79,7 @@ function lead_popup(): string
           <div class="flex items-center gap-2 mt-4 mb-2"><b class="text-sm text-ink-900"><?= e(t('سجل التواصل')) ?></b><span id="pd-acts-n" class="text-[11px] text-ink-400"></span><div id="pd-tf" class="ms-auto flex gap-1"></div></div>
           <ol id="pd-acts" class="pd-tl"></ol>
           </div>
-          <?php foreach (['dl', 'em'] as $k): ?><div class="p-5 pd-pane hidden overflow-y-auto max-h-[62vh]" data-pane="<?= $k ?>" id="pd-p-<?= $k ?>"></div><?php endforeach; ?>
+          <?php foreach (['dl', 'em', 'sg'] as $k): ?><div class="p-5 pd-pane hidden overflow-y-auto max-h-[62vh]" data-pane="<?= $k ?>" id="pd-p-<?= $k ?>"></div><?php endforeach; ?>
         </div>
       </div>
       <div class="flex items-center gap-2 px-5 py-3 border-t border-ink-100 bg-ink-50/60"><button type="button" id="pd-keys-b" class="text-[11px] text-ink-500 hidden sm:inline-flex items-center gap-1 rounded-lg px-2 py-1 hover:bg-ink-100"><kbd class="pd-kbd">?</kbd> <?= e(t('اختصارات الكيبورد')) ?></button><span class="ms-auto"></span>

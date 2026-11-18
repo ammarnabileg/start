@@ -7,6 +7,7 @@ $slug = function (string $s, string $pre) { $k = trim(preg_replace('/[^a-z0-9]+/
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$mgr) { flash('error', t('مالكش صلاحية.')); redirect(url('crm_settings')); }
     $a = (string)($_POST['action'] ?? ''); $pal = crm_stage_palette();
+    if ($a === 'seq_sync') { $r = crm_seq_sync(true); flash($r['error'] ? 'error' : 'success', $r['error'] ?: t('تمت المزامنة: %s حدثًا جديدًا، منها %s ردًا.', $r['events'], $r['replies'])); redirect(url('crm_settings') . '#apollo'); }
     if ($a === 'stages') {
         $c = crm_stage_cfg(); $c['labels'] = []; $c['colors'] = [];
         // الاسم بيتحفظ بس لو اتغير فعلًا، عشان الاسم الأصلي يفضل يتترجم مع لغة الواجهة
@@ -76,6 +77,16 @@ render(t('إعدادات العملاء'), 'crm_settings', function () use ($mgr
     ?>
   <?php if (!$mgr): ?><div class="mb-4 rounded-xl bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800"><?= e(t('الإعدادات دي بيعدّلها مدير العملاء بس.')) ?></div><?php endif; ?>
   <div class="mb-4 flex flex-wrap gap-1.5 text-xs"><?php foreach (['stages' => ['sliders', t('المراحل')], 'pipes' => ['route', 'Pipelines'], 'fields' => ['puzzle', t('حقول مخصصة')], 'tags' => ['tag', t('تاجات أوتوماتيك')], 'mail' => ['mail', t('قالب الإيميل')]] as $k => [$ic, $v]): ?><a href="#<?= $k ?>" class="chip inline-flex items-center gap-1.5"><?= ui_icon($ic, 'w-4 h-4') ?><?= e($v) ?></a><?php endforeach; ?></div>
+  <?php if (crm_has_key()): $ls = json_decode((string)setting('crm_seqsync_last_' . (int)ws('id'), ''), true) ?: []; ?>
+  <section id="apollo" class="card p-5 scroll-mt-24 mb-4">
+    <div class="flex flex-wrap items-start gap-3">
+      <div class="flex-1 min-w-[16rem]"><h2 class="font-semibold text-ink-900 mb-1"><?= e(t('نتائج سلاسل Apollo')) ?></h2>
+        <p class="text-xs text-ink-500"><?= e(t('كل ساعة نسحب نتائج إيميلات السلاسل إلى ملفات العملاء: الردود، والفتح، والنقر، والارتداد، وطلبات إلغاء الاشتراك. من يرد ويطلب اجتماعًا يصل إشعاره لمسؤوله فورًا، وتُحدَّد متابعته الآن. لا تستهلك أي رصيد.')) ?></p>
+        <p class="text-xs mt-2 <?= !empty($ls['error']) ? 'text-red-600' : 'text-ink-600' ?>"><?= empty($ls['at']) ? e(t('لم تتم أي مزامنة بعد.')) : (!empty($ls['error']) ? e($ls['error']) : e(t('آخر مزامنة: %s · %s حدثًا · %s ردًا', fmt_date(date('Y-m-d H:i:s', (int)$ls['at']), 'd/m h:i A'), (int)($ls['events'] ?? 0), (int)($ls['replies'] ?? 0)))) ?></p></div>
+      <?php if ($mgr): ?><form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="seq_sync"><button class="btn-ghost"><?= e(t('مزامنة الآن')) ?></button></form><?php endif; ?>
+    </div>
+  </section>
+  <?php endif; ?>
   <div class="grid xl:grid-cols-2 gap-4">
     <section id="stages" class="<?= $sec ?>"><h2 class="font-semibold text-ink-900 mb-1"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M16 4v4M8 10v4M16 16v4"/></svg> <?= e(t('المراحل')) ?></h2>
       <p class="text-xs text-ink-500 mb-3"><?= e(t('غيّر الأسماء والألوان، وضيف لحد 4 مراحل زيادة (بتتحط قبل "بقى عميل"). "جديد" و"بقى عميل" و"مش مناسب" أساسيين في التقارير فمابيتمسحوش.')) ?></p>

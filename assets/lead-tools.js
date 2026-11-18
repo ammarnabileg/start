@@ -24,6 +24,24 @@
     dl.querySelectorAll('#pd-tabs [data-pt]').forEach(function (b) { b.classList.toggle('on', b.dataset.pt === k); b.setAttribute('aria-selected', b.dataset.pt === k); }); var cb = dl.querySelector('#pd-tabs [data-pt].on'); if (cb && cb.scrollIntoView && dl.open) cb.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     dl.querySelectorAll('.pd-pane').forEach(function (p) { var on = p.dataset.pane === k; p.classList.toggle('hidden', !on); if (on) { p.classList.remove('pd-in-a'); void p.offsetWidth; p.classList.add('pd-in-a'); } }); ink(); }
   $('pd-tabs').addEventListener('click', function (e) { var b = e.target.closest('[data-pt]'); if (b) setTab(b.dataset.pt); });
+  /* ---------- إشارات الشراء (Apollo): وظائف وأخبار الشركة ---------- */
+  function sgPaint(j) { var p = $('pd-p-sg'); if (!p) return; var d = j && j.data;
+    if (!j || !j.ok) { p.innerHTML = '<p class="text-sm text-ink-500">' + esc((j && j.error) || T.err) + '</p>'; return; }
+    if (!d) { p.innerHTML = '<div class="rounded-2xl border border-violet-200 bg-violet-50/50 p-4 text-sm"><p class="text-ink-700 leading-relaxed">' + esc(T.sgIntro) + '</p><p class="text-xs text-ink-500 mt-2" dir="ltr">' + esc(j.domain) + '</p><button type="button" data-sgf class="btn-primary !py-1.5 mt-3">' + ic('spark', 'w-4 h-4') + ' ' + esc(T.sgFetch) + '</button></div>'; return; }
+    var o = d.org || {}, li = function (x, sub) { return '<li class="py-2 border-b border-ink-100 last:border-0"><a class="font-medium text-ink-900 hover:text-brand-700" target="_blank" rel="noopener" href="' + esc(x.url || '#') + '">' + esc(x.title) + '</a><div class="text-xs text-ink-500">' + sub + '</div></li>'; };
+    p.innerHTML = '<div class="flex flex-wrap items-center gap-2 mb-3"><b class="text-ink-900">' + esc(o.name) + '</b><span class="text-xs text-ink-500">' + esc([o.industry, o.emp ? T.sgEmp.replace('%s', o.emp) : '', o.founded || '', o.funding].filter(Boolean).join(' · ')) + '</span>'
+      + (d.jobs.length ? '<span class="rounded-full bg-lime-100 text-lime-800 text-xs font-bold px-2 py-0.5">' + esc(T.sgHiring.replace('%s', d.jobs.length)) + '</span>' : '') + '<button type="button" data-sgf class="ms-auto text-xs link">' + esc(T.sgRefresh) + '</button></div>'
+      + (o.tech && o.tech.length ? '<div class="flex flex-wrap gap-1 mb-3">' + o.tech.map(function (t) { return '<span class="rounded-full bg-ink-100 text-ink-700 text-[11px] px-2 py-0.5">' + esc(t) + '</span>'; }).join('') + '</div>' : '')
+      + '<h4 class="text-xs font-bold text-ink-500 uppercase mb-1">' + esc(T.sgJobs) + ' (' + d.jobs.length + ')</h4><ul class="mb-4">' + (d.jobs.length ? d.jobs.map(function (x) { return li(x, esc([x.city, x.at].filter(Boolean).join(' · '))); }).join('') : '<li class="text-sm text-ink-400 py-1">' + esc(T.sgNone) + '</li>') + '</ul>'
+      + '<h4 class="text-xs font-bold text-ink-500 uppercase mb-1">' + esc(T.sgNews) + ' (' + d.news.length + ')</h4><ul>' + (d.news.length ? d.news.map(function (x) { return li(x, esc([x.at].concat(x.cats || []).filter(Boolean).join(' · ')) + (x.snip ? '<div class="text-ink-600 mt-0.5">' + esc(x.snip) + '</div>' : '')); }).join('') : '<li class="text-sm text-ink-400 py-1">' + esc(T.sgNone) + '</li>') + '</ul>'
+      + '<p class="text-[11px] text-ink-400 mt-3">' + esc(T.sgAt.replace('%s', new Date(d.at * 1000).toLocaleDateString())) + '</p>';
+  }
+  function sgLoad(fetch) { var d = lead(), p = $('pd-p-sg'); if (!p || !d.id) return; if (!fetch) p.innerHTML = '<div class="h-24 rounded-2xl bg-ink-100 animate-pulse"></div>';
+    api(fetch ? { action: 'signals', id: d.id, fetch: 1 } : { action: 'signals', id: d.id }).then(function (j) { sgPaint(j); if (fetch && j.ok && !j.data) toast(T.sgNoPerm, 'error'); }).catch(function () { sgPaint(null); }); }
+  if ($('pd-p-sg')) {
+    $('pd-tabs').addEventListener('click', function (e) { var b = e.target.closest('[data-pt="sg"]'); if (b) sgLoad(false); });
+    $('pd-p-sg').addEventListener('click', function (e) { var b = e.target.closest('[data-sgf]'); if (!b) return; var go = function () { busy(b, true); sgLoad(true); }; if (window.fxOk) fxOk(T.sgCost, go, { danger: false }); else if (confirm(T.sgCost)) go(); });
+  }
   function badge(k, n, hot) { var i = dl.querySelector('[data-ptn="' + k + '"]'); if (!i) return; i.textContent = n || ''; i.classList.toggle('hot', !!hot); }
 
   /* ---------- نتيجة المكالمة ---------- */
