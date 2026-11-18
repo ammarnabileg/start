@@ -738,7 +738,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
               <button type="button" id="hf-from-text" class="ms-auto link"><?= e(t('اكتب الوصف من نص المنشور')) ?></button>
             </div>
             <div class="flex gap-2 items-start">
-              <textarea id="hf-prompt" rows="2" class="input !mt-0 flex-1 text-sm" placeholder="<?= e(t('صف الصورة: مثلاً كوب قهوة على طاولة خشب بإضاءة صباحية...')) ?>"></textarea>
+              <textarea id="hf-prompt" data-ai="img_prompt,improve" rows="2" class="input !mt-0 flex-1 text-sm" placeholder="<?= e(t('صف الصورة: مثلاً كوب قهوة على طاولة خشب بإضاءة صباحية...')) ?>"></textarea>
               <button type="button" id="hf-go" class="btn-primary shrink-0"><?= e(t('توليد')) ?></button>
             </div>
             <p id="hf-status" class="text-xs text-ink-500 mt-2 hidden"></p>
