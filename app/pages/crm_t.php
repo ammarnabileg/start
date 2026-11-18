@@ -4,6 +4,7 @@ $k = preg_replace('/[^0-9a-f]/', '', (string)($_GET['k'] ?? ''));
 $st = strlen($k) === 32 ? db()->prepare('SELECT * FROM crm_mails WHERE token = ?') : null;
 $m = null; if ($st) { $st->execute([$k]); $m = $st->fetch(); }
 $u = (string)($_GET['u'] ?? '');
+if ($m && function_exists('ws_closed') && ws_closed((int)$m['workspace_id'])) { if (!empty($_GET['x']) || !empty($_GET['o'])) { http_response_code(410); exit; } $m = null; } // الشركة اتحذفت: مانكتبش حاجة
 // #73 إلغاء الاشتراك
 if (!empty($_GET['x']) && $_SERVER['REQUEST_METHOD'] !== 'POST' && $m) { // خطوة تأكيد: برامج فحص الإيميل بتفتح كل الروابط لوحدها
     header('Content-Type: text/html; charset=utf-8');

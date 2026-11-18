@@ -196,13 +196,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
                     $mime = (new finfo(FILEINFO_MIME_TYPE))->file($att['tmp_name']);
                     $name = preg_replace('/[^\w.\-]+/u', '_', basename($att['name']));
                     $attachUrl = !empty($att['lib']) ? media_public_url($z, (int)ws('id'), (int)$att['lib_id'], 'message', (string)$convId) : $z->uploadFile($att['tmp_name'], $name, $mime);
-                    if (empty($att['lib'])) media_capture($att['tmp_name'], (string)$att['name'], t('الرسائل'));
+                    $capAtt = empty($att['lib']) ? $att : null; // يتحفظ في المكتبة بعد ما الإرسال ينجح بس
                     $attachType = strpos($mime, 'image/') === 0 ? 'image' : (strpos($mime, 'video/') === 0 ? 'video' : (strpos($mime, 'audio/') === 0 ? 'audio' : 'file'));
                 }
                 if ($text === '' && !$attachUrl) {
                     flash('error', t('اكتب رسالة الأول.'));
                 } else {
                     $z->sendMessage($convId, $accId, $text, $attachUrl, $attachType); if (function_exists('ai_human_mark')) ai_human_mark((int)ws('id'), 'c:' . $convId); if (function_exists('ai_learn_human')) ai_learn_human((int)ws('id'), 'c:' . $convId, (string)$text);
+                    if (!empty($capAtt)) media_capture($capAtt['tmp_name'], (string)$capAtt['name'], t('الرسائل'));
                     log_activity('inbox.reply', $convId);
                 }
                 $back .= '#bottom';

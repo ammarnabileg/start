@@ -151,7 +151,7 @@ function ai_agent_ajax(string $a): void
         unset($sg[$id]); save_setting('ai_kb_suggest_' . $wid, json_encode($sg, JSON_UNESCAPED_UNICODE));
         $J(['ok' => true] + ai_agent_state($wid));
     }
-    if ($a === 'agent_hook') { $r = ai_hook_sync($wid, true); $J(['ok' => $r['ok'], 'error' => $r['error']] + ai_agent_state($wid)); }
+    if ($a === 'agent_hook') { if (setting('ai_auto_reply_' . $wid, '0') !== '1') $J(['ok' => false, 'error' => t('الوكيل متوقف. شغّله أولًا.')] + ai_agent_state($wid)); $r = ai_hook_sync($wid, true); $J(['ok' => $r['ok'], 'error' => $r['error']] + ai_agent_state($wid)); }
     if ($a === 'agent_state') $J(['ok' => true] + ai_agent_state($wid));
     $J(['ok' => false], 400);
 }
@@ -384,7 +384,7 @@ function ai_agent_render(): void
       var savedT; function save(d) { if (!C.owner) return; post(Object.assign({ action: 'agent_save' }, d)).then(function (j) { if (!j.ok) return toast(j.error || T.err, 'error'); st = j; paint(); var s = $('[data-saved]'); s.classList.add('show'); clearTimeout(savedT); savedT = setTimeout(function () { s.classList.remove('show'); }, 1400); }).catch(function () { toast(T.err, 'error'); }); }
       root.addEventListener('click', function (e) { var b;
         if ((b = e.target.closest('[data-on]'))) { save({ on: st.on ? '0' : '1' }); return; }
-        if ((b = e.target.closest('[data-seg] [data-v]'))) { var g = b.closest('[data-seg]').dataset.seg; if (g === 'mode' && b.dataset.v === 'send' && st.cfg.mode !== 'send' && !confirm(T.sendWarn)) return; var d = {}; d[g] = b.dataset.v; save(d); return; }
+        if ((b = e.target.closest('[data-seg] [data-v]'))) { var g = b.closest('[data-seg]').dataset.seg; if (g === 'mode' && b.dataset.v === 'send' && st.cfg.mode !== 'send' && !(window.fxRe ? fxRe : confirm)(T.sendWarn, { danger: false })) return; var d = {}; d[g] = b.dataset.v; save(d); return; }
         if ((b = e.target.closest('[data-f=comments]'))) { save({ comments: st.cfg.comments ? '0' : '1' }); return; }
         if ((b = e.target.closest('[data-pause]'))) { save({ pause: b.dataset.pause }); return; }
         if ((b = e.target.closest('[data-pl]'))) { var ps = st.cfg.platforms.slice(), ix = ps.indexOf(b.dataset.pl); if (ix > -1) ps.splice(ix, 1); else ps.push(b.dataset.pl); save({ platforms: ps.join(',') }); return; }
@@ -398,7 +398,7 @@ function ai_agent_render(): void
         if ((b = e.target.closest('[data-sadd],[data-sdrop]'))) { var si = b.closest('[data-sid]'), add = b.hasAttribute('data-sadd'); b.disabled = true;
           post({ action: 'agent_suggest', id: si.dataset.sid, do: add ? 'add' : 'drop', q: si.querySelector('[data-q]').value, a: si.querySelector('[data-a]').value }).then(function (j) { if (!j.ok) { b.disabled = false; return toast(j.error || T.err, 'error'); } st = j; paint(); if (add) toast(T.added); }); return; }
         if ((b = e.target.closest('[data-save]'))) { var o3 = {}; o3['save_' + b.dataset.save] = st.cfg.save[b.dataset.save] ? '0' : '1'; save(o3); return; }
-        if ((b = e.target.closest('[data-clearcache]'))) { if (!confirm(T.clearQ)) return; save({ clearCache: '1' }); return; }
+        if ((b = e.target.closest('[data-clearcache]'))) { if (!(window.fxRe ? fxRe : confirm)(T.clearQ)) return; save({ clearCache: '1' }); return; }
         if ((b = e.target.closest('[data-hookfix]'))) { b.disabled = true; post({ action: 'agent_hook' }).then(function (j) { st = j; paint(); if (!j.ok) toast(j.error || T.err, 'error'); }); return; }
         if ((b = e.target.closest('[data-resume]'))) { b.disabled = true; post({ action: 'agent_resume', key: b.dataset.resume }).then(function (j) { if (j.ok) { st = j; paint(); } }); return; }
         if ((b = e.target.closest('[data-lf]'))) { lf = b.dataset.lf; $$('[data-lf]').forEach(function (x) { x.classList.toggle('on', x === b); }); paint(); return; }

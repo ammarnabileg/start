@@ -62,8 +62,8 @@
   if (q) q.addEventListener('input', apply);
   var chips = $('#cl-chips');
   if (chips) chips.addEventListener('click', function (e) {
-    var b = e.target.closest('button'); if (!b) return; mode = b.dataset.f;
-    $$('button', chips).forEach(function (x) { var on = x === b; x.className = 'rounded-full px-3 py-1 ' + (on ? 'bg-brand-600 text-white' : 'bg-ink-50 text-ink-700 hover:bg-ink-100'); });
+    var b = e.target.closest('[data-f]'); if (!b) return; mode = b.dataset.f;
+    $$('[data-f]', chips).forEach(function (x) { var on = x === b; x.className = 'rounded-full px-3 py-1 ' + (on ? 'bg-brand-600 text-white' : 'bg-ink-50 text-ink-700 hover:bg-ink-100'); });
     apply();
   });
   document.addEventListener('keydown', function (e) { if (e.key === '/' && q && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) { e.preventDefault(); q.focus(); } });

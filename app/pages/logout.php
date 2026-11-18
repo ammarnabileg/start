@@ -1,4 +1,5 @@
 <?php
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_SESSION['impersonator'])) { require __DIR__ . '/impersonate_stop.php'; exit; } // أثناء الدخول كمستخدم: نرجع لحساب الأدمن بدل ما نخرّجه
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     log_activity('logout');
     $_SESSION = [];

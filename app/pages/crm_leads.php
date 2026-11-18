@@ -124,7 +124,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ($s === 'lost' && $l['stage'] !== 'lost') crm_set_lost_reason($id, (string)($_POST['lost_reason'] ?? ''));
                     if ($s !== $l['stage']) { db()->prepare('UPDATE crm_leads SET stage = ? WHERE id = ?')->execute([$s, $id]); crm_act_add($id, 'stage', $stages[$l['stage']] . (is_rtl() ? ' ← ' : ' → ') . $stages[$s]); crm_push_ad_stage(crm_lead($id)); }
                 } elseif ($op === 'owner' && $canManage) {
-                    $o = (int)($_POST['owner'] ?? 0); db()->prepare('UPDATE crm_leads SET owner_id = ? WHERE id = ?')->execute([in_array($o, $memberIds, true) ? $o : null, $id]);
+                    $o = (int)($_POST['owner'] ?? 0); $o = in_array($o, $memberIds, true) ? $o : null; if ((int)($l['owner_id'] ?? 0) === (int)$o) { $skip++; continue; }
+                    db()->prepare('UPDATE crm_leads SET owner_id = ? WHERE id = ?')->execute([$o, $id]); crm_act_add($id, 'note', $o ? t('تغيّر المسؤول إلى %s', (string)(ws_members((int)ws('id'))[$o]['name'] ?? $o)) : t('أُزيل المسؤول'));
                 } elseif ($op === 'tag') {
                     crm_add_tag($id, (string)($_POST['tag'] ?? ''));
                 } elseif ($op === 'enrich') {

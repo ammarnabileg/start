@@ -185,7 +185,7 @@ render(t('شركاتي'), 'workspaces', function () use ($list, $invites, $cur, 
       document.querySelectorAll('.ws-del').forEach(function (f) {
         var i = f.querySelector('[name=confirm]'), b = f.querySelector('button');
         i.addEventListener('input', function () { b.disabled = i.value.trim() !== i.dataset.name; });
-        f.addEventListener('submit', function (e) { if (b.disabled || !confirm(<?= json_encode(t('حذف نهائي؟ مفيش رجوع.'), JSON_UNESCAPED_UNICODE) ?>)) e.preventDefault(); });
+        f.addEventListener('submit', function (e) { var q = <?= json_encode(t('حذف نهائي؟ مفيش رجوع.'), JSON_UNESCAPED_UNICODE) ?>; if (b.disabled || !(window.fxGate ? fxGate(e, q, { danger: true }) : confirm(q))) e.preventDefault(); });
       });
     })();
     </script>

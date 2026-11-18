@@ -154,7 +154,7 @@ function media_public_url(Zernio $z, int $wid, int $id, string $ctx = '', string
 }
 
 /** حذف مؤقت (للسلة) — بيترجع بـ media_restore، وبيتمسح نهائي بعد 30 يوم */
-function media_trash(int $wid, array $ids): void { foreach ($ids as $id) db()->prepare('UPDATE media_files SET deleted_at = NOW() WHERE workspace_id = ? AND id = ?')->execute([$wid, (int)$id]); }
+function media_trash(int $wid, array $ids): void { foreach ($ids as $id) db()->prepare('UPDATE media_files SET deleted_at = NOW() WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL')->execute([$wid, (int)$id]); }
 function media_restore(int $wid, array $ids): void { foreach ($ids as $id) db()->prepare('UPDATE media_files SET deleted_at = NULL WHERE workspace_id = ? AND id = ?')->execute([$wid, (int)$id]); }
 function media_purge_old(int $wid): void
 {
