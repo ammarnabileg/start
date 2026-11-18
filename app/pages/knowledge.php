@@ -12,9 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $str = function ($v, $max = 4000) { return mb_substr(trim((string)$v), 0, $max); };
 
     // ملء الملف من الموقع: اقتراحات + تطبيق اللي المستخدم يختاره (من غير ذكاء اصطناعي)
-    if ($action === 'kb_site') {
-        $r = kb_import_site(trim((string)($_POST['url'] ?? '')));
-        if ($r['err'] !== '') $json(['error' => $r['err']], 422);
+    $kbGroups = function (array $r) use ($wid, $schema) {
         $cur = kb_get($wid); $out = [];
         foreach ($r['sections'] as $sec => $data) {
             if (!isset($schema[$sec])) continue; $sd = $schema[$sec];
@@ -29,8 +27,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($fs) $out[] = ['sec' => $sec, 'label' => $sd['label'], 'type' => 'fields', 'fields' => $fs];
             }
         }
-        $json(['ok' => true, 'groups' => $out, 'pages' => $r['pages']]);
+        return $out;
+    };
+    if ($action === 'kb_site') {
+        $r = kb_import_site(trim((string)($_POST['url'] ?? '')));
+        if ($r['err'] !== '') $json(['error' => $r['err']], 422);
+        $json(['ok' => true, 'groups' => $kbGroups($r), 'pages' => $r['pages']]);
     }
+    // قراءة الموقع كله في الخلفية (حتى 10,000 صفحة)
+    $kbcOut = function (array $c) use ($kbGroups) { $p = ['id' => (int)$c['id'], 'status' => (string)$c['status'], 'root' => (string)$c['root'], 'found' => (int)$c['found'], 'done' => (int)$c['done'], 'failed' => (int)$c['failed'], 'cap' => KBC_CAP];
+        if ($c['status'] === 'done') { $acc = json_decode((string)$c['acc'], true) ?: []; $p['groups'] = $kbGroups(['sections' => (array)($acc['sections'] ?? []), 'src' => (array)($acc['src'] ?? [])]); }
+        return ['ok' => true, 'crawl' => $p]; };
+    if ($action === 'kb_crawl_start') { $r = kbc_start($wid, (string)($_POST['url'] ?? '')); if (!empty($r['err'])) $json(['error' => $r['err']], 422); $json($kbcOut(kbc_step(kbc_get($wid, $r['id']), 8.0))); }
+    if ($action === 'kb_crawl_step') { $c = kbc_get($wid, (int)($_POST['id'] ?? 0)); if (!$c) $json(['error' => t('طلب غير صحيح.')], 404); if ($c['status'] === 'running') $c = kbc_step($c, 12.0); $json($kbcOut($c)); }
+    if ($action === 'kb_crawl_status') { $c = kbc_active($wid); $json($c ? $kbcOut($c) : ['ok' => true, 'crawl' => null]); }
+    if ($action === 'kb_crawl_cancel') { db()->prepare("UPDATE kb_crawls SET status = 'cancelled' WHERE workspace_id = ? AND id = ?")->execute([$wid, (int)($_POST['id'] ?? 0)]); $json(['ok' => true]); }
     if ($action === 'kb_logo_colors') { $pal = function_exists('kb_logo_palette') ? kb_logo_palette($wid) : []; $json($pal ? ['ok' => true, 'colors' => implode(', ', $pal)] : ['ok' => false, 'error' => t('أضف الشعار في «عن الشركة» أولًا.')]); }
     if ($action === 'kb_site_apply') {
         $pick = json_decode((string)($_POST['pick'] ?? '{}'), true) ?: []; $cur = kb_get($wid); $n = 0;
@@ -418,13 +429,13 @@ render(t('قاعدة المعرفة'), 'knowledge', function () use ($schema, $k
     <dialog id="kbs" class="w-[min(760px,96vw)] max-h-[90vh] p-0 rounded-2xl border border-ink-200 bg-white shadow-2xl backdrop:bg-ink-900/40">
       <div class="flex items-center gap-2 px-5 h-14 border-b border-ink-200"><b class="flex-1 inline-flex items-center gap-2"><?= ui_icon('link', 'w-4 h-4 text-brand-600') ?><?= e(t('املأ ملف الشركة من موقعك')) ?></b><button type="button" data-kbs-x class="p-2 rounded-lg text-ink-400 hover:bg-ink-100"><?= ui_icon('x', 'w-5 h-5') ?></button></div>
       <div class="p-5 space-y-3 overflow-y-auto max-h-[calc(90vh-7.5rem)]">
-        <p class="text-xs text-ink-500"><?= e(t('بنقرا موقعك (الرئيسية وصفحات من نحن والتواصل والخدمات والأسعار والأسئلة) ونطلّع منها البيانات. من غير ذكاء اصطناعي ومن غير ما نصرف أي رصيد. انت بتراجع وتختار قبل ما حاجة تتحفظ.')) ?></p>
+        <p class="text-xs text-ink-500"><?= e(t('نقرأ موقع الشركة كله، حتى 10,000 صفحة، من خريطة الموقع والروابط الداخلية، ونستخرج منها البيانات: من نحن، والتواصل، والخدمات، والأسعار، والأسئلة الشائعة. بدون ذكاء اصطناعي وبدون استهلاك أي رصيد. تراجع وتختار قبل حفظ أي شيء.')) ?></p>
         <form id="kbs-f" class="flex gap-2" data-no-ajax><input name="url" type="url" required class="input !mt-0 flex-1" dir="ltr" placeholder="https://example.com" value="<?= e((string)($kb['contact']['website'] ?? '')) ?>"><button class="btn-primary"><?= e(t('اقرا الموقع')) ?></button></form>
         <div id="kbs-out"></div>
       </div>
       <div id="kbs-foot" class="hidden flex items-center gap-2 px-5 py-3 border-t border-ink-200"><span id="kbs-n" class="text-xs text-ink-500"></span><button type="button" data-kbs-x class="ms-auto btn-ghost"><?= e(t('إلغاء')) ?></button><button type="button" id="kbs-apply" class="btn-primary"><?= e(t('احفظ المختار')) ?></button></div>
     </dialog>
-    <script>window.KBS = <?= json_encode(['reading' => t('بنقرا الموقع… (لحد 6 صفحات)'), 'none' => t('مالقيناش بيانات جديدة. يا إما الملف متعبّي، يا إما الموقع مافيهوش بيانات واضحة.'), 'from' => t('من'), 'pages' => t('اتقرت %s صفحة'), 'sel' => t('%s مختار'), 'done' => t('اتحفظ %s خانة ✓'), 'cur' => t('الحالي'), 'new' => t('الجديد'), 'add' => t('هيتضاف'), 'rows' => t('%s جديد (عندك %s)'), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+    <script>window.KBS = <?= json_encode(['crawling' => t('جارٍ قراءة الموقع كله…'), 'crawlNote' => t('نقرأ كل صفحات الموقع (حتى %s صفحة) من خريطة الموقع والروابط الداخلية، دون ذكاء اصطناعي ودون استهلاك أي رصيد. يمكنك إغلاق النافذة؛ القراءة تستمر في الخلفية، وتجد النتيجة عند فتحها مرة أخرى.'), 'failed' => t('%s صفحة تعذّرت قراءتها وتم تخطيها.'), 'stop' => t('إيقاف القراءة'), 'reading' => t('جارٍ بدء القراءة…'), 'none' => t('مالقيناش بيانات جديدة. يا إما الملف متعبّي، يا إما الموقع مافيهوش بيانات واضحة.'), 'from' => t('من'), 'pages' => t('اتقرت %s صفحة'), 'sel' => t('%s مختار'), 'done' => t('اتحفظ %s خانة ✓'), 'cur' => t('الحالي'), 'new' => t('الجديد'), 'add' => t('هيتضاف'), 'rows' => t('%s جديد (عندك %s)'), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
     <script src="assets/kb-site.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php endif; ?>
     <?php $cc = countries()[ws_country()]; ?>

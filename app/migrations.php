@@ -528,6 +528,33 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    '067_kb_crawl' => [
+        "CREATE TABLE IF NOT EXISTS kb_crawls (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            user_id INT UNSIGNED NULL,
+            root VARCHAR(500) NOT NULL,
+            host VARCHAR(255) NOT NULL,
+            status VARCHAR(16) NOT NULL DEFAULT 'running',
+            found INT UNSIGNED NOT NULL DEFAULT 0,
+            done INT UNSIGNED NOT NULL DEFAULT 0,
+            failed INT UNSIGNED NOT NULL DEFAULT 0,
+            meta TEXT NULL,
+            acc LONGTEXT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX ws_status (workspace_id, status)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        "CREATE TABLE IF NOT EXISTS kb_crawl_urls (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            crawl_id INT UNSIGNED NOT NULL,
+            h CHAR(40) NOT NULL,
+            url VARCHAR(2000) NOT NULL,
+            st TINYINT NOT NULL DEFAULT 0,
+            UNIQUE KEY crawl_h (crawl_id, h),
+            INDEX crawl_st (crawl_id, st, id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+    ],
     '066_crm_trash' => [
         "CREATE TABLE IF NOT EXISTS crm_trash (
             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

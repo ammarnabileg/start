@@ -9,10 +9,40 @@
   document.getElementById('kbs-open').addEventListener('click', function () { dlg.showModal(); $('#kbs-f [name=url]').focus(); });
   dlg.addEventListener('click', function (e) { if (e.target.closest('[data-kbs-x]') || e.target === dlg) dlg.close(); });
   function count() { var n = $$('#kbs-out input[type=checkbox]:checked').length; $('#kbs-n').textContent = C.sel.replace('%s', n); $('#kbs-apply').disabled = !n; }
+  /* قراءة الموقع كله في الخلفية: نبدأ المهمة، ونكمّل خطوات طول ما النافذة مفتوحة، والتشغيل الدوري يكمّل لو اتقفلت */
+  var crawl = null, stepping = false;
+  function prog(c) {
+    var pct = c.found ? Math.min(100, Math.round((c.done + c.failed) / c.found * 100)) : 0;
+    out.innerHTML = '<div class="py-4"><div class="flex items-center gap-2 text-sm text-ink-700 mb-2"><span class="w-4 h-4 rounded-full border-2 border-brand-600 border-t-transparent animate-spin"></span><b>' + esc(C.crawling) + '</b><span class="ms-auto tabular-nums text-ink-500" dir="ltr">' + c.done + ' / ' + c.found + '</span></div>'
+      + '<div class="h-2 rounded-full bg-ink-100 overflow-hidden"><div class="h-full bg-brand-600 transition-all" style="width:' + pct + '%"></div></div>'
+      + '<p class="text-xs text-ink-500 mt-2">' + esc(C.crawlNote.replace('%s', c.cap)) + '</p>' + (c.failed ? '<p class="text-[11px] text-ink-400 mt-1">' + esc(C.failed.replace('%s', c.failed)) + '</p>' : '')
+      + '<button type="button" data-kbs-stop class="text-xs text-red-600 hover:underline mt-3">' + esc(C.stop) + '</button></div>';
+  }
+  function step() {
+    if (!crawl || stepping || !dlg.open) return; stepping = true;
+    post({ action: 'kb_crawl_step', id: crawl.id }).then(function (j) { stepping = false; if (!j.ok) { out.innerHTML = '<p class="text-sm text-red-600 py-4">' + esc(j.error || C.err) + '</p>'; return; } handle(j.crawl); })
+      .catch(function () { stepping = false; setTimeout(step, 3000); });
+  }
+  function handle(c) {
+    crawl = c; var b = $('#kbs-f button'); b.disabled = c.status === 'running';
+    if (c.status === 'running') { prog(c); setTimeout(step, 200); return; }
+    if (c.status !== 'done') { out.innerHTML = ''; b.disabled = false; return; }
+    render({ ok: true, groups: c.groups || [], pages: { length: c.done } });
+  }
   $('#kbs-f').addEventListener('submit', function (e) {
     e.preventDefault(); var b = $('#kbs-f button'); b.disabled = true; foot.classList.add('hidden');
     out.innerHTML = '<div class="flex items-center gap-2 text-sm text-ink-500 py-6 justify-center"><span class="w-4 h-4 rounded-full border-2 border-brand-600 border-t-transparent animate-spin"></span>' + esc(C.reading) + '</div>';
-    post({ action: 'kb_site', url: $('#kbs-f [name=url]').value }).then(function (j) {
+    post({ action: 'kb_crawl_start', url: $('#kbs-f [name=url]').value }).then(function (j) {
+      if (!j.ok) { b.disabled = false; out.innerHTML = '<p class="text-sm text-red-600 py-4">' + esc(j.error || C.err) + '</p>'; return; }
+      handle(j.crawl);
+    }).catch(function () { b.disabled = false; out.innerHTML = '<p class="text-sm text-red-600 py-4">' + esc(C.err) + '</p>'; });
+  });
+  out.addEventListener('click', function (e) { if (!e.target.closest('[data-kbs-stop]') || !crawl) return; post({ action: 'kb_crawl_cancel', id: crawl.id }).then(function () { crawl = null; out.innerHTML = ''; $('#kbs-f button').disabled = false; }); });
+  // لو فيه قراءة شغالة أو خلصت النهارده: نكمّل منها لما النافذة تتفتح
+  document.getElementById('kbs-open').addEventListener('click', function () { post({ action: 'kb_crawl_status' }).then(function (j) { if (j.ok && j.crawl && (j.crawl.status === 'running' || !groups.length)) { var u = $('#kbs-f [name=url]'); if (u && !u.value) u.value = j.crawl.root; handle(j.crawl); } }).catch(function () {}); });
+  function render(j) {
+    var b = $('#kbs-f button');
+    (function () {
       b.disabled = false; if (!j.ok) { out.innerHTML = '<p class="text-sm text-red-600 py-4">' + esc(j.error || C.err) + '</p>'; return; }
       groups = j.groups; if (!groups.length) { out.innerHTML = '<p class="text-sm text-ink-500 py-6 text-center">' + esc(C.none) + '</p>'; return; }
       var h = '<p class="text-[11px] text-ink-400">' + esc(C.pages.replace('%s', j.pages.length)) + '</p>';
@@ -33,8 +63,8 @@
         h += '</div></section>';
       });
       out.innerHTML = '<div class="space-y-3">' + h + '</div>'; foot.classList.remove('hidden'); foot.classList.add('flex'); count();
-    }).catch(function () { b.disabled = false; out.innerHTML = '<p class="text-sm text-red-600 py-4">' + esc(C.err) + '</p>'; });
-  });
+    })();
+  }
   out.addEventListener('change', function (e) { if (e.target.type === 'checkbox') count(); });
   $('#kbs-apply').addEventListener('click', function () {
     var pick = {};

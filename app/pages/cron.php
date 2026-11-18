@@ -136,6 +136,13 @@ try {
         } catch (Throwable $t) {
             $line .= ' meet=error';
         }
+        // قراءة موقع الشركة في الخلفية (لو المستخدم قفل الصفحة)
+        try {
+            $n = (int)ai_as_workspace($wid, function () use ($wid) { return function_exists('kbc_tick') ? kbc_tick($wid) : 0; });
+            if ($n) $line .= ' crawl+' . $n;
+        } catch (Throwable $t) {
+            $line .= ' crawl=error';
+        }
         // Apollo: ردود وفتح وارتداد إيميلات السلاسل ترجع للعملاء (كل ساعة، بدون كريديت)
         try {
             $r = ai_as_workspace($wid, function () { return module_enabled('crm') && function_exists('crm_seq_sync') ? crm_seq_sync() : ['events' => 0]; });

@@ -53,10 +53,11 @@ function kbi_abs(string $href, string $base): string
 function kbi_txt(string $s): string { return trim(preg_replace('/\s+/u', ' ', html_entity_decode(strip_tags($s), ENT_QUOTES | ENT_HTML5, 'UTF-8'))); }
 
 /** بيرجع ['sections' => [sec => data], 'src' => [sec.field => url], 'pages' => [..], 'err' => ''] */
-function kb_import_site(string $url): array
+function kb_import_site(string $url, ?array $given = null): array
 {
-    $home = kbi_fetch($url); if (!empty($home['err'])) return ['err' => $home['err']];
-    $pages = [$home['url'] => $home['html']]; $hostOf = function ($u) { return preg_replace('/^www\./', '', strtolower((string)parse_url($u, PHP_URL_HOST))); }; $host = $hostOf($home['url']);
+    if ($given !== null) { $home = ['url' => $url, 'html' => (string)($given[$url] ?? '')]; $pages = $given; }
+    else { $home = kbi_fetch($url); if (!empty($home['err'])) return ['err' => $home['err']]; $pages = [$home['url'] => $home['html']]; }
+    if ($given === null) { $hostOf = function ($u) { return preg_replace('/^www\./', '', strtolower((string)parse_url($u, PHP_URL_HOST))); }; $host = $hostOf($home['url']);
     // صفحات داخلية مهمة من لينكات الرئيسية
     $want = '/(about|من-نحن|من نحن|عن|contact|تواصل|اتصل|service|خدمات|خدماتنا|price|pricing|أسعار|الأسعار|menu|منيو|قائمة|faq|أسئلة|الأسئلة|branches|فروع)/iu';
     if (preg_match_all('~<a\b[^>]*href=["\']([^"\'#]+)["\'][^>]*>(.*?)</a>~is', $home['html'], $m, PREG_SET_ORDER)) {
@@ -64,6 +65,7 @@ function kb_import_site(string $url): array
         foreach ($m as $a) { $u = kbi_abs(html_entity_decode($a[1]), $home['url']); if ($hostOf($u) !== $host || isset($pages[$u]) || preg_match('~\.(pdf|jpe?g|png|zip|mp4)$~i', $u)) continue;
             if (preg_match($want, rawurldecode($u) . ' ' . kbi_txt($a[2]))) $cands[$u] = 1; }
         foreach (array_slice(array_keys($cands), 0, 5) as $u) { $r = kbi_fetch($u, 400000); if (empty($r['err'])) $pages[$r['url']] = $r['html']; }
+    }
     }
     $S = []; $src = [];
     $put = function (string $sec, string $f, $v, string $u) use (&$S, &$src) { if (is_string($v)) $v = trim($v); if ($v === '' || $v === null || $v === []) return; if (isset($S[$sec][$f]) && $S[$sec][$f] !== '') return; $S[$sec][$f] = $v; $src[$sec . '.' . $f] = $u; };
@@ -116,7 +118,7 @@ function kb_import_site(string $url): array
         if (preg_match('~href=["\'](https?://(?:www\.)?(?:google\.[a-z.]+/maps|maps\.google\.[a-z.]+|goo\.gl/maps|maps\.app\.goo\.gl)[^"\']*)~i', $html, $mp)) $put('contact', 'maps', html_entity_decode($mp[1]), $pu);
         if (preg_match_all('~href=["\'](https?://(?:www\.)?(?:facebook|instagram|x|twitter|tiktok|linkedin|youtube|snapchat|threads)\.(?:com|net)/[^"\'\s?#]+)~i', $html, $sm)) foreach ($sm[1] as $s1) if (!preg_match('~/(sharer|share|intent|plugins|dialog)~i', $s1)) $social[] = $s1;
         // 4) من النص: إيميل وتليفون وأسعار ومواعيد وأسئلة
-        $body = preg_replace('~<(script|style|noscript|svg)\b.*?</\1>~is', ' ', $html);
+        $body = preg_replace(['~<head\b.*?</head>~is', '~<(script|style|noscript|svg)\b.*?</\1>~is'], ' ', $html);
         $lines = array_values(array_filter(array_map('kbi_txt', preg_split('~<(?:br|/p|/li|/h[1-6]|/div|/tr|/dt|/dd)\b[^>]*>~i', $body)), function ($x) { return $x !== '' && mb_strlen($x) < 400; }));
         $plain = implode("\n", $lines);
         if (preg_match('/[\w.+-]+@[\w-]+\.[\w.]{2,}/u', $plain, $em2)) $put('contact', 'mail', $em2[0], $pu);
