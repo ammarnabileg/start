@@ -8,5 +8,5 @@ if (function_exists('ws_closed') && ws_closed((int)$l['workspace_id'])) { http_r
 db()->prepare('UPDATE crm_links SET clicks = clicks + 1, last_click = NOW() WHERE id = ?')->execute([(int)$l['id']]);
 $u = (string)$l['url'];
 $q = 'utm_source=aipush&utm_medium=post&utm_campaign=' . rawurlencode($c);
-if (strpos($u, 'wa.me/') === false) $u .= (strpos($u, '?') === false ? '?' : '&') . $q;
+if (strpos($u, 'wa.me/') === false) { $h = ''; if (($hp = strpos($u, '#')) !== false) { $h = substr($u, $hp); $u = substr($u, 0, $hp); } $u .= (strpos($u, '?') === false ? '?' : '&') . $q . $h; }
 header('Location: ' . $u, true, 302); exit;

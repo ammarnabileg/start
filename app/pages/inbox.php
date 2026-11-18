@@ -125,6 +125,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
     if ($act === 'camp_ctl') {
         if (!can('inbox.reply')) $J(['error' => t('مالكش صلاحية.')], 403);
         $c = camp_get($wid, (int)($_POST['id'] ?? 0));
+        if ($c && !can('inbox.manage') && !is_ws_owner() && (int)($c['user_id'] ?? 0) !== (int)(current_user()['id'] ?? 0)) $J(['error' => t('لا يمكنك التحكم في حملة أنشأها زميل.')], 403);
         $to = ['pause' => 'paused', 'resume' => 'running', 'cancel' => 'cancelled'][(string)($_POST['op'] ?? '')] ?? null;
         if (!$c || !$to || in_array($c['status'], ['done', 'cancelled'], true)) $J(['error' => t('طلب غير صحيح.')], 400);
         db()->prepare("UPDATE msg_campaigns SET status = ?" . ($to === 'cancelled' ? ", finished_at = UTC_TIMESTAMP()" : '') . " WHERE id = ?")->execute([$to, $c['id']]);

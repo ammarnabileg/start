@@ -90,7 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
             flash('success', t('الحملة اتلغت.'));
         } elseif ($action === 'delete') {
             if (!can('whatsapp.manage')) {
-                flash('error', t('الحذف لصاحب الشركة بس.'));
+                flash('error', t('لا تملك صلاحية إدارة واتساب. اطلبها من مالك الشركة.'));
             } else {
                 wa_delete_broadcast($z, $bid);
                 log_activity('broadcast.delete', $bid);

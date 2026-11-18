@@ -126,7 +126,7 @@ if ($z && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['ajax'] ?? '') === 'd
         elseif ($tr('use_queue')) { $pid = $pid ?? current_profile_id($z); $payload['queuedFromProfile'] = $pid; }
         else {
             $dt = DateTime::createFromFormat('Y-m-d H:i', substr(str_replace('T', ' ', $g('schedule_time')), 0, 16), new DateTimeZone($payload['timezone']));
-            $sv = substr(str_replace('T', ' ', $g('schedule_time')), 0, 16); if ($dt && $dt->format('Y-m-d H:i') !== $sv) $dt = false; // تاريخ مستحيل زي 31/02 مايتلفّش لوحده
+            $sv = substr(str_replace('T', ' ', $g('schedule_time')), 0, 16); if ($dt && preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2}) (\d{1,2}):(\d{2})/', $sv, $pm) && ((int)$dt->format('n') !== (int)$pm[2] || (int)$dt->format('j') !== (int)$pm[3] || (int)$dt->format('G') !== (int)$pm[4])) $dt = false; // تاريخ مستحيل زي 31/02 مايتلفّش لوحده
             if (!$dt) $errs[] = t('الميعاد لازم يكون بالشكل 2026-12-01 10:00');
             elseif ($dt < new DateTime('now', $tz)) $errs[] = t('الميعاد ده عدّى');
             else $payload['scheduledFor'] = $dt->format('Y-m-d\TH:i:s');

@@ -65,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
             flash('success', t('اتشال من السلسلة.'));
         } elseif ($action === 'delete') {
             if (!can('whatsapp.manage')) {
-                flash('error', t('الحذف لصاحب الشركة بس.'));
+                flash('error', t('لا تملك صلاحية إدارة واتساب. اطلبها من مالك الشركة.'));
             } else {
                 wa_delete_sequence($z, $sid);
                 log_activity('sequence.delete', $sid);

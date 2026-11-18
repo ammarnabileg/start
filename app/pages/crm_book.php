@@ -24,7 +24,7 @@ ai_as_workspace($wid, function () use ($wid) {
         $ip = substr((string)($_SERVER['REMOTE_ADDR'] ?? ''), 0, 45);
         $st = db()->prepare('SELECT COUNT(*) FROM crm_form_log WHERE workspace_id = ? AND ip = ? AND created_at > ?'); $st->execute([$wid, $ip, date('Y-m-d H:i:s', time() - 3600)]);
         if ((int)$st->fetchColumn() >= 8) $err = t('طلبات كتير. جرّب كمان شوية.');
-        elseif ($name === '' || ($phone === '' && $email === '')) $err = t('اكتب اسمك ورقمك أو إيميلك.');
+        elseif ($name === '' || (!filter_var($email, FILTER_VALIDATE_EMAIL) && crm_norm_phone($phone) === '')) $err = t('اكتب اسمك ورقمك أو إيميلك.');
         elseif (!in_array($slot, array_merge(...array_values($slots) ?: [[]]), true)) $err = t('الميعاد ده اتحجز أو مش متاح. اختار ميعاد تاني.');
         else {
             db()->prepare('INSERT INTO crm_form_log (workspace_id, ip) VALUES (?, ?)')->execute([$wid, $ip]);

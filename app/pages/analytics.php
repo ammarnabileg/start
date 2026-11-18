@@ -311,7 +311,7 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
               <?php endif; ?>
               <span class="ms-1 text-ink-400" aria-hidden="true">▾</span>
             </summary>
-            <div class="absolute z-40 mt-2 w-72 max-h-80 overflow-auto rounded-xl border border-ink-200 bg-white shadow-xl p-1">
+            <div class="absolute end-0 z-40 mt-2 w-72 max-w-[calc(100vw-2rem)] max-h-80 overflow-auto rounded-xl border border-ink-200 bg-white shadow-xl p-1">
               <a href="<?= e($q(['a' => null])) ?>" class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-ink-50 <?= $acc === '' ? 'font-semibold text-brand-700' : 'text-ink-800' ?>"><?= e(t('كل الحسابات')) ?></a>
               <?php foreach ($accounts as $a): $id = (string)($a['_id'] ?? ''); ?>
                 <a href="<?= e($q(['a' => $id])) ?>" class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-ink-50 <?= $acc === $id ? 'font-semibold text-brand-700' : 'text-ink-800' ?>">

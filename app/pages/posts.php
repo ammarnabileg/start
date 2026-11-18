@@ -204,7 +204,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'week_
         $se = function_exists('ps_seasons') ? implode('، ', array_map(function ($x) { return $x['n'] . ' ' . $x['d']; }, ps_seasons(date('Y-m-d'), date('Y-m-d', strtotime('+14 days'))))) : '';
         $sys = 'WEEK_IDEAS_JSON. أنت مخطط محتوى سوشيال ميديا. اكتب 7 أفكار منشورات لأسبوع واحد (فكرة لكل يوم) لنفس الشركة، متنوعة: تعليمي، عرض، رأي عميل، سؤال للتفاعل، خلف الكواليس، نصيحة، دعوة للتواصل. استخدم معلومات الشركة بس ومتخترعش أسعار. '
             . 'لكل فكرة: عنوان قصير ومسودة منشور 2-4 سطور بنفس لغة ولهجة الشركة. أعد JSON فقط: {"ideas":[{"t":"...","b":"..."}]}' . ai_country_note();
-        $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => "معلومات الشركة:\n" . ($kb ?: '(مفيش)') . ($se ? "\nمناسبات قريبة: " . $se : '')]], 1800, 'compose');
+        $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => "معلومات الشركة:\n" . ($kb ?: '(لا يوجد)') . ($se ? "\nمناسبات قريبة: " . $se : '')]], 1800, 'compose');
         $txt = (string)$r['text']; if (preg_match('/\{.*\}/s', $txt, $m)) $txt = $m[0];
         $ideas = array_values(array_filter(array_map(function ($x) { return is_array($x) ? ['t' => mb_substr(trim((string)($x['t'] ?? '')), 0, 120), 'b' => mb_substr(trim((string)($x['b'] ?? '')), 0, 1500)] : null; }, (array)(json_decode($txt, true)['ideas'] ?? [])), function ($x) { return $x && $x['b'] !== ''; }));
         if (!$ideas) throw new RuntimeException(t('الرد مكانش بالشكل المتوقع، جرّب تاني.'));
@@ -510,7 +510,7 @@ render(t('المنشورات'), 'posts', function () use ($z, $posts, $pages, $p
         <div class="my-1 border-t border-ink-100"></div>
         <button type="button" id="ps-help" class="w-full flex items-center gap-2.5 rounded-xl px-3 py-2 hover:bg-ink-50 text-start"><span class="w-4 text-center font-semibold text-ink-500">?</span><span><?= e(t('اختصارات الكيبورد')) ?></span></button>
       </div>
-      <a href="<?= e(url('compose')) ?>" class="btn-primary"><?= ui_icon('plus', 'w-4 h-4') ?><?= e(t('منشور جديد')) ?></a>
+      <?php if (can('posts.create')): ?><a href="<?= e(url('compose')) ?>" class="btn-primary"><?= ui_icon('plus', 'w-4 h-4') ?><?= e(t('منشور جديد')) ?></a><?php endif; ?>
     </div>
     <?php if (count($plats) > 1 && $view !== 'cal' && count(array_unique(array_values($plats))) > 1): // نفس العدد لكل المنصات = كل منشور على كلهم، فالفلتر مالوش فايدة ?>
       <div class="flex flex-wrap items-center gap-1.5 mb-4" id="ps-pf">
@@ -544,8 +544,8 @@ render(t('المنشورات'), 'posts', function () use ($z, $posts, $pages, $p
         <p class="font-medium text-ink-900"><?= e($em[0]) ?></p>
         <?php if ($em[1]): ?><p class="text-sm text-ink-500 mt-1"><?= e($em[1]) ?></p><?php endif; ?>
         <div class="flex flex-wrap justify-center gap-2 mt-4">
-          <a href="<?= e(url('compose')) ?>" class="btn-primary"><?= e(t('منشور جديد')) ?></a>
-          <a href="<?= e(url('bulk')) ?>" class="btn-ghost"><?= e(t('رفع بالجملة')) ?></a>
+          <?php if (can('posts.create')): ?><a href="<?= e(url('compose')) ?>" class="btn-primary"><?= e(t('منشور جديد')) ?></a>
+          <a href="<?= e(url('bulk')) ?>" class="btn-ghost"><?= e(t('رفع بالجملة')) ?></a><?php else: ?><span class="text-sm text-ink-500"><?= e(t('لا تملك صلاحية إنشاء المنشورات. اطلبها من مالك الشركة.')) ?></span><?php endif; ?>
         </div>
       </div>
     <?php else: ?>

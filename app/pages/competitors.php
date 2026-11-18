@@ -25,7 +25,7 @@ $payload = function () use ($host) {
         $P[] = ['name' => (string)$r['name'], 'mine' => (string)$r['mine'], 'mn' => $mn, 'them' => (object)$th]; }
     $rec = array_filter($E, function ($e) { return $e['recent'] && $e['kind'] !== 'first'; });
     return ['comps' => $C, 'events' => array_values(array_filter($E, function ($e) { return $e['kind'] !== 'first'; })), 'prices' => $P, 'saved' => cmp_saved_ids(),
-        'k' => ['n' => count($C), 'changes' => count($rec), 'up' => count(array_filter($rec, function ($e) { return $e['kind'] === 'price_up'; })), 'down' => count(array_filter($rec, function ($e) { return $e['kind'] === 'price_down'; })), 'cheaper' => $cheaper]];
+        'k' => ['n' => count(array_filter($C, function ($x) { return empty($x['self']); })), 'changes' => count($rec), 'up' => count(array_filter($rec, function ($e) { return $e['kind'] === 'price_up'; })), 'down' => count(array_filter($rec, function ($e) { return $e['kind'] === 'price_down'; })), 'cheaper' => $cheaper]];
 };
 if (($_GET['export'] ?? '') === 'csv') { header('Content-Type: text/csv; charset=utf-8'); header('Content-Disposition: attachment; filename="competitors-' . date('Y-m-d') . '.csv"'); echo cmp_csv(); exit; }
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
