@@ -22,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($u && password_verify($pass, $u['password_hash'])) {
             clear_attempts($pdo);
             $pdo->prepare("UPDATE users SET last_login_at = NOW() WHERE id = ?")->execute([$u['id']]);
-            session_regenerate_id(true);
+            session_regenerate_id(true); unset($_SESSION['csrf']); // توكن جديد بعد الدخول
             unset($_SESSION['impersonator'], $_SESSION['imp_pwfp'], $_SESSION['pwfp'], $_SESSION['ws']);
             $_SESSION['uid'] = (int)$u['id'];
             // مباشرة بالـ id، لأن current_user() متخزن قبل الدخول

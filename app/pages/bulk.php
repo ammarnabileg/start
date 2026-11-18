@@ -104,7 +104,7 @@ if ($z && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['ajax'] ?? '') === 'd
     foreach ($rows as $k => $r) {
         $errs = [];
         $g = function ($c) use ($r) { return trim((string)($r[$c] ?? '')); };
-        $tr = function ($c) use ($g) { return (bool)preg_match('/^(true|1|yes)$/i', $g($c)); };
+        $tr = function ($c) use ($g) { return (bool)preg_match('/^(true|1|yes|y|نعم|اه|أيوه|ايوه|ايوة|✓)$/iu', $g($c)); };
         $platforms = [];
         foreach (array_unique(array_filter(array_map('trim', explode('|', $g('accounts'))))) as $aid) {
             if (!isset($byId[$aid])) { $errs[] = t('حساب مش موجود: %s', $aid); continue; }
@@ -126,6 +126,7 @@ if ($z && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['ajax'] ?? '') === 'd
         elseif ($tr('use_queue')) { $pid = $pid ?? current_profile_id($z); $payload['queuedFromProfile'] = $pid; }
         else {
             $dt = DateTime::createFromFormat('Y-m-d H:i', substr(str_replace('T', ' ', $g('schedule_time')), 0, 16), new DateTimeZone($payload['timezone']));
+            $sv = substr(str_replace('T', ' ', $g('schedule_time')), 0, 16); if ($dt && $dt->format('Y-m-d H:i') !== $sv) $dt = false; // تاريخ مستحيل زي 31/02 مايتلفّش لوحده
             if (!$dt) $errs[] = t('الميعاد لازم يكون بالشكل 2026-12-01 10:00');
             elseif ($dt < new DateTime('now', $tz)) $errs[] = t('الميعاد ده عدّى');
             else $payload['scheduledFor'] = $dt->format('Y-m-d\TH:i:s');
@@ -365,8 +366,8 @@ if (isset($_GET['sample'])) {
     $rows = [
         ['post_content', 'platforms', 'schedule_time', 'tz', 'media_urls', 'use_queue', 'custom_content_' . $first],
         [$ar ? 'صباح الخير! المنيو الجديد نزل النهارده 🎉' : 'Good morning! Our new menu is out today 🎉', $first, $at(0, '10:00'), $tz, '', '', ''],
-        [$ar ? 'عرض نهاية الأسبوع: خصم 20% على كل حاجة' : 'Weekend offer: 20% off everything', $two, $at(3, '18:30'), $tz, 'https://example.com/offer.jpg', '', $ar ? 'نسخة خاصة بـ ' . $first . ': خصم 20%!' : 'Special ' . $first . ' version: 20% off!'],
-        [$ar ? 'منشور هيتحط في أقرب ميعاد فاضي في الطابور' : 'This post goes into the next free queue slot', $first, '', $tz, '', 'true', ''],
+        [$ar ? t('عرض نهاية الأسبوع: خصم 20% على كل حاجة') : 'Weekend offer: 20% off everything', $two, $at(3, '18:30'), $tz, 'https://example.com/offer.jpg', '', $ar ? 'نسخة خاصة بـ ' . $first . ': خصم 20%!' : 'Special ' . $first . ' version: 20% off!'],
+        [$ar ? t('منشور هيتحط في أقرب ميعاد فاضي في الطابور') : 'This post goes into the next free queue slot', $first, '', $tz, '', 'true', ''],
     ];
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename="bulk-template.csv"');

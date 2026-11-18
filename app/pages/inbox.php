@@ -702,7 +702,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
               <div class="mx-3 mt-2 rounded-xl border border-brand-200 bg-brand-50 p-3 text-sm" id="ai-draft">
                 <div class="text-xs text-brand-700 font-medium mb-1 flex items-center gap-1.5"><?= ai_icon('spark', 'w-3.5 h-3.5') ?><?= e(t('رد مقترح جاهز (خارج المواعيد)')) ?></div>
                 <p class="text-ink-800 whitespace-pre-wrap" dir="auto"><?= e($dr['text']) ?></p>
-                <button type="button" class="btn-ghost !py-1 !px-2.5 !text-xs mt-2" onclick="var t=document.querySelector('#ai-draft ~ form textarea[name=message]');t.value=this.parentNode.querySelector('p').textContent;t.focus();this.parentNode.remove();"><?= e(t('استخدم الرد')) ?></button>
+                <button type="button" class="btn-ghost !py-1 !px-2.5 !text-xs mt-2" onclick="var t=document.querySelector('#ai-draft ~ form textarea[name=message]');t.value=this.parentNode.querySelector('p').textContent;t.dispatchEvent(new Event('input',{bubbles:true}));t.focus();this.parentNode.classList.add('hidden');"><?= e(t('استخدم الرد')) ?></button>
               </div>
             <?php endif; ?>
             <form method="post" enctype="multipart/form-data" data-optimistic class="m-3 mt-2 rounded-2xl border border-ink-200 bg-white focus-within:border-brand-400 focus-within:ring-4 focus-within:ring-brand-500/10 transition flex gap-1.5 items-end p-1.5" id="ibx-compose">

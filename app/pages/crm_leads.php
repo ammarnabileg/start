@@ -280,6 +280,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $phone = crm_norm_phone((string)($_POST['phone'] ?? ''), (string)$l['country']);
         $email = mb_strtolower(trim((string)($_POST['email'] ?? '')));
         if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) $json(['ok' => false, 'error' => t('الإيميل مش صحيح')]);
+        if (strtolower(trim((string)($l['email'] ?? ''))) !== strtolower(trim((string)($_POST['email'] ?? $l['email'] ?? '')))) { try { db()->prepare('UPDATE crm_leads SET email_status = NULL WHERE id = ?')->execute([(int)$l['id']]); } catch (Throwable $e) {} }
         db()->prepare('UPDATE crm_leads SET name = ?, company = ?, title = ?, email = ?, phone = ?, phone_pending = IF(? IS NULL, phone_pending, 0), stage = ?, deal_value = ?, note = ?, tags = ?, owner_id = ?, next_at = ?, next_note = ? WHERE id = ?')
             ->execute([mb_substr(trim((string)($_POST['name'] ?? '')), 0, 255) ?: $l['name'], mb_substr(trim((string)($_POST['company'] ?? '')), 0, 255) ?: null,
                 mb_substr(trim((string)($_POST['title'] ?? '')), 0, 255) ?: null, $email ?: null, $phone ?: null, $phone ?: null, $s, $val,
@@ -386,7 +387,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // محاولة تانية بكرة في نفس الوقت تقريبًا
             $ra = date('Y-m-d H:i:s', strtotime('+1 day')); db()->prepare('UPDATE crm_leads SET next_note = IF(next_at IS NULL OR next_at > ? OR next_at < NOW(), ?, next_note), next_at = IF(next_at IS NULL OR next_at > ? OR next_at < NOW(), ?, next_at) WHERE id = ?')->execute([$ra, t('محاولة اتصال تانية (%s)', $ocs[$oc]), $ra, $ra, (int)$l['id']]); // متابعة أقرب (زي اجتماع) تفضل
         }
-        if ($k === 'call' && $oc === 'wrong') db()->prepare('UPDATE crm_leads SET phone = NULL WHERE id = ?')->execute([(int)$l['id']]);
+        if ($k === 'call' && $oc === 'wrong') { if ((string)$l['phone'] !== '') crm_act_add((int)$l['id'], 'note', t('الرقم الخاطئ الذي أُزيل: %s', (string)$l['phone'])); db()->prepare('UPDATE crm_leads SET phone = NULL WHERE id = ?')->execute([(int)$l['id']]); }
         if ($k === 'call' && function_exists('crm_on_call_outcome')) crm_on_call_outcome($l, $oc);
         if ($k !== 'note' && $l['stage'] === 'new' && !in_array($oc, ['no_answer', 'busy', 'wrong'], true)) {
             db()->prepare("UPDATE crm_leads SET stage = 'contacted' WHERE id = ?")->execute([(int)$l['id']]);
