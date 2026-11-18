@@ -38,6 +38,7 @@ if (setting('app_version') !== APP_VERSION) {
 }
 
 $page = preg_replace('/[^a-z_]/', '', (string)($_GET['p'] ?? 'dashboard'));
+if (!isset($_GET['p']) && !current_user() && empty($_COOKIE['zin'])) $page = 'home'; // الزائر الجديد يشوف الصفحة الرئيسية
 // حماية من تضمين صفحات المنصة جوه موقع تاني لخداع المستخدم (clickjacking). الصفحات العامة (الفورم، الحجز، صفحة الهبوط، روابط التتبع) مستثناة عشان العملاء يقدروا يضمّنوها في مواقعهم
 if (!headers_sent()) {
     header('Referrer-Policy: strict-origin-when-cross-origin');
@@ -56,7 +57,7 @@ if (isset($merged[$page])) {
     redirect(url($merged[$page], array_diff_key($_GET, ['p' => 1])));
 }
 
-$public = ['login', 'forgot', 'reset', 'register', 'invite', 'pref', 'cron', 'share', 'smsgate_hook', 'zernio_hook', 'crm_hook', 'lead_form', 'crm_t', 'crm_book', 'crm_go', 'crm_v', 'crm_js', 'go', 'lp'];
+$public = ['home', 'login', 'forgot', 'reset', 'register', 'invite', 'pref', 'cron', 'share', 'smsgate_hook', 'zernio_hook', 'crm_hook', 'lead_form', 'crm_t', 'crm_book', 'crm_go', 'crm_v', 'crm_js', 'go', 'lp'];
 // علامة «كان مسجّل دخول» (مش سر، مجرد 1): بتتحط طول ما المستخدم داخل وبتتمسح عند الخروج.
 // لو موجودة ومفيش مستخدم = الجلسة انتهت فعلًا (مش زائر جديد).
 if (current_user() && empty($_COOKIE['zin'])) setcookie('zin', '1', ['expires' => time() + 31536000, 'path' => '/', 'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off', 'httponly' => true, 'samesite' => 'Lax']);
@@ -99,7 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $page !== 'smsgate_hook' && $page !
 }
 
 // كل الصفحات بتشتغل جوه شركة. لو مالوش شركات، يروح صفحة الشركات (ينشئ واحدة أو يوافق على دعوة)
-$noWorkspacePages = ['login', 'forgot', 'reset', 'register', 'invite', 'pref', 'cron', 'share', 'smsgate_hook', 'zernio_hook', 'crm_hook', 'lead_form', 'crm_t', 'crm_book', 'crm_go', 'crm_v', 'crm_js', 'go', 'lp', 'logout', 'workspaces', 'switch', 'account', 'system', 'admin', 'admin_workspaces', 'admin_users', 'admin_activity', 'admin_compare', 'impersonate_stop'];
+$noWorkspacePages = ['home', 'login', 'forgot', 'reset', 'register', 'invite', 'pref', 'cron', 'share', 'smsgate_hook', 'zernio_hook', 'crm_hook', 'lead_form', 'crm_t', 'crm_book', 'crm_go', 'crm_v', 'crm_js', 'go', 'lp', 'logout', 'workspaces', 'switch', 'account', 'system', 'admin', 'admin_workspaces', 'admin_users', 'admin_activity', 'admin_compare', 'impersonate_stop'];
 if (!in_array($page, $noWorkspacePages, true) && !current_workspace()) {
     redirect(url('workspaces'));
 }
