@@ -25,7 +25,7 @@ if (!$me) {
         ?>
         <p class="text-center"><b><?= e($inv['by_name'] ?: t('حد')) ?></b> <?= e(t('بيدعوك تنضم لشركة')) ?> <b><?= e($inv['ws_name']) ?></b></p>
         <a href="<?= e(url('register')) ?>" class="btn-primary w-full !py-3 justify-center"><?= e(t('اعمل حساب')) ?></a>
-        <a href="<?= e(url('login')) ?>" class="block text-center w-full border border-slate-300 font-semibold rounded-lg py-3"><?= e(t('عندي حساب، سجل دخول')) ?></a>
+        <a href="<?= e(url('login')) ?>" class="btn-ghost w-full !py-3 justify-center"><?= e(t('عندي حساب، سجل دخول')) ?></a>
         <?php
     });
 }
@@ -83,8 +83,8 @@ auth_page(t('دعوة'), function () use ($inv, $token) {
     <p class="text-center"><b><?= e($inv['by_name'] ?: t('حد')) ?></b> <?= e(t('بيدعوك تنضم لشركة')) ?> <b><?= e($inv['ws_name']) ?></b> <?= e(t('كـ')) ?> <?= e(role_label($inv['role'])) ?></p>
     <form method="post" class="space-y-3">
       <?= csrf_field() ?><input type="hidden" name="t" value="<?= e($token) ?>">
-      <button name="answer" value="accept" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg py-3"><?= e(t('موافق، انضم')) ?></button>
-      <button name="answer" value="decline" class="w-full border border-slate-300 font-semibold rounded-lg py-3"><?= e(t('رفض')) ?></button>
+      <button name="answer" value="accept" class="btn-primary w-full !py-3 justify-center"><?= e(t('موافق، انضم')) ?></button>
+      <button name="answer" value="decline" class="btn-ghost w-full !py-3 justify-center"><?= e(t('رفض')) ?></button>
     </form>
     <?php
 });

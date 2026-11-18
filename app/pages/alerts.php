@@ -63,6 +63,7 @@ foreach ($st->fetchAll() as $r) $stats[$r['rule']] = $r;
 
 render(t('التنبيهات'), 'alerts', function () use ($alerts, $rules, $catalog, $canManage, $hasApi, $unseen, $lastEval, $stats, $crmList, $canCrm, $canAn) {
     if (can('posts.manage')) { try { $aq = db()->prepare("SELECT COUNT(*) FROM post_approvals WHERE workspace_id = ? AND status = 'pending'"); $aq->execute([(int)ws('id')]); $apN = (int)$aq->fetchColumn(); if ($apN) echo '<a href="' . e(url('approvals')) . '" class="card p-4 mb-4 flex items-center gap-3 border-amber-200 bg-amber-50 text-amber-900">' . ui_icon('clock', 'w-5 h-5') . '<b class="flex-1">' . e(t('%s منشورات بانتظار موافقتك', $apN)) . '</b><span class="text-sm">' . e(t('راجعها الآن')) . '</span></a>'; } catch (Throwable $e) {} } // الجرس بيعدّها: لازم تبان هنا
+    try { $iv = db()->prepare("SELECT COUNT(*) FROM workspace_users WHERE user_id = ? AND status = 'pending'"); $iv->execute([(int)(current_user()['id'] ?? 0)]); $ivN = (int)$iv->fetchColumn(); if ($ivN) echo '<a href="' . e(url('workspaces')) . '" class="card p-4 mb-4 flex items-center gap-3 border-brand-200 bg-brand-50 text-brand-900">' . ui_icon('users', 'w-5 h-5') . '<b class="flex-1">' . e(t('لديك %s دعوة بانتظار ردك', $ivN)) . '</b><span class="text-sm">' . e(t('اعرضها')) . '</span></a>'; } catch (Throwable $e) {}
     if ($canCrm): $cu = count(array_filter($crmList, function ($x) { return !(int)$x['seen']; })); ?>
     <div class="card p-5 mb-5" id="notifs">
       <div class="flex flex-wrap items-center gap-2 mb-3">
