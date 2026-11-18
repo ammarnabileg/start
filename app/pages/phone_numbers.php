@@ -320,9 +320,17 @@ render(t('أرقام التليفون'), 'phone_numbers', function () use ($z, $
             };
             $cap(t('مكالمات'), !empty($n['pstnVoiceEnabled']) ? 'on' : 'off', !empty($n['pstnVoiceEnabled']) ? t('شغالة') : t('مقفولة'), !empty($n['pstnVoiceEnabled']) ? url('calls') : null);
             $cap('SMS', $smsState, ['on' => t('شغال'), 'wait' => t('مستني تسجيل'), 'off' => t('مش متاح')][$smsState], $smsState === 'on' ? url('sms') : null);
-            $cap(t('واتساب'), !empty($n['socialAccountId']) ? 'on' : 'off', !empty($n['socialAccountId']) ? t('مربوط') : t('مش مربوط'), null);
+            $cap(t('واتساب'), !empty($n['socialAccountId']) ? 'on' : 'off', !empty($n['socialAccountId']) ? t('مربوط') : t('مش مربوط'), !empty($n['socialAccountId']) ? url('inbox') : (can('accounts.manage') ? url('accounts') : null));
             ?>
           </div>
+          <?php if ($st === 'active'): $pe = ph_e164((string)($n['phoneNumber'] ?? '')); ?>
+          <div class="flex flex-wrap gap-2 mt-3">
+            <?php if (!empty($n['pstnVoiceEnabled']) && $owner): ?><a class="inline-flex items-center gap-1.5 rounded-xl bg-lime-600 hover:bg-lime-700 text-white text-sm font-medium px-3 py-2" href="<?= e(url('calls', ['dial' => 1, 'from' => $pe])) ?>"><?= ui_icon('phone', 'w-4 h-4') ?> <?= e(t('اتصل من هذا الرقم')) ?></a><?php endif; ?>
+            <?php if ($smsState === 'on'): ?><a class="inline-flex items-center gap-1.5 rounded-xl border border-ink-200 hover:bg-ink-50 text-sm font-medium px-3 py-2" href="<?= e(url('sms')) ?>"><?= ui_icon('chat', 'w-4 h-4') ?> <?= e(t('أرسل SMS')) ?></a><?php endif; ?>
+            <a class="inline-flex items-center gap-1.5 rounded-xl border border-ink-200 hover:bg-ink-50 text-sm font-medium px-3 py-2" href="<?= e(url('calls', ['q' => $pe])) ?>"><?= ui_icon('clock', 'w-4 h-4') ?> <?= e(t('سجل مكالماته')) ?></a>
+            <?php if ($owner): ?><a class="inline-flex items-center gap-1.5 rounded-xl border border-ink-200 hover:bg-ink-50 text-sm font-medium px-3 py-2" href="<?= e(url('calls', ['settings' => 1])) ?>#n-<?= e((string)($n['_id'] ?? '')) ?>"><?= ui_icon('gear', 'w-4 h-4') ?> <?= e(t('التحويل والبريد الصوتي')) ?></a><?php endif; ?>
+          </div>
+          <?php endif; ?>
 
           <?php if (!empty($n['regulatoryDeclineReason'])): ?><p class="text-sm text-red-700 mt-3"><?= e(t('سبب الرفض: %s', $n['regulatoryDeclineReason'])) ?></p><?php endif; ?>
           <?php if (!empty($n['regulatoryReviewComment'])): ?><p class="text-sm text-ink-700 mt-3"><?= e(t('تعليق المراجع: %s', $n['regulatoryReviewComment'])) ?></p><?php endif; ?>

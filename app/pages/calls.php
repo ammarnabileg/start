@@ -15,6 +15,61 @@ if ($z && !empty($_GET['rec'])) {
     redirect(url('calls', ['id' => (string)$_GET['rec']]));
 }
 
+// ===== واجهة تفاعلية: طلبات JSON من غير تحميل الصفحة =====
+$fxd0 = getenv('UI_FIXTURES'); $fx0 = $fxd0 && is_file($fxd0 . '/calls.json') ? json_decode((string)file_get_contents($fxd0 . '/calls.json'), true) : null;
+$cj = function (array $d, int $c = 200) { http_response_code($c); header('Content-Type: application/json; charset=utf-8'); exit(json_encode($d, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)); };
+$aj = (string)($_GET['ajax'] ?? '');
+if ($aj !== '' && ($z || $fx0)) {
+    try {
+        if ($aj === 'estimate') {
+            $to = ph_e164((string)($_GET['to'] ?? '')); $from = ph_e164((string)($_GET['from'] ?? ''));
+            if ($to === '') $cj(['ok' => false, 'error' => t('اكتب رقم العميل بالصيغة الدولية.')]);
+            $es = $fx0 ? ($fx0['estimate'] ?? []) : ph_call_estimate($z, $to, $from);
+            $cj(['ok' => true, 'perMin' => (float)($es['perMinuteUsd'] ?? $es['breakdown']['billableCostUSD'] ?? 0), 'country' => (string)($es['destinationCountry'] ?? '')]);
+        }
+        if ($aj === 'rec') {
+            $u = $fx0 ? (string)($fx0['recording'] ?? '') : ph_call_recording($z, (string)($_GET['id'] ?? ''));
+            $cj(['ok' => preg_match('#^https://#', $u) === 1, 'url' => $u, 'error' => t('لا يوجد تسجيل لهذه المكالمة.')]);
+        }
+        if ($aj === 'leads') {
+            $q = trim((string)($_GET['q'] ?? '')); if (mb_strlen($q) < 2) $cj(['ok' => true, 'items' => []]);
+            $dg = preg_replace('/\D/', '', $q); $wid0 = (int)ws('id'); $own = (can('crm.manage') || is_ws_owner()) ? '' : ' AND (owner_id IS NULL OR owner_id = ' . (int)(current_user()['id'] ?? 0) . ')';
+            $st = db()->prepare("SELECT id, name, company, phone FROM crm_leads WHERE workspace_id = ? AND phone IS NOT NULL AND phone <> '' AND (name LIKE ? OR company LIKE ?" . (strlen($dg) >= 3 ? " OR REPLACE(phone, '+', '') LIKE ?" : '') . ")" . $own . " ORDER BY updated_at DESC LIMIT 8");
+            $p = [$wid0, '%' . $q . '%', '%' . $q . '%']; if (strlen($dg) >= 3) $p[] = '%' . $dg . '%'; $st->execute($p);
+            $cj(['ok' => true, 'items' => array_map(function ($r) { return ['id' => (int)$r['id'], 'name' => (string)$r['name'], 'co' => (string)$r['company'], 'phone' => (string)$r['phone']]; }, $st->fetchAll())]);
+        }
+        if ($aj === 'lead') {
+            $ph = ph_e164((string)($_GET['phone'] ?? '')); if ($ph === '') $cj(['ok' => true, 'lead' => null]);
+            $st = db()->prepare('SELECT id, name, company, stage FROM crm_leads WHERE workspace_id = ? AND phone = ? LIMIT 1'); $st->execute([(int)ws('id'), $ph]); $r = $st->fetch();
+            $cj(['ok' => true, 'lead' => $r ? ['id' => (int)$r['id'], 'name' => (string)$r['name'], 'co' => (string)$r['company'], 'url' => url('prospects', ['lead' => (int)$r['id']])] : null]);
+        }
+        if ($aj === 'latest') {
+            $to = ph_e164((string)($_GET['to'] ?? '')); $since = (string)($_GET['since'] ?? '');
+            $list = $fx0 ? [] : (ph_calls($z, ['direction' => 'outbound', 'limit' => 10])['calls'] ?? []);
+            foreach ($list as $c) if (ph_e164((string)($c['to'] ?? '')) === $to && (string)($c['startedAt'] ?? $c['createdAt'] ?? '') >= $since) $cj(['ok' => true, 'call' => ['id' => (string)($c['_id'] ?? ''), 'status' => (string)($c['status'] ?? ''), 'end' => (string)($c['endReason'] ?? ''), 'dur' => (int)($c['durationSeconds'] ?? 0)]]);
+            $cj(['ok' => true, 'call' => null]);
+        }
+    } catch (ZernioException $ex) { $cj(['ok' => false, 'error' => $ex->getMessage()]); }
+    $cj(['ok' => false, 'error' => t('طلب غير صحيح.')], 400);
+}
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'call_json' && ($z || $fx0)) {
+    if (!can('phone.spend')) $cj(['ok' => false, 'error' => t('المكالمات وإعداداتها لصاحب الشركة بس لأنها بتكلف فلوس.')], 403);
+    $to = ph_e164((string)($_POST['to'] ?? '')); $from = ph_e164((string)($_POST['from'] ?? '')); $fwd = ph_e164((string)($_POST['forward'] ?? ''));
+    try {
+        $mine = $fx0 ? array_map(function ($n) { return ph_e164((string)($n['phoneNumber'] ?? '')); }, $fx0['numbers'] ?? []) : array_map(function ($n) { return ph_e164((string)($n['phoneNumber'] ?? '')); }, ph_voice_numbers(ph_numbers($z)['numbers'] ?? []));
+        if (!in_array($from, $mine, true) || $to === '') $cj(['ok' => false, 'error' => t('اختار رقم من أرقامك واكتب رقم صحيح بالصيغة الدولية.')]);
+        if (empty($_POST['confirm'])) $cj(['ok' => false, 'error' => t('لازم تعلّم على مربع التأكيد إن المكالمة بتتحسب.')]);
+        if ($fwd === '') $cj(['ok' => false, 'error' => t('اكتب رقم جوالك في «حوّلها إلى» حتى تصلك المكالمة.')]);
+        $body = ['to' => $to, 'fromNumber' => $from, 'forwardTo' => 'tel:' . $fwd];
+        $g = trim((string)($_POST['greeting'] ?? '')); if ($g !== '') $body['greeting'] = mb_substr($g, 0, 1000);
+        if (!$fx0) ph_place_call($z, $body);
+        log_activity('call.place', $from . ' -> ' . $to);
+        $st = db()->prepare('SELECT id FROM crm_leads WHERE workspace_id = ? AND phone = ? LIMIT 1'); $st->execute([(int)ws('id'), $to]); $lid = (int)$st->fetchColumn();
+        if ($lid) crm_act_add($lid, 'call', t('مكالمة من رقم الشركة %s', $from));
+        $cj(['ok' => true, 'at' => gmdate('Y-m-d\TH:i:s'), 'lead' => $lid]);
+    } catch (ZernioException $ex) { $cj(['ok' => false, 'error' => $ex->getMessage()]); }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
     $action = (string)($_POST['action'] ?? '');
     $back = url('calls');
@@ -207,7 +262,7 @@ render(t('المكالمات'), 'calls', function () use ($fx, $z, $apiError, $n
       <?php if ($owner && $voice): ?>
         <div class="flex gap-2">
           <a class="btn-ghost" href="<?= e(url('calls', ['settings' => 1])) ?>"><?= e(t('إعدادات الأرقام')) ?></a>
-          <a class="btn-primary" href="<?= e(url('calls', ['dial' => 1])) ?>"><?= e(t('+ اعمل مكالمة')) ?></a>
+          <a class="btn-primary !bg-lime-600 hover:!bg-lime-700 inline-flex items-center gap-1.5" href="<?= e(url('calls', ['dial' => 1])) ?>"><?= ui_icon('phone', 'w-4 h-4') ?> <?= e(t('اعمل مكالمة')) ?></a>
         </div>
       <?php endif; ?>
     </div>
@@ -249,7 +304,7 @@ render(t('المكالمات'), 'calls', function () use ($fx, $z, $apiError, $n
         <h2 class="font-bold mb-1"><?= e(t('إعدادات المكالمات لكل رقم')) ?></h2>
         <p class="text-xs text-ink-500 mb-3"><?= e(t('الحفظ بيفعّل المكالمات العادية على الرقم لو مش مفعلة. المكالمات الواردة بتتحول على رقم التحويل، ولو مفيش حد رد بتروح للبريد الصوتي.')) ?></p>
         <?php foreach ($numbers as $n): if (($n['status'] ?? '') !== 'active' || (isset($n['hostedByZernio']) && !$n['hostedByZernio'])) continue; ?>
-          <form method="post" class="border-t border-ink-100 pt-4 mt-4 grid sm:grid-cols-2 gap-3">
+          <form method="post" id="n-<?= e((string)($n['_id'] ?? '')) ?>" class="border-t border-ink-100 pt-4 mt-4 grid sm:grid-cols-2 gap-3 scroll-mt-24">
             <?= csrf_field() ?><input type="hidden" name="action" value="settings"><input type="hidden" name="id" value="<?= e($n['_id'] ?? '') ?>">
             <?php $customFwd = !empty($n['pstnForwardTo']) && !preg_match('/^tel:/', (string)$n['pstnForwardTo']); ?><?php if ($customFwd): ?><input type="hidden" name="keep_fwd" value="1"><?php endif; ?>
             <div class="sm:col-span-2 font-semibold" dir="ltr" style="unicode-bidi:plaintext"><?= e($n['phoneNumber'] ?? '') ?> <?php if (empty($n['pstnVoiceEnabled'])): ?><span class="badge"><?= e(t('المكالمات مقفولة')) ?></span><?php endif; ?></div>
@@ -278,8 +333,8 @@ render(t('المكالمات'), 'calls', function () use ($fx, $z, $apiError, $n
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
       <div class="card p-4"><div class="text-xs text-ink-500"><?= e(t('المكالمات')) ?></div><div class="text-2xl font-bold text-ink-900 mt-1"><?= $tot ?></div><div class="text-xs text-ink-500"><?= e(t('%s واردة · %s صادرة', $inN, $tot - $inN)) ?></div></div>
       <div class="card p-4"><div class="text-xs text-ink-500"><?= e(t('نسبة الرد')) ?></div><div class="text-2xl font-bold text-ink-900 mt-1"><?= round($ans / max(1, $tot) * 100) ?>%</div><div class="h-1.5 rounded-full bg-ink-100 mt-2 overflow-hidden"><div class="h-full bg-lime-500" style="width:<?= round($ans / max(1, $tot) * 100) ?>%"></div></div></div>
-      <div class="card p-4"><div class="text-xs text-ink-500"><?= e(t('متوسط المكالمة')) ?></div><div class="text-2xl font-bold text-ink-900 mt-1" dir="ltr" style="text-align:start"><?= e(ph_duration(intdiv($talk, max(1, $ans)))) ?></div><div class="text-xs text-ink-500"><?= e(t('%s دقيقة كلام', round($talk / 60))) ?></div></div>
-      <div class="rounded-2xl border <?= $missIn ? 'border-red-200 bg-red-50/60' : 'border-ink-200 bg-white' ?> p-4"><div class="text-xs text-ink-500"><?= e(t('فايتة ومحدش رجعلها')) ?></div><div class="text-2xl font-bold mt-1 <?= $missIn ? 'text-red-600' : 'text-ink-900' ?>"><?= count($missIn) ?></div><div class="text-xs text-ink-500"><?= e(t('%s مكالمة مااتردش عليها إجمالاً', $missN)) ?></div></div>
+      <button type="button" data-kpi="long" class="card p-4 text-start hover:border-brand-300 transition"><div class="text-xs text-ink-500"><?= e(t('متوسط المكالمة')) ?></div><div class="text-2xl font-bold text-ink-900 mt-1" dir="ltr" style="text-align:start"><?= e(ph_duration(intdiv($talk, max(1, $ans)))) ?></div><div class="text-xs text-ink-500"><?= e(t('%s دقيقة كلام', round($talk / 60))) ?></div></button>
+      <button type="button" data-kpi="missed" class="text-start rounded-2xl border <?= $missIn ? 'border-red-200 bg-red-50/60 hover:border-red-300' : 'border-ink-200 bg-white hover:border-brand-300' ?> p-4 transition"><div class="text-xs text-ink-500"><?= e(t('فايتة ومحدش رجعلها')) ?></div><div class="text-2xl font-bold mt-1 <?= $missIn ? 'text-red-600' : 'text-ink-900' ?>"><?= count($missIn) ?></div><div class="text-xs text-ink-500"><?= e(t('%s مكالمة مااتردش عليها إجمالاً', $missN)) ?></div></button>
     </div>
     <?php if ($missIn): ?>
       <div class="rounded-2xl border border-red-200 bg-white p-4 mb-5">
@@ -350,5 +405,17 @@ render(t('المكالمات'), 'calls', function () use ($fx, $z, $apiError, $n
     <script>window.CLX = <?= json_encode(['copied' => t('اتنسخ'), 'today' => t('النهارده'), 'yday' => t('امبارح'), 'chart' => t('المكالمات في آخر 14 يوم'), 'in' => t('واردة'), 'out' => t('صادرة'), 'miss' => t('فايتة'),
       'ago' => [t('دلوقتي'), t('من %s دقيقة'), t('من %s ساعة'), t('من %s يوم')], 'lang' => lang()], JSON_UNESCAPED_UNICODE) ?>;</script>
     <script src="assets/ui-calls.js?v=<?= e(APP_VERSION) ?>"></script>
+    <?php $clpT = ['close' => t('إغلاق'), 'newCall' => t('مكالمة جديدة'), 'howSub' => t('من رقم الشركة إلى العميل، ثم إلى جوالك'), 'stepCo' => t('رقم الشركة'), 'stepCust' => t('العميل'), 'stepYou' => t('جوالك'),
+      'flowNote' => t('نتصل بالعميل من رقم الشركة، وعندما يرد يرنّ جوالك فتتحدث معه منه. لا يمر الصوت عبر المتصفح.'), 'from' => t('من الرقم'), 'to' => t('اتصل بـ'), 'toPh' => t('اسم العميل أو رقمه'), 'keypad' => t('لوحة الأرقام'),
+      'fwd' => t('حوّلها إلى (جوالك)'), 'fwdHint' => t('سيرنّ هذا الرقم عندما يرد العميل. نحفظه لك للمرة القادمة.'), 'cost' => t('التكلفة'), 'perMin' => t('دقيقة'), 'ifLasts' => t('لو استمرت'), 'min' => t('%s د'), 'total' => t('مكالمة %s دقائق ≈ %s'),
+      'greet' => t('رسالة ترحيب للعميل (اختياري)'), 'greetPh' => t('تُقال للعميل عندما يرد، قبل توصيله بك'), 'agree' => t('أفهم أن المكالمة تُحتسب بالدقيقة على الاشتراك.'), 'callNow' => t('اتصل الآن'), 'calling' => t('جارٍ الطلب…'),
+      'needTo' => t('اكتب رقم العميل بالصيغة الدولية'), 'needFwd' => t('اكتب رقم جوالك حتى تصلك المكالمة'), 'needOk' => t('علّم على الموافقة على التكلفة'), 'leadLog' => t('ستُسجَّل المكالمة في نشاطه'),
+      'liveTitle' => t('جارٍ الاتصال'), 'lsDialing' => t('نتصل بالعميل الآن…'), 'lsRinging' => t('الهاتف يرنّ…'), 'lsTalking' => t('المكالمة جارية'), 'lsEnded' => t('انتهت المكالمة · %s'), 'lsNoAns' => t('لم يرد العميل'),
+      'ls1' => t('نتصل بالعميل من رقم الشركة'), 'ls2' => t('عندما يرد يرنّ جوالك %s'), 'ls3' => t('تظهر المكالمة وتسجيلها في السجل'), 'liveNote' => t('يمكنك إغلاق هذه اللوحة؛ المكالمة مستمرة على جوالك.'),
+      'another' => t('مكالمة أخرى'), 'done' => t('تم'), 'details' => t('تفاصيل المكالمة'), 'prev' => t('السابقة'), 'next' => t('التالية'), 'fullPage' => t('فتح في صفحة كاملة'), 'rec' => t('تسجيل المكالمة'), 'loadRec' => t('▶ تشغيل التسجيل'),
+      'openLead' => t('افتح ملف العميل'), 'err' => t('تعذّر الاتصال. حاول مرة أخرى.'), 'noPerm' => t('المكالمات لصاحب الشركة فقط لأنها بتكلفة.')];
+    $clpVoice = array_map(function ($n) { return ['n' => ph_e164((string)$n['phoneNumber']), 'fwd' => preg_match('/^tel:/', (string)($n['pstnForwardTo'] ?? '')) ? substr((string)$n['pstnForwardTo'], 4) : '']; }, $voice); ?>
+    <script>window.CLP = <?= json_encode(['url' => url('calls'), 'csrf' => csrf_token(), 'canCall' => $owner, 'voice' => $clpVoice, 'phEx' => cx_phone(), 't' => $clpT], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;</script>
+    <script src="assets/calls-pro.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
 });

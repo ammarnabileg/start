@@ -48,11 +48,11 @@
   });
 
   /* فلترة */
-  var q = $('#cl-q'), mode = '';
+  var q = $('#cl-q'), mode = '', dayF = '';
   function apply() {
     var s = q ? q.value.trim().toLowerCase().replace(/[\s+()-]/g, '') : '', shown = {}, n = 0;
     rows.forEach(function (r) {
-      var d = r.dataset, ok = (!s || d.q.replace(/\s/g, '').indexOf(s) > -1 || d.q.indexOf(q.value.trim().toLowerCase()) > -1)
+      var d = r.dataset, ok = (!dayF || d.k === dayF) && (!s || d.q.replace(/\s/g, '').indexOf(s) > -1 || d.q.indexOf(q.value.trim().toLowerCase()) > -1)
         && (mode !== 'missed' || d.miss === '1') && (mode !== 'vm' || d.vm === '1') && (mode !== 'rec' || d.rec === '1') && (mode !== 'long' || +d.dur > 300);
       r.style.display = ok ? '' : 'none'; if (ok) { shown[d.k] = 1; n++; }
     });
@@ -79,10 +79,11 @@
     ch.innerHTML = '<div class="flex flex-wrap items-center gap-3 mb-4"><span class="font-bold text-ink-900 text-sm me-auto">' + esc(X.chart) + '</span><span class="flex gap-3 text-xs text-ink-500">' + leg('#65a30d', X['in']) + leg('#2563eb', X.out) + leg('#dc2626', X.miss) + '</span></div>'
       + '<div class="flex items-end gap-1.5 h-28" dir="ltr">' + days.map(function (x) {
         var t = x.i + x.o + x.m, h = function (v) { return (v / max * 100) + '%'; };
-        return '<div class="flex-1 h-full flex flex-col justify-end group relative" title="' + esc(x.d.toLocaleDateString()) + ': ' + t + '">'
+        return '<div data-day="' + x.k + '" class="cl-bar flex-1 h-full flex flex-col justify-end group relative cursor-pointer rounded hover:bg-ink-50" title="' + esc(x.d.toLocaleDateString()) + ' · ' + esc(X['in']) + ' ' + x.i + ' · ' + esc(X.out) + ' ' + x.o + ' · ' + esc(X.miss) + ' ' + x.m + '">'
           + '<div class="w-full rounded-t-sm" style="height:' + h(x.m) + ';background:#dc2626"></div><div class="w-full" style="height:' + h(x.o) + ';background:#2563eb"></div><div class="w-full rounded-b-sm" style="height:' + h(x.i) + ';background:#65a30d"></div>'
           + (t ? '' : '<div class="w-full h-0.5 bg-ink-100 rounded"></div>') + '</div>';
       }).join('') + '</div>'
       + '<div class="flex gap-1.5 mt-1 text-[10px] text-ink-400" dir="ltr">' + days.map(function (x, i) { return '<span class="flex-1 text-center">' + (i % 2 ? '' : x.d.getDate()) + '</span>'; }).join('') + '</div>';
+    ch.addEventListener('click', function (e) { var b = e.target.closest('[data-day]'); if (!b) return; dayF = dayF === b.dataset.day ? '' : b.dataset.day; $$('.cl-bar', ch).forEach(function (x) { x.style.opacity = !dayF || x.dataset.day === dayF ? '' : '.35'; }); apply(); });
   }
 })();
