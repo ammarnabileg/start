@@ -60,8 +60,7 @@
     var sec = document.createElement('section'); sec.className = 'card p-5 abx-art';
     var meta = [['concept', P2.concept], ['composition', P2.composition], ['palette', P2.palette], ['overlay', P2.overlay]].filter(function (k) { return a[k[0]]; }).map(function (k) { return '<div class="rounded-xl bg-ink-50 p-3"><dt class="text-[11px] text-ink-500">' + esc(k[1]) + '</dt><dd class="text-ink-900 mt-0.5" dir="auto">' + esc(a[k[0]]) + '</dd></div>'; }).join('');
     var pth = 'adSets.' + s.s + '.ads.' + s.a + '.art.prompt';
-    var genBtn = isVid ? '<a class="btn-ghost !py-1.5 !text-xs" target="_blank" href="' + esc(A.listUrl || '#') + '">' + esc(P2.genVid) + '</a>'
-      : '<button type="button" class="btn-primary !py-1.5 !text-xs abx-gen" data-kind="' + (isCar ? 'carousel' : 'image') + '">' + ic('spark', 'w-3.5 h-3.5') + esc(isCar ? fmt(P2.genCar, (ad.cards || []).length || 5) : P2.gen) + '</button>';
+    var genBtn = '<button type="button" class="btn-primary !py-1.5 !text-xs abx-gen" data-kind="' + (isVid ? 'video' : isCar ? 'carousel' : 'image') + '">' + ic('spark', 'w-3.5 h-3.5') + esc(isVid ? P2.genVidBtn : isCar ? fmt(P2.genCar, (ad.cards || []).length || 5) : P2.gen) + '</button>';
     sec.innerHTML = '<div class="flex items-center gap-2 mb-3"><span class="abx-ic" style="--c:#db2777">' + ic('image') + '</span><b class="text-ink-900 me-auto">' + esc(P2.artT) + '</b>' + (ad.angle ? '<span class="text-xs font-semibold text-brand-700">' + esc(ad.angle) + '</span>' : '') + '</div>'
       + (meta ? '<dl class="grid gap-2 sm:grid-cols-2 text-sm mb-3">' + meta + '</dl>' : '')
       + '<label class="block"><span class="text-[11px] text-ink-500">' + esc(P2.promptEdit) + '</span><textarea class="input !mt-1 text-xs font-mono" rows="4" dir="ltr" data-p="' + pth + '">' + esc(a.prompt || '') + '</textarea></label>'
@@ -80,13 +79,16 @@
     });
   }
   function paintPrev(sec, ad, isCar) { var box = sec.querySelector('.abx-prev'); if (!box) return;
+    if (ad.format === 'video') { box.innerHTML = ad.videoUrl ? '<video src="' + esc(ad.videoUrl) + '" controls class="w-40 rounded-lg border border-ink-200"></video>' : ''; return; }
     var urls = isCar ? (ad.cards || []).map(function (c) { return c.imageUrl; }).filter(Boolean) : (ad.imageUrl ? [ad.imageUrl] : []);
     box.innerHTML = urls.map(function (u) { return '<a href="' + esc(u) + '" target="_blank"><img src="' + esc(u) + '" class="w-24 h-28 object-cover rounded-lg border border-ink-200" alt=""></a>'; }).join('');
   }
   function genImg(sec, ad, btn) { var s = X.sel(), P2 = A.ai2 || {}, stat = sec.querySelector('.abx-gstat');
-    if (A.imgProvider === '') { stat.textContent = (A.s && A.s.iBody) || '...'; return; }
     var prompt = ((sec.querySelector('[data-p$=".art.prompt"]') || {}).value || '').trim(); if (!prompt) { stat.textContent = P2.promptEdit; return; }
-    var kind = btn.dataset.kind; btn.disabled = true; stat.textContent = P2.genning;
+    var kind = btn.dataset.kind;
+    if (kind === 'video') return genVideo(sec, ad, btn, prompt);
+    if (A.imgProvider === '') { stat.textContent = fmt(P2.genErr, 'OpenAI / OpenRouter'); return; }
+    btn.disabled = true; stat.textContent = P2.genning;
     var fd = new FormData(); fd.append('_csrf', A.csrf); fd.append('action', 'ai_image'); fd.append('id', A.id); fd.append('prompt', prompt); fd.append('kind', kind); if (kind === 'carousel') fd.append('n', (ad.cards || []).length || 5);
     fetch(A.url, { method: 'POST', body: fd, credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) {
       btn.disabled = false; if (!j.ok) { stat.textContent = fmt(P2.genErr, j.error || ''); return; } stat.textContent = '';
@@ -94,6 +96,21 @@
       if (kind === 'carousel') { if (!adObj.cards) adObj.cards = []; (j.urls || []).forEach(function (u, k) { if (!adObj.cards[k]) adObj.cards[k] = { imageUrl: '', linkUrl: '', headline: '', description: '' }; adObj.cards[k].imageUrl = u; }); }
       else { adObj.imageUrl = (j.urls || [])[0] || ''; }
       X.save(); X.rerender();
+    }).catch(function () { btn.disabled = false; stat.textContent = fmt(P2.genErr, ''); });
+  }
+  function genVideo(sec, ad, btn, prompt) { var s = X.sel(), P2 = A.ai2 || {}, stat = sec.querySelector('.abx-gstat');
+    btn.disabled = true; stat.textContent = P2.genVidWait;
+    var fd = new FormData(); fd.append('_csrf', A.csrf); fd.append('action', 'ai_video'); fd.append('id', A.id); fd.append('prompt', prompt);
+    fetch(A.url, { method: 'POST', body: fd, credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) {
+      if (!j.ok || !j.jobId) { btn.disabled = false; stat.textContent = fmt(P2.genErr, (j && j.error) || ''); return; }
+      var tries = 0; var poll = function () { tries++;
+        var f2 = new FormData(); f2.append('_csrf', A.csrf); f2.append('action', 'ai_video_poll'); f2.append('id', A.id); f2.append('jobId', j.jobId);
+        fetch(A.url, { method: 'POST', body: f2, credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (k) {
+          if (!k.ok) { btn.disabled = false; stat.textContent = fmt(P2.genErr, k.error || ''); return; }
+          if (k.pending) { if (tries < 80) return setTimeout(poll, 6000); btn.disabled = false; stat.textContent = fmt(P2.genErr, 'timeout'); return; }
+          btn.disabled = false; stat.textContent = ''; X.D.adSets[s.s].ads[s.a].videoUrl = k.url || ''; X.save(); X.rerender();
+        }).catch(function () { if (tries < 80) return setTimeout(poll, 8000); btn.disabled = false; stat.textContent = fmt(P2.genErr, ''); });
+      }; setTimeout(poll, 6000);
     }).catch(function () { btn.disabled = false; stat.textContent = fmt(P2.genErr, ''); });
   }
   function logoPanel(pn) { var P2 = A.ai2 || {}, o = A.logoOpts || {};

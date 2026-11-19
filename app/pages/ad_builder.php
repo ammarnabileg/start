@@ -106,6 +106,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'ai_im
         $J(['ok' => true, 'urls' => $urls]);
     } catch (Throwable $ex) { $J(['ok' => false, 'error' => $ex->getMessage()]); }
 }
+// ---- فيديو للإعلان: بدء (async) ثم متابعة
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'ai_video') {
+    header('Content-Type: application/json; charset=utf-8');
+    $J = function ($a) { echo json_encode($a, JSON_UNESCAPED_UNICODE); exit; };
+    if (!can('ai.use')) $J(['ok' => false, 'error' => t('مالكش صلاحية.')]);
+    if (!function_exists('vid_or_start')) $J(['ok' => false, 'error' => t('توليد الفيديو غير متاح.')]);
+    $b = ab_get($wid, (int)($_POST['id'] ?? 0)); if (!$b) $J(['ok' => false, 'error' => t('المشروع مش موجود')]);
+    $prompt = trim((string)($_POST['prompt'] ?? '')); if ($prompt === '') $J(['ok' => false, 'error' => t('اكتب وصف الفيديو.')]);
+    $asp = in_array($_POST['aspect'] ?? '', ['9:16', '1:1', '16:9'], true) ? $_POST['aspect'] : '9:16';
+    try { $jobId = vid_or_start($prompt, $asp); $J(['ok' => true, 'jobId' => $jobId]); }
+    catch (Throwable $ex) { $J(['ok' => false, 'error' => $ex->getMessage()]); }
+}
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'ai_video_poll') {
+    header('Content-Type: application/json; charset=utf-8');
+    $J = function ($a) { echo json_encode($a, JSON_UNESCAPED_UNICODE); exit; };
+    $b = ab_get($wid, (int)($_POST['id'] ?? 0)); if (!$b) $J(['ok' => false], 404);
+    $jobId = trim((string)($_POST['jobId'] ?? '')); if ($jobId === '' || !function_exists('vid_or_poll')) $J(['ok' => false, 'error' => t('طلب غير صحيح.')]);
+    try {
+        $r = vid_or_poll($jobId);
+        if (($r['status'] ?? '') === 'failed') $J(['ok' => false, 'error' => (string)($r['error'] ?? t('فشل الفيديو.'))]);
+        if (($r['status'] ?? '') !== 'completed') $J(['ok' => true, 'pending' => true]);
+        $ms = function_exists('cpl_media_for_names') ? cpl_media_for_names((array)($r['names'] ?? [])) : [];
+        if (!$ms) $J(['ok' => false, 'error' => t('اكتمل الفيديو لكن تعذّر حفظه.')]);
+        $z = zernio_or_null($ze); $mid = (int)$ms[0]; $u = '';
+        if ($z) { try { $u = media_public_url($z, $wid, $mid, 'ad', (string)$b['id']); } catch (Throwable $pe) { $u = ''; } }
+        if ($u === '') $u = base_url() . '/' . url('media', ['file' => $mid]);
+        log_activity('ads.ai_video', 'done');
+        $J(['ok' => true, 'url' => $u]);
+    } catch (Throwable $ex) { $J(['ok' => false, 'error' => $ex->getMessage()]); }
+}
 // ---- حفظ إعدادات اللوجو على الحملة
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'ad_logo') {
     header('Content-Type: application/json; charset=utf-8');
@@ -385,7 +415,7 @@ render(t('منشئ الحملات'), 'ad_builder', function () use ($z, $apiErro
           'note' => t('الصور والفيديوهات مش بتتعمل هنا: كل إعلان بييجي معاه توجيه فني ووصف صورة جاهز تستخدمه في المصمم أو توليد الصور.'), 'planning' => t('بيحلل السوق ويبني الاستراتيجية والمجموعات…'), 'writing' => t('بيكتب إعلانات المجموعة %s من %s…'),
           'ready' => t('جاهز للمراجعة'), 'empty' => t('الرد رجع فاضي. جرّب تاني.'), 'warm' => t('دافي'), 'cold' => t('بارد'), 'summary' => t('%s مجموعة و%s إعلان'),
           'artT' => t('التوجيه الفني'), 'concept' => t('الفكرة'), 'composition' => t('التكوين'), 'palette' => t('الألوان'), 'overlay' => t('النص على التصميم'), 'prompt' => t('وصف الصورة لأداة التوليد'), 'copy' => t('نسخ'), 'copied' => t('اتنسخ ✓'), 'design' => t('صمّمه في المصمم'), 'designUrl' => url('designer'),
-          'gen' => t('ولّد الصورة'), 'genCar' => t('ولّد الكاروسيل (%s صور)'), 'genning' => t('جارٍ التوليد… قد يأخذ دقيقة'), 'genErr' => t('فشل التوليد: %s'), 'genVid' => t('توليد الفيديو من التكاملات (OpenRouter)'), 'regen' => t('أعد التوليد'), 'promptEdit' => t('وصف الصورة (قابل للتعديل)'),
+          'gen' => t('ولّد الصورة'), 'genCar' => t('ولّد الكاروسيل (%s صور)'), 'genVidBtn' => t('ولّد الفيديو'), 'genning' => t('جارٍ التوليد… قد يأخذ دقيقة'), 'genVidWait' => t('جارٍ توليد الفيديو… قد يأخذ عدة دقائق، سيبها مفتوحة'), 'genErr' => t('فشل التوليد: %s'), 'genVid' => t('توليد الفيديو من التكاملات (OpenRouter)'), 'regen' => t('أعد التوليد'), 'promptEdit' => t('وصف الصورة (قابل للتعديل)'),
           'logoT' => t('اللوجو على الصورة'), 'logoOn' => t('ركّب اللوجو'), 'logoPos' => t('المكان'), 'logoSize' => t('الحجم'), 'logoOp' => t('الشفافية'), 'logoTint' => t('اللون'), 'logoPlate' => t('خلفية اللوجو'), 'saved' => t('اتحفظ'), 'noLogoKb' => t('لا يوجد لوجو في ملف الشركة.'),
           'tOrig' => t('الأصلي'), 'tWhite' => t('أبيض'), 'tBlack' => t('أسود'), 'pNone' => t('بدون'), 'pLight' => t('فاتحة'), 'pDark' => t('داكنة')],
         'ux' => ['dCampaign' => t('الاسم بيظهر ليك بس، مش للعملاء.'), 'dGoal' => t('المنصة بتحسّن العرض على حسب الهدف ده.'), 'dBudget' => t('هتدفع كام وإزاي المنصة تصرفها.'), 'dSchedule' => t('إمتى تبدأ وتخلص، والفئات اللي ليها قواعد خاصة.'),
