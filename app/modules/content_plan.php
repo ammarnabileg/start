@@ -587,8 +587,17 @@ function cpl_jobs_finalize(int $itemId, string $kind): void
     if (!$raw) return;
     $it = cpl_item($itemId); $p = $it ? cpl_plan($it['plan_id']) : null; if (!$p) return;
     $lopts = $it['logo'] ?: null; // إعداد لوجو خاص بالمنشور لو موجود
-    $stamped = array_map(function ($m) use ($p, $lopts) { return cpl_stamp_logo($p, $m, $lopts); }, $raw);
-    db()->prepare('UPDATE cp_items SET fmt = ?, media_raw = ?, media_ids = ?, media_id = ? WHERE id = ?')->execute([$kind, json_encode(array_values($raw)), json_encode(array_values($stamped)), $stamped[0], $itemId]);
+    $heads = cpl_media_headlines($it, $kind, count($raw)); // نطبع العنوان بنفسنا (عربي سليم)
+    $raw = array_values($raw); $stamped = []; foreach ($raw as $i => $m) $stamped[] = cpl_compose_media($p, $m, (string)($heads[$i] ?? ''), $lopts);
+    db()->prepare('UPDATE cp_items SET fmt = ?, media_raw = ?, media_ids = ?, media_id = ? WHERE id = ?')->execute([$kind, json_encode($raw), json_encode(array_values($stamped)), $stamped[0], $itemId]);
+}
+
+/** العنوان اللي بيتطبع على كل وسيط: صورة = عنوان المنشور، كاروسيل = عنوان كل شريحة، فيديو = بدون */
+function cpl_media_headlines(array $it, string $kind, int $n): array
+{
+    if ($kind === 'image') return [(string)($it['headline'] ?? '')];
+    if ($kind === 'carousel') { $h = []; foreach ((array)($it['carousel'] ?? []) as $s) $h[] = (string)($s['title'] ?? ''); return $h; }
+    return array_fill(0, max(1, $n), '');
 }
 
 /** يعيد تركيب اللوجو على صور المنشور من النسخ الخام بإعدادات لوجو خاصة بالمنشور (يحفظها على المنشور) */
@@ -607,7 +616,8 @@ function cpl_restamp_item(int $itemId, array $in): ?array
         'logo_tint' => in_array($in['logo_tint'] ?? '', ['orig', 'white', 'black'], true) ? $in['logo_tint'] : 'orig',
         'logo_plate' => in_array($in['logo_plate'] ?? '', ['none', 'light', 'dark'], true) ? $in['logo_plate'] : 'none',
     ];
-    $stamped = array_map(function ($m) use ($p, $lopts) { return cpl_stamp_logo($p, $m, $lopts); }, $raw);
+    $heads = cpl_media_headlines($it, (string)$it['fmt'], count($raw));
+    $raw = array_values($raw); $stamped = []; foreach ($raw as $i => $m) $stamped[] = cpl_compose_media($p, $m, (string)($heads[$i] ?? ''), $lopts);
     db()->prepare('UPDATE cp_items SET media_raw = ?, logo = ?, media_ids = ?, media_id = ? WHERE id = ? AND workspace_id = ?')
         ->execute([json_encode(array_values($raw)), json_encode($lopts), json_encode(array_values($stamped)), $stamped[0], $itemId, (int)ws('id')]);
     return cpl_item($itemId);
@@ -625,19 +635,19 @@ function cpl_text_dir(array $p): string
 function cpl_font_note(array $p): string
 {
     $f = cpl_opts($p)['font'] ?? 'auto';
-    $d = ['Cairo' => 'geometric humanist sans (Cairo)', 'Tajawal' => 'modern geometric sans (Tajawal)', 'Almarai' => 'neutral rounded sans (Almarai)', 'Changa' => 'bold condensed display (Changa)', 'El Messiri' => 'elegant contemporary with calligraphic touch (El Messiri)', 'Reem Kufi' => 'geometric kufic display (Reem Kufi)', 'Amiri' => 'classic Naskh serif (Amiri)', 'Lateef' => 'traditional Arabic (Lateef)', 'IBM Plex Sans Arabic' => 'technical corporate sans (IBM Plex Sans Arabic)'];
+    $d = ['Cairo' => 'geometric humanist sans (Cairo)', 'Alexandria' => 'clean modern geometric sans (Alexandria)', 'Tajawal' => 'modern geometric sans (Tajawal)', 'Almarai' => 'neutral rounded sans (Almarai)', 'Changa' => 'bold condensed display (Changa)', 'El Messiri' => 'elegant contemporary with calligraphic touch (El Messiri)', 'Reem Kufi' => 'geometric kufic display (Reem Kufi)', 'Amiri' => 'classic Naskh serif (Amiri)', 'Lateef' => 'traditional Arabic (Lateef)', 'IBM Plex Sans Arabic' => 'technical corporate sans (IBM Plex Sans Arabic)'];
     return isset($d[$f]) ? ' Headline typography: ' . $d[$f] . ', rendered cleanly and spelled correctly.' : ' Headline typography: choose a strong typeface matching the brand references.';
 }
 function cpl_job_prompt(array $p, array $it, array $j): string
 {
     $o = cpl_opts($p); $vis = trim((string)$p['visual']);
-    $rules = "\nFULL-BLEED: one complete, edge-to-edge photographic image that fills the entire 1080x1350 frame; do NOT add or leave any solid colour band, gradient bar, letterbox, flat panel, or cropped colour strip behind the text or logo, and no borders or margins of flat colour, UNLESS the supplied reference designs clearly use such a band (then match them). Integrate every text element over naturally darker or emptier regions of the real scene. Maximum photographic quality: sharp focus, rich detail, correct exposure, natural depth of field, professional colour grading; not flat, not AI-plastic.\nIf the image shows people: make them look like real, candid photographed humans, not AI renders. Add authentic, specific features: natural asymmetric faces, real skin texture with pores and subtle blemishes, flyaway hair, correct hands with five fingers, natural eye catchlights and gaze, believable clothing fit and wrinkles, and lived-in environment detail. No waxy skin, no plastic smoothness, no uncanny symmetry, no extra fingers.\nOVERRIDE: ignore any instruction above about drawing a logo. Do NOT draw any logo, brand name, wordmark or watermark anywhere; keep the " . cpl_logo_corner($p) . " corner area (about 260x160px) clean for the real logo added later.\n" . "Safe area: keep the headline, any text and every key element at least 100px (about 9%) inside each edge of the 1080x1350 frame; nothing touches or is cropped by an edge; generous padding around the headline; headline at most 3 short lines in a clean bold sans-serif, spelled exactly, high contrast.";
-    if ($j['kind'] === 'image') return $it['image_prompt'] . ($vis !== '' ? "\n\nBrand visual DNA: " . mb_substr($vis, 0, 1200) : '') . "\nRender the headline text \"" . $it['headline'] . "\" accurately, spelled exactly. " . cpl_text_dir($p) . cpl_font_note($p) . $rules;
+    $rules = "\nFULL-BLEED: one complete, edge-to-edge photographic image that fills the entire 1080x1350 frame; do NOT add or leave any solid colour band, gradient bar, letterbox, flat panel, or cropped colour strip, and no borders or margins of flat colour, UNLESS the supplied reference designs clearly use such a band (then match them). Maximum photographic quality: sharp focus, rich detail, correct exposure, natural depth of field, professional colour grading; not flat, not AI-plastic.\nIf the image shows people: make them look like real, candid photographed humans, not AI renders. Add authentic, specific features: natural asymmetric faces, real skin texture with pores and subtle blemishes, flyaway hair, correct hands with five fingers, natural eye catchlights and gaze, believable clothing fit and wrinkles, and lived-in environment detail. No waxy skin, no plastic smoothness, no uncanny symmetry, no extra fingers.\nCRITICAL — NO TEXT AT ALL: do NOT render any text, letters, words, headline, caption, numbers, labels, signage copy, logo, brand name, wordmark or watermark anywhere in the image. The headline and logo are added afterwards by the system, so the model must output a purely visual photograph with NO typography. Any text the model draws will be wrong and must not appear.\nLEAVE CLEAN SPACE: keep the top ~28% of the frame calmer, simpler and a little darker (sky, wall, shadow, shallow background) as uncluttered negative space where the headline will be placed later, and keep the " . cpl_logo_corner($p) . " corner area (about 260x160px) clean for the logo. Keep the main subject and every key element at least 100px (about 9%) inside each edge; nothing touches or is cropped by an edge.";
+    if ($j['kind'] === 'image') return $it['image_prompt'] . ($vis !== '' ? "\n\nBrand visual DNA: " . mb_substr($vis, 0, 1200) : '') . $rules;
     if ($j['kind'] === 'video') return $it['video_prompt'] . "\nDo NOT render any logo, brand name or wordmark; end on a clean frame with empty space where the logo can be added in editing.";
     $s = $it['carousel'][(int)$j['slide']] ?? []; $n = count($it['carousel']);
     return "Carousel slide " . ((int)$j['slide'] + 1) . " of {$n} (" . ($s['role'] ?? '') . ") for a premium social campaign, 4:5 1080x1350, one consistent series across all slides.\n"
-        . "Visual concept: " . ($s['visual'] ?? '') . "\nLayout: " . ($s['layout'] ?? '') . "\nOn-slide text, render exactly and legibly" . (($o['lang_img'] ?? $o['lang']) !== 'en' ? ' (Arabic, right-to-left, correct letter joining)' : '') . ":\nHeadline: " . ($s['title'] ?? '') . "\nBody: " . ($s['body'] ?? '')
-        . ($vis !== '' ? "\n\nBrand visual DNA: " . mb_substr($vis, 0, 1200) : '') . "\nNo other text, no fake UI, no clutter. " . cpl_text_dir($p) . cpl_font_note($p) . $rules;
+        . "Visual concept: " . ($s['visual'] ?? '') . "\nLayout: " . ($s['layout'] ?? '')
+        . ($vis !== '' ? "\n\nBrand visual DNA: " . mb_substr($vis, 0, 1200) : '') . $rules;
 }
 
 /** ركن اللوجو: عربي = أعلى اليمين، إنجليزي = أعلى اليسار */
@@ -687,6 +697,99 @@ function cpl_stamp_logo(array $p, int $mid, ?array $optsOverride = null): int
     $tmp = tempnam(sys_get_temp_dir(), 'cpl') . '.png'; imagepng($im, $tmp); imagedestroy($im); imagedestroy($lo); imagedestroy($rs);
     try { $row = media_store_path($wid, $tmp, 'logo-' . preg_replace('/^ai-/', '', (string)$m['name']), 'image/png', media_ai_folder()); } catch (Throwable $e) { @unlink($tmp); return $mid; }
     @unlink($tmp); return (int)$row['id'];
+}
+
+/** يفك ترميز UTF-8 لمصفوفة نقاط Unicode، والعكس */
+function cpl_u8_decode(string $s): array { $o = []; $n = strlen($s); for ($i = 0; $i < $n;) { $c = ord($s[$i]); if ($c < 0x80) { $o[] = $c; $i++; } elseif ($c < 0xE0) { $o[] = (($c & 0x1F) << 6) | (ord($s[$i + 1]) & 0x3F); $i += 2; } elseif ($c < 0xF0) { $o[] = (($c & 0x0F) << 12) | ((ord($s[$i + 1]) & 0x3F) << 6) | (ord($s[$i + 2]) & 0x3F); $i += 3; } else { $o[] = (($c & 0x07) << 18) | ((ord($s[$i + 1]) & 0x3F) << 12) | ((ord($s[$i + 2]) & 0x3F) << 6) | (ord($s[$i + 3]) & 0x3F); $i += 4; } } return $o; }
+function cpl_u8_encode(int $cp): string { if ($cp < 0x80) return chr($cp); if ($cp < 0x800) return chr(0xC0 | ($cp >> 6)) . chr(0x80 | ($cp & 0x3F)); if ($cp < 0x10000) return chr(0xE0 | ($cp >> 12)) . chr(0x80 | (($cp >> 6) & 0x3F)) . chr(0x80 | ($cp & 0x3F)); return chr(0xF0 | ($cp >> 18)) . chr(0x80 | (($cp >> 12) & 0x3F)) . chr(0x80 | (($cp >> 6) & 0x3F)) . chr(0x80 | ($cp & 0x3F)); }
+
+/** يحوّل نصًا عربيًا منطقيًا لصيغته البصرية (أشكال العرض + ربط الحروف + لا + اتجاه RTL) عشان GD يرسمه صح.
+ *  موديلات الصور بترسم العربي مكسور، فبنرسم النص بنفسنا بدل ما نسيبه للموديل. */
+function cpl_ar_shape(string $text): string
+{
+    static $F = [
+        0x0621=>[0xFE80,0,0,0],0x0622=>[0xFE81,0xFE82,0,0],0x0623=>[0xFE83,0xFE84,0,0],0x0624=>[0xFE85,0xFE86,0,0],0x0625=>[0xFE87,0xFE88,0,0],
+        0x0626=>[0xFE89,0xFE8A,0xFE8B,0xFE8C],0x0627=>[0xFE8D,0xFE8E,0,0],0x0628=>[0xFE8F,0xFE90,0xFE91,0xFE92],0x0629=>[0xFE93,0xFE94,0,0],
+        0x062A=>[0xFE95,0xFE96,0xFE97,0xFE98],0x062B=>[0xFE99,0xFE9A,0xFE9B,0xFE9C],0x062C=>[0xFE9D,0xFE9E,0xFE9F,0xFEA0],0x062D=>[0xFEA1,0xFEA2,0xFEA3,0xFEA4],
+        0x062E=>[0xFEA5,0xFEA6,0xFEA7,0xFEA8],0x062F=>[0xFEA9,0xFEAA,0,0],0x0630=>[0xFEAB,0xFEAC,0,0],0x0631=>[0xFEAD,0xFEAE,0,0],0x0632=>[0xFEAF,0xFEB0,0,0],
+        0x0633=>[0xFEB1,0xFEB2,0xFEB3,0xFEB4],0x0634=>[0xFEB5,0xFEB6,0xFEB7,0xFEB8],0x0635=>[0xFEB9,0xFEBA,0xFEBB,0xFEBC],0x0636=>[0xFEBD,0xFEBE,0xFEBF,0xFEC0],
+        0x0637=>[0xFEC1,0xFEC2,0xFEC3,0xFEC4],0x0638=>[0xFEC5,0xFEC6,0xFEC7,0xFEC8],0x0639=>[0xFEC9,0xFECA,0xFECB,0xFECC],0x063A=>[0xFECD,0xFECE,0xFECF,0xFED0],
+        0x0641=>[0xFED1,0xFED2,0xFED3,0xFED4],0x0642=>[0xFED5,0xFED6,0xFED7,0xFED8],0x0643=>[0xFED9,0xFEDA,0xFEDB,0xFEDC],0x0644=>[0xFEDD,0xFEDE,0xFEDF,0xFEE0],
+        0x0645=>[0xFEE1,0xFEE2,0xFEE3,0xFEE4],0x0646=>[0xFEE5,0xFEE6,0xFEE7,0xFEE8],0x0647=>[0xFEE9,0xFEEA,0xFEEB,0xFEEC],0x0648=>[0xFEED,0xFEEE,0,0],
+        0x0649=>[0xFEEF,0xFEF0,0,0],0x064A=>[0xFEF1,0xFEF2,0xFEF3,0xFEF4],
+        0x067E=>[0xFB56,0xFB57,0xFB58,0xFB59],0x0686=>[0xFB7A,0xFB7B,0xFB7C,0xFB7D],0x0698=>[0xFB8A,0xFB8B,0,0],0x06A9=>[0xFB8E,0xFB8F,0xFB90,0xFB91],
+        0x06AF=>[0xFB92,0xFB93,0xFB94,0xFB95],0x06CC=>[0xFBFC,0xFBFD,0xFBFE,0xFBFF],
+    ];
+    static $LA = [0x0622=>[0xFEF5,0xFEF6],0x0623=>[0xFEF7,0xFEF8],0x0625=>[0xFEF9,0xFEFA],0x0627=>[0xFEFB,0xFEFC]];
+    $marks = array_flip([0x064B,0x064C,0x064D,0x064E,0x064F,0x0650,0x0651,0x0652,0x0653,0x0654,0x0655,0x0656,0x0657,0x0658,0x0670]);
+    $cps = array_values(array_filter(cpl_u8_decode($text), function ($c) use ($marks) { return !isset($marks[$c]); }));
+    $u = []; for ($i = 0; $i < count($cps); $i++) { if ($cps[$i] === 0x0644 && isset($cps[$i + 1], $LA[$cps[$i + 1]])) { $u[] = ['la' => $LA[$cps[$i + 1]]]; $i++; } else { $u[] = $cps[$i]; } }
+    $isLetter = function ($t) use ($F) { return is_array($t) || isset($F[$t]); };
+    $joinsFwd = function ($t) use ($F) { return is_array($t) ? false : (isset($F[$t]) && $F[$t][2] !== 0); };
+    $out = [];
+    for ($i = 0; $i < count($u); $i++) { $t = $u[$i];
+        if (is_array($t)) { $out[] = ($i > 0 && $joinsFwd($u[$i - 1])) ? $t['la'][1] : $t['la'][0]; continue; }
+        if (!isset($F[$t])) { $out[] = $t; continue; }
+        $prevJoins = $i > 0 && $joinsFwd($u[$i - 1]);
+        $nextJoins = $F[$t][2] !== 0 && $i + 1 < count($u) && $isLetter($u[$i + 1]);
+        if ($prevJoins && $nextJoins) $out[] = $F[$t][3];
+        elseif ($nextJoins) $out[] = $F[$t][2];
+        elseif ($prevJoins && $F[$t][1] !== 0) $out[] = $F[$t][1];
+        else $out[] = $t; // الصيغة المعزولة = الحرف الأساسي نفسه (خطوط مثل Cairo بترسمها من الـ cmap الأساسي، ومش بتضمّن أشكال العرض المعزولة)
+    }
+    $isAr = function ($c) { return ($c >= 0x0600 && $c <= 0x06FF) || ($c >= 0xFB50 && $c <= 0xFEFF); };
+    $runs = []; $cur = null; $curAr = null;
+    foreach ($out as $c) { $a = $isAr($c); if ($cur === null || $a !== $curAr) { if ($cur !== null) $runs[] = [$curAr, $cur]; $cur = [$c]; $curAr = $a; } else { $cur[] = $c; } }
+    if ($cur !== null) $runs[] = [$curAr, $cur];
+    $res = ''; foreach (array_reverse($runs) as [$a, $run]) { if ($a) $run = array_reverse($run); foreach ($run as $c) $res .= cpl_u8_encode($c); }
+    return $res;
+}
+
+/** يلفّ النص لأسطر تناسب العرض (يقيس بالنسخة المُشكّلة لو عربي) */
+function cpl_wrap_lines(string $text, string $font, int $size, int $maxW, bool $rtl): array
+{
+    $words = preg_split('/\s+/u', trim($text)); $lines = []; $cur = '';
+    foreach ($words as $w) { if ($w === '') continue; $try = $cur === '' ? $w : $cur . ' ' . $w; $shaped = $rtl ? cpl_ar_shape($try) : $try;
+        $bb = imagettfbbox($size, 0, $font, $shaped); $tw = abs($bb[2] - $bb[0]);
+        if ($tw <= $maxW || $cur === '') $cur = $try; else { $lines[] = $cur; $cur = $w; } }
+    if ($cur !== '') $lines[] = $cur; return $lines;
+}
+
+/** يطبع العنوان على الصورة بنفسنا (عربي سليم مضمون) بخط Cairo، في المنطقة الآمنة، مع ظل للوضوح. */
+function cpl_stamp_text(array $p, int $mid, string $headline): int
+{
+    $headline = trim($headline); if ($headline === '') return $mid;
+    $wid = (int)ws('id'); $m = media_get($wid, $mid); if (!$m || !function_exists('imagettftext')) return $mid;
+    $font = ROOT_DIR . '/assets/fonts/app.ttf'; if (!is_file($font)) return $mid;
+    $im = @imagecreatefromstring((string)file_get_contents(media_file_path($wid, $m))); if (!$im) return $mid;
+    if (!imageistruecolor($im)) imagepalettetotruecolor($im);
+    $W = imagesx($im); $H = imagesy($im); $rtl = (bool)preg_match('/[\x{0600}-\x{06FF}]/u', $headline);
+    $margin = (int)round($W * 0.09); $maxW = $W - 2 * $margin;
+    $size = (int)round($W * 0.072); $lines = null; $min = max(12, (int)round($W * 0.03));
+    for (; $size >= $min; $size -= 2) { $w = cpl_wrap_lines($headline, $font, $size, $maxW, $rtl); if (count($w) <= 3) { $lines = $w; break; } }
+    if (!$lines) $lines = array_slice(cpl_wrap_lines($headline, $font, $size, $maxW, $rtl), 0, 3);
+    $lh = (int)round($size * 1.55); $blockH = $lh * count($lines);
+    $top = (int)round($H * 0.10);
+    imagealphablending($im, true); imagesavealpha($im, true);
+    // سكريم متدرّج خفيف خلف العنوان للوضوح فوق أي صورة
+    $scrimTop = max(0, $top - (int)round($size * 0.6)); $scrimBot = min($H, $top + $blockH + (int)round($size * 0.4)); $sh = max(1, $scrimBot - $scrimTop);
+    for ($i = 0; $i < $sh; $i++) { $a = (int)round(78 - 78 * ($i / $sh)); if ($a < 0) $a = 0; imagefilledrectangle($im, 0, $scrimTop + $i, $W, $scrimTop + $i, imagecolorallocatealpha($im, 0, 0, 0, 127 - min(127, $a))); }
+    $y = $top + $size;
+    foreach ($lines as $ln) { $shaped = $rtl ? cpl_ar_shape($ln) : $ln; $bb = imagettfbbox($size, 0, $font, $shaped); $tw = abs($bb[2] - $bb[0]);
+        $x = $rtl ? ($W - $margin - $tw) : $margin;
+        imagettftext($im, $size, 0, $x + 2, $y + 3, imagecolorallocatealpha($im, 0, 0, 0, 55), $font, $shaped);
+        imagettftext($im, $size, 0, $x, $y, imagecolorallocate($im, 255, 255, 255), $font, $shaped);
+        $y += $lh; }
+    $tmp = tempnam(sys_get_temp_dir(), 'cpt') . '.png'; imagepng($im, $tmp); imagedestroy($im);
+    try { $row = media_store_path($wid, $tmp, 'txt-' . preg_replace('/^(ai|logo|txt)-/', '', (string)$m['name']), 'image/png', media_ai_folder()); } catch (Throwable $e) { @unlink($tmp); return $mid; }
+    @unlink($tmp); return (int)$row['id'];
+}
+
+/** يركّب نسخة العرض من الصورة الخام: نطبع العنوان بنفسنا ثم اللوجو فوقه. */
+function cpl_compose_media(array $p, int $rawMid, string $headline, ?array $lopts = null): int
+{
+    $mid = cpl_stamp_text($p, $rawMid, $headline);
+    return cpl_stamp_logo($p, $mid, $lopts);
 }
 
 /** تنفيذ مهمة واحدة (أو متابعة فيديو شغال). بيرجع true لو عمل حاجة */
