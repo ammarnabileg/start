@@ -294,8 +294,26 @@ function rp_render(array $R, bool $email = false): string
         return $o . '<p>' . e(t('الشركة دي لسه مش مربوطة بخدمة النشر.')) . '</p></div>';
     }
 
+    // لو جزء أو أكتر من البيانات رجع بخطأ من خدمة النشر: نعرضه بوضوح بدل ما التقرير يبان فاضي بأصفار
+    $errMsgs = [];
+    foreach (['daily' => t('التحليلات'), 'followers' => t('المتابعين'), 'top' => t('أفضل المنشورات'), 'inbox' => t('الرسائل'), 'response' => t('وقت الرد')] as $ek => $elabel) {
+        if (!empty($cur['errors'][$ek])) $errMsgs[] = $elabel . ': ' . (string)$cur['errors'][$ek];
+    }
+    if ($errMsgs) {
+        $o .= '<div style="border:1px solid #fecaca;background:#fef2f2;color:#991b1b;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12px">'
+            . '<b>' . e(t('تعذّر جلب بعض البيانات من خدمة النشر:')) . '</b><br>' . e(implode(' · ', array_slice($errMsgs, 0, 5))) . '</div>';
+    }
+
     // ملخص الأرقام
     $ct = $cur['totals']; $pt = $prev['totals'];
+
+    // كل الأرقام أصفار والخدمة ردّت من غير خطأ: مفيش نشاط في الفترة دي فعلاً — نقولها صراحة بدل صفحة أصفار تبان معطّلة
+    $anyData = $ct['impressions'] + $ct['reach'] + $ct['engagement'] + $ct['postCount'] + $cur['fol']['gain'] + $cur['inbox']['received'] + $cur['inbox']['sent'] + count($cur['top']);
+    if (!$errMsgs && $anyData <= 0) {
+        $o .= '<div style="border:1px solid #fde68a;background:#fffbeb;color:#92400e;border-radius:10px;padding:12px 14px;margin-bottom:12px;font-size:13px">'
+            . '<b>' . e(t('مفيش نشاط مسجّل في الفترة دي.')) . '</b> '
+            . e(t('لو متوقع تلاقي أرقام، جرّب فترة أوسع (زي «السنة دي» أو «آخر 30 يوم») أو اختر الحساب نفسه. الفترة «الشهر اللي فات» بتعرض الشهر الميلادي السابق بس، فلو نشاطك في الشهر الحالي هيبان في التحليلات مش في التقرير ده.')) . '</div>';
+    }
     $kpis = [
         [t('مرات الظهور'), an_num($ct['impressions']), rp_pct_badge($ct['impressions'], $pt['impressions']), !empty($cur['errors']['daily'])],
         [t('الوصول'), an_num($ct['reach']), rp_pct_badge($ct['reach'], $pt['reach']), !empty($cur['errors']['daily'])],

@@ -112,4 +112,9 @@ return [
     'عشان التقارير تتبعت والتنبيهات تتحدث لوحدها، ضيف الأمر ده في Cron Jobs في لوحة الاستضافة يشتغل كل ساعة:' => 'To send reports and refresh alerts automatically, add this command to Cron Jobs in your hosting panel to run every hour:',
     'الرابط ده سري. أي حد معاه يقدر يشغل الإرسال، فما تشاركهوش.' => 'This link is secret. Anyone who has it can trigger sending, so do not share it.',
     'الإيميلات بتتبعت بدالة mail() في PHP على نفس السيرفر. وصولها بيعتمد على إعدادات الإيميل في الاستضافة (SPF/DKIM)، وممكن توصل الـ Spam أو ما توصلش خالص لو الاستضافة قافلة الإرسال. جرب "ابعت تجربة دلوقتي" الأول.' => 'Emails are sent with PHP mail() on this server. Delivery depends on your hosting email setup (SPF/DKIM): they may land in spam, or not arrive at all if your host blocks sending. Try "Send test now" first.',
+    'تعذّر جلب بعض البيانات من خدمة النشر:' => 'Some data could not be fetched from the publishing service:',
+    'أفضل المنشورات' => 'Top posts',
+    'وقت الرد' => 'Response time',
+    'مفيش نشاط مسجّل في الفترة دي.' => 'No activity recorded in this period.',
+    'لو متوقع تلاقي أرقام، جرّب فترة أوسع (زي «السنة دي» أو «آخر 30 يوم») أو اختر الحساب نفسه. الفترة «الشهر اللي فات» بتعرض الشهر الميلادي السابق بس، فلو نشاطك في الشهر الحالي هيبان في التحليلات مش في التقرير ده.' => 'If you expected numbers, try a wider range (such as "This year" or "Last 30 days") or pick the account directly. "Last month" shows only the previous calendar month, so activity in the current month appears in Analytics, not in this report.',
 ];
