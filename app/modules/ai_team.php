@@ -48,17 +48,33 @@ function ai_team_seen_file(int $wid): string
     return $dir . '/aiteam_seen_' . $wid . '.json';
 }
 
-/** تسجيل دخول/وجود على صفحة: بيحدّث وقت آخر زيارة للوكيل المسؤول (مع debounce). */
-function ai_team_touch(int $wid, string $page): void
+/** تحديث وقت «آخر شغل» لوكيل بمفتاحه مباشرة. */
+function ai_team_mark(int $wid, string $key): void
 {
-    $k = ai_team_page_map()[$page] ?? null;
-    if ($k === null) return;
+    if (!in_array($key, ai_team_keys(), true)) return;
     $f = ai_team_seen_file($wid);
     $seen = is_file($f) ? (json_decode((string)@file_get_contents($f), true) ?: []) : [];
     $now = time();
-    if (isset($seen[$k]) && $now - (int)$seen[$k] < 10) return;
-    $seen[$k] = $now;
+    if (isset($seen[$key]) && $now - (int)$seen[$key] < 10) return;
+    $seen[$key] = $now;
     @file_put_contents($f, json_encode($seen), LOCK_EX);
+}
+
+/** تسجيل دخول/وجود على صفحة: بيشعّل وكيل الصفحة (أي عضو في الفريق). */
+function ai_team_touch(int $wid, string $page): void
+{
+    $k = ai_team_page_map()[$page] ?? null;
+    if ($k !== null) ai_team_mark($wid, $k);
+}
+
+/** ربط أدوات الـMCP بوكلائها (شغل المساعد الخارجي بيشعّل القسم المناسب). */
+function ai_team_mcp_tool_map(): array
+{
+    return [
+        'list_content_bank' => 'content', 'list_content_plans' => 'content', 'create_content_plan' => 'content', 'delete_content_plan' => 'content', 'get_company_brief' => 'content',
+        'list_posts' => 'publishing', 'schedule_post' => 'publishing', 'publish_content_bank_item' => 'publishing', 'delete_post' => 'publishing', 'list_social_accounts' => 'publishing',
+        'launch_ad_campaign' => 'ads', 'list_ad_campaigns' => 'ads',
+    ];
 }
 
 /** حالة كل وكيل: active فقط وقت الوجود على صفحته أو استخدامه فعليًا للتوّ. */

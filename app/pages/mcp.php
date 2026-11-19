@@ -44,6 +44,11 @@ switch ($method) {
         $name = (string)($params['name'] ?? ''); $args = (array)($params['arguments'] ?? []);
         $tid = (int)$tok['id'];
         $res = ai_as_workspace($wid, function () use ($name, $args, $scopes, $tid) { return mcp_call($name, $args, $scopes, $tid); });
+        // فريق الوكلاء: شغل الـMCP بيشعّل وكيل القسم المناسب (المساعد الخارجي «بيشتغل» لحظيًا)
+        if (function_exists('ai_team_mark') && function_exists('ai_team_mcp_tool_map')) {
+            $ak = ai_team_mcp_tool_map()[$name] ?? null;
+            if ($ak) { try { ai_team_mark($wid, $ak); } catch (Throwable $e) {} }
+        }
         $rpc($id, $res);
         break;
     default:
