@@ -258,7 +258,10 @@ render(t('الرئيسية'), 'dashboard', function () use ($z, $d, $e, $activit
       <script>
       (function () {
         var box = document.getElementById('workspace-agents'); if (!box) return;
-        function apply(s) { box.querySelectorAll('.agent[data-role]').forEach(function (g) { var k = g.getAttribute('data-role'); g.classList.toggle('active', !!(s && s[k])); }); }
+        function apply(s) {
+          box.querySelectorAll('.agent[data-role]').forEach(function (g) { var k = g.getAttribute('data-role'); g.classList.toggle('active', !!(s && s[k])); });
+          box.querySelectorAll('.link[data-role]').forEach(function (g) { var k = g.getAttribute('data-role'); g.classList.toggle('on', !!(s && s[k])); });
+        }
         function poll() {
           fetch('index.php?p=dashboard&ajax=aiteam', { headers: { 'X-Requested-With': 'fetch' } })
             .then(function (r) { return r.ok ? r.json() : null; }).then(function (s) { if (s) apply(s); }).catch(function () {});

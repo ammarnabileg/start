@@ -125,17 +125,27 @@ function ai_team_svg(string $wsName, array $states): string
         }
     }
 
-    // ضبط كلاس active لكل وكيل
+    // ضبط كلاس active للوكيل + on للخط الموصّل حسب الحالة الحقيقية
     foreach (ai_team_keys() as $k) {
         $on = !empty($states[$k]['active']);
         $svg = preg_replace_callback('/(id="agent-' . preg_quote($k, '/') . '"\s+class="agent)[^"]*(")/', function ($m) use ($on) {
             return $m[1] . ($on ? ' active' : '') . $m[2];
+        }, $svg, 1);
+        $svg = preg_replace_callback('/(id="link-' . preg_quote($k, '/') . '"\s+class="link)[^"]*(")/', function ($m) use ($on) {
+            return $m[1] . ($on ? ' on' : '') . $m[2];
         }, $svg, 1);
     }
 
     // جعل الـ SVG متجاوب داخل الصفحة + خط عربي للعناوين
     $svg = preg_replace('/<svg /', '<svg style="width:100%;height:auto;display:block" ', $svg, 1);
 
-    $css = '<style>#workspace-agents svg text{direction:ltr;unicode-bidi:isolate;font-family:Alexandria,Inter,system-ui,sans-serif}</style>';
+    $css = '<style>'
+        . '#workspace-agents svg text{direction:ltr;unicode-bidi:isolate;font-family:Alexandria,Inter,system-ui,sans-serif}'
+        // الخطوط بين الموظفين والنواة: باهتة افتراضيًا، وتنوّر وتتدفّق وقت شغل الوكيل
+        . '#workspace-agents .link .signal{stroke-width:3;opacity:.14;filter:none;transition:opacity .3s,stroke-width .3s}'
+        . '#workspace-agents .link.on .signal{stroke-width:4.5;opacity:.98;filter:url(#glowFilter)}'
+        . '#workspace-agents .link .signal-dot{opacity:0}'
+        . '#workspace-agents .link.on .signal-dot{opacity:1}'
+        . '</style>';
     return '<div id="workspace-agents">' . $css . $svg . '</div>';
 }
