@@ -3,7 +3,7 @@
    كل خطوة بتتحفظ في القاعدة، فلو النت فصل أو الجهاز قفل الشغل بيكمل من نفس النقطة (من الصفحة أو من الكرون).
    مابيولّدش صور ولا فيديو: بيجهز النصوص والبرومبتات بس. */
 
-const CPL_BATCH = 3;   // منشورات كاملة في كل نداء
+const CPL_BATCH = 2;   // منشورين كاملين في كل نداء (6 أقسام طويلة لكل واحد)
 const CPL_MAX = 60;
 
 function cpl_plan(int $id): ?array
@@ -26,7 +26,16 @@ function cpl_items(int $planId = 0, array $status = []): array
     if ($planId) { $sql .= ' AND plan_id = ?'; $a[] = $planId; }
     if ($status) { $sql .= ' AND status IN (' . implode(',', array_fill(0, count($status), '?')) . ')'; $a = array_merge($a, $status); }
     $st = db()->prepare($sql . ' ORDER BY plan_id DESC, seq ASC LIMIT 2000'); $st->execute($a);
-    return array_map('cpl_item_row', $st->fetchAll());
+    $rows = array_map('cpl_item_row', $st->fetchAll()); $opts = []; $seen = [];
+    foreach ($rows as &$r) {
+        if (!isset($opts[$r['plan_id']])) { $pp = cpl_plan($r['plan_id']); $opts[$r['plan_id']] = $pp ? cpl_opts($pp) : []; }
+        $r['qc'] = cpl_qc($r, $opts[$r['plan_id']]);
+        foreach (['headline' => t('عنوان صورة مكرر مع المنشور %s'), 'title' => t('موضوع مكرر مع المنشور %s')] as $k => $msg) { // تكرار داخل نفس الخطة
+            $v = $k === 'title' ? ($r['topic']['title'] ?? '') : (string)$r['headline']; $key = $r['plan_id'] . '|' . $k . '|' . mb_strtolower(preg_replace('/[^\p{L}\p{N}]+/u', '', $v));
+            if ($v === '' || $r['linkedin'] === null) continue; if (isset($seen[$key])) $r['qc'][] = sprintf($msg, $seen[$key]); else $seen[$key] = $r['seq'];
+        }
+    } unset($r);
+    return $rows;
 }
 
 function cpl_item(int $id): ?array
@@ -64,33 +73,36 @@ function cpl_create(array $in): int
 
 function cpl_opts(array $p): array { return (json_decode((string)$p['opts'], true) ?: []) + ['lang' => 'ar', 'dialect' => '', 'audience' => '', 'services' => [], 'tone' => '', 'cta' => '', 'avoid' => '', 'video' => true, 'carousel' => true, 'humanize' => true]; }
 
-/** قواعد الكتابة الثابتة (من برومبت المستخدم، مختصرة) */
+/** البرومبت الأساسي = برومبت المستخدم بالحرف (app/prompts/content_plan.md) + إعدادات الخطة. قسم HTML اتشال لأن السيستم هو اللي بيعرض ويصدّر. */
+function cpl_master(array $p): string
+{
+    static $m = null; if ($m === null) $m = (string)@file_get_contents(__DIR__ . '/../prompts/content_plan.md');
+    return str_replace('NUMBER_OF_POSTS', (string)(int)$p['cnt'], $m);
+}
+
 function cpl_rules(array $p): string
 {
     $o = cpl_opts($p);
-    $lang = ['ar' => 'Write LinkedIn, X and on-slide copy in Arabic' . ($o['dialect'] !== '' ? ' (' . $o['dialect'] . ')' : ' (clear Modern Standard Arabic)'), 'en' => 'Write LinkedIn, X and on-slide copy in English', 'both' => 'Write LinkedIn copy in Arabic and X copy in English; on-slide copy in Arabic'][$o['lang']];
-    return "You are a senior content strategist, B2B copywriter and art director.\n"
-        . "Ground every claim ONLY in the company knowledge base you were given. NEVER invent statistics, client names, awards, certifications, prices, years or results. If a fact is missing, write around it.\n"
-        . "Each post must have a distinct angle (no repeated topics), mix categories: educational, problem/solution, service spotlight, myth vs fact, checklist, behind the scenes, social proof only if in the KB, offer/CTA.\n"
-        . $lang . ". Image and video prompts are ALWAYS in English.\n"
-        . "linkedin: 130-220 words, strong first line hook, short paragraphs, one clear CTA, 3-5 relevant hashtags at the end.\n"
-        . "x: max 270 characters including hashtags, punchy, standalone.\n"
-        . "image_prompt: 120-200 words, premium editorial look, 4:5 portrait 1080x1350, describe subject, composition, lighting, palette, typography area; include the brand logo placement (small, a corner) and the exact headline text and where it sits. No fake UI text, no gibberish text, no stock-photo cliches.\n"
-        . "headline: 2-6 words that appear on the image.\n"
-        . ($o['video'] ? "video_prompt: model-agnostic AI video prompt (8-12 seconds, 9:16 or 4:5): scenes with timing, camera moves, motion, lighting, mood, on-screen text, sound design.\n" : "video_prompt: empty string.\n")
-        . ($o['carousel'] ? "carousel: exactly 5 slides in this order: Hook, Problem, Insight, Solution, CTA; each {role, title (max 8 words), body (max 30 words), visual (short English art note)}.\n" : "carousel: empty array.\n")
-        . ($o['tone'] !== '' ? 'Tone: ' . $o['tone'] . "\n" : '')
-        . ($o['cta'] !== '' ? 'Preferred CTA: ' . $o['cta'] . "\n" : '')
-        . ($o['avoid'] !== '' ? 'Avoid: ' . $o['avoid'] . "\n" : '');
+    $lang = ['ar' => 'Arabic' . ($o['dialect'] !== '' ? ' (' . $o['dialect'] . ')' : ' (clear Modern Standard Arabic unless the KB shows another brand voice)'), 'en' => 'English', 'both' => 'Arabic for LinkedIn and carousel copy, English for X'][$o['lang']];
+    return cpl_master($p)
+        . "\n\nPLAN SETTINGS\n- Copy language (LinkedIn, X, headline, on-slide copy, video voice-over dialogue): {$lang}. Image prompts and video directions: professional English.\n"
+        . ($o['dialect'] !== '' ? "- Voice-over dialogue dialect: {$o['dialect']}.\n" : '')
+        . ($o['tone'] !== '' ? "- Brand tone: {$o['tone']}\n" : '')
+        . ($o['cta'] !== '' ? "- Preferred CTA: {$o['cta']}\n" : '')
+        . ($o['avoid'] !== '' ? "- Avoid: {$o['avoid']}\n" : '')
+        . (!$o['video'] ? "- The user turned off video for this plan: return video_prompt as an empty string.\n" : '')
+        . (!$o['carousel'] ? "- The user turned off carousels for this plan: return carousel as an empty array.\n" : '')
+        . "- The official logo is in the KB; refer to it as \"the official logo\" and state its exact placement. Never describe or invent its design.\n";
 }
 
 function cpl_brief(array $p): string
 {
-    $o = cpl_opts($p);
-    return "Campaign goal: " . $p['goal']
-        . ($o['audience'] !== '' ? "\nTarget audience: " . $o['audience'] : '')
+    $o = cpl_opts($p); $pal = function_exists('kb_logo_palette') ? kb_logo_palette((int)ws('id')) : [];
+    return "Campaign goal (build the strategy around it): " . $p['goal']
+        . ($o['audience'] !== '' ? "\nTarget audience / decision-makers: " . $o['audience'] : '')
         . ($o['services'] ? "\nFocus services: " . implode('; ', $o['services']) : '')
-        . ((string)$p['visual'] !== '' ? "\nVisual DNA (from the reference designs, follow it in every image prompt):\n" . $p['visual'] : '');
+        . ($pal ? "\nLogo colors (hex): " . implode(', ', $pal) : '')
+        . ((string)$p['visual'] !== '' ? "\nVisual identity extracted from the reference images (apply it in every image, video and carousel direction):\n" . $p['visual'] : "\nNo reference images were supplied: derive the visual identity from the KB and logo colors.");
 }
 
 /** خطوة واحدة من التوليد. ترجع حالة الخطة بعدها. آمنة لو اتنادت من أكتر من مكان (قفل). */
@@ -123,31 +135,39 @@ function cpl_status(array $p): array
 
 function cpl_do_visual(array $p): void
 {
-    $wid = (int)ws('id'); $parts = [['type' => 'text', 'text' => 'Reference designs for the brand campaign. Analyse them.']];
-    foreach (array_slice(json_decode((string)$p['refs'], true) ?: [], 0, 8) as $mid) {
+    $wid = (int)ws('id'); $parts = [['type' => 'text', 'text' => 'Visual references for the brand campaign.']];
+    foreach (array_slice(json_decode((string)$p['refs'], true) ?: [], 0, 12) as $mid) {
         $m = media_get($wid, (int)$mid); if (!$m) continue;
-        $f = media_thumb_path($wid, $m); if (!is_file($f)) $f = media_file_path($wid, $m); if (!is_file($f) || filesize($f) > 6000000) continue;
+        $f = media_file_path($wid, $m); if (!is_file($f) || filesize($f) > 4000000) $f = media_thumb_path($wid, $m); if (!is_file($f)) continue;
         $parts[] = ['type' => 'image_url', 'image_url' => ['url' => 'data:' . (mime_content_type($f) ?: 'image/jpeg') . ';base64,' . base64_encode((string)file_get_contents($f))]];
     }
     $vis = '';
     if (count($parts) > 1) {
-        $r = ai_chat([['role' => 'system', 'content' => "VISUAL_DNA. You are an art director. From the reference images extract a reusable visual DNA for image prompts, in English, 120-180 words: layout patterns, typography style, color palette (hex if clear), lighting, photography vs illustration vs 3D, textures, negative space, headline placement, mood. Describe style only, never copy brand names or text from the references. Plain text, no markdown."], ['role' => 'user', 'content' => $parts]], 700, 'analyze');
+        $r = ai_chat([['role' => 'system', 'content' => "VISUAL_DNA. Act as a Commercial Art Director. Analyze the reference images to extract the visual identity: colors (hex values), typography (style, weight, case, Arabic/Latin pairing), lighting, composition, logo placement, and advertising style; also photography vs illustration vs 3D, textures, negative space, headline placement and mood. Write a reusable visual DNA in English, 150-250 words, as plain text grouped by those headings. Describe the style only; never copy brand names, text or specific people from the references."], ['role' => 'user', 'content' => $parts]], 900, 'analyze');
         $vis = trim((string)($r['text'] ?? ''));
     }
-    db()->prepare('UPDATE cp_plans SET visual = ?, stage = "outline" WHERE id = ?')->execute([mb_substr($vis, 0, 3000), (int)$p['id']]);
+    db()->prepare('UPDATE cp_plans SET visual = ?, stage = "outline" WHERE id = ?')->execute([mb_substr($vis, 0, 4000), (int)$p['id']]);
+}
+
+/** تصنيفات المزيج الاستراتيجي من البرومبت (بالحرف) */
+function cpl_categories(): array
+{
+    return ['pain_point' => 'Pain point', 'educational' => 'Educational insight', 'positioning' => 'Product positioning', 'thought_leadership' => 'Thought leadership', 'psychological' => 'Psychological selling', 'loss_aversion' => 'Loss aversion',
+        'opportunity_cost' => 'Opportunity cost', 'differentiation' => 'Differentiation', 'objection' => 'Objection handling', 'authority' => 'Brand authority', 'trust' => 'Trust building', 'direct_sell' => 'Direct selling', 'indirect_sell' => 'Indirect selling', 'conversion' => 'Conversion'];
 }
 
 function cpl_do_outline(array $p): void
 {
     $n = (int)$p['cnt'];
-    $sys = "CONTENT_PLAN_OUTLINE_JSON\n" . cpl_rules($p) . "\nNow plan {$n} distinct posts for this campaign. Return ONLY JSON: {\"topics\":[{\"title\":\"short topic\",\"angle\":\"the specific angle\",\"category\":\"educational|problem_solution|service|myth_fact|checklist|behind_scenes|proof|offer\",\"service\":\"related service from the KB or empty\",\"objective\":\"awareness|engagement|leads\"}]} with exactly {$n} items, ordered as a smart publishing sequence.";
-    $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => cpl_brief($p)]], min(4000, 300 + $n * 70), 'compose');
+    $sys = "CONTENT_PLAN_OUTLINE_JSON\n" . cpl_rules($p) . "\n\nSTEP 1 OF 2: STRATEGY. Plan {$n} distinct posts (topics only, no copy yet). Cover the strategic mix across the plan and prioritize services by their commercial importance in the KB."
+        . "\nReturn ONLY JSON: {\"topics\":[{\"title\":\"the strong, distinctive hook\",\"angle\":\"one sentence: the specific insight or argument of this post\",\"category\":\"" . implode('|', array_keys(cpl_categories())) . "\",\"service\":\"the relevant product/service exactly as named in the KB\",\"audience\":\"the specific decision-maker this post targets\",\"objective\":\"awareness|engagement|consideration|leads|conversion\"}]} with exactly {$n} items, ordered as a smart publishing sequence. No two topics may share the same hook or argument.";
+    $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => cpl_brief($p)]], min(8000, 400 + $n * 110), 'compose');
     $j = kb_parse_json((string)($r['text'] ?? '')); $topics = array_values(array_filter((array)($j['topics'] ?? []), 'is_array'));
     if (!$topics) throw new RuntimeException(t('لم يُرجع الذكاء الاصطناعي مواضيع صالحة. حاول مرة أخرى.'));
     $topics = array_slice($topics, 0, $n);
     $ins = db()->prepare('INSERT INTO cp_items (plan_id, workspace_id, seq, topic, status) VALUES (?,?,?,?, "pending")');
     db()->prepare('DELETE FROM cp_items WHERE plan_id = ?')->execute([(int)$p['id']]);
-    foreach ($topics as $i => $t) $ins->execute([(int)$p['id'], (int)ws('id'), $i + 1, json_encode(array_map(function ($v) { return is_string($v) ? mb_substr($v, 0, 300) : ''; }, array_intersect_key($t, array_flip(['title', 'angle', 'category', 'service', 'objective']))), JSON_UNESCAPED_UNICODE)]);
+    foreach ($topics as $i => $t) $ins->execute([(int)$p['id'], (int)ws('id'), $i + 1, json_encode(array_map(function ($v) { return is_string($v) ? mb_substr($v, 0, 300) : ''; }, array_intersect_key($t, array_flip(['title', 'angle', 'category', 'service', 'audience', 'objective']))), JSON_UNESCAPED_UNICODE)]);
     db()->prepare('UPDATE cp_plans SET stage = "posts", cnt = ? WHERE id = ?')->execute([count($topics), (int)$p['id']]);
 }
 
@@ -184,20 +204,39 @@ function cpl_do_posts(array $p): void
     $st = db()->prepare('SELECT * FROM cp_items WHERE plan_id = ? AND linkedin IS NULL ORDER BY seq LIMIT ' . CPL_BATCH); $st->execute([(int)$p['id']]);
     $rows = $st->fetchAll();
     if (!$rows) { db()->prepare('UPDATE cp_plans SET status = "review", stage = "done" WHERE id = ?')->execute([(int)$p['id']]); return; }
-    $list = []; foreach ($rows as $r) { $t = json_decode((string)$r['topic'], true) ?: []; $list[] = ['n' => (int)$r['seq'], 'title' => $t['title'] ?? '', 'angle' => $t['angle'] ?? '', 'category' => $t['category'] ?? '', 'service' => $t['service'] ?? '']; }
-    $sys = "CONTENT_PLAN_JSON\n" . cpl_rules($p) . "\nWrite the full posts for the topics given. Return ONLY JSON: {\"posts\":[{\"n\":1,\"linkedin\":\"...\",\"x\":\"...\",\"headline\":\"...\",\"image_prompt\":\"...\",\"video_prompt\":\"...\",\"carousel\":[{\"role\":\"Hook\",\"title\":\"...\",\"body\":\"...\",\"visual\":\"...\"}]}] one object per topic, same n.";
-    $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => cpl_brief($p) . "\n\nTopics:\n" . json_encode($list, JSON_UNESCAPED_UNICODE)]], 1600 * count($rows), 'compose');
+    $list = []; foreach ($rows as $r) { $t = json_decode((string)$r['topic'], true) ?: []; $list[] = ['n' => (int)$r['seq']] + array_intersect_key($t, array_flip(['title', 'angle', 'category', 'service', 'audience', 'objective'])); }
+    $st2 = db()->prepare('SELECT seq, headline FROM cp_items WHERE plan_id = ? AND linkedin IS NOT NULL ORDER BY seq'); $st2->execute([(int)$p['id']]); $used = array_filter(array_column($st2->fetchAll(), 'headline'));
+    $sys = "CONTENT_PLAN_JSON\n" . cpl_rules($p) . "\n\nSTEP 2 OF 2: write the complete posts for the topics given, all six sections each, finished and usable."
+        . "\nReturn ONLY JSON: {\"posts\":[{\"n\":1,\"linkedin\":\"130-220 words\",\"x\":\"max 280 characters incl. hashtags\",\"headline\":\"2-6 word poster headline\",\"image_prompt\":\"120-200 words English, covering concept, subject, art direction, composition, camera, lighting, brand identity, realism, the headline with its exact placement, output 4:5 1080x1350, and the avoid list\",\"video_prompt\":\"universal production-ready video prompt\",\"carousel\":[{\"role\":\"Hook|Problem|Insight|Solution|CTA\",\"title\":\"on-slide headline\",\"body\":\"on-slide supporting copy\",\"visual\":\"visual concept and composition\",\"layout\":\"layout instructions\"}]}]} one object per topic with the same n; carousel has exactly 5 slides in the order Hook, Problem, Insight, Solution, CTA."
+        . ($used ? "\nHeadlines and visual concepts already used in this plan (do not repeat them): " . implode(' | ', array_slice($used, -40)) : '');
+    $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => cpl_brief($p) . "\n\nTopics:\n" . json_encode($list, JSON_UNESCAPED_UNICODE)]], 3200 * count($rows), 'compose');
     $j = kb_parse_json((string)($r['text'] ?? '')); $by = [];
     foreach ((array)($j['posts'] ?? []) as $x) if (is_array($x) && isset($x['n'])) $by[(int)$x['n']] = $x;
     $up = db()->prepare('UPDATE cp_items SET linkedin = ?, x = ?, headline = ?, image_prompt = ?, video_prompt = ?, carousel = ?, status = "draft", humanized = 0 WHERE id = ?');
     $done = 0;
     foreach ($rows as $row) {
         $x = $by[(int)$row['seq']] ?? null; if (!$x || trim((string)($x['linkedin'] ?? '')) === '') continue;
-        $car = array_values(array_map(function ($s) { return ['role' => mb_substr((string)($s['role'] ?? ''), 0, 30), 'title' => mb_substr((string)($s['title'] ?? ''), 0, 200), 'body' => mb_substr((string)($s['body'] ?? ''), 0, 600), 'visual' => mb_substr((string)($s['visual'] ?? ''), 0, 400)]; }, array_filter((array)($x['carousel'] ?? []), 'is_array')));
-        $up->execute([mb_substr(trim((string)$x['linkedin']), 0, 5000), mb_substr(trim((string)($x['x'] ?? '')), 0, 600), mb_substr(trim((string)($x['headline'] ?? '')), 0, 120), mb_substr(trim((string)($x['image_prompt'] ?? '')), 0, 4000), mb_substr(trim((string)($x['video_prompt'] ?? '')), 0, 4000), json_encode(array_slice($car, 0, 5), JSON_UNESCAPED_UNICODE), (int)$row['id']]);
+        $car = array_values(array_map(function ($s) { return ['role' => mb_substr((string)($s['role'] ?? ''), 0, 30), 'title' => mb_substr((string)($s['title'] ?? ''), 0, 200), 'body' => mb_substr((string)($s['body'] ?? ''), 0, 800), 'visual' => mb_substr((string)($s['visual'] ?? ''), 0, 800), 'layout' => mb_substr((string)($s['layout'] ?? ''), 0, 600)]; }, array_filter((array)($x['carousel'] ?? []), 'is_array')));
+        $up->execute([mb_substr(trim((string)$x['linkedin']), 0, 6000), mb_substr(trim((string)($x['x'] ?? '')), 0, 600), mb_substr(trim((string)($x['headline'] ?? '')), 0, 120), mb_substr(trim((string)($x['image_prompt'] ?? '')), 0, 6000), mb_substr(trim((string)($x['video_prompt'] ?? '')), 0, 8000), json_encode(array_slice($car, 0, 5), JSON_UNESCAPED_UNICODE), (int)$row['id']]);
         $done++;
     }
     if (!$done) throw new RuntimeException(t('رد الذكاء الاصطناعي ناقص. سنكمل من المنشور نفسه.'));
+}
+
+/** فحص الجودة (QUALITY CONTROL في البرومبت) لكل منشور: أرقام قابلة للقياس فقط، ومش بيحكم على الإبداع */
+function cpl_qc(array $it, array $o = []): array
+{
+    if ($it['linkedin'] === null) return [];
+    $w = function ($s) { return count(preg_split('/\s+/u', trim((string)$s), -1, PREG_SPLIT_NO_EMPTY)); }; $q = [];
+    $lw = $w($it['linkedin']); if ($lw < 130 || $lw > 220) $q[] = t('لينكدإن %s كلمة (المطلوب 130–220)', $lw);
+    if (mb_strlen((string)$it['x']) > 280) $q[] = t('X تجاوز 280 حرفًا'); if (trim((string)$it['x']) === '') $q[] = t('نص X فارغ');
+    if (!preg_match('/#\S/u', (string)$it['linkedin'])) $q[] = t('لينكدإن بلا هاشتاجات');
+    $iw = $w($it['image_prompt']); if ($iw < 110 || $iw > 220) $q[] = t('برومبت الصورة %s كلمة (المطلوب 120–200)', $iw);
+    $hw = $w($it['headline']); if ($hw < 2 || $hw > 6) $q[] = t('عنوان الصورة %s كلمات (المطلوب 2–6)', $hw);
+    if (($o['video'] ?? true) && $w($it['video_prompt']) < 60) $q[] = t('برومبت الفيديو قصير');
+    if (($o['carousel'] ?? true) && count($it['carousel']) !== 5) $q[] = t('الكاروسيل %s شرائح (المطلوب 5)', count($it['carousel']));
+    if (preg_match('/\[(?:[^\]]*)(?:placeholder|insert|company name|اسم الشركة|ضع هنا)[^\]]*\]|lorem|XXX/iu', $it['linkedin'] . $it['x'] . $it['image_prompt'])) $q[] = t('فيه نص مؤقت (placeholder)');
+    return $q;
 }
 
 /** الكرون: كمّل الخطط اللي شغالة حتى لو المتصفح مقفول */
@@ -281,32 +320,69 @@ function cpl_spread(string $start, int $everyH, int $n, int $fromH = 9, int $toH
     return $out;
 }
 
-/** ملف HTML مستقل (المحتوى ظاهر من غير جافاسكربت) */
+/** Content Studio: ملف HTML مستقل حسب قسم HTML DELIVERY في برومبت المستخدم. كل الكروت مكتوبة في الـ HTML نفسه (ظاهرة من غير جافاسكربت)، والجافاسكربت تحسينات بس، ومفيش أي ملفات خارجية. */
 function cpl_export_html(array $p, array $items): string
 {
     $e = function ($s) { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); };
-    $h = '<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' . $e($p['name']) . '</title><style>'
-        . 'body{font-family:system-ui,"Segoe UI",Tahoma,sans-serif;max-width:980px;margin:0 auto;padding:24px;background:#f7f7f8;color:#111;line-height:1.7}h1{margin:0 0 4px}article{background:#fff;border:1px solid #e5e5e5;border-radius:14px;padding:18px 20px;margin:18px 0}'
-        . 'h2{font-size:18px;margin:0 0 6px}h3{font-size:13px;color:#666;margin:14px 0 4px;text-transform:uppercase}pre{white-space:pre-wrap;background:#fafafa;border:1px solid #eee;border-radius:10px;padding:10px;margin:0;font:inherit}'
-        . '.en{direction:ltr;text-align:left}.meta{color:#666;font-size:13px}ol{margin:0;padding-inline-start:20px}@media print{article{break-inside:avoid}}</style></head><body>'
-        . '<h1>' . $e($p['name']) . '</h1><p class="meta">' . $e($p['goal']) . '</p>';
-    if ((string)$p['visual'] !== '') $h .= '<article><h2>Visual DNA</h2><pre class="en">' . $e($p['visual']) . '</pre></article>';
-    foreach ($items as $it) {
-        $t = $it['topic'];
-        $h .= '<article><h2>' . (int)$it['seq'] . '. ' . $e($t['title'] ?? '') . '</h2><p class="meta">' . $e(implode(' · ', array_filter([$t['angle'] ?? '', $t['category'] ?? '', $t['service'] ?? '']))) . '</p>'
-            . '<h3>LinkedIn</h3><pre>' . $e($it['linkedin']) . '</pre><h3>X</h3><pre>' . $e($it['x']) . '</pre>'
-            . '<h3>Image prompt — ' . $e($it['headline']) . '</h3><pre class="en">' . $e($it['image_prompt']) . '</pre>'
-            . ((string)$it['video_prompt'] !== '' ? '<h3>Video prompt</h3><pre class="en">' . $e($it['video_prompt']) . '</pre>' : '');
-        if ($it['carousel']) { $h .= '<h3>Carousel</h3><ol>'; foreach ($it['carousel'] as $s) $h .= '<li><b>' . $e($s['role']) . ':</b> ' . $e($s['title']) . ' — ' . $e($s['body']) . ' <span class="en meta">(' . $e($s['visual']) . ')</span></li>'; $h .= '</ol>'; }
-        $h .= '</article>';
+    $pal = function_exists('kb_logo_palette') ? kb_logo_palette((int)ws('id')) : []; $c1 = preg_match('/^#[0-9a-f]{6}$/i', (string)($pal[0] ?? '')) ? $pal[0] : '#0f766e'; $c2 = preg_match('/^#[0-9a-f]{6}$/i', (string)($pal[1] ?? '')) ? $pal[1] : '#1f2937';
+    $cats = cpl_categories(); $svc = []; $cat = []; $obj = [];
+    foreach ($items as $it) { $t = $it['topic']; if (!empty($t['service'])) $svc[$t['service']] = 1; if (!empty($t['category'])) $cat[$t['category']] = 1; if (!empty($t['objective'])) $obj[$t['objective']] = 1; }
+    $opt = function (array $a, string $lab) use ($e) { $o = '<option value="">' . $e($lab) . '</option>'; foreach (array_keys($a) as $v) $o .= '<option>' . $e($v) . '</option>'; return $o; };
+    $sec = function (string $id, string $label, string $text, bool $en = false) use ($e) { return '<section><div class="sh"><h3>' . $e($label) . '</h3><button type="button" class="cp" data-c="' . $id . '" hidden>Copy</button></div><pre id="' . $id . '"' . ($en ? ' dir="ltr"' : ' dir="auto"') . '>' . $e($text) . '</pre></section>'; };
+    $cards = '';
+    foreach (array_values($items) as $k => $it) {
+        $t = $it['topic']; $id = 'p' . (int)$it['seq'];
+        $car = ''; foreach ($it['carousel'] as $n => $sl) $car .= ($n + 1) . '. ' . $sl['role'] . "\n" . 'Copy: ' . $sl['title'] . ($sl['body'] !== '' ? ' — ' . $sl['body'] : '') . "\nVisual: " . $sl['visual'] . (!empty($sl['layout']) ? "\nLayout: " . $sl['layout'] : '') . "\n\n";
+        $topic = trim(($t['title'] ?? '') . "\n" . implode(' · ', array_filter([$t['angle'] ?? '', $t['service'] ?? '', $t['audience'] ?? '', isset($t['category']) ? ($cats[$t['category']] ?? $t['category']) : '', $t['objective'] ?? ''])));
+        $cards .= '<details open class="card" id="' . $id . '" data-s="' . $e($t['service'] ?? '') . '" data-c="' . $e($t['category'] ?? '') . '" data-o="' . $e($t['objective'] ?? '') . '">'
+            . '<summary><span class="n">' . (int)$it['seq'] . '</span><span class="tt" dir="auto">' . $e($t['title'] ?? '') . '</span><span class="tags">' . $e(implode(' · ', array_filter([$t['service'] ?? '', isset($t['category']) ? ($cats[$t['category']] ?? $t['category']) : '', $t['objective'] ?? '']))) . '</span>'
+            . '<label class="pub" hidden><input type="checkbox" data-pub="' . $id . '"> Published</label></summary>'
+            . $sec($id . 't', '1. Topic', $topic) . $sec($id . 'l', '2. LinkedIn', (string)$it['linkedin']) . $sec($id . 'x', '3. X', (string)$it['x'])
+            . $sec($id . 'i', '4. Image prompt · ' . $it['headline'], (string)$it['image_prompt'], true)
+            . ((string)$it['video_prompt'] !== '' ? $sec($id . 'v', '5. Video prompt', (string)$it['video_prompt'], true) : '')
+            . ($car !== '' ? $sec($id . 'c', '6. Carousel', trim($car)) : '')
+            . '<button type="button" class="all" data-all="' . $id . '" hidden>Copy all</button></details>';
     }
-    return $h . '</body></html>';
+    $title = $e($p['name']);
+    $css = ':root{--b:' . $c1 . ';--d:' . $c2 . '}*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;background:#f5f6f8;color:#111827;line-height:1.7}'
+        . 'header{background:linear-gradient(135deg,var(--d),var(--b));color:#fff;padding:28px 20px}header h1{margin:0 0 6px;font-size:22px}header p{margin:0;opacity:.9;font-size:14px}main{max-width:1100px;margin:0 auto;padding:16px}'
+        . '.bar{position:sticky;top:0;z-index:5;background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:-34px 0 16px;box-shadow:0 6px 20px rgba(0,0,0,.06)}'
+        . '.bar input,.bar select{font:inherit;border:1px solid #d1d5db;border-radius:10px;padding:7px 10px;min-width:0;flex:1 1 140px;background:#fff}button{font:inherit;cursor:pointer;border:1px solid #d1d5db;background:#fff;border-radius:10px;padding:6px 12px}'
+        . 'button.pri{background:var(--b);border-color:var(--b);color:#fff}.prog{flex:1 1 100%;height:6px;background:#e5e7eb;border-radius:9px;overflow:hidden}.prog i{display:block;height:100%;width:0;background:var(--b)}'
+        . '.card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;margin:12px 0;padding:0 16px 14px}.card summary{list-style:none;cursor:pointer;display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:14px 0}'
+        . '.n{background:var(--b);color:#fff;border-radius:8px;min-width:30px;text-align:center;font-weight:700}.tt{font-weight:700;flex:1 1 280px}.tags{color:#6b7280;font-size:12px}.pub{font-size:13px;color:#374151}'
+        . '.card.done{opacity:.6}section{border-top:1px solid #f0f1f3;padding-top:8px;margin-top:8px}.sh{display:flex;justify-content:space-between;align-items:center}h3{margin:0;font-size:12px;color:var(--b);text-transform:uppercase;letter-spacing:.04em}'
+        . 'pre{white-space:pre-wrap;word-wrap:break-word;font:inherit;margin:4px 0 0;font-size:14px}pre[dir=ltr]{text-align:left}.all{margin-top:10px}.dna{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:12px 16px;margin:12px 0}'
+        . '@media(max-width:600px){header h1{font-size:18px}.card{padding:0 12px 12px}}@media print{.bar,.cp,.all,.pub{display:none!important}.card{break-inside:avoid}}';
+    $js = <<<'JS'
+(function(){var K='cs_'+document.body.dataset.k,st={};try{st=JSON.parse(localStorage.getItem(K)||'{}')}catch(e){}
+function $(s){return document.querySelector(s)}function $$(s){return [].slice.call(document.querySelectorAll(s))}
+$$('[hidden]').forEach(function(x){x.hidden=false});
+function copy(t,b){(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).catch(function(){var a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove()}).then(function(){var o=b.textContent;b.textContent='✓';setTimeout(function(){b.textContent=o},900)})}
+document.addEventListener('click',function(e){var b=e.target.closest('[data-c]');if(b&&b.tagName==='BUTTON'){copy(document.getElementById(b.dataset.c).textContent,b)}
+var a=e.target.closest('[data-all]');if(a){var c=document.getElementById(a.dataset.all);copy($$('#'+a.dataset.all+' section').map(function(s){return s.querySelector('h3').textContent+'\n'+s.querySelector('pre').textContent}).join('\n\n'),a)}});
+function paint(){var n=0,t=$$('.card').length;$$('[data-pub]').forEach(function(c){c.checked=!!st[c.dataset.pub];c.closest('.card').classList.toggle('done',c.checked);if(c.checked)n++});$('#pc').textContent=n+' / '+t;$('.prog i').style.width=(t?100*n/t:0)+'%'}
+document.addEventListener('change',function(e){var c=e.target.closest('[data-pub]');if(!c)return;st[c.dataset.pub]=c.checked;try{localStorage.setItem(K,JSON.stringify(st))}catch(x){}paint()});
+function filt(){var q=$('#q').value.toLowerCase(),s=$('#fs').value,c=$('#fc').value,o=$('#fo').value,u=$('#fu').value;$$('.card').forEach(function(d){var p=!!st[d.id];d.style.display=(!q||d.textContent.toLowerCase().indexOf(q)>=0)&&(!s||d.dataset.s===s)&&(!c||d.dataset.c===c)&&(!o||d.dataset.o===o)&&(!u||(u==='1')===p)?'':'none'})}
+['q','fs','fc','fo','fu'].forEach(function(i){$('#'+i).addEventListener('input',filt)});
+$('#ex').onclick=function(){$$('.card').forEach(function(d){d.open=true})};$('#co').onclick=function(){$$('.card').forEach(function(d){d.open=false})};
+$('#csv').onclick=function(){var r=[['#','Topic','LinkedIn','X','Image prompt','Video prompt','Carousel','Published']];$$('.card').forEach(function(d){var g=function(x){var e=document.getElementById(d.id+x);return e?e.textContent:''};r.push([d.querySelector('.n').textContent,g('t'),g('l'),g('x'),g('i'),g('v'),g('c'),st[d.id]?'yes':'no'])});
+var csv='﻿'+r.map(function(x){return x.map(function(v){return '"'+String(v).replace(/"/g,'""')+'"'}).join(',')}).join('\r\n');var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=document.title+'.csv';a.click()};
+paint()})();
+JS;
+    return '<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' . $title . '</title><style>' . $css . '</style></head><body data-k="' . (int)$p['id'] . '">'
+        . '<header><h1 dir="auto">' . $title . '</h1><p dir="auto">' . $e($p['goal']) . '</p></header><main>'
+        . '<div class="bar"><input id="q" type="search" placeholder="Search / بحث" hidden><select id="fs" hidden>' . $opt($svc, 'Service') . '</select><select id="fc" hidden>' . $opt($cat, 'Category') . '</select><select id="fo" hidden>' . $opt($obj, 'Objective') . '</select>'
+        . '<select id="fu" hidden><option value="">All</option><option value="0">Unpublished</option><option value="1">Published</option></select><button id="ex" type="button" hidden>Expand all</button><button id="co" type="button" hidden>Collapse all</button><button id="csv" type="button" class="pri" hidden>CSV</button>'
+        . '<span id="pc" dir="ltr" hidden></span><div class="prog" hidden><i></i></div><noscript>' . count($items) . ' posts</noscript></div>'
+        . ((string)$p['visual'] !== '' ? '<details class="dna" open><summary><b>Visual DNA</b></summary><pre dir="ltr">' . $e($p['visual']) . '</pre></details>' : '')
+        . $cards . '</main><script>' . $js . '</script></body></html>';
 }
 
 /** أعمدة ملف Excel للخطة (نفس الترتيب في التصدير والاستيراد) */
 function cpl_xlsx_cols(): array
 {
-    return ['id' => 'ID', 'seq' => '#', 'status' => t('الحالة'), 'topic' => t('الموضوع'), 'angle' => t('الزاوية'), 'category' => t('التصنيف'),
+    return ['id' => 'ID', 'seq' => '#', 'status' => t('الحالة'), 'topic' => t('الموضوع'), 'angle' => t('الزاوية'), 'service' => t('الخدمة'), 'audience' => t('الجمهور'), 'category' => t('التصنيف'), 'objective' => t('الهدف التسويقي'), 'qc' => t('فحص الجودة'),
         'linkedin' => 'LinkedIn', 'x' => 'X', 'headline' => t('عنوان الصورة'), 'image_prompt' => 'Image prompt', 'video_prompt' => 'Video prompt',
         's1' => 'Slide 1 Hook', 's2' => 'Slide 2 Problem', 's3' => 'Slide 3 Insight', 's4' => 'Slide 4 Solution', 's5' => 'Slide 5 CTA'];
 }
@@ -323,9 +399,9 @@ function cpl_export_xlsx(array $p, array $items): string
     $rows = '<row r="1">'; foreach (array_values($cols) as $i => $h) $rows .= $cell($i, 1, $h, 2); $rows .= '</row>';
     foreach (array_values($items) as $k => $it) {
         $r = $k + 2; $t = $it['topic'];
-        $v = ['id' => (int)$it['id'], 'seq' => (int)$it['seq'], 'status' => cpl_status_label((string)$it['status']), 'topic' => $t['title'] ?? '', 'angle' => $t['angle'] ?? '', 'category' => $t['category'] ?? '',
+        $v = ['id' => (int)$it['id'], 'seq' => (int)$it['seq'], 'status' => cpl_status_label((string)$it['status']), 'topic' => $t['title'] ?? '', 'angle' => $t['angle'] ?? '', 'service' => $t['service'] ?? '', 'audience' => $t['audience'] ?? '', 'category' => cpl_categories()[$t['category'] ?? ''] ?? ($t['category'] ?? ''), 'objective' => $t['objective'] ?? '', 'qc' => implode("\n", $it['qc'] ?? []),
             'linkedin' => $it['linkedin'], 'x' => $it['x'], 'headline' => $it['headline'], 'image_prompt' => $it['image_prompt'], 'video_prompt' => $it['video_prompt']];
-        for ($s = 0; $s < 5; $s++) { $sl = $it['carousel'][$s] ?? null; $v['s' . ($s + 1)] = $sl ? trim($sl['title'] . "\n" . $sl['body'] . ($sl['visual'] !== '' ? "\n[" . $sl['visual'] . ']' : '')) : ''; }
+        for ($s = 0; $s < 5; $s++) { $sl = $it['carousel'][$s] ?? null; $v['s' . ($s + 1)] = $sl ? trim($sl['title'] . "\n" . $sl['body'] . ($sl['visual'] !== '' ? "\n[" . $sl['visual'] . (!empty($sl['layout']) ? ' | ' . $sl['layout'] : '') . ']' : '')) : ''; }
         $rows .= '<row r="' . $r . '">'; foreach ($keys as $i => $key) $rows .= $cell($i, $r, $v[$key] ?? '', in_array($key, ['image_prompt', 'video_prompt'], true) ? 3 : 1); $rows .= '</row>';
     }
     $w = ['id' => 7, 'seq' => 5, 'status' => 11, 'topic' => 24, 'angle' => 28, 'category' => 14, 'linkedin' => 60, 'x' => 34, 'headline' => 20, 'image_prompt' => 60, 'video_prompt' => 50];
@@ -365,7 +441,7 @@ function cpl_import_xlsx(int $planId, string $path): array
         $car = $it['carousel']; $ch = false;
         for ($s = 0; $s < 5; $s++) { $v = $g('s' . ($s + 1)); if ($v === null || trim($v) === '' || !isset($car[$s])) continue; $ln = preg_split('/\R/u', trim($v)); $vis = '';
             if (count($ln) > 1 && preg_match('/^\[(.*)\]$/u', trim(end($ln)), $m)) { $vis = $m[1]; array_pop($ln); }
-            $car[$s] = ['role' => $car[$s]['role'], 'title' => mb_substr(trim((string)array_shift($ln)), 0, 200), 'body' => mb_substr(trim(implode("\n", $ln)), 0, 600), 'visual' => mb_substr($vis !== '' ? $vis : $car[$s]['visual'], 0, 400)]; $ch = true; }
+            $car[$s] = ['role' => $car[$s]['role'], 'title' => mb_substr(trim((string)array_shift($ln)), 0, 200), 'body' => mb_substr(trim(implode("\n", $ln)), 0, 600), 'visual' => mb_substr(($vis !== '' ? trim(explode(' | ', $vis, 2)[0]) : $car[$s]['visual']), 0, 800), 'layout' => mb_substr(($vis !== '' && strpos($vis, ' | ') !== false ? trim(explode(' | ', $vis, 2)[1]) : ($car[$s]['layout'] ?? '')), 0, 600)]; $ch = true; }
         if ($ch) db()->prepare('UPDATE cp_items SET carousel = ? WHERE id = ?')->execute([json_encode($car, JSON_UNESCAPED_UNICODE), $it['id']]);
         $sv = trim((string)$g('status')); $st = $stMap[$sv] ?? $stMap[mb_strtolower($sv)] ?? null; if ($st && $st !== $it['status']) cpl_set_status([$it['id']], $st);
         $up++;

@@ -68,7 +68,7 @@ render($plan ? (string)$plan['name'] : t('خطة محتوى بالذكاء ال�
         'li' => 'LinkedIn', 'x' => 'X', 'img' => t('برومبت الصورة'), 'vid' => t('برومبت الفيديو'), 'car' => t('كاروسيل (5 شرائح)'), 'head' => t('عنوان الصورة'), 'words' => t('%s كلمة'), 'chars' => t('%s حرف'),
         's_pending' => t('قيد الكتابة'), 's_draft' => t('مسودة'), 's_approved' => t('معتمد'), 's_rejected' => t('مرفوض'), 's_scheduled' => t('مجدول'), 's_queued' => t('في الطابور'), 's_published' => t('منشور'),
         'toBank' => t('افتح مخزون المحتوى'), 'nApproved' => t('%s معتمد في المخزون'), 'f_all' => t('الكل'), 'delPlan' => t('حذف الخطة؟ المنشورات المجدولة أو المنشورة تبقى في المخزون.'),
-        'uploading' => t('جارٍ رفع الصور…'), 'imported' => t('تم تحديث %s منشور من الملف (تخطّينا %s).'), 'needGoal' => t('اكتب هدف الحملة.'), 'draftRestored' => t('استرجعنا المسودة التي لم تُرسل.'), 'refMax' => t('حتى 12 صورة.'), 'uploaded' => t('تم رفع الصور.'),
+        'uploading' => t('جارٍ رفع الصور…'), 'imported' => t('تم تحديث %s منشور من الملف (تخطّينا %s).'), 'needGoal' => t('اكتب هدف الحملة.'), 'draftRestored' => t('استرجعنا المسودة التي لم تُرسل.'), 'refMax' => t('حتى 12 صورة.'), 'uploaded' => t('تم رفع الصور.'), 'qc' => t('فحص الجودة:'), 'cats' => array_map('t', cpl_categories()),
     ];
     $cfg = ['url' => url('content_plan'), 'bank' => url('content_bank'), 'csrf' => csrf_token(), 'wid' => $wid, 't' => $T];
     if ($plan): $cfg['plan'] = cpl_status($plan) + ['name' => (string)$plan['name']]; ?>
@@ -84,7 +84,7 @@ render($plan ? (string)$plan['name'] : t('خطة محتوى بالذكاء ال�
     <div id="cp-prog" class="card p-4 mb-4"></div>
     <div id="cp-bar" class="hidden sticky top-2 z-10 card p-2 mb-3 flex flex-wrap items-center gap-2 text-sm">
       <label class="flex items-center gap-1.5 px-2"><input type="checkbox" id="cp-all"><?= e($T['all']) ?></label>
-      <select id="cp-f" class="input !mt-0 !py-1 !w-auto text-sm"><option value=""><?= e($T['f_all']) ?></option><?php foreach (['draft', 'approved', 'rejected'] as $s): ?><option value="<?= $s ?>"><?= e($T['s_' . $s]) ?></option><?php endforeach; ?></select>
+      <select id="cp-f" class="input !mt-0 !py-1 !w-auto text-sm"><option value=""><?= e($T['f_all']) ?></option><?php foreach (['draft', 'approved', 'rejected'] as $s): ?><option value="<?= $s ?>"><?= e($T['s_' . $s]) ?></option><?php endforeach; ?><option value="qc"><?= e(t('يحتاج مراجعة (فحص الجودة)')) ?></option></select>
       <span class="flex-1"></span>
       <button type="button" data-bulk="approved" class="btn-primary !py-1.5" disabled></button>
       <button type="button" data-bulk="rejected" class="btn-ghost !py-1.5" disabled><?= e($T['rejectSel']) ?></button>
