@@ -5,6 +5,21 @@
  * صفحة setup تشغّل أي رقم لم يُشغَّل من قبل.
  */
 return [
+    '079_mcp_actions' => [
+        "CREATE TABLE IF NOT EXISTS mcp_actions (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            token_id INT UNSIGNED NULL,
+            type VARCHAR(40) NOT NULL,
+            summary VARCHAR(400) NOT NULL DEFAULT '',
+            payload MEDIUMTEXT NULL,
+            status ENUM('pending','approved','rejected','done','failed') NOT NULL DEFAULT 'pending',
+            result VARCHAR(600) NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            resolved_at DATETIME NULL,
+            KEY ws_status (workspace_id, status)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+    ],
     '078_mcp_tokens' => [
         "CREATE TABLE IF NOT EXISTS mcp_tokens (
             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

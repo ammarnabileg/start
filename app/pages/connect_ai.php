@@ -6,7 +6,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     check_csrf();
     $a = (string)($_POST['action'] ?? '');
     if ($a === 'create') {
-        $newToken = mcp_token_create($wid, (int)(current_user()['id'] ?? 0), (string)($_POST['name'] ?? ''), ($_POST['scope'] ?? '') === 'write' ? 'write' : 'read');
+        $sc = in_array($_POST['scope'] ?? '', ['read', 'write', 'publish'], true) ? $_POST['scope'] : 'read';
+        $newToken = mcp_token_create($wid, (int)(current_user()['id'] ?? 0), (string)($_POST['name'] ?? ''), $sc);
         flash('success', t('اتعمل توكن جديد. انسخه دلوقتي — مش هيظهر تاني.'));
     } elseif ($a === 'delete') {
         mcp_token_delete($wid, (int)($_POST['id'] ?? 0));
@@ -14,6 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect(url('connect_ai'));
     }
 }
+$recent = mcp_actions_recent($wid, 12);
 $tokens = mcp_tokens_list($wid);
 $mcpUrl = base_url() . '/index.php?p=mcp';
 
@@ -38,8 +40,9 @@ render(t('ربط ChatGPT / Claude'), 'connect_ai', function () use ($tokens, $mc
             <select name="scope" class="input">
               <option value="read"><?= e(t('قراءة فقط (آمن: يقرا بس)')) ?></option>
               <option value="write"><?= e(t('قراءة + بدء خطط محتوى')) ?></option>
+              <option value="publish"><?= e(t('تحكّم كامل: قراءة + خطط + نشر وجدولة مباشرة')) ?></option>
             </select></label>
-          <p class="text-[11px] text-ink-400"><?= e(t('ملاحظة أمان: التوكنات دي لا تنشر منشورات ولا تصرف ميزانية إعلانات ولا تحذف أي حاجة. النشر يظل من داخل المنصة.')) ?></p>
+          <p class="text-[11px] text-amber-700"><?= e(t('تنبيه: توكن «تحكّم كامل» يقدر ينشر ويجدول على حساباتك مباشرة بدون موافقة. لا يصرف ميزانية إعلانات ولا يحذف. كل عملية نشر تتسجّل في السجل بالأسفل.')) ?></p>
           <button class="btn-primary"><?= e(t('أنشئ التوكن')) ?></button>
         </form>
       </div>
@@ -65,6 +68,21 @@ render(t('ربط ChatGPT / Claude'), 'connect_ai', function () use ($tokens, $mc
           <div class="flex-1 min-w-0"><b class="text-ink-900"><?= e($tk['name']) ?></b>
             <span class="text-xs text-ink-400"><?= e($tk['scopes'] === 'write' ? t('قراءة + كتابة') : t('قراءة فقط')) ?> · <?= e($tk['last_used_at'] ? t('آخر استخدام %s', $tk['last_used_at']) : t('لم يُستخدم')) ?></span></div>
           <form method="post" onsubmit="return confirm('<?= e(t('حذف التوكن؟ أي ربط يستخدمه هيتوقف.')) ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int)$tk['id'] ?>"><button class="btn-ghost !py-1 text-red-600"><?= e(t('حذف')) ?></button></form>
+        </div>
+        <?php endforeach; ?>
+      </div>
+      <?php endif; ?>
+    </div>
+
+    <div class="card p-5 mt-5">
+      <b class="text-ink-900 block mb-3"><?= e(t('سجل النشر عبر المساعد')) ?></b>
+      <?php if (!$recent): ?><p class="text-sm text-ink-500"><?= e(t('لا توجد عمليات بعد.')) ?></p><?php else: ?>
+      <div class="divide-y divide-ink-100 text-sm">
+        <?php foreach ($recent as $ac): $okA = $ac['status'] === 'done'; ?>
+        <div class="flex items-center gap-3 py-2">
+          <span class="<?= $okA ? 'text-lime-600' : 'text-red-600' ?>"><?= $okA ? '✓' : '✕' ?></span>
+          <div class="flex-1 min-w-0"><div class="truncate text-ink-800" dir="auto"><?= e($ac['summary']) ?></div>
+            <span class="text-xs text-ink-400"><?= e((string)$ac['resolved_at']) ?><?= $ac['result'] ? ' · ' . e($ac['result']) : '' ?></span></div>
         </div>
         <?php endforeach; ?>
       </div>

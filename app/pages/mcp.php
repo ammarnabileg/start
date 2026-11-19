@@ -42,7 +42,8 @@ switch ($method) {
         break;
     case 'tools/call':
         $name = (string)($params['name'] ?? ''); $args = (array)($params['arguments'] ?? []);
-        $res = ai_as_workspace($wid, function () use ($name, $args, $scopes) { return mcp_call($name, $args, $scopes); });
+        $tid = (int)$tok['id'];
+        $res = ai_as_workspace($wid, function () use ($name, $args, $scopes, $tid) { return mcp_call($name, $args, $scopes, $tid); });
         $rpc($id, $res);
         break;
     default:
