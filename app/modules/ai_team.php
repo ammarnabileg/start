@@ -176,11 +176,40 @@ function ai_team_svg(string $wsName, array $states): string
         . '#'.$u.' .st.on .arm{animation:'.$u.'typ .5s ease-in-out infinite alternate}'
         . '#'.$u.' .st.on .wp{opacity:1;animation:'.$u.'pls 1.7s linear infinite}'
         . '#'.$u.' .livedot{animation:'.$u.'pls 1.6s linear infinite}'
+        . '#'.$u.' .lnk{stroke-dasharray:3 8;animation:'.$u.'flow 1.1s linear infinite}'
+        . '#'.$u.' .lnode{animation:'.$u.'pls 2s linear infinite}'
+        . '@keyframes '.$u.'flow{to{stroke-dashoffset:-22}}'
         . '@keyframes '.$u.'typ{from{transform:translateY(0) rotate(-2deg)}to{transform:translateY(2px) rotate(3deg)}}'
         . '@keyframes '.$u.'brz{0%,100%{opacity:.06}50%{opacity:.18}}'
         . '@keyframes '.$u.'pls{0%{opacity:.2}50%{opacity:1}100%{opacity:.2}}'
         . '@media(prefers-reduced-motion:reduce){#'.$u.' .st.on .arm,#'.$u.' .st.on .scr-ill,#'.$u.' .st.on .wp{animation:none}}'
         . '</style>';
+
+    // ===== خطوط نور تربط الكروت (زي الريفرانس) =====
+    $pos = []; $ii = 0;
+    foreach ($agents as $k => $a) { $pos[$ii] = ['x' => $pad + ($ii % $cols) * ($cw + $gap), 'y' => $top + intdiv($ii, $cols) * ($ch + $gap), 'c' => $a['c'], 'on' => !empty($states[$k]['active'])]; $ii++; }
+    $lnkCol = '#94a3b8';
+    $seg = function ($x1, $y1, $x2, $y2, $bright) use ($lnkCol) {
+        $c = $bright ? '#3b6ff0' : $lnkCol; $op = $bright ? '.85' : '.4';
+        return '<line class="lnk" x1="'.$x1.'" y1="'.$y1.'" x2="'.$x2.'" y2="'.$y2.'" stroke="'.$c.'" stroke-width="'.($bright ? 2.4 : 1.8).'" stroke-opacity="'.$op.'" stroke-linecap="round"/>'
+            . '<circle class="lnode" cx="'.$x1.'" cy="'.$y1.'" r="3" fill="'.$c.'" opacity="'.$op.'"/><circle class="lnode" cx="'.$x2.'" cy="'.$y2.'" r="3" fill="'.$c.'" opacity="'.$op.'"/>';
+    };
+    $links = '';
+    // أفقي: بين الأعمدة في كل صف
+    for ($r = 0; $r < 2; $r++) for ($c = 0; $c < $cols - 1; $c++) {
+        $i1 = $r * $cols + $c; $i2 = $i1 + 1; if (!isset($pos[$i1], $pos[$i2])) continue;
+        $y = $pos[$i1]['y'] + $ch / 2;
+        $links .= $seg($pos[$i1]['x'] + $cw, $y, $pos[$i2]['x'], $y, $pos[$i1]['on'] && $pos[$i2]['on']);
+    }
+    // رأسي: بين الصفين تحت كل عمود
+    for ($c = 0; $c < $cols; $c++) {
+        $i1 = $c; $i2 = $cols + $c; if (!isset($pos[$i1], $pos[$i2])) continue;
+        $x = $pos[$i1]['x'] + $cw / 2;
+        $links .= $seg($x, $pos[$i1]['y'] + $ch, $x, $pos[$i2]['y'], $pos[$i1]['on'] && $pos[$i2]['on']);
+    }
+    // من الهيدر لأعلى الصف الأول (عمودين في النص)
+    $hubX = $W / 2; $hubY = 60;
+    foreach ([1, 2] as $c) { if (!isset($pos[$c])) continue; $tx = $pos[$c]['x'] + $cw / 2; $links .= $seg($hubX, $hubY, $tx, $pos[$c]['y'], false); }
 
     $cards = '';
     $i = 0;
@@ -234,6 +263,6 @@ function ai_team_svg(string $wsName, array $states): string
     return '<div id="'.$u.'">'.$css
         . '<svg viewBox="0 0 '.$W.' '.$H.'" width="100%" style="display:block;font-family:Alexandria,system-ui,sans-serif" role="img" aria-label="'.e(t('فريق الوكلاء الأذكياء')).'">'
         . '<rect width="'.$W.'" height="'.$H.'" rx="20" fill="var(--bg)"/>'
-        . $header . $cards
+        . $links . $header . $cards
         . '</svg></div>';
 }
