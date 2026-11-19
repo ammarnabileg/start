@@ -57,7 +57,7 @@ if (isset($merged[$page])) {
     redirect(url($merged[$page], array_diff_key($_GET, ['p' => 1])));
 }
 
-$public = ['home', 'login', 'forgot', 'reset', 'register', 'invite', 'pref', 'cron', 'share', 'smsgate_hook', 'zernio_hook', 'crm_hook', 'lead_form', 'crm_t', 'crm_book', 'crm_go', 'crm_v', 'crm_js', 'go', 'lp'];
+$public = ['home', 'login', 'forgot', 'reset', 'register', 'invite', 'pref', 'cron', 'share', 'smsgate_hook', 'zernio_hook', 'crm_hook', 'lead_form', 'crm_t', 'crm_book', 'crm_go', 'crm_v', 'crm_js', 'go', 'lp', 'manifest', 'appicon'];
 // علامة «كان مسجّل دخول» (مش سر، مجرد 1): بتتحط طول ما المستخدم داخل وبتتمسح عند الخروج.
 // لو موجودة ومفيش مستخدم = الجلسة انتهت فعلًا (مش زائر جديد).
 if (current_user() && empty($_COOKIE['zin'])) setcookie('zin', '1', ['expires' => time() + 31536000, 'path' => '/', 'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off', 'httponly' => true, 'samesite' => 'Lax']);
@@ -100,7 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $page !== 'smsgate_hook' && $page !
 }
 
 // كل الصفحات بتشتغل جوه شركة. لو مالوش شركات، يروح صفحة الشركات (ينشئ واحدة أو يوافق على دعوة)
-$noWorkspacePages = ['home', 'login', 'forgot', 'reset', 'register', 'invite', 'pref', 'cron', 'share', 'smsgate_hook', 'zernio_hook', 'crm_hook', 'lead_form', 'crm_t', 'crm_book', 'crm_go', 'crm_v', 'crm_js', 'go', 'lp', 'logout', 'workspaces', 'switch', 'account', 'system', 'admin', 'admin_workspaces', 'admin_users', 'admin_activity', 'admin_compare', 'impersonate_stop'];
+$noWorkspacePages = ['home', 'login', 'forgot', 'reset', 'register', 'invite', 'pref', 'cron', 'share', 'smsgate_hook', 'zernio_hook', 'crm_hook', 'lead_form', 'crm_t', 'crm_book', 'crm_go', 'crm_v', 'crm_js', 'go', 'lp', 'manifest', 'appicon', 'logout', 'workspaces', 'switch', 'account', 'system', 'admin', 'admin_workspaces', 'admin_users', 'admin_activity', 'admin_compare', 'impersonate_stop'];
 if (!in_array($page, $noWorkspacePages, true) && !current_workspace()) {
     redirect(url('workspaces'));
 }

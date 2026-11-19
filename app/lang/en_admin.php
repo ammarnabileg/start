@@ -112,4 +112,10 @@ return [
     'انت داخل دلوقتي بحساب %s عشان تشوف اللي هو شايفه.' => 'You are signed in as %s to see what they see.',
     'رجوع لحسابي' => 'Back to my account',
     'وضع الصيانة شغال: المستخدمين العاديين مش هيقدروا يدخلوا.' => 'Maintenance mode is on: regular users can\'t sign in.',
+    'أيقونة التطبيق' => 'App icon',
+    'اختر صورة مربعة (PNG شفاف مفضّل)' => 'Choose a square image (transparent PNG preferred)',
+    'احذف الأيقونة وارجع للتوليد التلقائي' => 'Remove the icon and go back to auto-generated',
+    'لو ما رفعتش أيقونة، السيستم يولّد واحدة من أول حرف من اسم التطبيق وألوان الهوية. تظهر في تبويب المتصفح والتطبيق المثبّت.' => 'If you don\'t upload an icon, the system generates one from the first letter of the app name and the brand colours. It appears in the browser tab and the installed app.',
+    'الأيقونة لازم تكون صورة أقل من 3 ميجا.' => 'The icon must be an image under 3 MB.',
+    'تعذّر حفظ الأيقونة.' => 'Could not save the icon.',
 ];

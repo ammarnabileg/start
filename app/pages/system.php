@@ -30,6 +30,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $siteName = trim((string)($_POST['site_name'] ?? ''));
     if ($siteName !== '') save_setting('site_name', mb_substr($siteName, 0, 100));
+    if (isset($_POST['app_icon_remove'])) { @unlink(ROOT_DIR . '/uploads/branding/app-icon.png'); save_setting('app_icon', ''); }
+    if (!empty($_FILES['app_icon']['name']) && is_uploaded_file($_FILES['app_icon']['tmp_name'])) {
+        $mime = (string)(@mime_content_type($_FILES['app_icon']['tmp_name']) ?: '');
+        if (strpos($mime, 'image/') !== 0 || filesize($_FILES['app_icon']['tmp_name']) > 3 * 1048576) flash('error', t('الأيقونة لازم تكون صورة أقل من 3 ميجا.'));
+        else { $dir = ROOT_DIR . '/uploads/branding'; if (!is_dir($dir)) @mkdir($dir, 0750, true);
+            if (move_uploaded_file($_FILES['app_icon']['tmp_name'], $dir . '/app-icon.png')) { @chmod($dir . '/app-icon.png', 0640); save_setting('app_icon', '1'); clearstatcache(); }
+            else flash('error', t('تعذّر حفظ الأيقونة.')); } }
     save_setting('default_lang', ($_POST['default_lang'] ?? '') === 'ar' ? 'ar' : 'en');
     save_setting('default_theme', ($_POST['default_theme'] ?? '') === 'dark' ? 'dark' : 'light');
     save_setting('allow_signup', isset($_POST['allow_signup']) ? '1' : '0');
@@ -45,12 +52,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 render(t('إعدادات المنصة'), 'system', function () {
     $sel = function ($name, $value, $current) { return $value === $current ? 'selected' : ''; };
     ?>
-    <form method="post" class="grid lg:grid-cols-2 gap-5 max-w-5xl">
+    <form method="post" enctype="multipart/form-data" class="grid lg:grid-cols-2 gap-5 max-w-5xl">
       <?= csrf_field() ?>
       <div class="card p-6 space-y-4">
         <h2 class="font-semibold text-ink-900"><?= e(t('الهوية والافتراضيات')) ?></h2>
         <label class="block"><span class="label"><?= e(t('اسم المنصة')) ?></span>
           <input name="site_name" value="<?= e(setting('site_name', '')) ?>" class="input"></label>
+        <div><span class="label"><?= e(t('أيقونة التطبيق')) ?></span>
+          <div class="flex items-center gap-3 mt-1">
+            <img src="<?= e(url('appicon', ['s' => 96, 'v' => time()])) ?>" alt="" class="w-16 h-16 rounded-2xl border border-ink-200 object-cover bg-ink-50">
+            <div class="text-sm">
+              <label class="btn-ghost !py-1.5 cursor-pointer inline-flex"><input type="file" name="app_icon" accept="image/png,image/jpeg,image/webp,image/svg+xml" class="hidden" onchange="this.nextElementSibling.textContent=this.files[0]?this.files[0].name:''"><?= e(t('اختر صورة مربعة (PNG شفاف مفضّل)')) ?></label><span class="text-xs text-ink-500 ms-2"></span>
+              <?php if (setting('app_icon', '') === '1'): ?><label class="flex items-center gap-1.5 text-xs text-ink-500 mt-1"><input type="checkbox" name="app_icon_remove"><?= e(t('احذف الأيقونة وارجع للتوليد التلقائي')) ?></label><?php endif; ?>
+            </div>
+          </div>
+          <p class="text-xs text-ink-500 mt-1"><?= e(t('لو ما رفعتش أيقونة، السيستم يولّد واحدة من أول حرف من اسم التطبيق وألوان الهوية. تظهر في تبويب المتصفح والتطبيق المثبّت.')) ?></p>
+        </div>
         <div class="grid grid-cols-2 gap-3">
           <label class="block"><span class="label"><?= e(t('اللغة الافتراضية')) ?></span>
             <select name="default_lang" class="input"><option value="en" <?= $sel('', 'en', setting('default_lang', 'en')) ?>>English</option><option value="ar" <?= $sel('', 'ar', setting('default_lang', 'en')) ?>>العربية</option></select></label>
