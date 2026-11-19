@@ -111,7 +111,7 @@ function cpl_rules(array $p): string
         . (!$o['carousel'] ? "- The user turned off carousels for this plan: return carousel as an empty array.\n" : '')
         . "- LOGO: never draw, write or invent any logo, brand name, wordmark or watermark in images, slides or video. The system places the real logo afterwards in the " . cpl_logo_corner($p) . " corner: keep that corner area (about 260x160px) clean and calm.\n"
         . "- Safe area: keep the headline, any text and every key element at least 100px (about 9%) inside each edge of the 1080x1350 frame; nothing touches or is cropped by an edge; generous padding around the headline; headline at most 3 short lines in a clean bold sans-serif, spelled exactly, high contrast.\n"
-        . ($o['humanize'] ? "\n=== WRITING STYLE: apply the Humanizer skill below WHILE WRITING all copy (LinkedIn, X, headlines, on-slide copy, voice-over dialogue). Write the final, human version directly; do not write a draft and fix it later. Never change the JSON format. ===\n" . ai_humanizer_skill() . "\n" : '');
+        . ($o['humanize'] ? "\n=== WRITING STYLE (write the final human version directly, never a draft to fix later; never change the JSON format):\n" . ai_humanize_rules() . "\n" : '');
 }
 
 function cpl_brief(array $p): string
@@ -140,7 +140,7 @@ function cpl_step(int $id): array
         try { db()->prepare('UPDATE cp_plans SET error = ?, fails = fails + 1, status = IF(fails + 1 >= 3, "paused", status) WHERE id = ?')->execute([t('انتهت مهلة السيرفر أثناء هذه الخطوة. سنعيد المحاولة تلقائيًا.') . ($e ? ' (' . mb_substr((string)$e['message'], 0, 120) . ')' : ''), $id]); db()->query('SELECT RELEASE_LOCK(' . db()->quote($lk) . ')'); } catch (Throwable $x) {} });
     $t0 = microtime(true);
     try {
-        @set_time_limit(330); $GLOBALS['ai_timeout'] = 240; // نداء واحد ممكن ياخد دقيقتين مع موديل بطيء
+        @set_time_limit(420); $GLOBALS['ai_timeout'] = 320; // نداء واحد ممكن ياخد دقيقتين مع موديل بطيء
         $GLOBALS['__kb_skip'] = true; // الملخص المضغوط بيتبعت في البريف؛ ما نحقنش كل قاعدة المعرفة (توفير تكلفة)
         if ($p['stage'] === 'visual') cpl_do_visual($p);
         elseif ($p['stage'] === 'outline') cpl_do_outline($p);
