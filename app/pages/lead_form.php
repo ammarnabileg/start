@@ -6,6 +6,8 @@
  * الحماية: توكن سري لكل شركة + خانة فخ للروبوتات + حد للطلبات من نفس الـ IP.
  */
 $wid = (int)($_GET['w'] ?? 0);
+// الفورم المضمّن يتبع لغة مساحة العمل (عربي/إنجليزي) ما لم يختر الزائر لغة صراحةً
+if (!isset($_COOKIE['lang']) && $wid) { $wl = (string)setting('ws_lang_' . $wid, ''); if ($wl !== '') $_COOKIE['lang'] = $wl === 'en' ? 'en' : 'ar'; }
 if (ws_closed($wid)) { http_response_code(410); header('Content-Type: text/html; charset=utf-8'); exit('<!doctype html><meta charset="utf-8"><p style="font-family:sans-serif;padding:40px;text-align:center">' . e(t('هذه الصفحة لم تعد متاحة.')) . '</p>'); } // الشركة اتحذفت
 $tok = (string)($_GET['t'] ?? '');
 $real = $wid ? (string)setting('crm_form_token_' . $wid, '') : '';
