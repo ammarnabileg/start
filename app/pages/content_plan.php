@@ -61,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $plan = $pid ? cpl_plan($pid) : null;
 render($plan ? (string)$plan['name'] : t('خطة محتوى بالذكاء الاصطناعي'), 'content_plan', function () use ($plan, $wid) {
     $T = [
-        'stVisual' => t('تحليل الصور المرجعية…'), 'stOutline' => t('تخطيط المواضيع…'), 'stPosts' => t('كتابة المنشورات: %s من %s'), 'stHuman' => t('مراجعة الأسلوب: %s من %s'), 'human' => t('روجع بالـ Humanizer'), 'stReview' => t('جاهزة للمراجعة'), 'stPaused' => t('توقف التوليد بعد أكثر من محاولة فاشلة.'),
+        'stVisual' => t('تحليل الصور المرجعية…'), 'stOutline' => t('تخطيط المواضيع…'), 'stPosts' => t('كتابة المنشورات: %s من %s'), 'stHuman' => t('مراجعة الأسلوب: %s من %s'), 'human' => t('مكتوب بالـ Humanizer'), 'stReview' => t('جاهزة للمراجعة'), 'stPaused' => t('توقف التوليد بعد أكثر من محاولة فاشلة.'),
         'resume' => t('أكمل من حيث توقف'), 'offline' => t('انقطع الاتصال. سنكمل تلقائيًا عند عودته، وكل ما تم محفوظ.'), 'bg' => t('يمكنك إغلاق الصفحة؛ التوليد يكمل في الخلفية وتجد كل شيء محفوظًا هنا.'),
         'approve' => t('اعتمده'), 'reject' => t('رفض'), 'undo' => t('إرجاع لمسودة'), 'approveSel' => t('اعتمد المحدد (%s)'), 'rejectSel' => t('ارفض المحدد'), 'all' => t('تحديد الكل'), 'regen' => t('أعد كتابته'),
         'copy' => t('نسخ'), 'copied' => t('تم النسخ'), 'edit' => t('تعديل'), 'save' => t('حفظ'), 'cancel' => t('إلغاء'), 'saved' => t('تم الحفظ'), 'err' => t('حصلت مشكلة. حاول مرة أخرى.'),
@@ -124,7 +124,7 @@ render($plan ? (string)$plan['name'] : t('خطة محتوى بالذكاء ال�
       <div class="flex flex-wrap gap-4 text-sm">
         <label class="flex items-center gap-1.5"><input type="checkbox" name="video" checked><?= e(t('برومبت فيديو لكل منشور')) ?></label>
         <label class="flex items-center gap-1.5"><input type="checkbox" name="carousel" checked><?= e(t('كاروسيل 5 شرائح')) ?></label>
-        <label class="flex items-center gap-1.5" title="<?= e(t('بعد كتابة كل دفعة، يراجعها محرر بمهارة Humanizer كاملة ويزيل أنماط كتابة الذكاء الاصطناعي دون تغيير المعلومات. يضاعف تكلفة الكتابة تقريبًا.')) ?>"><input type="checkbox" name="humanize" checked><?= e(t('مراجعة الأسلوب (Humanizer)')) ?></label>
+        <label class="flex items-center gap-1.5" title="<?= e(t('مهارة Humanizer كاملة تدخل في برومبت الكتابة نفسه، فيُكتب المحتوى بأسلوب بشري من البداية دون تغيير المعلومات.')) ?>"><input type="checkbox" name="humanize" checked><?= e(t('الكتابة بمهارة Humanizer')) ?></label>
       </div>
       <div class="flex items-center gap-3"><button class="btn-primary"><?= e(t('اكتب الخطة')) ?></button><span class="text-xs text-ink-500"><?= e(t('المسودة تُحفظ على جهازك أثناء الكتابة.')) ?></span></div>
     </form>

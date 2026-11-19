@@ -60,8 +60,8 @@
   var prog = $('#cp-prog');
   function paintProg(s, note) {
     P = Object.assign(P, s);
-    var pct = P.count ? Math.round(100 * (P.hz ? (P.ready + P.human) / 2 : P.ready) / P.count) : 0, txt;
-    if (P.status === 'generating') txt = P.stage === 'visual' ? T.stVisual : P.stage === 'outline' ? T.stOutline : fmt(T.stPosts, P.ready, P.count) + (P.hz ? ' · ' + fmt(T.stHuman, P.human, P.count) : '');
+    var pct = P.count ? Math.round(100 * P.ready / P.count) : 0, txt;
+    if (P.status === 'generating') txt = P.stage === 'visual' ? T.stVisual : P.stage === 'outline' ? T.stOutline : fmt(T.stPosts, P.ready, P.count);
     else if (P.status === 'paused') txt = T.stPaused; else txt = T.stReview;
     var live = P.status === 'generating', secs = live && P._t0 ? Math.round((Date.now() - P._t0) / 1000) : 0;
     prog.innerHTML = '<div class="flex flex-wrap items-center gap-3">' + (live ? '<span class="w-4 h-4 rounded-full border-2 border-brand-600 border-t-transparent animate-spin"></span>' : '') + '<b class="text-ink-900">' + esc(txt) + '</b>' + (live && secs > 5 ? '<span class="text-xs text-ink-400 tabular-nums">' + esc(fmt(T.elapsed, secs)) + (P.busy ? ' · ' + esc(T.busyBg) : '') + '</span>' : '') + '<span class="flex-1"></span>'

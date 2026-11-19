@@ -166,4 +166,12 @@ return [
     'استئناف يدوي من حيث توقف.' => 'Manual resume.',
     'سجل التنفيذ المباشر' => 'Live activity log',
     'الصفحة' => 'page',
+    'فحص الجودة وجد في المنشور %s: %s. جارٍ التصحيح تلقائيًا (محاولة %s من 2)…' => 'Quality check found in post %s: %s. Fixing automatically (attempt %s of 2)…',
+    'رد التصحيح غير صالح. سنعيد المحاولة.' => 'The fix response was invalid. Retrying.',
+    'بعد التصحيح (%s ثانية) ما زال في المنشور %s: %s' => 'After fixing (%s s) post %s still has: %s',
+    'تم تصحيح المنشور %s في %s ثانية، واجتاز فحص الجودة.' => 'Post %s fixed in %s s and passed the quality check.',
+    'توقفنا عن تصحيح المنشور %s بعد محاولتين؛ راجعه يدويًا (الملاحظات ظاهرة على الكارت).' => 'Stopped fixing post %s after two attempts; review it manually (notes are on the card).',
+    'مهارة Humanizer كاملة تدخل في برومبت الكتابة نفسه، فيُكتب المحتوى بأسلوب بشري من البداية دون تغيير المعلومات.' => 'The full Humanizer skill is part of the writing prompt itself, so content is written in a human voice from the start without changing facts.',
+    'الكتابة بمهارة Humanizer' => 'Write with the Humanizer skill',
+    'مكتوب بالـ Humanizer' => 'Written with Humanizer',
 ];

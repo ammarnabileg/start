@@ -94,7 +94,8 @@ function cpl_rules(array $p): string
         . ($o['avoid'] !== '' ? "- Avoid: {$o['avoid']}\n" : '')
         . (!$o['video'] ? "- The user turned off video for this plan: return video_prompt as an empty string.\n" : '')
         . (!$o['carousel'] ? "- The user turned off carousels for this plan: return carousel as an empty array.\n" : '')
-        . "- The official logo is in the KB; refer to it as \"the official logo\" and state its exact placement. Never describe or invent its design.\n";
+        . "- The official logo is in the KB; refer to it as \"the official logo\" and state its exact placement. Never describe or invent its design.\n"
+        . ($o['humanize'] ? "\n=== WRITING STYLE: apply the Humanizer skill below WHILE WRITING all copy (LinkedIn, X, headlines, on-slide copy, voice-over dialogue). Write the final, human version directly; do not write a draft and fix it later. Never change the JSON format. ===\n" . ai_humanizer_skill() . "\n" : '');
 }
 
 function cpl_brief(array $p): string
@@ -233,10 +234,8 @@ function cpl_do_humanize(array $p, array $rows): void
 
 function cpl_do_posts(array $p): void
 {
-    if (cpl_opts($p)['humanize']) { // اكتب ← راجع بالـ Humanizer ← اكتب الدفعة اللي بعدها
-        $h = db()->prepare('SELECT * FROM cp_items WHERE plan_id = ? AND linkedin IS NOT NULL AND humanized = 0 AND status = "draft" ORDER BY seq LIMIT ' . CPL_BATCH); $h->execute([(int)$p['id']]);
-        if ($hr = $h->fetchAll()) { cpl_do_humanize($p, $hr); return; }
-    }
+    // اكتب ← فحص الجودة ← تصليح تلقائي للي فيه مشاكل (لحد محاولتين لكل منشور) ← المنشور اللي بعده
+    foreach (cpl_items((int)$p['id']) as $it) if ($it['status'] === 'draft' && $it['qc'] && (int)$it['fix_tries'] < 2) { cpl_do_fix($p, $it); return; }
     $st = db()->prepare('SELECT * FROM cp_items WHERE plan_id = ? AND linkedin IS NULL ORDER BY seq LIMIT ' . CPL_BATCH); $st->execute([(int)$p['id']]);
     $rows = $st->fetchAll();
     if (!$rows) { db()->prepare('UPDATE cp_plans SET status = "review", stage = "done" WHERE id = ?')->execute([(int)$p['id']]); cpl_log((int)$p['id'], t('اكتملت الخطة. جاهزة للمراجعة والموافقة.'), 'ok'); return; }
@@ -249,16 +248,38 @@ function cpl_do_posts(array $p): void
     $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => cpl_brief($p) . "\n\nTopics:\n" . json_encode($list, JSON_UNESCAPED_UNICODE)]], 3200 * count($rows), 'compose');
     $j = kb_parse_json((string)($r['text'] ?? '')); $by = [];
     foreach ((array)($j['posts'] ?? []) as $x) if (is_array($x) && isset($x['n'])) $by[(int)$x['n']] = $x;
-    $up = db()->prepare('UPDATE cp_items SET linkedin = ?, x = ?, headline = ?, image_prompt = ?, video_prompt = ?, carousel = ?, status = "draft", humanized = 0 WHERE id = ?');
+    $up = db()->prepare('UPDATE cp_items SET linkedin = ?, x = ?, headline = ?, image_prompt = ?, video_prompt = ?, carousel = ?, status = "draft", humanized = ' . (cpl_opts($p)['humanize'] ? 1 : 0) . ', fix_tries = 0 WHERE id = ?');
     $done = 0;
     foreach ($rows as $row) {
         $x = $by[(int)$row['seq']] ?? null; if (!$x || trim((string)($x['linkedin'] ?? '')) === '') continue;
         $car = array_values(array_map(function ($s) { return ['role' => mb_substr((string)($s['role'] ?? ''), 0, 30), 'title' => mb_substr((string)($s['title'] ?? ''), 0, 200), 'body' => mb_substr((string)($s['body'] ?? ''), 0, 800), 'visual' => mb_substr((string)($s['visual'] ?? ''), 0, 800), 'layout' => mb_substr((string)($s['layout'] ?? ''), 0, 600)]; }, array_filter((array)($x['carousel'] ?? []), 'is_array')));
-        $up->execute([mb_substr(trim((string)$x['linkedin']), 0, 6000), mb_substr(trim((string)($x['x'] ?? '')), 0, 600), mb_substr(trim((string)($x['headline'] ?? '')), 0, 120), mb_substr(trim((string)($x['image_prompt'] ?? '')), 0, 6000), mb_substr(trim((string)($x['video_prompt'] ?? '')), 0, 8000), json_encode(array_slice($car, 0, 5), JSON_UNESCAPED_UNICODE), (int)$row['id']]);
+        $up->execute([mb_substr(ai_strip_dashes(trim((string)$x['linkedin'])), 0, 6000), mb_substr(ai_strip_dashes(trim((string)($x['x'] ?? ''))), 0, 600), mb_substr(ai_strip_dashes(trim((string)($x['headline'] ?? ''))), 0, 120), mb_substr(trim((string)($x['image_prompt'] ?? '')), 0, 6000), mb_substr(trim((string)($x['video_prompt'] ?? '')), 0, 8000), json_encode(array_slice($car, 0, 5), JSON_UNESCAPED_UNICODE), (int)$row['id']]);
         $done++;
     }
     if (!$done) throw new RuntimeException(t('رد الذكاء الاصطناعي ناقص. سنكمل من المنشور نفسه.'));
     cpl_log((int)$p['id'], t('كُتب %s منشور في %s ثانية (%s).', $done, round(microtime(true) - $tw), implode('، ', $seqs)), 'ok');
+}
+
+/** تصليح تلقائي: يبعت المنشور ومشاكل الفحص بالظبط للموديل، ويرجع الأقسام المتصلحة بس. بعدها الفحص بيتعاد على النتيجة. */
+function cpl_do_fix(array $p, array $it): void
+{
+    $id = (int)$p['id']; $o = cpl_opts($p);
+    db()->prepare('UPDATE cp_items SET fix_tries = fix_tries + 1 WHERE id = ?')->execute([$it['id']]);
+    cpl_log($id, t('فحص الجودة وجد في المنشور %s: %s. جارٍ التصحيح تلقائيًا (محاولة %s من 2)…', $it['seq'], implode(' · ', $it['qc']), (int)$it['fix_tries'] + 1), 'warn'); $tf = microtime(true);
+    $cur = ['topic' => $it['topic'], 'linkedin' => $it['linkedin'], 'x' => $it['x'], 'headline' => $it['headline'], 'image_prompt' => $it['image_prompt'], 'video_prompt' => $it['video_prompt'], 'carousel' => $it['carousel']];
+    $sys = "CONTENT_FIX_JSON\n" . cpl_rules($p) . "\n\nQUALITY FIX: the post below failed these measurable checks: " . implode('; ', $it['qc'])
+        . ".\nRewrite ONLY the sections needed so every check passes (LinkedIn 130-220 words with hashtags, X max 280 characters with hashtags, headline 2-6 words, image prompt 120-200 words, video prompt complete, carousel exactly 5 slides Hook/Problem/Insight/Solution/CTA, no placeholders; for a duplicate topic or headline, choose a clearly different angle, headline and visual concept). Keep everything that already passes, keep the facts, never invent new ones."
+        . "\nReturn ONLY JSON with the corrected fields among: {\"linkedin\",\"x\",\"headline\",\"image_prompt\",\"video_prompt\",\"carousel\":[{\"role\",\"title\",\"body\",\"visual\",\"layout\"}],\"title\",\"angle\"}.";
+    $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => cpl_brief($p) . "\n\nPost to fix:\n" . json_encode($cur, JSON_UNESCAPED_UNICODE)]], 4000, 'compose');
+    $j = kb_parse_json((string)($r['text'] ?? '')); if (!$j) throw new RuntimeException(t('رد التصحيح غير صالح. سنعيد المحاولة.'));
+    $f = []; foreach (['linkedin' => 6000, 'x' => 600, 'headline' => 120, 'image_prompt' => 6000, 'video_prompt' => 8000] as $k => $mx) if (trim((string)($j[$k] ?? '')) !== '') $f[$k] = mb_substr(in_array($k, ['linkedin', 'x', 'headline'], true) ? ai_strip_dashes(trim((string)$j[$k])) : trim((string)$j[$k]), 0, $mx);
+    if ($f) { $set = []; $a = []; foreach ($f as $k => $v) { $set[] = "$k = ?"; $a[] = $v; } $a[] = $it['id']; db()->prepare('UPDATE cp_items SET ' . implode(', ', $set) . ' WHERE id = ?')->execute($a); }
+    if (!empty($j['carousel']) && is_array($j['carousel'])) { $car = array_values(array_map(function ($s) { return ['role' => mb_substr((string)($s['role'] ?? ''), 0, 30), 'title' => mb_substr(ai_strip_dashes((string)($s['title'] ?? '')), 0, 200), 'body' => mb_substr(ai_strip_dashes((string)($s['body'] ?? '')), 0, 800), 'visual' => mb_substr((string)($s['visual'] ?? ''), 0, 800), 'layout' => mb_substr((string)($s['layout'] ?? ''), 0, 600)]; }, array_filter($j['carousel'], 'is_array'))); db()->prepare('UPDATE cp_items SET carousel = ? WHERE id = ?')->execute([json_encode(array_slice($car, 0, 5), JSON_UNESCAPED_UNICODE), $it['id']]); }
+    if (!empty($j['title']) || !empty($j['angle'])) { $t = $it['topic']; if (!empty($j['title'])) $t['title'] = mb_substr((string)$j['title'], 0, 300); if (!empty($j['angle'])) $t['angle'] = mb_substr((string)$j['angle'], 0, 300); db()->prepare('UPDATE cp_items SET topic = ? WHERE id = ?')->execute([json_encode($t, JSON_UNESCAPED_UNICODE), $it['id']]); }
+    $after = null; foreach (cpl_items($id) as $x) if ($x['id'] === $it['id']) $after = $x;
+    $left = $after ? $after['qc'] : [];
+    cpl_log($id, $left ? t('بعد التصحيح (%s ثانية) ما زال في المنشور %s: %s', round(microtime(true) - $tf), $it['seq'], implode(' · ', $left)) : t('تم تصحيح المنشور %s في %s ثانية، واجتاز فحص الجودة.', $it['seq'], round(microtime(true) - $tf)), $left ? 'warn' : 'ok');
+    if ($left && (int)$it['fix_tries'] + 1 >= 2) cpl_log($id, t('توقفنا عن تصحيح المنشور %s بعد محاولتين؛ راجعه يدويًا (الملاحظات ظاهرة على الكارت).', $it['seq']), 'warn');
 }
 
 /** فحص الجودة (QUALITY CONTROL في البرومبت) لكل منشور: أرقام قابلة للقياس فقط، ومش بيحكم على الإبداع */
