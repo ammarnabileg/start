@@ -112,16 +112,30 @@ function ai_team_states(int $wid): array
 function ai_team_labels_ar(): array
 {
     return [
-        'WORKSPACE CORE' => 'المنصّة', '8 CONNECTED FUNCTIONS' => '٨ أقسام متصلة',
+        'WORKSPACE CORE' => 'المنصّة', '8 connected functions' => '٨ أقسام متصلة',
+        'IDLE' => 'خامل', 'LIVE' => 'يعمل',
         'CONTENT STUDIO' => 'المحتوى', 'CREATE / DESIGN' => 'إنشاء وتصميم',
         'PUBLISHING' => 'النشر', 'QUEUE / SCHEDULE' => 'الجدولة',
-        'ADS MANAGER' => 'الإعلانات', 'PAID CAMPAIGNS' => 'حملات مموّلة',
-        'ANALYTICS' => 'التحليلات', 'INSIGHTS / REPORTS' => 'رؤى وتقارير',
-        'TENDER INTEL' => 'المناقصات', 'OPPORTUNITIES / BIDS' => 'فرص وعطاءات',
-        'CRM' => 'العملاء', 'LEADS / PIPELINE' => 'عملاء محتملون',
-        'AUTOMATION' => 'الأتمتة', 'WORKFLOW ENGINE' => 'محرّك المهام',
+        'ADS MANAGER' => 'الإعلانات', 'CAMPAIGNS / MEDIA' => 'حملات ووسائط',
+        'ANALYTICS' => 'التحليلات', 'DATA / REPORTS' => 'بيانات وتقارير',
+        'TENDER INTEL' => 'المناقصات', 'OPPORTUNITIES' => 'فرص وعطاءات',
+        'CRM &amp; LEADS' => 'العملاء', 'PIPELINE / CLIENTS' => 'عملاء ومسار',
+        'AUTOMATION' => 'الأتمتة', 'WORKFLOWS' => 'محرّك المهام',
         'COMMUNICATIONS' => 'التواصل', 'INBOX / WHATSAPP' => 'رسائل وواتساب',
     ];
+}
+
+/** يضيف توكن class (مثل active/on) للمجموعة ذات data-role المطابق والتي تحمل الكلاس المطلوب. */
+function ai_team_set_class(string $svg, string $role, string $need, string $add): string
+{
+    return preg_replace_callback('/<g\b[^>]*\bdata-role="' . preg_quote($role, '/') . '"[^>]*>/', function ($m) use ($need, $add) {
+        $tag = $m[0];
+        if (!preg_match('/class="([^"]*)"/', $tag, $cm)) return $tag;
+        $cls = ' ' . $cm[1] . ' ';
+        if (strpos($cls, ' ' . $need . ' ') === false) return $tag; // عنصر تاني بنفس الـ role
+        if (strpos($cls, ' ' . $add . ' ') !== false) return $tag;   // مضاف قبل كده
+        return str_replace('class="' . $cm[1] . '"', 'class="' . trim($cm[1] . ' ' . $add) . '"', $tag);
+    }, $svg);
 }
 
 /**
@@ -141,15 +155,12 @@ function ai_team_svg(string $wsName, array $states): string
         }
     }
 
-    // ضبط كلاس active للوكيل + on للخط الموصّل حسب الحالة الحقيقية
+    // ضبط كلاس active للوكيل + on للخط الموصّل حسب الحالة الحقيقية (مستقل عن ترتيب الصفات)
     foreach (ai_team_keys() as $k) {
         $on = !empty($states[$k]['active']);
-        $svg = preg_replace_callback('/(id="agent-' . preg_quote($k, '/') . '"\s+class="agent)[^"]*(")/', function ($m) use ($on) {
-            return $m[1] . ($on ? ' active' : '') . $m[2];
-        }, $svg, 1);
-        $svg = preg_replace_callback('/(id="link-' . preg_quote($k, '/') . '"\s+class="link)[^"]*(")/', function ($m) use ($on) {
-            return $m[1] . ($on ? ' on' : '') . $m[2];
-        }, $svg, 1);
+        if (!$on) continue;
+        $svg = ai_team_set_class($svg, $k, 'agent', 'active');
+        $svg = ai_team_set_class($svg, $k, 'link', 'on');
     }
 
     // جعل الـ SVG متجاوب داخل الصفحة + خط عربي للعناوين
@@ -158,8 +169,8 @@ function ai_team_svg(string $wsName, array $states): string
     $css = '<style>'
         . '#workspace-agents svg text{direction:ltr;unicode-bidi:isolate;font-family:Alexandria,Inter,system-ui,sans-serif}'
         // الخطوط بين الموظفين والنواة: باهتة افتراضيًا، وتنوّر وتتدفّق وقت شغل الوكيل
-        . '#workspace-agents .link .signal{stroke-width:3;opacity:.14;filter:none;transition:opacity .3s,stroke-width .3s}'
-        . '#workspace-agents .link.on .signal{stroke-width:4.5;opacity:.98;filter:url(#glowFilter)}'
+        . '#workspace-agents .link .signal{opacity:.14;transition:opacity .3s,stroke-width .3s}'
+        . '#workspace-agents .link.on .signal{opacity:.92;stroke-width:3;filter:url(#miniGlow);animation:flowDash 2s linear infinite}'
         . '#workspace-agents .link .signal-dot{opacity:0}'
         . '#workspace-agents .link.on .signal-dot{opacity:1}'
         . '</style>';
