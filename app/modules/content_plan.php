@@ -48,6 +48,7 @@ function cpl_item_row(array $r): array
 {
     $r['topic'] = json_decode((string)$r['topic'], true) ?: [];
     $r['carousel'] = json_decode((string)($r['carousel'] ?? ''), true) ?: [];
+    $mids = array_values(array_filter(array_map('intval', (array)json_decode((string)($r['media_ids'] ?? ''), true)))); if (!$mids && !empty($r['media_id'])) $mids = [(int)$r['media_id']]; $r['media_ids'] = $mids;
     $r['id'] = (int)$r['id']; $r['plan_id'] = (int)$r['plan_id']; $r['seq'] = (int)$r['seq']; $r['media_id'] = $r['media_id'] !== null ? (int)$r['media_id'] : null;
     return $r;
 }
@@ -66,8 +67,9 @@ function cpl_create(array $in): int
         'tone' => mb_substr(trim((string)($in['tone'] ?? '')), 0, 200), 'cta' => mb_substr(trim((string)($in['cta'] ?? '')), 0, 300), 'avoid' => mb_substr(trim((string)($in['avoid'] ?? '')), 0, 600),
         'video' => !empty($in['video']), 'carousel' => !isset($in['carousel']) || !empty($in['carousel']), 'humanize' => !isset($in['humanize']) || !empty($in['humanize'])];
     $name = mb_substr(trim((string)($in['name'] ?? '')), 0, 150) ?: mb_substr(preg_replace('/\s+/u', ' ', $goal), 0, 60);
+    $hasLogo = function_exists('kb_logo') && kb_logo($wid);
     db()->prepare('INSERT INTO cp_plans (workspace_id, user_id, name, goal, cnt, opts, refs, stage, status) VALUES (?,?,?,?,?,?,?,?, "generating")')
-        ->execute([$wid, (int)(current_user()['id'] ?? 0), $name, $goal, $n, json_encode($opts, JSON_UNESCAPED_UNICODE), json_encode($refs), $refs ? 'visual' : 'outline']);
+        ->execute([$wid, (int)(current_user()['id'] ?? 0), $name, $goal, $n, json_encode($opts, JSON_UNESCAPED_UNICODE), json_encode($refs), ($refs || $hasLogo) ? 'visual' : 'outline']);
     return (int)db()->lastInsertId();
 }
 
@@ -141,6 +143,8 @@ function cpl_do_visual(array $p): void
         $f = media_file_path($wid, $m); if (!is_file($f) || filesize($f) > 4000000) $f = media_thumb_path($wid, $m); if (!is_file($f)) continue;
         $parts[] = ['type' => 'image_url', 'image_url' => ['url' => 'data:' . (mime_content_type($f) ?: 'image/jpeg') . ';base64,' . base64_encode((string)file_get_contents($f))]];
     }
+    $lg = function_exists('kb_logo') ? kb_logo($wid) : null; // اللوجو من ملف الشركة: عشان مكانه وألوانه تبقى حقيقية
+    if ($lg && is_file($lf = media_file_path($wid, $lg)) && filesize($lf) < 3000000) { $parts[] = ['type' => 'text', 'text' => 'The last image is the official company logo (not a reference design). Use it for logo colors and recommended logo placement.']; $parts[] = ['type' => 'image_url', 'image_url' => ['url' => 'data:' . (mime_content_type($lf) ?: 'image/png') . ';base64,' . base64_encode((string)file_get_contents($lf))]]; }
     $vis = '';
     if (count($parts) > 1) {
         $r = ai_chat([['role' => 'system', 'content' => "VISUAL_DNA. Act as a Commercial Art Director. Analyze the reference images to extract the visual identity: colors (hex values), typography (style, weight, case, Arabic/Latin pairing), lighting, composition, logo placement, and advertising style; also photography vs illustration vs 3D, textures, negative space, headline placement and mood. Write a reusable visual DNA in English, 150-250 words, as plain text grouped by those headings. Describe the style only; never copy brand names, text or specific people from the references."], ['role' => 'user', 'content' => $parts]], 900, 'analyze');
@@ -260,7 +264,7 @@ function cpl_save_item(int $id, array $f): void
     $it = cpl_item($id); if (!$it) throw new RuntimeException(t('العنصر غير موجود.'));
     $cols = ['linkedin' => 5000, 'x' => 600, 'headline' => 120, 'image_prompt' => 4000, 'video_prompt' => 4000]; $set = []; $a = [];
     foreach ($cols as $c => $max) if (array_key_exists($c, $f)) { $set[] = "$c = ?"; $a[] = mb_substr(trim((string)$f[$c]), 0, $max); }
-    if (array_key_exists('media_id', $f)) { $mid = (int)$f['media_id']; if ($mid && !media_get((int)ws('id'), $mid)) throw new RuntimeException(t('الملف مش موجود')); $set[] = 'media_id = ?'; $a[] = $mid ?: null; }
+    if (array_key_exists('media_ids', $f)) { $ms = array_slice(array_values(array_unique(array_filter(array_map('intval', (array)$f['media_ids'])))), 0, 10); foreach ($ms as $mid) if (!media_get((int)ws('id'), $mid)) throw new RuntimeException(t('الملف مش موجود')); $set[] = 'media_ids = ?'; $a[] = json_encode($ms); $set[] = 'media_id = ?'; $a[] = $ms[0] ?? null; }
     if (!$set) return; $a[] = $id; $a[] = (int)ws('id');
     db()->prepare('UPDATE cp_items SET ' . implode(', ', $set) . ' WHERE id = ? AND workspace_id = ?')->execute($a);
 }
@@ -275,7 +279,7 @@ function cpl_payload(Zernio $z, array $it, array $accounts, array $mode): array
         $platforms[] = $item;
     }
     $p = ['content' => (string)$it['linkedin'], 'platforms' => $platforms, 'timezone' => site_timezone()];
-    if ($it['media_id']) $p['mediaItems'] = [['type' => media_kind((string)(media_get((int)ws('id'), (int)$it['media_id'])['mime'] ?? '')) === 'video' ? 'video' : 'image', 'url' => media_public_url($z, (int)ws('id'), (int)$it['media_id'], 'content_bank', (string)$it['id'])]];
+    foreach ($it['media_ids'] as $mid) $p['mediaItems'][] = ['type' => media_kind((string)(media_get((int)ws('id'), $mid)['mime'] ?? '')) === 'video' ? 'video' : 'image', 'url' => media_public_url($z, (int)ws('id'), $mid, 'content_bank', (string)$it['id'])];
     if ($mode['type'] === 'now') $p['publishNow'] = true;
     elseif ($mode['type'] === 'queue') $p['queuedFromProfile'] = current_profile_id($z);
     else $p['scheduledFor'] = $mode['at'];
@@ -387,7 +391,7 @@ function cpl_xlsx_cols(): array
         's1' => 'Slide 1 Hook', 's2' => 'Slide 2 Problem', 's3' => 'Slide 3 Insight', 's4' => 'Slide 4 Solution', 's5' => 'Slide 5 CTA'];
 }
 
-function cpl_status_label(string $s): string { return ['pending' => t('قيد الكتابة'), 'draft' => t('مسودة'), 'approved' => t('معتمد'), 'rejected' => t('مرفوض'), 'scheduled' => t('مجدول'), 'queued' => t('في الطابور'), 'published' => t('منشور')][$s] ?? $s; }
+function cpl_status_label(string $s): string { return ['pending' => t('قيد الكتابة'), 'draft' => t('مسودة'), 'approved' => t('معتمد'), 'rejected' => t('مرفوض'), 'scheduled' => t('مجدول'), 'queued' => t('في الطابور'), 'published' => t('تم النشر')][$s] ?? $s; }
 
 /** ملف xlsx حقيقي بدون مكتبات: شيت للمنشورات (من اليمين لليسار، عناوين مثبتة، فلتر، التفاف نص) وشيت للهدف والأسلوب البصري */
 function cpl_export_xlsx(array $p, array $items): string

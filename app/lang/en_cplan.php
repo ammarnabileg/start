@@ -131,4 +131,13 @@ return [
     'فيه نص مؤقت (placeholder)' => 'Contains placeholder text',
     'الهدف التسويقي' => 'Marketing objective',
     'فحص الجودة' => 'Quality check',
+    '+ ملف' => '+ file',
+    'أرفق صورًا للمحدد بالترتيب' => 'Attach images to selected, in order',
+    'تم إرفاق %s ملف.' => 'Attached %s files.',
+    'للكاروسيل: أرفق الصور الخمس بالترتيب.' => 'For a carousel, attach the five images in order.',
+    'حتى 10 ملفات لكل منشور.' => 'Up to 10 files per post.',
+    'اختر صورًا كثيرة مرة واحدة: الأولى للمنشور الأول المحدد، والثانية للثاني، وهكذا.' => 'Pick many images at once: the first goes to the first selected post, the second to the second, and so on.',
+    'أضف صورًا أو PDF' => 'Add images or PDF',
+    'تصميمات مرجعية (اختياري، حتى 12 صورة أو صفحة PDF)' => 'Reference designs (optional, up to 12 images or PDF pages)',
+    'جارٍ تحويل صفحات PDF إلى صور…' => 'Converting PDF pages to images…',
 ];

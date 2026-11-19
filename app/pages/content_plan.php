@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         if ($a === 'create') { $id = cpl_create(json_decode((string)($_POST['data'] ?? '{}'), true) ?: []); $J(['ok' => true, 'id' => $id, 'url' => url('content_plan', ['plan' => $id])]); }
         $p = cpl_plan($pid); if (!$p) $J(['ok' => false, 'error' => t('الخطة غير موجودة.')], 404);
-        if ($a === 'step') { session_write_close(); $J(['ok' => true] + cpl_step($pid)); }
+        if ($a === 'step') { session_write_close(); ignore_user_abort(true); /* النت فصل وسط الخطوة: الدفعة تكمل وتتحفظ */ $J(['ok' => true] + cpl_step($pid)); }
         if ($a === 'status') { session_write_close(); $J(['ok' => true] + cpl_status($p)); }
         if ($a === 'resume') { db()->prepare('UPDATE cp_plans SET status = "generating", fails = 0, error = NULL WHERE id = ? AND status IN ("paused","generating")')->execute([$pid]); $J(['ok' => true]); }
         if ($a === 'import') { if (empty($_FILES['file']['tmp_name']) || !is_uploaded_file($_FILES['file']['tmp_name'])) $J(['ok' => false, 'error' => t('الرفع فشل، جرّب تاني.')]); [$u, $s] = cpl_import_xlsx($pid, $_FILES['file']['tmp_name']); $J(['ok' => true, 'updated' => $u, 'skipped' => $s]); }
@@ -66,9 +66,9 @@ render($plan ? (string)$plan['name'] : t('خطة محتوى بالذكاء ال�
         'approve' => t('اعتمده'), 'reject' => t('رفض'), 'undo' => t('إرجاع لمسودة'), 'approveSel' => t('اعتمد المحدد (%s)'), 'rejectSel' => t('ارفض المحدد'), 'all' => t('تحديد الكل'), 'regen' => t('أعد كتابته'),
         'copy' => t('نسخ'), 'copied' => t('تم النسخ'), 'edit' => t('تعديل'), 'save' => t('حفظ'), 'cancel' => t('إلغاء'), 'saved' => t('تم الحفظ'), 'err' => t('حصلت مشكلة. حاول مرة أخرى.'),
         'li' => 'LinkedIn', 'x' => 'X', 'img' => t('برومبت الصورة'), 'vid' => t('برومبت الفيديو'), 'car' => t('كاروسيل (5 شرائح)'), 'head' => t('عنوان الصورة'), 'words' => t('%s كلمة'), 'chars' => t('%s حرف'),
-        's_pending' => t('قيد الكتابة'), 's_draft' => t('مسودة'), 's_approved' => t('معتمد'), 's_rejected' => t('مرفوض'), 's_scheduled' => t('مجدول'), 's_queued' => t('في الطابور'), 's_published' => t('منشور'),
+        's_pending' => t('قيد الكتابة'), 's_draft' => t('مسودة'), 's_approved' => t('معتمد'), 's_rejected' => t('مرفوض'), 's_scheduled' => t('مجدول'), 's_queued' => t('في الطابور'), 's_published' => t('تم النشر'),
         'toBank' => t('افتح مخزون المحتوى'), 'nApproved' => t('%s معتمد في المخزون'), 'f_all' => t('الكل'), 'delPlan' => t('حذف الخطة؟ المنشورات المجدولة أو المنشورة تبقى في المخزون.'),
-        'uploading' => t('جارٍ رفع الصور…'), 'imported' => t('تم تحديث %s منشور من الملف (تخطّينا %s).'), 'needGoal' => t('اكتب هدف الحملة.'), 'draftRestored' => t('استرجعنا المسودة التي لم تُرسل.'), 'refMax' => t('حتى 12 صورة.'), 'uploaded' => t('تم رفع الصور.'), 'qc' => t('فحص الجودة:'), 'cats' => array_map('t', cpl_categories()),
+        'uploading' => t('جارٍ رفع الصور…'), 'imported' => t('تم تحديث %s منشور من الملف (تخطّينا %s).'), 'needGoal' => t('اكتب هدف الحملة.'), 'draftRestored' => t('استرجعنا المسودة التي لم تُرسل.'), 'refMax' => t('حتى 12 صورة.'), 'uploaded' => t('تم رفع الصور.'), 'pdfPages' => t('جارٍ تحويل صفحات PDF إلى صور…'), 'qc' => t('فحص الجودة:'), 'cats' => array_map('t', cpl_categories()),
     ];
     $cfg = ['url' => url('content_plan'), 'bank' => url('content_bank'), 'csrf' => csrf_token(), 'wid' => $wid, 't' => $T];
     if ($plan): $cfg['plan'] = cpl_status($plan) + ['name' => (string)$plan['name']]; ?>
@@ -112,10 +112,10 @@ render($plan ? (string)$plan['name'] : t('خطة محتوى بالذكاء ال�
       <?php if ($svc): ?><div><span class="label"><?= e(t('ركّز على خدمات (من ملف الشركة)')) ?></span><div class="flex flex-wrap gap-2 mt-1"><?php foreach (array_slice($svc, 0, 30) as $s): ?><label class="inline-flex items-center gap-1.5 rounded-full border border-ink-200 px-3 py-1 text-sm"><input type="checkbox" name="services" value="<?= e($s) ?>"><?= e($s) ?></label><?php endforeach; ?></div></div><?php endif; ?>
       <label class="block"><span class="label"><?= e(t('تجنّب (اختياري)')) ?></span><input name="avoid" class="input" dir="auto" placeholder="<?= e(t('كلمات أو وعود أو أساليب لا تريدها')) ?>"></label>
       <div>
-        <span class="label"><?= e(t('تصميمات مرجعية (اختياري، حتى 12 صورة)')) ?></span>
+        <span class="label"><?= e(t('تصميمات مرجعية (اختياري، حتى 12 صورة أو صفحة PDF)')) ?></span>
         <p class="text-xs text-ink-500 mb-2"><?= e(t('نحلل أسلوبها (الألوان، الخطوط، التكوين) ونطبقه في كل برومبت صورة، بدون نسخ محتواها.')) ?> <?= $hasLogo ? e(t('الشعار موجود في ملف الشركة وسيُذكر موضعه في البرومبتات.')) : '' ?></p>
         <div id="cp-refs" class="flex flex-wrap gap-2"></div>
-        <label class="btn-ghost !py-1.5 mt-2 cursor-pointer"><input id="cp-ref-in" type="file" accept="image/*" multiple class="hidden"><?= e(t('أضف صورًا')) ?></label>
+        <label class="btn-ghost !py-1.5 mt-2 cursor-pointer"><input id="cp-ref-in" type="file" accept="image/*,application/pdf,.pdf" multiple class="hidden"><?= e(t('أضف صورًا أو PDF')) ?></label>
       </div>
       <div class="flex flex-wrap gap-4 text-sm">
         <label class="flex items-center gap-1.5"><input type="checkbox" name="video" checked><?= e(t('برومبت فيديو لكل منشور')) ?></label>
@@ -137,6 +137,7 @@ render($plan ? (string)$plan['name'] : t('خطة محتوى بالذكاء ال�
     </div>
     <?php endif; endif; ?>
     <script>window.CP = <?= json_encode($cfg, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;</script>
+    <?php if (!$plan): ?><script src="assets/extract.js?v=<?= e(APP_VERSION) ?>"></script><?php endif; ?>
     <script src="assets/content-plan.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
 });
