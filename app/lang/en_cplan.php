@@ -316,4 +316,10 @@ return [
     'اسحب اللوجو لأي مكان، حتى خارج الإطار' => 'Drag the logo anywhere, even outside the frame',
     'اسحب اللوجو لأي مكان — حتى خارج حدود الصورة. الخط المتقطع = المنطقة الآمنة.' => 'Drag the logo anywhere — even beyond the image edges. Dashed line = safe area.',
     'تم' => 'Done',
+    'عربي + إنجليزي' => 'Arabic + English',
+    'إنجليزي + عربي' => 'English + Arabic',
+    'عربي (تصميم من اليمين لليسار)' => 'Arabic (right-to-left design)',
+    'إنجليزي (تصميم من اليسار لليمين)' => 'English (left-to-right design)',
+    'عربي + إنجليزي (الإنجليزي أصغر وأخفت)' => 'Arabic + English (English smaller and muted)',
+    'إنجليزي + عربي (العربي أصغر وأخفت)' => 'English + Arabic (Arabic smaller and muted)',
 ];

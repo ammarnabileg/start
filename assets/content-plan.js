@@ -97,7 +97,11 @@
     function cnt() { $$('[data-cnt]', W).forEach(function (b) { b.classList.toggle('on', b.dataset.cnt === String(W.count.value)); }); }
     W.count.addEventListener('input', cnt); cnt();
     // اللغة: اختيار واحد بيظبط كل القنوات، و«تخصيص» للتفاصيل
-    if (W.lang_all) W.lang_all.addEventListener('change', function () { ['lang_li', 'lang_x', 'lang_img', 'lang_vo'].forEach(function (n) { if (W[n]) { var o = [].slice.call(W[n].options).find(function (op) { return op.value === W.lang_all.value; }); if (o) W[n].value = W.lang_all.value; } }); saveDraft(); });
+    if (W.lang_all) W.lang_all.addEventListener('change', function () {
+      var v = W.lang_all.value, copy = (v === 'ar_en' || v === 'en_ar') ? 'both' : v; // القنوات النصية: ثنائي = both
+      ['lang_li', 'lang_x', 'lang_vo'].forEach(function (n) { if (W[n] && [].slice.call(W[n].options).some(function (o) { return o.value === copy; })) W[n].value = copy; });
+      if (W.lang_img && [].slice.call(W.lang_img.options).some(function (o) { return o.value === v; })) W.lang_img.value = v; // الصور: نفس الترتيب بالظبط
+      saveDraft(); });
     function summary() { var d = collect(), S = T.sum, L = T.langN, v = function (x) { return x && String(x).trim() ? x : S.none; };
       var langs = [d.lang_li, d.lang_x, d.lang_img, d.lang_vo]; var lg = langs.every(function (x) { return x === langs[0]; }) ? L[langs[0]] : [S.li + ': ' + L[d.lang_li], S.x + ': ' + L[d.lang_x], S.img + ': ' + L[d.lang_img], S.vo + ': ' + L[d.lang_vo]].join(' · ');
       var dsel = W.dialect_k, dn = d.dialect_k === 'other' ? d.dialect_other : (d.dialect_k && dsel ? dsel.options[dsel.selectedIndex].text : '');
