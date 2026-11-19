@@ -3,7 +3,7 @@
    كل خطوة بتتحفظ في القاعدة، فلو النت فصل أو الجهاز قفل الشغل بيكمل من نفس النقطة (من الصفحة أو من الكرون).
    مابيولّدش صور ولا فيديو: بيجهز النصوص والبرومبتات بس. */
 
-const CPL_BATCH = 2;   // منشورين كاملين في كل نداء (6 أقسام طويلة لكل واحد)
+const CPL_BATCH = 1;   // منشور واحد كامل في كل نداء: البرومبت الكامل بيطلع ~3000 كلمة للمنشور، واتنين كانوا بيعدّوا مهلة الموديل
 const CPL_MAX = 60;
 
 function cpl_plan(int $id): ?array
@@ -120,7 +120,7 @@ function cpl_step(int $id): array
         try { db()->prepare('UPDATE cp_plans SET error = ?, fails = fails + 1, status = IF(fails + 1 >= 3, "paused", status) WHERE id = ?')->execute([t('انتهت مهلة السيرفر أثناء هذه الخطوة. سنعيد المحاولة تلقائيًا.') . ($e ? ' (' . mb_substr((string)$e['message'], 0, 120) . ')' : ''), $id]); db()->query('SELECT RELEASE_LOCK(' . db()->quote($lk) . ')'); } catch (Throwable $x) {} });
     $t0 = microtime(true);
     try {
-        @set_time_limit(300);
+        @set_time_limit(330); $GLOBALS['ai_timeout'] = 240; // نداء واحد ممكن ياخد دقيقتين مع موديل بطيء
         if ($p['stage'] === 'visual') cpl_do_visual($p);
         elseif ($p['stage'] === 'outline') cpl_do_outline($p);
         else cpl_do_posts($p);

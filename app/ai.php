@@ -13,6 +13,7 @@ const AI_BASE = 'https://openrouter.ai/api/v1';
 
 function ai_http(string $method, string $path, ?string $key, $body = null, int $timeout = 60): array
 {
+    if (!empty($GLOBALS['ai_timeout'])) $timeout = max($timeout, (int)$GLOBALS['ai_timeout']); // مهام طويلة (خطة المحتوى) بتطلب مهلة أطول
     $ch = curl_init(AI_BASE . $path);
     $headers = ['Accept: application/json', 'HTTP-Referer: ' . (function_exists('base_url') ? base_url() : 'https://localhost'), 'X-Title: ' . (string)setting('site_name', 'Panel')];
     if ($key) $headers[] = 'Authorization: Bearer ' . $key;
@@ -346,6 +347,7 @@ function ai_base(string $p): string
 /** طلب HTTP لأي مزود */
 function ai_req(string $p, string $method, string $path, string $key, $body = null, int $timeout = 90): array
 {
+    if (!empty($GLOBALS['ai_timeout'])) $timeout = max($timeout, (int)$GLOBALS['ai_timeout']);
     $headers = ['Accept: application/json'];
     $url = ai_base($p) . $path;
     if ($p === 'anthropic') { $headers[] = 'x-api-key: ' . $key; $headers[] = 'anthropic-version: 2023-06-01'; }
