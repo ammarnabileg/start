@@ -53,6 +53,7 @@ function nav_items(): array
         // استوديو المحتوى: 3 بنود رئيسية مباشرة (من غير قائمة منسدلة)
         ['key' => 'studio', 'module' => 'studio', 'label' => t('الكتابة بالذكاء الاصطناعي'), 'section' => $sC],
         ['key' => 'studio_media', 'module' => 'studio', 'label' => t('الصور والفيديو'), 'section' => $sC],
+        ['key' => 'content_bank', 'module' => 'studio', 'label' => t('مخزون المحتوى'), 'section' => $sC],
         ['key' => 'designer', 'module' => 'studio', 'label' => t('المصمم'), 'section' => $sC],
         ['key' => 'compose', 'module' => 'publishing', 'label' => t('منشور جديد'), 'section' => $s3],
         ['key' => 'posts', 'module' => 'publishing', 'label' => t('المنشورات'), 'section' => $s3,
@@ -126,7 +127,7 @@ function module_pages(): array
         'phone' => ['phone_numbers', 'sms', 'calls', 'phone_kyc', 'sms_mine'],
         'tenders' => ['tenders', 'tender_awards'],
         'competitors' => ['competitors'],
-        'studio' => ['studio', 'studio_media', 'designer'],
+        'studio' => ['studio', 'studio_media', 'designer', 'content_bank', 'content_plan'],
         'publishing' => ['compose', 'posts', 'calendar', 'approvals', 'post_log', 'post_edit', 'queue', 'bulk'],
         'inbox' => ['inbox', 'comments'],
         'knowledge' => ['knowledge'],

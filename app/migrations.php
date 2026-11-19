@@ -528,6 +528,47 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    '071_content_plans' => [
+        "CREATE TABLE IF NOT EXISTS cp_plans (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            user_id INT UNSIGNED NULL,
+            name VARCHAR(160) NOT NULL,
+            goal TEXT NOT NULL,
+            cnt SMALLINT UNSIGNED NOT NULL DEFAULT 10,
+            opts TEXT NULL,
+            refs TEXT NULL,
+            visual TEXT NULL,
+            stage VARCHAR(12) NOT NULL DEFAULT 'outline',
+            status VARCHAR(12) NOT NULL DEFAULT 'generating',
+            error VARCHAR(500) NULL,
+            fails TINYINT UNSIGNED NOT NULL DEFAULT 0,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX ws_st (workspace_id, status)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        "CREATE TABLE IF NOT EXISTS cp_items (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            plan_id INT UNSIGNED NOT NULL,
+            workspace_id INT UNSIGNED NOT NULL,
+            seq SMALLINT UNSIGNED NOT NULL,
+            topic TEXT NULL,
+            linkedin TEXT NULL,
+            x VARCHAR(600) NULL,
+            headline VARCHAR(120) NULL,
+            image_prompt TEXT NULL,
+            video_prompt TEXT NULL,
+            carousel TEXT NULL,
+            status VARCHAR(12) NOT NULL DEFAULT 'pending',
+            media_id INT UNSIGNED NULL,
+            post_id VARCHAR(64) NULL,
+            scheduled_at DATETIME NULL,
+            pub_error VARCHAR(300) NULL,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX plan_seq (plan_id, seq),
+            INDEX ws_st (workspace_id, status)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+    ],
     '070_tender_awards' => [
         "CREATE TABLE IF NOT EXISTS tender_awards (
             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

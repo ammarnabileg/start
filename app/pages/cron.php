@@ -139,6 +139,7 @@ try {
         // قراءة موقع الشركة في الخلفية (لو المستخدم قفل الصفحة)
         try {
             $n = (int)ai_as_workspace($wid, function () use ($wid) { return function_exists('kbc_tick') ? kbc_tick($wid) : 0; });
+            try { ai_as_workspace($wid, function () use ($wid) { return function_exists('cpl_tick') ? cpl_tick($wid) : 0; }); } catch (Throwable $e) {}
             if ($n) $line .= ' crawl+' . $n;
         } catch (Throwable $t) {
             $line .= ' crawl=error';

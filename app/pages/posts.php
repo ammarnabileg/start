@@ -505,6 +505,8 @@ render(t('المنشورات'), 'posts', function () use ($z, $posts, $pages, $p
       <button type="button" popovertarget="ps-more" class="tb h-10 px-3 gap-1.5 text-xs" title="<?= e(t('أدوات أكتر')) ?>"><?= ui_icon('dots', 'w-4 h-4') ?><span class="hidden sm:inline"><?= e(t('أدوات')) ?></span></button>
       <div id="ps-more" popover class="m-0 w-64 rounded-2xl border border-ink-200 bg-white p-1.5 shadow-2xl text-sm">
         <a href="<?= e(url('bulk')) ?>" data-modal="<?= e(url('bulk')) ?>" data-modal-reload class="flex items-center gap-2.5 rounded-xl px-3 py-2 hover:bg-ink-50"><?= ui_icon('upload', 'w-4 h-4 text-ink-500') ?><span><?= e(t('رفع منشورات من ملف CSV')) ?></span></a>
+        <a href="<?= e(url('content_plan')) ?>" class="flex items-center gap-2.5 rounded-xl px-3 py-2 hover:bg-ink-50"><?= ui_icon('new', 'w-4 h-4 text-ink-500') ?><span><?= e(t('خطة محتوى بالذكاء الاصطناعي')) ?></span></a>
+        <a href="<?= e(url('content_bank')) ?>" class="flex items-center gap-2.5 rounded-xl px-3 py-2 hover:bg-ink-50"><?= ui_icon('layers', 'w-4 h-4 text-ink-500') ?><span><?= e(t('مخزون المحتوى')) ?></span></a>
         <a href="<?= e(url('queue')) ?>" data-modal="<?= e(url('queue')) ?>" class="flex items-center gap-2.5 rounded-xl px-3 py-2 hover:bg-ink-50"><?= ui_icon('clock', 'w-4 h-4 text-ink-500') ?><span><?= e(t('مواعيد الطابور')) ?></span></a>
         <?php if ($view === 'list'): ?><button type="button" id="ps-csv" class="w-full flex items-center gap-2.5 rounded-xl px-3 py-2 hover:bg-ink-50 text-start"><?= ui_icon('download', 'w-4 h-4 text-ink-500') ?><span><?= e(t('نزّل المنشورات اللي ظاهرة CSV')) ?></span></button><?php endif; ?>
         <div class="my-1 border-t border-ink-100"></div>
