@@ -52,12 +52,16 @@
       + '<label class="block"><span class="label">' + esc(P2.markets) + '</span><input class="input mk" placeholder="' + esc(P2.marketsPh) + '"></label></div>'
       + '<div class="grid gap-3 sm:grid-cols-2"><div><span class="label">' + esc(P2.nSets) + '</span><div class="abx-seg ns">' + ['3', '4', '5'].map(function (n) { return '<button type="button" data-v="' + n + '" class="' + (n === '4' ? 'on' : '') + '">' + n + '</button>'; }).join('') + '</div></div>'
       + '<div><span class="label">' + esc(P2.nAds) + ' <b class="na-v">' + Math.min(4, maxAds) + '</b></span><input type="range" class="na w-full accent-brand-600" min="' + Math.min(3, maxAds) + '" max="' + maxAds + '" value="' + Math.min(4, maxAds) + '"' + (maxAds === 1 ? ' disabled' : '') + '></div></div>'
+      + '<div class="grid gap-3 sm:grid-cols-2"><label class="block"><span class="label">' + esc(P2.lang) + '</span><select class="input lang">' + Object.keys(P2.langs).map(function (k) { return '<option value="' + k + '">' + esc(P2.langs[k]) + '</option>'; }).join('') + '</select></label>'
+      + '<label class="block di-wrap"><span class="label">' + esc(P2.dialect) + '</span><select class="input di">' + Object.keys(P2.dialects).map(function (k) { return '<option value="' + k + '">' + esc(P2.dialects[k]) + '</option>'; }).join('') + '</select><input class="input dio mt-2 hidden" placeholder="' + esc(P2.dialectOtherPh) + '"></label></div>'
       + '<p class="text-[11px] text-ink-500">' + esc(P2.note) + '</p><div class="flex justify-end"><button type="button" class="btn-primary go">' + uic('spark', 'w-4 h-4 inline-block align-[-3px]') + esc(I.buildGo) + '</button></div></div><div class="out"></div>', true);
     $('.ns', d).onclick = function (e) { var b2 = e.target.closest('[data-v]'); if (!b2) return; $$('.ns button', d).forEach(function (x) { x.classList.toggle('on', x === b2); }); };
     $('.na', d).oninput = function () { $('.na-v', d).textContent = this.value; };
+    function diSync() { var en = $('.lang', d).value === 'en'; $('.di-wrap', d).classList.toggle('hidden', en); $('.dio', d).classList.toggle('hidden', en || $('.di', d).value !== 'other'); }
+    $('.lang', d).onchange = diSync; $('.di', d).onchange = diSync; diSync();
     $('.go', d).onclick = function () {
       var brief = $('.br', d).value.trim(); if (brief.length < 5) { $('.br', d).focus(); return; }
-      var inp = { brief: brief, product: $('.pr', d).value, budget: $('.bu', d).value, markets: $('.mk', d).value, nSets: +$('.ns .on', d).dataset.v, nAds: +$('.na', d).value };
+      var inp = { brief: brief, product: $('.pr', d).value, budget: $('.bu', d).value, markets: $('.mk', d).value, nSets: +$('.ns .on', d).dataset.v, nAds: +$('.na', d).value, lang: $('.lang', d).value, dialect: $('.di', d).value, dialectOther: $('.dio', d).value };
       $('.ai-in', d).classList.add('hidden'); runBuild(d, inp);
     };
   }
@@ -75,13 +79,13 @@
       (function next(i) {
         if (i >= sets.length) { stage(d, total, total, P2.ready); finish(d, plan, sets, inp); return; }
         stage(d, i + 1, total, fmt(P2.writing, i + 1, sets.length)); var box = $('[data-set="' + i + '"] .ai-ads', d); box.innerHTML = '<div class="ai-sk"></div><div class="ai-sk"></div>';
-        ai('ai_ads', { brief: inp.brief, product: inp.product, strategy: strategy, setPlan: JSON.stringify(sets[i]), nAds: inp.nAds }).then(function (k) {
+        ai('ai_ads', { brief: inp.brief, product: inp.product, strategy: strategy, setPlan: JSON.stringify(sets[i]), nAds: inp.nAds, lang: inp.lang, dialect: inp.dialect, dialectOther: inp.dialectOther }).then(function (k) {
           if (!k.ok || !(k.r && (k.r.ads || []).length)) { box.innerHTML = '<p class="text-xs text-red-700">' + esc((k && k.error) || P2.empty) + ' <button type="button" class="underline" data-retry="' + i + '">' + esc(I.again) + '</button></p>'; sets[i]._ads = []; }
           else { sets[i]._ads = k.r.ads.slice(0, inp.nAds || 7); box.innerHTML = adsHtml(sets[i]._ads); }
           next(i + 1); });
       })(0);
       out.onclick = function (e) { var r = e.target.closest('[data-retry]'); if (!r) return; var i = +r.dataset.retry, box = r.closest('.ai-ads'); box.innerHTML = '<div class="ai-sk"></div>';
-        ai('ai_ads', { brief: inp.brief, product: inp.product, strategy: strategy, setPlan: JSON.stringify(sets[i]), nAds: inp.nAds }).then(function (k) { if (k.ok && k.r && (k.r.ads || []).length) { sets[i]._ads = k.r.ads.slice(0, inp.nAds || 7); box.innerHTML = adsHtml(sets[i]._ads); } else box.innerHTML = '<p class="text-xs text-red-700">' + esc((k && k.error) || P2.empty) + '</p>'; }); };
+        ai('ai_ads', { brief: inp.brief, product: inp.product, strategy: strategy, setPlan: JSON.stringify(sets[i]), nAds: inp.nAds, lang: inp.lang, dialect: inp.dialect, dialectOther: inp.dialectOther }).then(function (k) { if (k.ok && k.r && (k.r.ads || []).length) { sets[i]._ads = k.r.ads.slice(0, inp.nAds || 7); box.innerHTML = adsHtml(sets[i]._ads); } else box.innerHTML = '<p class="text-xs text-red-700">' + esc((k && k.error) || P2.empty) + '</p>'; }); };
     });
   }
   function planHtml(plan, sets, inp) { var c = plan.campaign || {}, goal = C.goals.indexOf(c.goal) >= 0 ? c.goal : D.campaign.goal, daily = +c.dailyBudget || +inp.budget || 0, share = sets.reduce(function (n, s) { return n + (+s.budgetShare || 0); }, 0) || 100;
