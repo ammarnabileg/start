@@ -35,12 +35,58 @@ function ai_team_action_map(): array
     ];
 }
 
+/** خريطة صفحات المنصة → الوكيل المسؤول (دخول الصفحة بيشعّل الوكيل). */
+function ai_team_page_map(): array
+{
+    return [
+        'content_plan' => 'content', 'content_bank' => 'content', 'compose' => 'content', 'designer' => 'content',
+        'posts' => 'scheduling', 'calendar' => 'scheduling', 'queue' => 'scheduling', 'post_log' => 'scheduling', 'approvals' => 'scheduling',
+        'ad_builder' => 'campaigns', 'ads' => 'campaigns', 'ad_campaign' => 'campaigns', 'audiences' => 'campaigns',
+        'analytics' => 'analytics', 'inbox_analytics' => 'analytics', 'reports' => 'analytics', 'report_print' => 'analytics', 'goals' => 'analytics', 'alerts' => 'analytics', 'competitors_reports' => 'analytics',
+        'inbox' => 'messages', 'messages' => 'messages', 'comments' => 'messages', 'broadcasts' => 'messages', 'sequences' => 'messages', 'wa_templates' => 'messages',
+        'workflows' => 'automation', 'automation' => 'automation', 'auto_replies' => 'automation',
+        'competitors' => 'competitors', 'competitor' => 'competitors',
+        'crm' => 'crm', 'crm_leads' => 'crm', 'prospects' => 'crm', 'crm_find' => 'crm', 'contacts' => 'crm', 'crm_reports' => 'crm', 'tenders' => 'crm',
+    ];
+}
+
+/** مسار ملف «آخر زيارة» لكل وكيل في شركة. */
+function ai_team_seen_file(int $wid): string
+{
+    $dir = ROOT_DIR . '/uploads/cache'; @mkdir($dir, 0750, true);
+    return $dir . '/aiteam_seen_' . $wid . '.json';
+}
+
+/** تسجيل دخول صفحة: بيحدّث وقت آخر زيارة للوكيل المسؤول (مع debounce بسيط). */
+function ai_team_touch(int $wid, string $page): void
+{
+    $k = ai_team_page_map()[$page] ?? null;
+    if ($k === null) return;
+    $f = ai_team_seen_file($wid);
+    $seen = is_file($f) ? (json_decode((string)@file_get_contents($f), true) ?: []) : [];
+    $now = time();
+    if (isset($seen[$k]) && $now - (int)$seen[$k] < 15) return; // ما نكتبش كل ثانية
+    $seen[$k] = $now;
+    @file_put_contents($f, json_encode($seen), LOCK_EX);
+}
+
 /** حالة كل وكيل: active + منذ كام ثانية آخر نشاط. */
 function ai_team_states(int $wid): array
 {
     $map = ai_team_action_map();
     $states = [];
     foreach (ai_team_agents() as $k => $_) $states[$k] = ['active' => false, 'ago' => null];
+    // 1) دخول صفحات الفانكشن = إشارة لحظية (آخر 5 دقايق)
+    $f = ai_team_seen_file($wid);
+    if (is_file($f)) {
+        $seen = json_decode((string)@file_get_contents($f), true) ?: [];
+        $now = time();
+        foreach ($seen as $sk => $ts) {
+            if (!isset($states[$sk])) continue;
+            $ago = $now - (int)$ts;
+            if ($ago <= 300) { $states[$sk]['active'] = true; $states[$sk]['ago'] = $states[$sk]['ago'] === null ? $ago : min($states[$sk]['ago'], $ago); }
+        }
+    }
     try {
         $st = db()->prepare("SELECT action, TIMESTAMPDIFF(SECOND, MAX(created_at), NOW()) AS ago FROM activity_log WHERE workspace_id = ? AND created_at > NOW() - INTERVAL 24 HOUR GROUP BY action");
         $st->execute([$wid]);
