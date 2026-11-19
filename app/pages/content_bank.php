@@ -35,7 +35,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $J(['ok' => false, 'error' => t('طلب غير صحيح.')], 400);
 }
 
-$items = cpl_items(0, ['approved', 'scheduled', 'queued', 'published']);
+// المخزون = المنشورات الجاهزة بس. أول ما يتجدول أو يتحط في الطابور أو يتنشر، يسيب المخزون ويتعامل معاملة المنشور العادي (في صفحة المنشورات/التقويم).
+$items = cpl_items(0, ['approved']);
 $plans = []; foreach (cpl_plans() as $p) $plans[(int)$p['id']] = (string)$p['name'];
 $accounts = [];
 if ($z) { try { foreach (acc_filter($z->accounts(zernio_profile())) as $a) $accounts[] = ['id' => (string)$a['_id'], 'platform' => (string)$a['platform'], 'name' => (string)($a['displayName'] ?? $a['username'] ?? $a['platform'])]; } catch (Throwable $e) { $zerr = $e->getMessage(); } }
@@ -49,15 +50,14 @@ render(t('مخزون المحتوى'), 'content_bank', function () use ($items, 
         's_approved' => t('جاهز'), 's_scheduled' => t('مجدول %s'), 's_queued' => t('في الطابور'), 's_published' => t('تم النشر'),
         'accounts' => t('الحسابات'), 'noAcc' => t('اختر حسابًا واحدًا على الأقل.'), 'askNow' => t('نشر %s منشور الآن على %s حساب؟'), 'done' => t('تم: %s، فشل: %s'), 'err' => t('حصلت مشكلة. حاول مرة أخرى.'),
         'mOne' => t('موعد واحد لكل المحدد'), 'mSpread' => t('وزّع على مواعيد'), 'start' => t('البداية'), 'every' => t('كل'), 'hours' => t('ساعة'), 'days' => t('يوم'), 'window' => t('بين الساعة'), 'and' => t('و'), 'preview' => t('المواعيد المقترحة'), 'confirm' => t('جدول %s منشور'),
-        'noImg' => t('بدون صورة: سيُنشر نصًا فقط. انسخ برومبت الصورة وولّدها ثم أرفقها.'), 'xNote' => t('حسابات X تأخذ نص X، وباقي المنصات نص لينكدإن.'), 'offline' => t('انقطع الاتصال. لم يتغير شيء؛ حاول مرة أخرى.'), 'empty' => t('لا شيء في هذا العرض.'),
+        'noImg' => t('بدون صورة: سيُنشر نصًا فقط. انسخ برومبت الصورة وولّدها ثم أرفقها.'), 'xNote' => t('المنصات ذات الحد القصير (X وما شابهها) تأخذ النص القصير، وباقي المنصات تأخذ النص الطويل (لينكدإن).'), 'offline' => t('انقطع الاتصال. لم يتغير شيء؛ حاول مرة أخرى.'), 'empty' => t('لا شيء في هذا العرض.'),
     ];
     ?>
-    <p class="text-sm text-ink-500 mb-4"><?= e(t('المنشورات التي اعتمدتها من خطط المحتوى. ولّد الصورة من البرومبت بأي أداة ثم أرفقها، واختر: نشر الآن، أو طابور، أو جدولة فردية أو موزعة.')) ?> <a class="link" href="<?= e(url('content_plan')) ?>"><?= e(t('خطة محتوى جديدة')) ?></a></p>
+    <p class="text-sm text-ink-500 mb-4"><?= e(t('المنشورات التي اعتمدتها من خطط المحتوى. ولّد الصورة من البرومبت بأي أداة ثم أرفقها، واختر: نشر الآن، أو طابور، أو جدولة فردية أو موزعة.')) ?> <a class="link" href="<?= e(url('content_plan')) ?>"><?= e(t('محتوى جديد')) ?></a></p>
     <?php if ($zerr): ?><div class="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 mb-4"><?= e($zerr) ?></div><?php endif; ?>
-    <?php if (!$items): ?><div class="card p-10 text-center text-sm text-ink-500"><?= e(t('المخزون فارغ. اكتب خطة محتوى واعتمد منها منشورات.')) ?><div class="mt-3"><a class="btn-primary" href="<?= e(url('content_plan')) ?>"><?= e(t('خطة محتوى بالذكاء الاصطناعي')) ?></a></div></div>
+    <?php if (!$items): ?><div class="card p-10 text-center text-sm text-ink-500"><?= e(t('المخزون فارغ. اكتب خطة محتوى واعتمد منها منشورات.')) ?><div class="mt-3"><a class="btn-primary" href="<?= e(url('content_plan')) ?>"><?= e(t('إنشاء المحتوى')) ?></a></div></div>
     <?php else: ?>
     <div class="flex flex-wrap gap-2 mb-3 text-sm">
-      <select id="cb-st" class="input !mt-0 !py-1.5 !w-auto"><option value="open"><?= e(t('غير منشور')) ?></option><option value="approved"><?= e(t('جاهز')) ?></option><option value="scheduled"><?= e(t('مجدول')) ?></option><option value="queued"><?= e(t('في الطابور')) ?></option><option value="published"><?= e(t('منشور')) ?></option><option value=""><?= e(t('الكل')) ?></option></select>
       <?php if (count($plans) > 1): ?><select id="cb-plan" class="input !mt-0 !py-1.5 !w-auto"><option value=""><?= e(t('كل الخطط')) ?></option><?php foreach ($plans as $id => $n): ?><option value="<?= $id ?>"><?= e($n) ?></option><?php endforeach; ?></select><?php endif; ?>
       <input id="cb-q" type="search" class="input !mt-0 !py-1.5 flex-1 min-w-[10rem]" placeholder="<?= e(t('ابحث في النصوص…')) ?>">
       <label class="flex items-center gap-1.5 px-2"><input type="checkbox" id="cb-noimg"><?= e(t('بدون صورة فقط')) ?></label>

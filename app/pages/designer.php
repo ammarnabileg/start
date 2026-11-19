@@ -269,7 +269,6 @@ render(t('المصمم'), 'designer', function () use ($brand, $co, $img, $kbd, 
           <section data-pane="img" hidden><h3><?= e(t('صور')) ?></h3>
             <button type="button" class="btn-primary w-full" data-cmd="lib"><?= ui_icon('folder', 'w-4 h-4') ?><?= e(t('من مكتبة الوسائط')) ?></button>
             <label class="btn-ghost w-full mt-2 cursor-pointer"><?= ui_icon('upload', 'w-4 h-4') ?><?= e(t('ارفع من جهازك')) ?><input type="file" id="dz-up" accept="image/*" class="hidden"></label>
-            <a class="btn-ghost w-full mt-2" href="<?= e(url('studio_media')) ?>"><?= ui_icon('spark', 'w-4 h-4') ?><?= e(t('ولّد صورة بالذكاء الاصطناعي')) ?></a>
             <p class="text-[11px] text-ink-400 mt-3"><?= e(t('اسحب أي صورة من جهازك على اللوحة مباشرة.')) ?></p>
             <h3 class="!mt-5 flex items-center gap-1"><?= e(t('صور مجانية')) ?> <span class="text-[10px] font-normal text-ink-400">Pexels</span></h3>
             <div id="dz-stock-box"><form id="dz-stock-f" class="flex gap-1.5" data-no-ajax><input id="dz-stock-q" class="input !mt-0 !py-1.5 text-sm flex-1" dir="auto" placeholder="<?= e(t('ابحث بالإنجليزي أفضل: food, coffee…')) ?>"><button class="btn-primary !py-1.5 !px-2.5"><?= ui_icon('search', 'w-4 h-4') ?></button></form>

@@ -212,7 +212,7 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
     ?>
     <?php // هيدر الصفحة: العنوان نفسه زرار بيفتح popover فيه الصفحات الشقيقة والمرتبطة (بدل صف التابات)
       $sibs = (!empty($navActive['tabs']) && count($navActive['tabs']) > 1) ? $navActive['tabs'] : [];
-      if (in_array($active, ['studio_media', 'content_bank', 'content_plan'], true)) $sibs = []; // المستخدم طلب من غير دروب داون هنا؛ الصفحات دي ليها صف تابات ظاهر
+      if (in_array($active, ['content_bank', 'content_plan'], true)) $sibs = []; // المستخدم طلب من غير دروب داون هنا؛ الصفحات دي ليها صف تابات ظاهر
       $sibOn = function ($tk) use ($active, $navActive) { return $tk === $active || ($tk === ($navActive['key'] ?? '') && in_array($active, $navActive['also'] ?? [], true)); };
       $keys = array_keys($sibs); $cur = null; foreach ($keys as $ix => $tk) if ($sibOn($tk)) $cur = $ix;
       $hasPop = $sibs || $rel;
@@ -294,7 +294,7 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
   <span class="text-xs font-medium tracking-wide text-ink-500 group-hover:text-brand-700 transition" style="writing-mode:vertical-rl"><?= e(t('اسأل الذكاء الاصطناعي')) ?></span>
   <kbd class="mt-auto rounded-md border border-ink-200 bg-ink-50 px-1 py-0.5 text-[9px] font-mono text-ink-400 opacity-0 group-hover:opacity-100 transition" dir="ltr">Ctrl J</kbd>
 </button>
-<button type="button" data-cp-toggle class="<?= in_array($active ?? '', ['compose', 'post_edit', 'designer', 'studio', 'studio_media'], true) ? '!bottom-24 ' : '' ?>lg:hidden fixed bottom-5 end-5 z-40 w-14 h-14 rounded-full text-[#fff] shadow-xl shadow-brand-600/30 bg-gradient-to-br from-brand-600 via-cyan-500 to-lime-400 flex items-center justify-center" aria-label="<?= e(t('اسأل الذكاء الاصطناعي')) ?>">
+<button type="button" data-cp-toggle class="<?= in_array($active ?? '', ['compose', 'post_edit', 'designer'], true) ? '!bottom-24 ' : '' ?>lg:hidden fixed bottom-5 end-5 z-40 w-14 h-14 rounded-full text-[#fff] shadow-xl shadow-brand-600/30 bg-gradient-to-br from-brand-600 via-cyan-500 to-lime-400 flex items-center justify-center" aria-label="<?= e(t('اسأل الذكاء الاصطناعي')) ?>">
   <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>
 </button>
 <aside id="cp" inert aria-hidden="true" role="dialog" aria-label="AI" class="group/cp fixed z-40 top-16 bottom-0 end-0 w-full sm:w-[26rem] bg-white border-s border-ink-200 shadow-2xl lg:shadow-none flex flex-col translate-x-full rtl:-translate-x-full opacity-0 pointer-events-none transition-all duration-300 ease-out">

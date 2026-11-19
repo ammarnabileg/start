@@ -381,6 +381,10 @@
         var g = new FormData(); g.append('action', 'kb_file_get'); g.append('id', row.dataset.id);
         post(g).then(function (d) {
           if (d.error) return;
+          if (row.dataset.auto) { // ملخص الشركة: عرض للقراءة فقط
+            pv.innerHTML = '<pre class="text-xs whitespace-pre-wrap max-h-80 overflow-auto text-ink-700" dir="auto"></pre>';
+            pv.querySelector('pre').textContent = d.content; return;
+          }
           pv.innerHTML = '<p class="text-xs text-ink-500 mb-2"></p><textarea class="input !mt-0 text-xs font-mono w-full" rows="16" dir="auto"></textarea><div class="flex items-center gap-3 mt-2"><button type="button" class="kb-save-txt btn-primary !py-1.5 !text-xs"></button><span class="kb-cnt text-xs text-ink-500"></span></div>';
           pv.querySelector('p').textContent = K.editHint; var ta = pv.querySelector('textarea'), cnt = pv.querySelector('.kb-cnt'), btn = pv.querySelector('button');
           ta.value = d.content; btn.textContent = K.saveText;

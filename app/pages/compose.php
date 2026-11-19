@@ -35,6 +35,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'from_
     }
     $J(['ok' => true, 'text' => $text, 'image' => $img, 'lib' => $lib]);
 }
+// اسحب منشورًا من مخزون المحتوى (المنشورات الجاهزة) داخل المحرّر
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'bank_list') {
+    header('Content-Type: application/json; charset=utf-8');
+    $J = function ($a) { echo json_encode($a, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); exit; };
+    if (!function_exists('cpl_items')) $J(['ok' => true, 'items' => []]);
+    $wid = (int)ws('id'); $plans = []; foreach (cpl_plans() as $p) $plans[(int)$p['id']] = (string)$p['name'];
+    $out = [];
+    foreach (cpl_items(0, ['approved']) as $it) {
+        $media = array_map(function ($m) use ($wid) { return ['id' => $m, 'url' => url('media', ['file' => $m]), 'thumb' => url('media', ['file' => $m, 'thumb' => 1]), 'kind' => media_kind((string)(media_get($wid, $m)['mime'] ?? '')) === 'video' ? 'video' : 'image', 'name' => 'bank-' . $m]; }, $it['media_ids']);
+        $out[] = ['id' => (int)$it['id'], 'title' => (string)(($it['topic'] ?? [])['title'] ?? ''), 'plan' => $plans[(int)$it['plan_id']] ?? '', 'linkedin' => (string)$it['linkedin'], 'x' => (string)$it['x'], 'media' => $media];
+    }
+    $J(['ok' => true, 'items' => $out]);
+}
 // #7: اكتب عن الصورة (AI بالرؤية، بيصرف كريديت بس لما تدوس)
 // تصميم صورة من المنشور: (1) اقتراح وصف إنجليزي احترافي (2) التوليد وحفظه في المكتبة
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['poster_prompt', 'poster_gen'], true)) {
@@ -534,6 +547,7 @@ render($editId !== '' ? t('تعديل المنشور') : t('منشور جديد'
           </div><span id="cp-kind-note" class="text-[11px] text-amber-700"></span></div>
           <div class="cp-editor"><label class="block">
             <textarea data-ai="from_idea,img_prompt,improve,hashtags,cta,hook,shorten,tone_formal,tone_friendly,tone_excited,tone_funny,translate_en,translate_ar,variants,three,thread,review,score" name="content" id="content" rows="7" class="input" placeholder="<?= e(t('اكتب هنا...')) ?>"><?= e($old['content']) ?></textarea></label></div>
+          <div class="flex flex-wrap items-center gap-1.5 mb-1"><button type="button" id="cp-bank-btn" class="inline-flex items-center gap-1.5 rounded-xl border border-brand-200 bg-brand-50 text-brand-700 px-3 py-1.5 text-sm font-medium hover:shadow-sm"><?= ui_icon('folder', 'w-4 h-4') ?><?= e(t('اسحب من المخزون')) ?></button></div>
           <div class="flex flex-wrap items-center gap-1.5" id="cp-tools"><span class="cp-sec me-1"><?= e(t('أدوات')) ?></span>
           <?php if (module_enabled('crm') && can('crm.view')):
             $ctaW = crm_cta_words(); $tcfg = crm_track_cfg((int)ws('id')); $waN = preg_replace('/\D/', '', (string)$tcfg['wa']);
@@ -1030,6 +1044,65 @@ render($editId !== '' ? t('تعديل المنشور') : t('منشور جديد'
         </div>
       </div>
     </form>
+    <div id="cp-bank" class="hidden fixed inset-0 z-[80] bg-black/60 backdrop-blur-sm grid place-items-center p-4" dir="rtl">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden">
+        <div class="flex items-center gap-3 px-5 py-3 border-b border-ink-100">
+          <b class="text-ink-900"><?= e(t('اسحب منشورًا من المخزون')) ?></b>
+          <input id="cp-bank-q" type="search" class="input !mt-0 !py-1.5 flex-1 min-w-[8rem]" placeholder="<?= e(t('ابحث في المحتوى…')) ?>">
+          <button type="button" id="cp-bank-x" class="w-8 h-8 grid place-items-center rounded-full hover:bg-ink-100 text-ink-500" aria-label="<?= e(t('إغلاق')) ?>"><?= ui_icon('x', 'w-4 h-4') ?></button>
+        </div>
+        <div id="cp-bank-list" class="p-4 grid sm:grid-cols-2 gap-3 overflow-y-auto"></div>
+      </div>
+    </div>
+    <script>
+    (function () {
+      var modal = document.getElementById('cp-bank'), btn = document.getElementById('cp-bank-btn'), listEl = document.getElementById('cp-bank-list'), q = document.getElementById('cp-bank-q');
+      if (!btn || !modal) return;
+      var form = document.getElementById('content').form, items = [], loaded = false;
+      function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+      function toast(m, k) { if (window.fxToast) fxToast(m, k || 'success'); }
+      function csrf() { var i = form.querySelector('[name=_csrf]'); return i ? i.value : ''; }
+      function open() { modal.classList.remove('hidden'); document.body.style.overflow = 'hidden'; if (!loaded) load(); q.focus(); }
+      function close() { modal.classList.add('hidden'); document.body.style.overflow = ''; }
+      function load() {
+        listEl.innerHTML = '<p class="col-span-full text-center text-sm text-ink-400 py-8"><?= e(t('جارٍ التحميل…')) ?></p>';
+        var fd = new FormData(); fd.append('_csrf', csrf()); fd.append('action', 'bank_list');
+        fetch(location.href, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'Accept': 'application/json' } }).then(function (r) { return r.json(); })
+          .then(function (j) { loaded = true; items = (j && j.items) || []; paint(); })
+          .catch(function () { listEl.innerHTML = '<p class="col-span-full text-center text-sm text-red-600 py-8"><?= e(t('حصلت مشكلة. حاول تاني.')) ?></p>'; });
+      }
+      function paint() {
+        var term = (q.value || '').trim().toLowerCase();
+        var vis = items.filter(function (i) { return !term || ((i.title || '') + ' ' + (i.linkedin || '') + ' ' + (i.x || '')).toLowerCase().indexOf(term) >= 0; });
+        if (!vis.length) { listEl.innerHTML = '<p class="col-span-full text-center text-sm text-ink-400 py-8">' + esc(items.length ? '<?= e(t('لا نتائج.')) ?>' : '<?= e(t('المخزون فارغ. اعتمد منشورات من «إنشاء المحتوى».')) ?>') + '</p>'; return; }
+        listEl.innerHTML = vis.map(function (i) {
+          var m = (i.media || [])[0];
+          return '<article class="rounded-xl border border-ink-200 p-3 flex flex-col gap-2" data-id="' + i.id + '">'
+            + '<div class="flex gap-2">'
+            + (m ? '<img src="' + esc(m.thumb || m.url) + '" class="w-14 h-14 rounded-lg object-cover border border-ink-200 shrink-0" alt="">' : '')
+            + '<div class="min-w-0"><b class="block text-sm truncate">' + esc(i.title || '—') + '</b><span class="text-[11px] text-ink-400">' + esc(i.plan || '') + (i.media && i.media.length ? ' · ' + i.media.length + ' <?= e(t('ملف')) ?>' : '') + '</span></div></div>'
+            + '<p class="text-xs text-ink-600 line-clamp-3 whitespace-pre-wrap break-words">' + esc((i.linkedin || i.x || '').slice(0, 240)) + '</p>'
+            + '<div class="flex flex-wrap gap-1.5 mt-auto pt-1">'
+            + '<button type="button" data-pick="linkedin" class="btn-primary !py-1 !px-3 text-xs"><?= e(t('استخدم النص الطويل')) ?></button>'
+            + (i.x ? '<button type="button" data-pick="x" class="btn-ghost !py-1 !px-3 text-xs"><?= e(t('النص القصير')) ?></button>' : '')
+            + '</div></article>';
+        }).join('');
+      }
+      function pick(it, which) {
+        var ta = document.getElementById('content'); ta.value = it[which] || it.linkedin || it.x || ''; ta.dispatchEvent(new Event('input', { bubbles: true }));
+        if (window.cpAddLib) (it.media || []).forEach(function (m) { window.cpAddLib(m); });
+        close(); toast('<?= e(t('تم سحب المنشور إلى المحرر.')) ?>');
+      }
+      btn.addEventListener('click', open);
+      document.getElementById('cp-bank-x').addEventListener('click', close);
+      modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
+      document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !modal.classList.contains('hidden')) close(); });
+      q.addEventListener('input', paint);
+      listEl.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-pick]'); if (!b) return; var art = e.target.closest('article'); var it = items.find(function (x) { return x.id === +art.dataset.id; }); if (it) pick(it, b.dataset.pick);
+      });
+    })();
+    </script>
     <?php $cpPlats = array_values(array_unique(array_map(function ($a) { return (string)($a['platform'] ?? ''); }, $accounts))); ?>
     <script>window.CPX = <?= json_encode(['edit' => $editId, 'ws' => (int)ws('id'), 'uid' => (int)(current_user()['id'] ?? 0),
       'icons' => array_combine($cpPlats, array_map(function ($p) { return platform_icon($p, 'w-3.5 h-3.5'); }, $cpPlats)),

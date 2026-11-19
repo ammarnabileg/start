@@ -69,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $plan = $pid ? cpl_plan($pid) : null;
-render($plan ? (string)$plan['name'] : t('خطة محتوى بالذكاء الاصطناعي'), 'content_plan', function () use ($plan, $wid) {
+render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_plan', function () use ($plan, $wid) {
     $T = [
         'stVisual' => t('تحليل الصور المرجعية…'), 'stOutline' => t('تخطيط المواضيع…'), 'stPosts' => t('كتابة المنشورات: %s من %s'), 'stHuman' => t('مراجعة الأسلوب: %s من %s'), 'human' => t('مكتوب بالـ Humanizer'), 'stReview' => t('جاهزة للمراجعة'), 'stPaused' => t('توقف التوليد بعد أكثر من محاولة فاشلة.'),
         'resume' => t('أكمل من حيث توقف'), 'offline' => t('انقطع الاتصال. سنكمل تلقائيًا عند عودته، وكل ما تم محفوظ.'), 'bg' => t('يمكنك إغلاق الصفحة؛ التوليد يكمل في الخلفية وتجد كل شيء محفوظًا هنا.'),
@@ -168,7 +168,7 @@ render($plan ? (string)$plan['name'] : t('خطة محتوى بالذكاء ال�
         <div><h2 class="text-lg font-bold text-ink-900"><?= e(t('ما هدف الحملة؟')) ?></h2><p class="text-sm text-ink-500"><?= e(t('اكتبه في جملة أو اثنتين: من تريد أن تصل إليه، وماذا تريده أن يفعل.')) ?></p></div>
         <label class="block"><span class="label"><?= e(t('هدف الحملة')) ?> *</span><textarea name="goal" rows="4" class="input" dir="auto" placeholder="<?= e(t('مثال: نريد طلبات عروض أسعار من مديري المشتريات في الشركات الكبيرة لخدمة تجهيز المطابخ التجارية خلال الربع القادم.')) ?>"></textarea></label>
         <div class="grid sm:grid-cols-2 gap-4">
-          <div><span class="label"><?= e(t('عدد المنشورات')) ?></span><div class="flex flex-wrap items-center gap-1.5 mt-1"><?php foreach ([6, 12, 30, 60] as $nn): ?><button type="button" data-cnt="<?= $nn ?>" class="rounded-xl border border-ink-200 px-3 py-1.5 text-sm hover:border-brand-300 [&.on]:border-brand-500 [&.on]:bg-brand-50 [&.on]:text-brand-800"><?= $nn ?></button><?php endforeach; ?><input name="count" type="number" min="1" max="<?= CPL_MAX ?>" value="12" class="input !mt-0 !w-20"></div></div>
+          <div><span class="label"><?= e(t('عدد المنشورات')) ?></span><input name="count" type="number" min="1" value="12" class="input !mt-0 !w-32" placeholder="12"></div>
           <label class="block"><span class="label"><?= e(t('اسم الخطة (اختياري)')) ?></span><input name="name" class="input" dir="auto"></label>
         </div>
       </section>

@@ -395,7 +395,7 @@ $st = db()->prepare("SELECT id, name, size, method, enabled, GREATEST(chars, CHA
 $st->execute([$wid]);
 $files = $st->fetchAll();
 
-if (function_exists('cpl_brief_refresh_if_stale') && $canEdit) { try { cpl_brief_refresh_if_stale($wid); } catch (Throwable $e) {} $st->execute([$wid]); $files = $st->fetchAll(); }
+if (function_exists('cpl_brief_refresh_if_stale') && $canEdit) { try { cpl_brief_refresh_if_stale($wid); } catch (Throwable $e) {} db()->prepare("UPDATE kb_files SET enabled = 1 WHERE workspace_id = ? AND method = 'auto_brief' AND enabled <> 1")->execute([$wid]); $st->execute([$wid]); $files = $st->fetchAll(); }
 render(t('قاعدة المعرفة'), 'knowledge', function () use ($schema, $kb, $files, $canEdit) {
     $filled = 0; foreach ($schema as $k => $s) if (kb_filled($kb[$k] ?? [], $s['type'])) $filled++;
     $total = count($schema) + 1; $done = $filled + ($files ? 1 : 0);
@@ -605,15 +605,18 @@ render(t('قاعدة المعرفة'), 'knowledge', function () use ($schema, $k
 /** صف ملف في القائمة */
 function kb_file_row(array $f, bool $canEdit): string
 {
-    $m = ['pdftotext' => 'PDF', 'pdfparser' => 'PDF', 'pdfjs' => 'PDF', 'pdfjs+ocr' => 'PDF · OCR', 'ocr' => 'OCR', 'claude' => 'PDF · ' . t('ذكاء اصطناعي'), 'basic' => 'PDF', 'vision' => t('صورة') . ' · ' . t('ذكاء اصطناعي'), 'docx' => 'Word', 'xlsx' => 'Excel', 'pptx' => 'PowerPoint', 'html' => 'HTML', 'text' => t('نص')][$f['method']] ?? $f['method'];
-    $h = '<div class="kb-file rounded-xl border border-ink-200 ' . ($f['enabled'] ? '' : 'opacity-60') . '" data-id="' . (int)$f['id'] . '">'
+    $auto = ($f['method'] ?? '') === 'auto_brief'; // ملخص الشركة: مرجع تلقائي، للقراءة فقط، ويُستخدم دائمًا في الردود
+    $m = $auto ? t('ملخص تلقائي') : (['pdftotext' => 'PDF', 'pdfparser' => 'PDF', 'pdfjs' => 'PDF', 'pdfjs+ocr' => 'PDF · OCR', 'ocr' => 'OCR', 'claude' => 'PDF · ' . t('ذكاء اصطناعي'), 'basic' => 'PDF', 'vision' => t('صورة') . ' · ' . t('ذكاء اصطناعي'), 'docx' => 'Word', 'xlsx' => 'Excel', 'pptx' => 'PowerPoint', 'html' => 'HTML', 'text' => t('نص')][$f['method']] ?? $f['method']);
+    $h = '<div class="kb-file rounded-xl border ' . ($auto ? 'border-brand-200 bg-brand-50/40' : 'border-ink-200 ' . ($f['enabled'] ? '' : 'opacity-60')) . '" data-id="' . (int)$f['id'] . '"' . ($auto ? ' data-auto="1"' : '') . '>'
         . '<div class="flex items-center gap-3 p-3">'
         . '<span class="w-9 h-9 rounded-lg bg-brand-50 text-brand-700 flex items-center justify-center shrink-0"><svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6"/></svg></span>'
         . '<div class="flex-1 min-w-0"><div class="flex items-center gap-1 min-w-0"><div class="kb-name text-sm font-medium text-ink-900 truncate" dir="auto">' . e($f['name']) . '</div>'
-        . ($canEdit ? '<button type="button" class="kb-ren shrink-0 p-1 rounded-md text-ink-400 hover:text-brand-700 hover:bg-brand-50" title="' . e(t('تغيير الاسم')) . '"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4"/></svg></button>' : '') . '</div><div class="text-xs text-ink-500">' . e($m) . ' · ' . e(t('%s حرف', number_format((int)$f['chars']))) . '</div></div>'
+        . (($canEdit && !$auto) ? '<button type="button" class="kb-ren shrink-0 p-1 rounded-md text-ink-400 hover:text-brand-700 hover:bg-brand-50" title="' . e(t('تغيير الاسم')) . '"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4"/></svg></button>' : '') . '</div><div class="text-xs text-ink-500">' . e($m) . ' · ' . e(t('%s حرف', number_format((int)$f['chars']))) . ($auto ? ' · <span class="text-brand-700 font-medium">' . e(t('يُستخدم دائمًا في الردود')) . '</span>' : '') . '</div></div>'
         . '<button type="button" class="kb-view text-xs link">' . e(t('عرض النص')) . '</button>'
-        . '<button type="button" class="kb-reread text-xs link" title="' . e(t('يقرا الملف تاني ويبدّل النص القديم بالجديد')) . '">' . e(t('إعادة قراءة')) . '</button>';
-    if ($canEdit) {
+        . ($auto ? '' : '<button type="button" class="kb-reread text-xs link" title="' . e(t('يقرا الملف تاني ويبدّل النص القديم بالجديد')) . '">' . e(t('إعادة قراءة')) . '</button>');
+    if ($auto) {
+        $h .= '<span class="inline-flex items-center gap-1 text-[11px] text-brand-700 bg-brand-100 rounded-full px-2 py-1" title="' . e(t('يتحدّث تلقائيًا مع أي تعديل في قاعدة المعرفة، وغير قابل للإيقاف أو التعديل')) . '"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M6 10V8a6 6 0 1112 0v2M5 10h14v10H5z"/></svg>' . e(t('مثبّت')) . '</span>';
+    } elseif ($canEdit) {
         $h .= '<label class="relative inline-flex cursor-pointer" title="' . e(t('استخدام في الردود')) . '"><input type="checkbox" class="kb-on sr-only peer" ' . ($f['enabled'] ? 'checked' : '') . '><span class="w-9 h-5 rounded-full bg-ink-300 peer-checked:bg-lime-500 transition after:absolute after:top-0.5 after:start-0.5 after:w-4 after:h-4 after:rounded-full after:bg-[#fff] after:shadow after:transition-transform peer-checked:after:translate-x-4 rtl:peer-checked:after:-translate-x-4"></span></label>'
             . '<button type="button" class="kb-rm p-1.5 rounded-lg text-ink-400 hover:text-red-600 hover:bg-red-50" title="' . e(t('حذف')) . '">' . ui_icon('trash', 'w-4 h-4') . '</button>';
     }

@@ -4,7 +4,7 @@
    مابيولّدش صور ولا فيديو: بيجهز النصوص والبرومبتات بس. */
 
 const CPL_BATCH = 1;   // منشور واحد كامل في كل نداء: البرومبت الكامل بيطلع ~3000 كلمة للمنشور، واتنين كانوا بيعدّوا مهلة الموديل
-const CPL_MAX = 60;
+const CPL_MAX = 1000;  // سقف أمان فقط (مش حد ظاهر للمستخدم) عشان السيرفر ما يقعش
 
 function cpl_plan(int $id): ?array
 {
@@ -358,10 +358,12 @@ function cpl_save_item(int $id, array $f): void
 /** يبني طلب زيرنيو لعنصر: لينكدإن (وأي منصة غير X) بنص لينكدإن، وX بنصه الخاص */
 function cpl_payload(Zernio $z, array $it, array $accounts, array $mode): array
 {
+    // المنصات ذات الحد القصير (زي X) تاخد النص القصير؛ الباقي ياخد النص الطويل (لينكدإن)
+    $shortPlatforms = ['twitter', 'x', 'bluesky', 'mastodon', 'threads'];
     $platforms = [];
     foreach ($accounts as $a) {
         $pf = (string)$a['platform']; $item = ['platform' => $pf, 'accountId' => (string)$a['_id']];
-        if ($pf === 'twitter' && trim((string)$it['x']) !== '') $item['customContent'] = (string)$it['x'];
+        if (in_array(strtolower($pf), $shortPlatforms, true) && trim((string)$it['x']) !== '') $item['customContent'] = (string)$it['x'];
         $platforms[] = $item;
     }
     $p = ['content' => (string)$it['linkedin'], 'platforms' => $platforms, 'timezone' => site_timezone()];
@@ -807,7 +809,7 @@ function cpl_brief_pin(int $wid, string $brief): void
 {
     $name = t('ملخص الشركة (تلقائي)');
     $st = db()->prepare("SELECT id FROM kb_files WHERE workspace_id = ? AND method = 'auto_brief' LIMIT 1"); $st->execute([$wid]); $id = (int)$st->fetchColumn();
-    if ($id) db()->prepare("UPDATE kb_files SET name = ?, content = ?, size = ?, chars = ?, read_state = 'done' WHERE id = ?")->execute([$name, $brief, strlen($brief), mb_strlen($brief), $id]);
+    if ($id) db()->prepare("UPDATE kb_files SET name = ?, content = ?, size = ?, chars = ?, read_state = 'done', enabled = 1 WHERE id = ?")->execute([$name, $brief, strlen($brief), mb_strlen($brief), $id]);
     else db()->prepare("INSERT INTO kb_files (workspace_id, name, mime, size, method, content, enabled, read_state, chars) VALUES (?, ?, 'text/plain', ?, 'auto_brief', ?, 1, 'done', ?)")->execute([$wid, $name, strlen($brief), $brief, mb_strlen($brief)]);
 }
 

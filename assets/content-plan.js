@@ -91,11 +91,8 @@
     function okStep() { if (step === 0 && !W.goal.value.trim()) { W.goal.focus(); toast(T.needGoal, 'error'); return false; } return true; }
     $('#cp-next').addEventListener('click', function () { if (okStep()) show(step + 1); });
     $('#cp-back').addEventListener('click', function () { show(step - 1); });
-    W.addEventListener('click', function (e) { var b = e.target.closest('[data-go]'); if (b && (+b.dataset.go <= step || okStep())) show(+b.dataset.go);
-      var c = e.target.closest('[data-cnt]'); if (c) { W.count.value = c.dataset.cnt; cnt(); saveDraft(); } });
+    W.addEventListener('click', function (e) { var b = e.target.closest('[data-go]'); if (b && (+b.dataset.go <= step || okStep())) show(+b.dataset.go); });
     W.addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA' && step < nSteps - 1) { e.preventDefault(); if (okStep()) show(step + 1); } });
-    function cnt() { $$('[data-cnt]', W).forEach(function (b) { b.classList.toggle('on', b.dataset.cnt === String(W.count.value)); }); }
-    W.count.addEventListener('input', cnt); cnt();
     // اللغة: اختيار واحد بيظبط كل القنوات، و«تخصيص» للتفاصيل
     if (W.lang_all) W.lang_all.addEventListener('change', function () {
       var v = W.lang_all.value;

@@ -40,7 +40,7 @@ function nav_items(): array
 {
     $owner = is_ws_owner();
     // القايمة مقسمة على رحلة المنصة: السوق ← المحتوى ← النشر ← التواصل مع العملاء ← النتائج، والإدارة في الآخر
-    $s2 = t('السوق والفرص'); $sC = t('إنشاء المحتوى'); $s3 = t('النشر والوصول'); $s4 = t('التواصل مع العملاء'); $s6 = t('النتائج');
+    $s2 = t('السوق والفرص'); $sC = t('المحتوى'); $s3 = t('النشر والوصول'); $s4 = t('التواصل مع العملاء'); $s6 = t('النتائج');
     $items = [
         ['key' => 'dashboard', 'label' => t('الرئيسية'), 'section' => ''],
         ['key' => 'tenders', 'module' => 'tenders', 'label' => t('آخر المنافسات'), 'section' => $s2],
@@ -50,17 +50,14 @@ function nav_items(): array
         ['key' => 'crm_capture', 'label' => t('المصادر والإعدادات'), 'section' => $s2, 'module' => 'crm', 'also' => ['crm_settings']],
         ['key' => 'competitors', 'module' => 'competitors', 'label' => t('المنافسين'), 'section' => $s2],
         ['key' => 'crm_reports', 'label' => t('تقارير المبيعات'), 'section' => $s2, 'module' => 'crm'],
-        // استوديو المحتوى: 3 بنود رئيسية مباشرة (من غير قائمة منسدلة)
-        ['key' => 'studio', 'module' => 'studio', 'label' => t('الكتابة بالذكاء الاصطناعي'), 'section' => $sC],
-        // «مخزون المحتوى» تاب تحت «الصور والفيديو» (طلب المستخدم)، و«خطة المحتوى» بتتفتح منه ومن أدوات المنشورات
-        ['key' => 'studio_media', 'module' => 'studio', 'label' => t('الصور والفيديو'), 'section' => $sC],
-        ['key' => 'content_plan', 'module' => 'studio', 'label' => t('خطة محتوى بالذكاء الاصطناعي'), 'section' => $sC],
+        // استوديو المحتوى
+        ['key' => 'content_plan', 'module' => 'studio', 'label' => t('إنشاء المحتوى'), 'section' => $sC],
         ['key' => 'content_bank', 'module' => 'studio', 'label' => t('مخزون المحتوى'), 'section' => $sC],
         ['key' => 'designer', 'module' => 'studio', 'label' => t('المصمم'), 'section' => $sC],
         ['key' => 'compose', 'module' => 'publishing', 'label' => t('منشور جديد'), 'section' => $s3],
         ['key' => 'posts', 'module' => 'publishing', 'label' => t('المنشورات'), 'section' => $s3,
-            // التقويم مش صفحة لوحده: هو طريقة عرض جوه «المنشورات» (قائمة / تقويم)
-            'tabs' => ['posts' => t('المنشورات'), 'approvals' => t('الموافقات'), 'post_log' => t('سجل النشر')], 'also' => ['post_edit', 'queue', 'bulk', 'calendar']],
+            // التقويم مش صفحة لوحده: هو طريقة عرض جوه «المنشورات». والموافقات وسجل النشر بيتفتحوا نافذة منبثقة من جوه الصفحة
+            'also' => ['post_edit', 'queue', 'bulk', 'calendar', 'approvals', 'post_log']],
         // الإعلانات: بندين رئيسيين من غير قائمة منسدلة. منشئ الحملات والحملة السريعة جوه «الحملات الإعلانية»
         ['key' => 'ads', 'label' => t('الحملات الإعلانية'), 'section' => $s3, 'module' => 'ads', 'also' => ['ad_campaign', 'ad_builder', 'ad_create', 'leads']],
         ['key' => 'ad_audiences', 'label' => t('الجماهير'), 'section' => $s3, 'module' => 'ads'],
@@ -129,7 +126,7 @@ function module_pages(): array
         'phone' => ['phone_numbers', 'sms', 'calls', 'phone_kyc', 'sms_mine'],
         'tenders' => ['tenders', 'tender_awards'],
         'competitors' => ['competitors'],
-        'studio' => ['studio', 'studio_media', 'designer', 'content_bank', 'content_plan'],
+        'studio' => ['designer', 'content_bank', 'content_plan'],
         'publishing' => ['compose', 'posts', 'calendar', 'approvals', 'post_log', 'post_edit', 'queue', 'bulk'],
         'inbox' => ['inbox', 'comments'],
         'knowledge' => ['knowledge'],
