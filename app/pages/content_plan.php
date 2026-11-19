@@ -8,6 +8,11 @@ $pid = (int)($_GET['plan'] ?? $_POST['plan'] ?? 0);
 if (isset($_GET['export']) && ($p = cpl_plan($pid))) {
     $items = array_values(array_filter(cpl_items($pid), function ($i) { return $i['linkedin'] !== null && $i['status'] !== 'rejected'; }));
     $fn = preg_replace('/[^\p{L}\p{N}_-]+/u', '-', (string)$p['name']) ?: 'content-plan';
+    if ($_GET['export'] === 'xlsx') {
+        $all = array_values(array_filter(cpl_items($pid), function ($i) { return $i['linkedin'] !== null; })); // كل الحالات: تقدر تغيّر الحالة من الملف
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); header('Content-Disposition: attachment; filename="' . rawurlencode($fn) . '.xlsx"');
+        exit(cpl_export_xlsx($p, $all));
+    }
     if ($_GET['export'] === 'csv') {
         header('Content-Type: text/csv; charset=utf-8'); header('Content-Disposition: attachment; filename="' . rawurlencode($fn) . '.csv"');
         $o = fopen('php://output', 'w'); fwrite($o, "\xEF\xBB\xBF");
@@ -38,6 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($a === 'step') { session_write_close(); $J(['ok' => true] + cpl_step($pid)); }
         if ($a === 'status') { session_write_close(); $J(['ok' => true] + cpl_status($p)); }
         if ($a === 'resume') { db()->prepare('UPDATE cp_plans SET status = "generating", fails = 0, error = NULL WHERE id = ? AND status IN ("paused","generating")')->execute([$pid]); $J(['ok' => true]); }
+        if ($a === 'import') { if (empty($_FILES['file']['tmp_name']) || !is_uploaded_file($_FILES['file']['tmp_name'])) $J(['ok' => false, 'error' => t('الرفع فشل، جرّب تاني.')]); [$u, $s] = cpl_import_xlsx($pid, $_FILES['file']['tmp_name']); $J(['ok' => true, 'updated' => $u, 'skipped' => $s]); }
         if ($a === 'items') $J(['ok' => true, 'items' => cpl_items($pid)]);
         if ($a === 'set') { $ids = array_map('intval', (array)json_decode((string)($_POST['ids'] ?? '[]'), true)); $J(['ok' => true, 'n' => cpl_set_status($ids, (string)($_POST['status'] ?? ''))]); }
         if ($a === 'save') { $it = cpl_item((int)($_POST['id'] ?? 0)); if (!$it || $it['plan_id'] !== $pid) $J(['ok' => false, 'error' => t('طلب غير صحيح.')], 404); cpl_save_item($it['id'], (array)json_decode((string)($_POST['f'] ?? '{}'), true)); $J(['ok' => true, 'item' => cpl_item($it['id'])]); }
@@ -62,13 +68,15 @@ render($plan ? (string)$plan['name'] : t('خطة محتوى بالذكاء ال�
         'li' => 'LinkedIn', 'x' => 'X', 'img' => t('برومبت الصورة'), 'vid' => t('برومبت الفيديو'), 'car' => t('كاروسيل (5 شرائح)'), 'head' => t('عنوان الصورة'), 'words' => t('%s كلمة'), 'chars' => t('%s حرف'),
         's_pending' => t('قيد الكتابة'), 's_draft' => t('مسودة'), 's_approved' => t('معتمد'), 's_rejected' => t('مرفوض'), 's_scheduled' => t('مجدول'), 's_queued' => t('في الطابور'), 's_published' => t('منشور'),
         'toBank' => t('افتح مخزون المحتوى'), 'nApproved' => t('%s معتمد في المخزون'), 'f_all' => t('الكل'), 'delPlan' => t('حذف الخطة؟ المنشورات المجدولة أو المنشورة تبقى في المخزون.'),
-        'uploading' => t('جارٍ رفع الصور…'), 'needGoal' => t('اكتب هدف الحملة.'), 'draftRestored' => t('استرجعنا المسودة التي لم تُرسل.'), 'refMax' => t('حتى 12 صورة.'),
+        'uploading' => t('جارٍ رفع الصور…'), 'imported' => t('تم تحديث %s منشور من الملف (تخطّينا %s).'), 'needGoal' => t('اكتب هدف الحملة.'), 'draftRestored' => t('استرجعنا المسودة التي لم تُرسل.'), 'refMax' => t('حتى 12 صورة.'),
     ];
     $cfg = ['url' => url('content_plan'), 'bank' => url('content_bank'), 'csrf' => csrf_token(), 'wid' => $wid, 't' => $T];
     if ($plan): $cfg['plan'] = cpl_status($plan) + ['name' => (string)$plan['name']]; ?>
     <div class="flex flex-wrap items-center gap-2 mb-4">
       <a href="<?= e(url('content_plan')) ?>" class="btn-ghost !py-1.5">← <?= e(t('كل الخطط')) ?></a>
       <span class="text-sm text-ink-500 min-w-0 flex-1 truncate"><?= e(mb_substr((string)$plan['goal'], 0, 160)) ?></span>
+      <a class="btn-primary !py-1.5" href="<?= e(url('content_plan', ['plan' => $plan['id'], 'export' => 'xlsx'])) ?>"><?= e(t('تنزيل Excel')) ?></a>
+      <label class="btn-ghost !py-1.5 cursor-pointer" title="<?= e(t('عدّل الملف في Excel ثم ارفعه هنا لتحديث النصوص والحالات.')) ?>"><input id="cp-imp" type="file" accept=".xlsx" class="hidden"><?= e(t('رفع Excel معدّل')) ?></label>
       <a class="btn-ghost !py-1.5" href="<?= e(url('content_plan', ['plan' => $plan['id'], 'export' => 'html'])) ?>"><?= e(t('تنزيل HTML')) ?></a>
       <a class="btn-ghost !py-1.5" href="<?= e(url('content_plan', ['plan' => $plan['id'], 'export' => 'csv'])) ?>">CSV</a>
       <button type="button" id="cp-del" class="btn-ghost !py-1.5 text-red-600"><?= e(t('حذف')) ?></button>

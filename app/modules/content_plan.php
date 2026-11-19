@@ -272,3 +272,73 @@ function cpl_export_html(array $p, array $items): string
     }
     return $h . '</body></html>';
 }
+
+/** أعمدة ملف Excel للخطة (نفس الترتيب في التصدير والاستيراد) */
+function cpl_xlsx_cols(): array
+{
+    return ['id' => 'ID', 'seq' => '#', 'status' => t('الحالة'), 'topic' => t('الموضوع'), 'angle' => t('الزاوية'), 'category' => t('التصنيف'),
+        'linkedin' => 'LinkedIn', 'x' => 'X', 'headline' => t('عنوان الصورة'), 'image_prompt' => 'Image prompt', 'video_prompt' => 'Video prompt',
+        's1' => 'Slide 1 Hook', 's2' => 'Slide 2 Problem', 's3' => 'Slide 3 Insight', 's4' => 'Slide 4 Solution', 's5' => 'Slide 5 CTA'];
+}
+
+function cpl_status_label(string $s): string { return ['pending' => t('قيد الكتابة'), 'draft' => t('مسودة'), 'approved' => t('معتمد'), 'rejected' => t('مرفوض'), 'scheduled' => t('مجدول'), 'queued' => t('في الطابور'), 'published' => t('منشور')][$s] ?? $s; }
+
+/** ملف xlsx حقيقي بدون مكتبات: شيت للمنشورات (من اليمين لليسار، عناوين مثبتة، فلتر، التفاف نص) وشيت للهدف والأسلوب البصري */
+function cpl_export_xlsx(array $p, array $items): string
+{
+    $x = function ($s) { return htmlspecialchars(preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F]/u', '', (string)$s), ENT_QUOTES | ENT_XML1, 'UTF-8'); };
+    $cl = function (int $i) { $s = ''; for ($i++; $i > 0; $i = intdiv($i - 1, 26)) $s = chr(65 + ($i - 1) % 26) . $s; return $s; };
+    $cell = function (int $c, int $r, $v, int $st = 1) use ($x, $cl) { return is_int($v) ? '<c r="' . $cl($c) . $r . '" s="' . $st . '"><v>' . $v . '</v></c>' : '<c r="' . $cl($c) . $r . '" s="' . $st . '" t="inlineStr"><is><t xml:space="preserve">' . $x($v) . '</t></is></c>'; };
+    $cols = cpl_xlsx_cols(); $keys = array_keys($cols);
+    $rows = '<row r="1">'; foreach (array_values($cols) as $i => $h) $rows .= $cell($i, 1, $h, 2); $rows .= '</row>';
+    foreach (array_values($items) as $k => $it) {
+        $r = $k + 2; $t = $it['topic'];
+        $v = ['id' => (int)$it['id'], 'seq' => (int)$it['seq'], 'status' => cpl_status_label((string)$it['status']), 'topic' => $t['title'] ?? '', 'angle' => $t['angle'] ?? '', 'category' => $t['category'] ?? '',
+            'linkedin' => $it['linkedin'], 'x' => $it['x'], 'headline' => $it['headline'], 'image_prompt' => $it['image_prompt'], 'video_prompt' => $it['video_prompt']];
+        for ($s = 0; $s < 5; $s++) { $sl = $it['carousel'][$s] ?? null; $v['s' . ($s + 1)] = $sl ? trim($sl['title'] . "\n" . $sl['body'] . ($sl['visual'] !== '' ? "\n[" . $sl['visual'] . ']' : '')) : ''; }
+        $rows .= '<row r="' . $r . '">'; foreach ($keys as $i => $key) $rows .= $cell($i, $r, $v[$key] ?? '', in_array($key, ['image_prompt', 'video_prompt'], true) ? 3 : 1); $rows .= '</row>';
+    }
+    $w = ['id' => 7, 'seq' => 5, 'status' => 11, 'topic' => 24, 'angle' => 28, 'category' => 14, 'linkedin' => 60, 'x' => 34, 'headline' => 20, 'image_prompt' => 60, 'video_prompt' => 50];
+    $colsXml = '<cols>'; foreach ($keys as $i => $key) $colsXml .= '<col min="' . ($i + 1) . '" max="' . ($i + 1) . '" width="' . ($w[$key] ?? 32) . '" customWidth="1"/>'; $colsXml .= '</cols>';
+    $last = $cl(count($keys) - 1) . (count($items) + 1);
+    $sheet1 = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView rightToLeft="1" workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
+        . $colsXml . '<sheetData>' . $rows . '</sheetData><autoFilter ref="A1:' . $last . '"/></worksheet>';
+    $info = [[t('اسم الخطة'), (string)$p['name']], [t('هدف الحملة'), (string)$p['goal']], ['Visual DNA', (string)$p['visual']], [t('ملاحظة'), t('عدّل النصوص أو عمود الحالة (معتمد / مرفوض / مسودة) ثم ارفع الملف في صفحة الخطة. لا تغيّر عمود ID.')]];
+    $r2 = ''; foreach ($info as $k => $row) $r2 .= '<row r="' . ($k + 1) . '">' . $cell(0, $k + 1, $row[0], 2) . $cell(1, $k + 1, $row[1], $k === 2 ? 3 : 1) . '</row>';
+    $sheet2 = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView rightToLeft="1" workbookViewId="0"/></sheetViews><cols><col min="1" max="1" width="18" customWidth="1"/><col min="2" max="2" width="100" customWidth="1"/></cols><sheetData>' . $r2 . '</sheetData></worksheet>';
+    $styles = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font></fonts>'
+        . '<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF1F2937"/></patternFill></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf/></cellStyleXfs>'
+        . '<cellXfs count="4"><xf/><xf applyAlignment="1"><alignment wrapText="1" vertical="top" readingOrder="2"/></xf><xf fontId="1" fillId="2" applyFont="1" applyFill="1" applyAlignment="1"><alignment wrapText="1" vertical="center"/></xf><xf applyAlignment="1"><alignment wrapText="1" vertical="top" horizontal="left" readingOrder="1"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+    $tmp = tempnam(sys_get_temp_dir(), 'cpx'); $z = new ZipArchive(); $z->open($tmp, ZipArchive::OVERWRITE);
+    $z->addFromString('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>');
+    $z->addFromString('_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>');
+    $z->addFromString('xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Posts" sheetId="1" r:id="rId1"/><sheet name="Brief" sheetId="2" r:id="rId2"/></sheets><definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">Posts!$A$1:$' . preg_replace('/\d+/', '', $last) . '$' . (count($items) + 1) . '</definedName></definedNames></workbook>');
+    $z->addFromString('xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>');
+    $z->addFromString('xl/worksheets/sheet1.xml', $sheet1); $z->addFromString('xl/worksheets/sheet2.xml', $sheet2); $z->addFromString('xl/styles.xml', $styles); $z->close();
+    $b = (string)file_get_contents($tmp); @unlink($tmp); return $b;
+}
+
+/** رفع ملف Excel المعدّل: يحدّث النصوص والحالة بالـ ID. يرجع [updated, skipped] */
+function cpl_import_xlsx(int $planId, string $path): array
+{
+    $sh = xlsx_sheets($path, 200)[0]['rows'] ?? []; if (count($sh) < 2) throw new RuntimeException(t('الملف فارغ.'));
+    $head = array_map('trim', $sh[0]); $cols = cpl_xlsx_cols(); $idx = [];
+    foreach ($cols as $k => $h) { $i = array_search($h, $head, true); if ($i !== false) $idx[$k] = $i; }
+    if (!isset($idx['id'])) throw new RuntimeException(t('عمود ID غير موجود. استخدم الملف الذي نزّلته من هنا.'));
+    $stMap = [cpl_status_label('approved') => 'approved', cpl_status_label('rejected') => 'rejected', cpl_status_label('draft') => 'draft', 'approved' => 'approved', 'rejected' => 'rejected', 'draft' => 'draft', 'معتمد' => 'approved', 'مرفوض' => 'rejected', 'مسودة' => 'draft'];
+    $up = 0; $skip = 0;
+    foreach (array_slice($sh, 1) as $row) {
+        $it = cpl_item((int)($row[$idx['id']] ?? 0)); if (!$it || $it['plan_id'] !== $planId || $it['linkedin'] === null || !in_array($it['status'], ['draft', 'approved', 'rejected'], true)) { $skip++; continue; }
+        $g = function ($k) use ($row, $idx) { return isset($idx[$k]) ? (string)($row[$idx[$k]] ?? '') : null; };
+        $f = []; foreach (['linkedin', 'x', 'headline', 'image_prompt', 'video_prompt'] as $k) if (($v = $g($k)) !== null && trim($v) !== '') $f[$k] = $v;
+        cpl_save_item($it['id'], $f);
+        $car = $it['carousel']; $ch = false;
+        for ($s = 0; $s < 5; $s++) { $v = $g('s' . ($s + 1)); if ($v === null || trim($v) === '' || !isset($car[$s])) continue; $ln = preg_split('/\R/u', trim($v)); $vis = '';
+            if (count($ln) > 1 && preg_match('/^\[(.*)\]$/u', trim(end($ln)), $m)) { $vis = $m[1]; array_pop($ln); }
+            $car[$s] = ['role' => $car[$s]['role'], 'title' => mb_substr(trim((string)array_shift($ln)), 0, 200), 'body' => mb_substr(trim(implode("\n", $ln)), 0, 600), 'visual' => mb_substr($vis !== '' ? $vis : $car[$s]['visual'], 0, 400)]; $ch = true; }
+        if ($ch) db()->prepare('UPDATE cp_items SET carousel = ? WHERE id = ?')->execute([json_encode($car, JSON_UNESCAPED_UNICODE), $it['id']]);
+        $st = $stMap[trim((string)$g('status'))] ?? null; if ($st && $st !== $it['status']) cpl_set_status([$it['id']], $st);
+        $up++;
+    }
+    return [$up, $skip];
+}
