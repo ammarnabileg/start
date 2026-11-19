@@ -48,6 +48,8 @@ function cpl_item_row(array $r): array
 {
     $r['topic'] = json_decode((string)$r['topic'], true) ?: [];
     $r['carousel'] = json_decode((string)($r['carousel'] ?? ''), true) ?: [];
+    $r['media_raw'] = array_values(array_filter(array_map('intval', (array)json_decode((string)($r['media_raw'] ?? ''), true))));
+    $r['logo'] = json_decode((string)($r['logo'] ?? ''), true) ?: null;
     $mids = array_values(array_filter(array_map('intval', (array)json_decode((string)($r['media_ids'] ?? ''), true)))); if (!$mids && !empty($r['media_id'])) $mids = [(int)$r['media_id']]; $r['media_ids'] = $mids;
     $r['id'] = (int)$r['id']; $r['plan_id'] = (int)$r['plan_id']; $r['seq'] = (int)$r['seq']; $r['media_id'] = $r['media_id'] !== null ? (int)$r['media_id'] : null;
     return $r;
@@ -579,9 +581,34 @@ function cpl_jobs_finalize(int $itemId, string $kind): void
     $st = db()->prepare('SELECT * FROM cp_jobs WHERE item_id = ? AND kind = ? ORDER BY id DESC'); $st->execute([$itemId, $kind]); $jobs = $st->fetchAll();
     $latest = []; foreach ($jobs as $j) { $k = (string)$j['slide']; if (!isset($latest[$k])) $latest[$k] = $j; }
     foreach ($latest as $j) if (in_array($j['status'], ['queued', 'running'], true)) return;
-    ksort($latest); $ms = []; foreach ($latest as $j) if ($j['status'] === 'done') $ms = array_merge($ms, array_map('intval', (array)json_decode((string)$j['result'], true)));
-    if (!$ms) return;
-    db()->prepare('UPDATE cp_items SET fmt = ?, media_ids = ?, media_id = ? WHERE id = ?')->execute([$kind, json_encode(array_values($ms)), $ms[0], $itemId]);
+    ksort($latest); $raw = []; foreach ($latest as $j) if ($j['status'] === 'done') $raw = array_merge($raw, array_map('intval', (array)json_decode((string)$j['result'], true)));
+    if (!$raw) return;
+    $it = cpl_item($itemId); $p = $it ? cpl_plan($it['plan_id']) : null; if (!$p) return;
+    $lopts = $it['logo'] ?: null; // إعداد لوجو خاص بالمنشور لو موجود
+    $stamped = array_map(function ($m) use ($p, $lopts) { return cpl_stamp_logo($p, $m, $lopts); }, $raw);
+    db()->prepare('UPDATE cp_items SET fmt = ?, media_raw = ?, media_ids = ?, media_id = ? WHERE id = ?')->execute([$kind, json_encode(array_values($raw)), json_encode(array_values($stamped)), $stamped[0], $itemId]);
+}
+
+/** يعيد تركيب اللوجو على صور المنشور من النسخ الخام بإعدادات لوجو خاصة بالمنشور (يحفظها على المنشور) */
+function cpl_restamp_item(int $itemId, array $in): ?array
+{
+    $it = cpl_item($itemId); if (!$it) return null;
+    $raw = $it['media_raw'] ?: $it['media_ids']; if (!$raw) return $it;
+    $p = cpl_plan($it['plan_id']); if (!$p) return $it;
+    $cl = function ($v, $lo, $hi, $d) { $v = is_numeric($v) ? (int)round($v) : $d; return max($lo, min($hi, $v)); };
+    $lopts = [
+        'logo_on' => 1,
+        'logo_x' => $cl($in['logo_x'] ?? null, 0, 100, 86),
+        'logo_y' => $cl($in['logo_y'] ?? null, 0, 100, 9),
+        'logo_w' => $cl($in['logo_w'] ?? null, 8, 45, 18),
+        'logo_op' => $cl($in['logo_op'] ?? null, 30, 100, 100),
+        'logo_tint' => in_array($in['logo_tint'] ?? '', ['orig', 'white', 'black'], true) ? $in['logo_tint'] : 'orig',
+        'logo_plate' => in_array($in['logo_plate'] ?? '', ['none', 'light', 'dark'], true) ? $in['logo_plate'] : 'none',
+    ];
+    $stamped = array_map(function ($m) use ($p, $lopts) { return cpl_stamp_logo($p, $m, $lopts); }, $raw);
+    db()->prepare('UPDATE cp_items SET media_raw = ?, logo = ?, media_ids = ?, media_id = ? WHERE id = ? AND workspace_id = ?')
+        ->execute([json_encode(array_values($raw)), json_encode($lopts), json_encode(array_values($stamped)), $stamped[0], $itemId, (int)ws('id')]);
+    return cpl_item($itemId);
 }
 
 function cpl_text_dir(array $p): string
@@ -602,7 +629,7 @@ function cpl_font_note(array $p): string
 function cpl_job_prompt(array $p, array $it, array $j): string
 {
     $o = cpl_opts($p); $vis = trim((string)$p['visual']);
-    $rules = "\nIf the image shows people: make them look like real, candid photographed humans, not AI renders. Add authentic, specific features: natural asymmetric faces, real skin texture with pores and subtle blemishes, flyaway hair, correct hands with five fingers, natural eye catchlights and gaze, believable clothing fit and wrinkles, and lived-in environment detail. No waxy skin, no plastic smoothness, no uncanny symmetry, no extra fingers.\nOVERRIDE: ignore any instruction above about drawing a logo. Do NOT draw any logo, brand name, wordmark or watermark anywhere; keep the " . cpl_logo_corner($p) . " corner area (about 260x160px) clean for the real logo added later.\n" . "Safe area: keep the headline, any text and every key element at least 100px (about 9%) inside each edge of the 1080x1350 frame; nothing touches or is cropped by an edge; generous padding around the headline; headline at most 3 short lines in a clean bold sans-serif, spelled exactly, high contrast.";
+    $rules = "\nFULL-BLEED: one complete, edge-to-edge photographic image that fills the entire 1080x1350 frame; do NOT add or leave any solid colour band, gradient bar, letterbox, flat panel, or cropped colour strip behind the text or logo, and no borders or margins of flat colour, UNLESS the supplied reference designs clearly use such a band (then match them). Integrate every text element over naturally darker or emptier regions of the real scene. Maximum photographic quality: sharp focus, rich detail, correct exposure, natural depth of field, professional colour grading; not flat, not AI-plastic.\nIf the image shows people: make them look like real, candid photographed humans, not AI renders. Add authentic, specific features: natural asymmetric faces, real skin texture with pores and subtle blemishes, flyaway hair, correct hands with five fingers, natural eye catchlights and gaze, believable clothing fit and wrinkles, and lived-in environment detail. No waxy skin, no plastic smoothness, no uncanny symmetry, no extra fingers.\nOVERRIDE: ignore any instruction above about drawing a logo. Do NOT draw any logo, brand name, wordmark or watermark anywhere; keep the " . cpl_logo_corner($p) . " corner area (about 260x160px) clean for the real logo added later.\n" . "Safe area: keep the headline, any text and every key element at least 100px (about 9%) inside each edge of the 1080x1350 frame; nothing touches or is cropped by an edge; generous padding around the headline; headline at most 3 short lines in a clean bold sans-serif, spelled exactly, high contrast.";
     if ($j['kind'] === 'image') return $it['image_prompt'] . ($vis !== '' ? "\n\nBrand visual DNA: " . mb_substr($vis, 0, 1200) : '') . "\nRender the headline text \"" . $it['headline'] . "\" accurately, spelled exactly. " . cpl_text_dir($p) . cpl_font_note($p) . $rules;
     if ($j['kind'] === 'video') return $it['video_prompt'] . "\nDo NOT render any logo, brand name or wordmark; end on a clean frame with empty space where the logo can be added in editing.";
     $s = $it['carousel'][(int)$j['slide']] ?? []; $n = count($it['carousel']);
@@ -630,10 +657,10 @@ function cpl_logo_box(array $o, int $W, int $Hh, float $ar): array
 }
 
 /** يركّب لوجو الشركة الحقيقي (من ملف الشركة) على الصورة بهامش آمن، ويحفظها نسخة جديدة في المكتبة. لو مفيش لوجو بترجع نفس الصورة */
-function cpl_stamp_logo(array $p, int $mid): int
+function cpl_stamp_logo(array $p, int $mid, ?array $optsOverride = null): int
 {
     $wid = (int)ws('id'); $lg = function_exists('kb_logo') ? kb_logo($wid) : null; $m = media_get($wid, $mid);
-    $o = cpl_opts($p); if (isset($o['logo_on']) && !$o['logo_on']) return $mid;
+    $o = $optsOverride ?: cpl_opts($p); if (isset($o['logo_on']) && !$o['logo_on']) return $mid;
     if (!$lg || !$m || !function_exists('imagecreatefromstring')) return $mid;
     $im = @imagecreatefromstring((string)file_get_contents(media_file_path($wid, $m))); $lo = @imagecreatefromstring((string)file_get_contents(media_file_path($wid, $lg)));
     if (!$im || !$lo) return $mid;
@@ -689,8 +716,7 @@ function cpl_jobs_tick(int $planId): bool
                 $refFiles = []; foreach (array_slice(json_decode((string)$p['refs'], true) ?: [], 0, 3) as $rid) { $rm = media_get($wid, (int)$rid); if ($rm && ($rd = cpl_small_image(media_file_path($wid, $rm), 1024))) { $tf = tempnam(sys_get_temp_dir(), 'cpr') . '.jpg'; file_put_contents($tf, base64_decode(substr($rd, strpos($rd, ',') + 1))); $refFiles[] = $tf; } }
                 if ($refFiles) $prompt .= "\nThe " . count($refFiles) . " attached images are STYLE REFERENCES. Study ALL of them together and infer the shared visual system: exact colour palette, lighting mood, contrast, typography style and weight, grid and layout rhythm, texture and the overall level of polish; then apply that system here. Do not copy any subject, text, person or logo from them.";
                 try { $names = img_generate($prompt, '4:5', 1, $refFiles); } finally { foreach ($refFiles as $tf) @unlink($tf); } $ms = cpl_media_for_names($names); if (!$ms) throw new RuntimeException(t('لم تُحفظ الصورة الناتجة.'));
-                $ms = array_map(function ($m) use ($p) { return cpl_stamp_logo($p, $m); }, $ms);
-                db()->prepare('UPDATE cp_jobs SET status = "done", result = ? WHERE id = ?')->execute([json_encode($ms), $j['id']]);
+                db()->prepare('UPDATE cp_jobs SET status = "done", result = ? WHERE id = ?')->execute([json_encode($ms), $j['id']]); // الخام؛ الختم في finalize
                 cpl_log($planId, t('اكتملت %s للمنشور %s في %s ثانية.', $label, $it['seq'], round(microtime(true) - $t0)), 'ok');
                 cpl_jobs_finalize($it['id'], $j['kind']);
             }

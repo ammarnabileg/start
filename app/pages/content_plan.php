@@ -50,6 +50,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($k === 'text') db()->prepare('UPDATE cp_items SET fmt = NULL, media_ids = NULL, media_id = NULL WHERE id = ?')->execute([$it['id']]); else cpl_jobs_finalize($it['id'], $k);
             $J(['ok' => true]); }
         if ($a === 'jobs') { session_write_close(); ignore_user_abort(true); $GLOBALS['ai_timeout'] = 240; $did = cpl_jobs_tick($pid); $J(['ok' => true, 'did' => $did, 'jobs' => cpl_jobs_status($pid), 'log' => cpl_status(cpl_plan($pid))['log']]); }
+        if ($a === 'logoinfo') { $it = cpl_item((int)($_POST['id'] ?? 0)); if (!$it || $it['plan_id'] !== $pid) $J(['ok' => false], 404); $lg = function_exists('kb_logo') ? kb_logo($wid) : null;
+            $raw = $it['media_raw'] ?: $it['media_ids']; $o = $it['logo'] ?: cpl_opts(cpl_plan($pid));
+            $J(['ok' => true, 'images' => array_map(function ($m) { return url('media', ['file' => $m]); }, $raw), 'logo' => $lg ? url('media', ['file' => $lg['id']]) : null,
+                'pos' => ['logo_x' => (int)($o['logo_x'] ?? 86), 'logo_y' => (int)($o['logo_y'] ?? 9), 'logo_w' => (int)($o['logo_w'] ?? 18), 'logo_op' => (int)($o['logo_op'] ?? 100), 'logo_tint' => $o['logo_tint'] ?? 'orig', 'logo_plate' => $o['logo_plate'] ?? 'none']]); }
+        if ($a === 'logo') { $it = cpl_item((int)($_POST['id'] ?? 0)); if (!$it || $it['plan_id'] !== $pid) $J(['ok' => false], 404); session_write_close(); $r = cpl_restamp_item($it['id'], (array)json_decode((string)($_POST['logo'] ?? '{}'), true)); $J(['ok' => true, 'item' => $r]); }
         if ($a === 'set') { $ids = array_map('intval', (array)json_decode((string)($_POST['ids'] ?? '[]'), true)); $J(['ok' => true, 'n' => cpl_set_status($ids, (string)($_POST['status'] ?? ''))]); }
         if ($a === 'save') { $it = cpl_item((int)($_POST['id'] ?? 0)); if (!$it || $it['plan_id'] !== $pid) $J(['ok' => false, 'error' => t('طلب غير صحيح.')], 404); cpl_save_item($it['id'], (array)json_decode((string)($_POST['f'] ?? '{}'), true)); $J(['ok' => true, 'item' => cpl_item($it['id'])]); }
         if ($a === 'regen') {
@@ -75,13 +80,15 @@ render($plan ? (string)$plan['name'] : t('خطة محتوى بالذكاء ال�
         'toBank' => t('افتح مخزون المحتوى'), 'nApproved' => t('%s معتمد في المخزون'), 'f_all' => t('الكل'), 'delPlan' => t('حذف الخطة؟ المنشورات المجدولة أو المنشورة تبقى في المخزون.'),
         'uploading' => t('جارٍ رفع الصور…'), 'imported' => t('تم تحديث %s منشور من الملف (تخطّينا %s).'), 'needGoal' => t('اكتب هدف الحملة.'), 'draftRestored' => t('استرجعنا المسودة التي لم تُرسل.'), 'refMax' => t('حتى 12 صورة.'), 'uploaded' => t('تم رفع الصور.'), 'sum' => ['goal' => t('الهدف'), 'count' => t('عدد المنشورات'), 'aud' => t('الجمهور'), 'svc' => t('الخدمات'), 'lang' => t('اللغة'), 'dial' => t('اللهجة'), 'tone' => t('النبرة'), 'cta' => t('الدعوة للإجراء'), 'refs' => t('صور مرجعية'), 'logo' => t('اللوجو'), 'none' => t('—'), 'on' => t('مركّب'), 'off' => t('بدون'), 'li' => 'LinkedIn', 'x' => 'X', 'img' => t('الصور'), 'vo' => t('الصوت')], 'langN' => ['ar' => t('عربي'), 'en' => 'English', 'both' => t('عربي + English'), 'ar_en' => t('عربي + إنجليزي'), 'en_ar' => t('إنجليزي + عربي'), 'none' => t('بدون نص')], 'dialEx' => ['msa' => t('مثال: نساعد فرق المشتريات على تقليل وقت التوريد دون التضحية بالجودة.'), 'saudi' => t('مثال: نساعد فريق المشتريات يختصر وقت التوريد بدون ما يضحّي بالجودة.'), 'gulf' => t('مثال: نساعد فريق المشتريات يختصر وقت التوريد من دون ما يتأثر المستوى.'), 'emirati' => t('مثال: نساعد فريق المشتريات يختصر وقت التوريد بدون ما تتأثر الجودة.'), 'kuwaiti' => t('مثال: نساعد فريق المشتريات يختصر وقت التوريد بدون ما تنزل الجودة.'), 'egyptian' => t('مثال: بنساعد فريق المشتريات يختصر وقت التوريد من غير ما الجودة تتأثر.'), 'levantine' => t('مثال: منساعد فريق المشتريات يختصر وقت التوريد بدون ما تتأثر الجودة.'), 'maghrebi' => t('مثال: نعاونو فريق المشتريات باش يختصر وقت التوريد بلا ما تنقص الجودة.'), 'white' => t('مثال: نساعد فريق المشتريات يختصر وقت التوريد بدون ما تتأثر الجودة.'), 'other' => t('اكتب اللهجة أو الأسلوب الذي تريده في الخانة.')], 'fSel' => t('%s محدد'), 'genAsk' => t('توليد %s لـ %s منشور؟ يُخصم من رصيد مزوّد الصور/الفيديو.'), 'kImage' => t('صورة'), 'kVideo' => t('فيديو'), 'kCarousel' => t('كاروسيل (5 صور)'), 'genAdded' => t('بدأ التوليد: %s مهمة. يكمل في الخلفية حتى لو أغلقت الصفحة.'), 'genNone' => t('لا شيء جديد للتوليد (ربما قيد التوليد بالفعل، أو لا يوجد كاروسيل).'),
         'jBusy' => t('جارٍ التوليد'), 'jDone' => t('جاهز'), 'jFail' => t('فشل'), 'toBankOne' => t('إرسال للمخزون'), 'fmtText' => t('نص فقط'), 'useFmt' => t('اضغط لاستخدام هذا الشكل في النشر'), 'inUse' => t('المستخدم في النشر'), 'sent' => t('أُرسل %s منشور للمخزون.'), 'logT' => t('سجل التنفيذ المباشر'), 'srcBg' => t('خلفية'), 'srcPage' => t('الصفحة'), 'elapsed' => t('%s ثانية'), 'busyBg' => t('خطوة تعمل في الخلفية، ننتظرها'), 'pdfPages' => t('جارٍ تحويل صفحات PDF إلى صور…'), 'qc' => t('فحص الجودة:'), 'cats' => array_map('t', cpl_categories()),
+        'ilAdj' => t('اضبط اللوجو'), 'ilTitle' => t('ضبط اللوجو على هذه الصورة'), 'ilHint' => t('اسحب اللوجو لأي مكان — حتى خارج حدود الصورة. الخط المتقطع = المنطقة الآمنة.'), 'ilSize' => t('الحجم'), 'ilOp' => t('الشفافية'), 'ilColor' => t('لون اللوجو'), 'ilPlate' => t('خلفية خلف اللوجو'), 'ilSave' => t('حفظ'), 'ilSaved' => t('تم تحديث اللوجو على الصورة.'), 'ilNone' => t('لا يوجد لوجو في ملف الشركة.'), 'ilBusy' => t('جارٍ إعادة التركيب…'),
+        'ilTint' => ['orig' => t('الأصلي'), 'white' => t('أبيض'), 'black' => t('أسود')], 'ilPlateV' => ['none' => t('بدون'), 'light' => t('فاتحة'), 'dark' => t('داكنة')],
     ];
     
     $stepNow = !$plan ? 1 : (in_array($plan['status'], ['generating', 'paused'], true) ? 1 : 2);
     $steps = [1 => [t('الخطوة الأولى'), t('الهدف وعدد المنشورات والصور المرجعية ← تجهيز الملف والبرومبتات (بدون صور أو فيديو)')], 2 => [t('الخطوة الثانية'), t('حدد منشورات ← ولّد لها صورة أو فيديو أو كاروسيل (أو اتركها نصًا) ← أرسلها للمخزون')]];
     echo '<ol class="grid sm:grid-cols-2 gap-2 mb-5">'; foreach ($steps as $n => [$h, $d]) echo '<li class="rounded-2xl border p-3 ' . ($n === $stepNow ? 'border-brand-300 bg-brand-50/60' : 'border-ink-200 bg-white') . '"><div class="flex items-center gap-2"><span class="w-6 h-6 rounded-full grid place-items-center text-xs font-bold ' . ($n === $stepNow ? 'bg-brand-600 text-[#fff]' : ($n < $stepNow ? 'bg-lime-500 text-[#fff]' : 'bg-ink-100 text-ink-500')) . '">' . ($n < $stepNow ? '✓' : $n) . '</span><b class="text-sm">' . e($h) . '</b></div><p class="text-xs text-ink-500 mt-1">' . e($d) . '</p></li>'; echo '</ol>';
     $cfg = ['url' => url('content_plan'), 'bank' => url('content_bank'), 'csrf' => csrf_token(), 'wid' => $wid, 't' => $T];
-    if ($plan): $cfg['plan'] = cpl_status($plan) + ['name' => (string)$plan['name']]; ?>
+    if ($plan): $cfg['plan'] = cpl_status($plan) + ['name' => (string)$plan['name'], 'has_logo' => (function_exists('kb_logo') && kb_logo($wid)) ? 1 : 0]; ?>
     <div class="flex flex-wrap items-center gap-2 mb-4">
       <a href="<?= e(url('content_plan')) ?>" class="btn-ghost !py-1.5">← <?= e(t('كل الخطط')) ?></a>
       <span class="text-sm text-ink-500 min-w-0 flex-1 truncate"><?= e(mb_substr((string)$plan['goal'], 0, 160)) ?></span>
@@ -100,6 +107,30 @@ render($plan ? (string)$plan['name'] : t('خطة محتوى بالذكاء ال�
       <a href="<?= e(url('content_bank')) ?>" id="cp-tobank" class="btn-ghost !py-1.5 hidden"></a>
     </div>
     <div id="cp-list" class="space-y-3 pb-28"></div>
+    <div id="cp-ilogo" class="hidden fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm grid place-items-center p-4" dir="rtl">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-auto">
+        <div class="flex items-center justify-between gap-3 px-5 py-3 border-b border-ink-100 sticky top-0 bg-white z-10"><b class="text-ink-900"><?= e($T['ilTitle']) ?></b><button type="button" id="il-save" class="btn-primary !py-1.5"><?= e($T['ilSave']) ?></button></div>
+        <div class="p-5 flex flex-wrap items-start gap-5">
+          <div class="space-y-2">
+            <div id="il-prev" class="relative w-64 aspect-[4/5] rounded-xl overflow-hidden border border-ink-200 bg-cover bg-center bg-ink-900 select-none touch-none">
+              <div class="absolute inset-[7%] border border-dashed border-[#ffffff55] rounded pointer-events-none"></div>
+              <div id="il-plate" class="absolute rounded-lg pointer-events-none"></div>
+              <img id="il-logo" src="" alt="" draggable="false" class="absolute object-contain cursor-grab active:cursor-grabbing">
+            </div>
+            <p class="text-[11px] text-ink-400 w-64"><?= e($T['ilHint']) ?></p>
+            <div id="il-imgs" class="flex flex-wrap gap-1 w-64"></div>
+          </div>
+          <div class="space-y-3 text-sm min-w-0 flex-1">
+            <div><span class="text-xs text-ink-500 block mb-1"><?= e(t('أماكن جاهزة')) ?></span>
+              <div class="grid grid-cols-3 gap-1.5 w-40" dir="ltr"><?php foreach ([[14, 9], [50, 9], [86, 9], [14, 50], [50, 50], [86, 50], [14, 91], [50, 91], [86, 91]] as [$px, $py]): ?><button type="button" data-ilp="<?= $px ?>,<?= $py ?>" class="h-8 rounded-lg border border-ink-200 relative hover:border-brand-300 [&.on]:border-brand-500 [&.on]:bg-brand-50"><span class="absolute w-3 h-2 rounded-sm bg-ink-400" style="left:calc(<?= $px ?>% - 6px);top:calc(<?= $py ?>% - 4px)"></span></button><?php endforeach; ?></div></div>
+            <label class="block"><span class="text-xs text-ink-500 flex justify-between"><span><?= e($T['ilSize']) ?></span><b id="il-w-v" class="tabular-nums"></b></span><input type="range" min="8" max="45" value="18" class="w-full accent-brand-600" data-ilogo="logo_w"></label>
+            <label class="block"><span class="text-xs text-ink-500 flex justify-between"><span><?= e($T['ilOp']) ?></span><b id="il-o-v" class="tabular-nums"></b></span><input type="range" min="30" max="100" value="100" class="w-full accent-brand-600" data-ilogo="logo_op"></label>
+            <div><span class="text-xs text-ink-500 block mb-1"><?= e($T['ilColor']) ?></span><div class="flex flex-wrap gap-1.5"><?php foreach (['orig' => t('الأصلي'), 'white' => t('أبيض'), 'black' => t('أسود')] as $v => $l): ?><label class="cursor-pointer"><input type="radio" name="il_tint" value="<?= $v ?>" class="peer sr-only"<?= $v === 'orig' ? ' checked' : '' ?>><span class="inline-flex rounded-xl border border-ink-200 px-3 py-1.5 text-sm text-ink-700 hover:border-brand-300 peer-checked:border-brand-500 peer-checked:bg-brand-50 peer-checked:text-brand-800"><?= e($l) ?></span></label><?php endforeach; ?></div></div>
+            <div><span class="text-xs text-ink-500 block mb-1"><?= e($T['ilPlate']) ?></span><div class="flex flex-wrap gap-1.5"><?php foreach (['none' => t('بدون'), 'light' => t('فاتحة'), 'dark' => t('داكنة')] as $v => $l): ?><label class="cursor-pointer"><input type="radio" name="il_plate" value="<?= $v ?>" class="peer sr-only"<?= $v === 'none' ? ' checked' : '' ?>><span class="inline-flex rounded-xl border border-ink-200 px-3 py-1.5 text-sm text-ink-700 hover:border-brand-300 peer-checked:border-brand-500 peer-checked:bg-brand-50 peer-checked:text-brand-800"><?= e($l) ?></span></label><?php endforeach; ?></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
     <div id="cp-float" class="hidden fixed bottom-4 inset-x-0 z-40 px-3 pointer-events-none">
       <div class="pointer-events-auto mx-auto w-fit max-w-full rounded-2xl border border-ink-200 bg-white shadow-2xl p-2 flex flex-wrap items-center justify-center gap-2 text-sm">
         <b id="cp-fn" class="px-2 text-ink-700"></b>
