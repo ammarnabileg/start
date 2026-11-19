@@ -68,8 +68,9 @@ function cpl_create(array $in): int
     $tone = implode('، ', array_filter(array_merge(array_map('strval', (array)($in['tone_k'] ?? [])), [trim((string)($in['tone'] ?? ''))])));
     $cta = trim((string)($in['cta'] ?? '')) !== '' ? (string)$in['cta'] : (string)($in['cta_k'] ?? '');
     $in['tone'] = $tone; $in['cta'] = $cta;
-    $lli = isset($in['lang_li']) ? $L('lang_li') : (in_array($in['lang'] ?? '', ['ar', 'en', 'both'], true) ? ($in['lang'] === 'both' ? 'ar' : $in['lang']) : 'ar');
-    $opts = ['lang' => $lli, 'lang_li' => $lli, 'lang_x' => isset($in['lang_x']) ? $L('lang_x') : (($in['lang'] ?? '') === 'both' ? 'en' : $lli), 'lang_img' => isset($in['lang_img']) ? $L('lang_img', ['ar', 'en', 'ar_en', 'en_ar', 'none']) : $lli, 'lang_vo' => isset($in['lang_vo']) ? $L('lang_vo') : $lli,
+    $L4 = function ($k) use ($in) { return in_array($in[$k] ?? '', ['ar', 'en', 'ar_en', 'en_ar'], true) ? $in[$k] : 'ar'; };
+    $lli = isset($in['lang_li']) ? $L4('lang_li') : 'ar';
+    $opts = ['lang' => $lli, 'lang_li' => $lli, 'lang_x' => isset($in['lang_x']) ? $L4('lang_x') : $lli, 'lang_img' => isset($in['lang_img']) ? $L('lang_img', ['ar', 'en', 'ar_en', 'en_ar', 'none']) : $lli, 'lang_vo' => isset($in['lang_vo']) ? $L4('lang_vo') : $lli,
         'dialect' => $dialect,
         'audience' => mb_substr(trim((string)($in['audience'] ?? '')), 0, 800), 'about' => mb_substr(trim((string)($in['about'] ?? '')), 0, 1500), 'services' => array_slice(array_map(function ($s) { return mb_substr((string)$s, 0, 150); }, (array)($in['services'] ?? [])), 0, 20),
         'tone' => mb_substr(trim((string)($in['tone'] ?? '')), 0, 200), 'cta' => mb_substr(trim((string)($in['cta'] ?? '')), 0, 300), 'avoid' => mb_substr(trim((string)($in['avoid'] ?? '')), 0, 600),
@@ -97,7 +98,7 @@ function cpl_rules(array $p): string
 {
     $o = cpl_opts($p);
     $ar = 'Arabic' . ($o['dialect'] !== '' ? ' (' . $o['dialect'] . ')' : ' (clear Modern Standard Arabic unless the KB shows another brand voice)');
-    $nm = function ($k) use ($o, $ar) { $v = $o[$k] ?? $o['lang']; return ['ar' => $ar, 'en' => 'English', 'both' => 'bilingual: ' . $ar . ' first, then the English version', 'ar_en' => 'bilingual: ' . $ar . ' as the primary, English smaller', 'en_ar' => 'bilingual: English as the primary, ' . $ar . ' smaller', 'none' => 'NO text on the image or slide at all (purely visual; put the message in the caption)'][$v] ?? $ar; };
+    $nm = function ($k) use ($o, $ar) { $v = $o[$k] ?? $o['lang']; return ['ar' => $ar, 'en' => 'English', 'both' => 'bilingual: ' . $ar . ' first, then English', 'ar_en' => 'bilingual: ' . $ar . ' first, then English (secondary, smaller)', 'en_ar' => 'bilingual: English first, then ' . $ar . ' (secondary, smaller)', 'none' => 'NO text on the image or slide at all (purely visual; put the message in the caption)'][$v] ?? $ar; };
     $lang = "LinkedIn: " . $nm('lang_li') . "; X: " . $nm('lang_x') . "; headline and on-slide copy: " . $nm('lang_img') . "; video voice-over dialogue: " . $nm('lang_vo');
     static $craft = null; if ($craft === null) $craft = (string)@file_get_contents(__DIR__ . '/../prompts/image_craft.md');
     return cpl_master($p) . "\n\n" . $craft

@@ -322,4 +322,10 @@ return [
     'إنجليزي (تصميم من اليسار لليمين)' => 'English (left-to-right design)',
     'عربي + إنجليزي (الإنجليزي أصغر وأخفت)' => 'Arabic + English (English smaller and muted)',
     'إنجليزي + عربي (العربي أصغر وأخفت)' => 'English + Arabic (Arabic smaller and muted)',
+    'عربي ثم إنجليزي' => 'Arabic then English',
+    'إنجليزي ثم عربي' => 'English then Arabic',
+    '(اتركه ليتبع الاختيار الأساسي)' => '(leave it to follow the main choice)',
+    'عربي ثم إنجليزي (أصغر وأخفت)' => 'Arabic then English (smaller and muted)',
+    'إنجليزي ثم عربي (أصغر وأخفت)' => 'English then Arabic (smaller and muted)',
+    'اختر من مكتبة الوسائط' => 'Pick from media library',
 ];

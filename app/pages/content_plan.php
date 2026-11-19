@@ -128,7 +128,7 @@ render($plan ? (string)$plan['name'] : t('خطة محتوى بالذكاء ال�
         $kbd = function_exists('cpl_kb_defaults') ? cpl_kb_defaults($wid) : [];
         $opt = function (array $a, string $cur = '') { $h = ''; foreach ($a as $v => $l) $h .= '<option value="' . e($v) . '"' . ($v === $cur ? ' selected' : '') . '>' . e($l) . '</option>'; return $h; };
         $langs = ['ar' => t('عربي (تصميم من اليمين لليسار)'), 'en' => t('إنجليزي (تصميم من اليسار لليمين)'), 'ar_en' => t('عربي + إنجليزي (الإنجليزي أصغر وأخفت)'), 'en_ar' => t('إنجليزي + عربي (العربي أصغر وأخفت)')];
-        $chanLangs = ['ar' => t('عربي'), 'en' => 'English', 'both' => t('عربي + English')];
+        $chanLangs = ['ar' => t('عربي'), 'en' => 'English', 'ar_en' => t('عربي ثم إنجليزي'), 'en_ar' => t('إنجليزي ثم عربي')];
         $dialects = ['' => t('— اختر —'), 'msa' => t('فصحى'), 'saudi' => t('سعودية'), 'gulf' => t('خليجية'), 'emirati' => t('إماراتية'), 'kuwaiti' => t('كويتية'), 'egyptian' => t('مصرية'), 'levantine' => t('شامية'), 'maghrebi' => t('مغاربية مبسطة'), 'white' => t('عربية بيضاء (مفهومة لكل العرب)'), 'other' => t('أخرى (اكتبها)…')];
         $tonePresets = [t('واثقة وعملية بلا مبالغة'), t('خبيرة وتعليمية'), t('ودودة وقريبة'), t('رسمية ومحترفة'), t('جريئة وملهمة'), t('مختصرة ومباشرة')];
         $ctaPresets = [t('اطلب عرض سعر'), t('احجز مكالمة استشارية'), t('احجز عرضًا تجريبيًا'), t('تواصل عبر واتساب'), t('زر الموقع'), t('حمّل الدليل'), t('سجّل في الفعالية'), t('اطلب زيارة ميدانية')];
@@ -157,10 +157,10 @@ render($plan ? (string)$plan['name'] : t('خطة محتوى بالذكاء ال�
             <input name="dialect_other" class="input hidden mt-2" placeholder="<?= e(t('اكتب اللهجة أو الأسلوب (مثال: سعودية رسمية بمصطلحات تقنية إنجليزية)')) ?>"></label>
         </div>
         <p id="cp-dial-ex" class="rounded-xl bg-ink-50 px-3 py-2 text-sm text-ink-600 hidden" dir="rtl"></p>
-        <details class="group" id="cp-lang"><summary class="cursor-pointer text-sm link select-none"><?= e(t('تخصيص لغة كل قناة (اختياري)')) ?></summary>
-          <div class="mt-3 grid sm:grid-cols-2 gap-3">
-            <?php $imgLangs = ['ar' => t('عربي'), 'en' => 'English', 'ar_en' => t('عربي كبير + إنجليزي أصغر'), 'en_ar' => t('إنجليزي كبير + عربي أصغر'), 'none' => t('بدون نص (صورة فقط)')]; foreach (['lang_li' => t('نص لينكدإن'), 'lang_x' => t('نص X'), 'lang_img' => t('النص على الصور والشرائح'), 'lang_vo' => t('التعليق الصوتي في الفيديو')] as $nm => $lab): $o = $nm === 'lang_img' ? $imgLangs : $chanLangs; ?>
-            <label class="block"><span class="text-xs text-ink-500 block mb-1"><?= e($lab) ?></span><select name="<?= $nm ?>" class="input !mt-0"><?= $opt($o, 'ar') ?></select></label>
+        <details class="group rounded-xl border border-ink-200" id="cp-lang"><summary class="cursor-pointer text-sm font-medium text-ink-700 select-none px-3 py-2.5 flex items-center gap-2"><?= ui_icon('sliders', 'w-4 h-4 text-ink-400') ?><?= e(t('تخصيص لغة كل قناة')) ?><span class="text-xs text-ink-400 font-normal"><?= e(t('(اتركه ليتبع الاختيار الأساسي)')) ?></span></summary>
+          <div class="border-t border-ink-100 divide-y divide-ink-50">
+            <?php $imgLangs = ['ar' => t('عربي'), 'en' => 'English', 'ar_en' => t('عربي ثم إنجليزي (أصغر وأخفت)'), 'en_ar' => t('إنجليزي ثم عربي (أصغر وأخفت)'), 'none' => t('بدون نص')]; foreach (['lang_li' => [t('نص لينكدإن'), 'file'], 'lang_x' => [t('نص X'), 'hash'], 'lang_img' => [t('النص على الصور والشرائح'), 'image'], 'lang_vo' => [t('التعليق الصوتي في الفيديو'), 'mic']] as $nm => [$lab, $ic]): $o = $nm === 'lang_img' ? $imgLangs : $chanLangs; ?>
+            <label class="flex items-center gap-3 px-3 py-2.5"><span class="flex items-center gap-2 text-sm text-ink-600 min-w-0 flex-1"><?= ui_icon($ic, 'w-4 h-4 text-ink-400 shrink-0') ?><span class="truncate"><?= e($lab) ?></span></span><select name="<?= $nm ?>" class="input !mt-0 !py-1.5 !w-auto min-w-[9rem]"><?= $opt($o, 'ar') ?></select></label>
             <?php endforeach; ?>
           </div>
         </details>
@@ -178,7 +178,7 @@ render($plan ? (string)$plan['name'] : t('خطة محتوى بالذكاء ال�
         <span class="label"><?= e(t('تصميمات مرجعية (اختياري، حتى 12 صورة أو صفحة PDF)')) ?></span>
         <p class="text-xs text-ink-500 mb-2"><?= e(t('نحلل أسلوبها (الألوان، الخطوط، التكوين) ونطبقه في كل برومبت، وتُرسل لموديل الصور كمرجع للأسلوب أثناء التوليد، بدون نسخ محتواها.')) ?> <?= $hasLogo ? e(t('الشعار موجود في ملف الشركة وسيُذكر موضعه في البرومبتات.')) : '' ?></p>
         <div id="cp-refs" class="flex flex-wrap gap-2"></div>
-        <label class="btn-ghost !py-1.5 mt-2 cursor-pointer"><input id="cp-ref-in" type="file" accept="image/*,application/pdf,.pdf" multiple class="hidden"><?= e(t('أضف صورًا أو PDF')) ?></label>
+        <div class="flex flex-wrap gap-2 mt-2"><label class="btn-ghost !py-1.5 cursor-pointer"><input id="cp-ref-in" type="file" accept="image/*,application/pdf,.pdf" multiple class="hidden"><?= ui_icon('upload', 'w-4 h-4') ?><?= e(t('أضف صورًا أو PDF')) ?></label><button type="button" id="cp-ref-lib" class="btn-ghost !py-1.5"><?= ui_icon('image', 'w-4 h-4') ?><?= e(t('اختر من مكتبة الوسائط')) ?></button></div>
       </div>
       <?php $cpFonts = ['auto' => [t('تلقائي (من الريفرنس/الهوية)'), ''], 'Cairo' => ['Cairo', 'geometric humanist sans, clean and modern'], 'Tajawal' => ['Tajawal', 'modern geometric sans, friendly'], 'Almarai' => ['Almarai', 'neutral rounded sans, highly legible'], 'Changa' => ['Changa', 'bold condensed display'], 'El Messiri' => ['El Messiri', 'elegant contemporary with calligraphic touch'], 'Reem Kufi' => ['Reem Kufi', 'kufic geometric display'], 'Amiri' => ['Amiri', 'classic Naskh serif, editorial'], 'Lateef' => ['Lateef', 'traditional Arabic'], 'IBM Plex Sans Arabic' => ['IBM Plex Sans Arabic', 'technical corporate sans']]; ?>
       <div>

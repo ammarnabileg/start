@@ -98,9 +98,8 @@
     W.count.addEventListener('input', cnt); cnt();
     // اللغة: اختيار واحد بيظبط كل القنوات، و«تخصيص» للتفاصيل
     if (W.lang_all) W.lang_all.addEventListener('change', function () {
-      var v = W.lang_all.value, copy = (v === 'ar_en' || v === 'en_ar') ? 'both' : v; // القنوات النصية: ثنائي = both
-      ['lang_li', 'lang_x', 'lang_vo'].forEach(function (n) { if (W[n] && [].slice.call(W[n].options).some(function (o) { return o.value === copy; })) W[n].value = copy; });
-      if (W.lang_img && [].slice.call(W.lang_img.options).some(function (o) { return o.value === v; })) W.lang_img.value = v; // الصور: نفس الترتيب بالظبط
+      var v = W.lang_all.value;
+      ['lang_li', 'lang_x', 'lang_img', 'lang_vo'].forEach(function (n) { if (W[n] && [].slice.call(W[n].options).some(function (o) { return o.value === v; })) W[n].value = v; });
       saveDraft(); });
     function summary() { var d = collect(), S = T.sum, L = T.langN, v = function (x) { return x && String(x).trim() ? x : S.none; };
       var langs = [d.lang_li, d.lang_x, d.lang_img, d.lang_vo]; var lg = langs.every(function (x) { return x === langs[0]; }) ? L[langs[0]] : [S.li + ': ' + L[d.lang_li], S.x + ': ' + L[d.lang_x], S.img + ': ' + L[d.lang_img], S.vo + ': ' + L[d.lang_vo]].join(' · ');
@@ -120,6 +119,13 @@
     function shrink(f) { if (!/^image\/(jpeg|png|webp)$/.test(f.type) || f.size < 1500000) return Promise.resolve(f);
       return new Promise(function (ok) { var u = URL.createObjectURL(f), im = new Image(); im.onload = function () { var k = Math.min(1, 1600 / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.round(im.width * k); c.height = Math.round(im.height * k); var x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(im, 0, 0, c.width, c.height); URL.revokeObjectURL(u);
         c.toBlob(function (bl) { ok(bl ? new File([bl], f.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' }) : f); }, 'image/jpeg', 0.88); }; im.onerror = function () { URL.revokeObjectURL(u); ok(f); }; im.src = u; }); }
+    var libBtn = $('#cp-ref-lib');
+    if (libBtn && window.mediaPick) libBtn.addEventListener('click', function () {
+      window.mediaPick({ accept: 'image', multiple: true }).then(function (items) { if (!items || !items.length) return;
+        var room = 12 - refs.length; var have = {}; refs.forEach(function (r) { have[r.id] = 1; });
+        items.filter(function (it) { return it && it.id && !have[it.id]; }).slice(0, room).forEach(function (it) { refs.push({ id: it.id, thumb: it.thumb || it.url }); });
+        paintRefs(); saveDraft(); if (typeof lprev === 'function') lprev(); }).catch(function () {}); });
+    else if (libBtn) libBtn.style.display = 'none';
     $('#cp-ref-in').addEventListener('change', function () {
       var all = [].slice.call(this.files); this.value = ''; var room = 12 - refs.length; if (room <= 0) return toast(T.refMax, 'error');
       var pdfs = all.filter(function (f) { return /pdf$/i.test(f.type) || /\.pdf$/i.test(f.name); }), imgs = all.filter(function (f) { return pdfs.indexOf(f) < 0; });
