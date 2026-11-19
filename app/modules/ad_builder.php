@@ -314,6 +314,22 @@ function ab_strings(): array
 /* ===================== الإطلاق ===================== */
 
 /** خطوات الإطلاق بالترتيب: حملة ← لكل مجموعة: أول إعلان (بيعمل المجموعة) ← باقي الإعلانات */
+/** إعدادات اللوجو للإعلان (نفس شكل مخزون المحتوى). مع $fromInput بتتصفّى من إدخال المستخدم. */
+function ab_logo_opts($src, bool $fromInput = false): array
+{
+    $s = is_array($src) ? ($fromInput ? $src : (array)($src['logo'] ?? [])) : [];
+    $cl = function ($v, $lo, $hi, $d) { $v = is_numeric($v) ? (int)round($v) : $d; return max($lo, min($hi, $v)); };
+    return [
+        'logo_on' => array_key_exists('logo_on', $s) ? (int)!empty($s['logo_on']) : 1,
+        'logo_x' => $cl($s['logo_x'] ?? null, 0, 100, 86),
+        'logo_y' => $cl($s['logo_y'] ?? null, 0, 100, 9),
+        'logo_w' => $cl($s['logo_w'] ?? null, 8, 45, 18),
+        'logo_op' => $cl($s['logo_op'] ?? null, 30, 100, 100),
+        'logo_tint' => in_array($s['logo_tint'] ?? '', ['orig', 'white', 'black'], true) ? $s['logo_tint'] : 'orig',
+        'logo_plate' => in_array($s['logo_plate'] ?? '', ['none', 'light', 'dark'], true) ? $s['logo_plate'] : 'none',
+    ];
+}
+
 /** هوية الشركة البصرية لبرومبت صور الإعلانات: الألوان والأسلوب من قاعدة المعرفة + لوحة ألوان اللوجو */
 function ab_brand_visual(): string
 {

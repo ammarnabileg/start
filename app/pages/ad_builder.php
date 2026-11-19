@@ -78,6 +78,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
     exit;
 }
 
+// ---- توليد صورة/كاروسيل للإعلان من البرومبت، مع ختم اللوجو (نفس منطق مخزون المحتوى)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'ai_image') {
+    header('Content-Type: application/json; charset=utf-8');
+    $J = function ($a) { echo json_encode($a, JSON_UNESCAPED_UNICODE); exit; };
+    if (!can('ai.use')) $J(['ok' => false, 'error' => t('مالكش صلاحية.')]);
+    if (!function_exists('img_provider') || img_provider() === '') $J(['ok' => false, 'error' => t('اربط OpenAI أو OpenRouter من التكاملات لتوليد الصور.'), 'connect' => url('connectors')]);
+    $b = ab_get($wid, (int)($_POST['id'] ?? 0)); if (!$b) $J(['ok' => false, 'error' => t('المشروع مش موجود')]);
+    $prompt = trim((string)($_POST['prompt'] ?? '')); if ($prompt === '') $J(['ok' => false, 'error' => t('اكتب وصف الصورة.')]);
+    $kind = ($_POST['kind'] ?? '') === 'carousel' ? 'carousel' : 'image';
+    $n = $kind === 'carousel' ? max(2, min(5, (int)($_POST['n'] ?? 5))) : 1;
+    $lopts = ab_logo_opts($b['data']); // إعدادات اللوجو المحفوظة على الحملة
+    $rules = "\nFULL-BLEED: one complete edge-to-edge photographic image filling the whole 4:5 1080x1350 frame; no solid colour band or flat panel. Maximum commercial photographic quality, sharp and realistic, not AI-plastic. People must look like real photographed humans (natural skin, correct hands). Do NOT render any text, letters, headline, logo, brand name or watermark anywhere; keep the top area and the " . ((($lopts['logo_x'] ?? 86) < 40) ? 'top-left' : 'top-right') . " corner cleaner for the headline and logo added later.";
+    session_write_close(); @set_time_limit(300); $GLOBALS['ai_timeout'] = 280;
+    try {
+        $names = img_generate($prompt . $rules, '4:5', $n); $ms = function_exists('cpl_media_for_names') ? cpl_media_for_names($names) : [];
+        if (!$ms) $J(['ok' => false, 'error' => t('لم تُحفظ الصورة الناتجة.')]);
+        $z = zernio_or_null($ze); $urls = [];
+        foreach ($ms as $mid) {
+            $sid = function_exists('cpl_stamp_logo') ? cpl_stamp_logo([], (int)$mid, $lopts) : (int)$mid;
+            $u = '';
+            if ($z) { try { $u = media_public_url($z, $wid, $sid, 'ad', (string)$b['id']); } catch (Throwable $pe) { $u = ''; } }
+            if ($u === '') $u = base_url() . '/' . url('media', ['file' => $sid]); // احتياطي للمعاينة؛ الرابط العام الحقيقي بيتعمل عند الإطلاق
+            $urls[] = $u;
+        }
+        log_activity('ads.ai_image', $kind . ' x' . count($urls));
+        $J(['ok' => true, 'urls' => $urls]);
+    } catch (Throwable $ex) { $J(['ok' => false, 'error' => $ex->getMessage()]); }
+}
+// ---- حفظ إعدادات اللوجو على الحملة
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'ad_logo') {
+    header('Content-Type: application/json; charset=utf-8');
+    $J = function ($a) { echo json_encode($a, JSON_UNESCAPED_UNICODE); exit; };
+    $b = ab_get($wid, (int)($_POST['id'] ?? 0)); if (!$b) $J(['ok' => false], 404);
+    $lo = ab_logo_opts((array)json_decode((string)($_POST['logo'] ?? '{}'), true), true);
+    $d = $b['data']; $d['logo'] = $lo; ab_save($wid, (int)$b['id'], $d);
+    $lg = function_exists('kb_logo') ? kb_logo($wid) : null;
+    $J(['ok' => true, 'logo' => $lo, 'logoUrl' => $lg ? url('media', ['file' => $lg['id']]) : null]);
+}
+
 // ---- تقدير الوصول من المنصة (تقدير بس، مفيش إنشاء)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'reach') {
     header('Content-Type: application/json; charset=utf-8');
@@ -333,6 +372,8 @@ render(t('منشئ الحملات'), 'ad_builder', function () use ($z, $apiErro
         'id' => (int)$build['id'], 'state' => $build['state'], 'progress' => $build['progress'], 'data' => $d,
         'caps' => ab_caps($d['platform']), 'plan' => ab_plan($d), 'campaignsUrl' => url('ads'), 'platformLabel' => ab_platform_label($d['platform']),
         'csrf' => csrf_token(), 'url' => url('ad_builder'), 'listUrl' => url('ad_builder'),
+        'logoUrl' => ($abLg = function_exists('kb_logo') ? kb_logo((int)ws('id')) : null) ? url('media', ['file' => $abLg['id']]) : '', 'logoOpts' => ab_logo_opts($d),
+        'imgProvider' => function_exists('img_provider') ? img_provider() : '',
         'geoUrl' => url('ad_create', ['ajax' => 1]), 'myCountry' => ws_country(), 'lang' => lang(),
         'canSpend' => can('ads.spend'), 'kbProducts' => array_values(array_filter(array_map(function ($r) { return trim((string)($r['name'] ?? '')); }, (array)(kb_get((int)ws('id'))['services']['rows'] ?? [])))),
         's' => ab_strings(),
@@ -343,7 +384,10 @@ render(t('منشئ الحملات'), 'ad_builder', function () use ($z, $apiErro
           'dialect' => t('اللهجة'), 'dialects' => ['msa' => t('الفصحى'), 'saudi' => t('سعودية'), 'gulf' => t('خليجية'), 'emirati' => t('إماراتية'), 'kuwaiti' => t('كويتية'), 'egyptian' => t('مصرية'), 'levantine' => t('شامية'), 'maghrebi' => t('مغاربية'), 'white' => t('بيضاء'), 'other' => t('أخرى')], 'dialectOtherPh' => t('اكتب اللهجة أو الأسلوب'),
           'note' => t('الصور والفيديوهات مش بتتعمل هنا: كل إعلان بييجي معاه توجيه فني ووصف صورة جاهز تستخدمه في المصمم أو توليد الصور.'), 'planning' => t('بيحلل السوق ويبني الاستراتيجية والمجموعات…'), 'writing' => t('بيكتب إعلانات المجموعة %s من %s…'),
           'ready' => t('جاهز للمراجعة'), 'empty' => t('الرد رجع فاضي. جرّب تاني.'), 'warm' => t('دافي'), 'cold' => t('بارد'), 'summary' => t('%s مجموعة و%s إعلان'),
-          'artT' => t('التوجيه الفني'), 'concept' => t('الفكرة'), 'composition' => t('التكوين'), 'palette' => t('الألوان'), 'overlay' => t('النص على التصميم'), 'prompt' => t('وصف الصورة لأداة التوليد'), 'copy' => t('نسخ'), 'copied' => t('اتنسخ ✓'), 'design' => t('صمّمه في المصمم'), 'designUrl' => url('designer')],
+          'artT' => t('التوجيه الفني'), 'concept' => t('الفكرة'), 'composition' => t('التكوين'), 'palette' => t('الألوان'), 'overlay' => t('النص على التصميم'), 'prompt' => t('وصف الصورة لأداة التوليد'), 'copy' => t('نسخ'), 'copied' => t('اتنسخ ✓'), 'design' => t('صمّمه في المصمم'), 'designUrl' => url('designer'),
+          'gen' => t('ولّد الصورة'), 'genCar' => t('ولّد الكاروسيل (%s صور)'), 'genning' => t('جارٍ التوليد… قد يأخذ دقيقة'), 'genErr' => t('فشل التوليد: %s'), 'genVid' => t('توليد الفيديو من التكاملات (OpenRouter)'), 'regen' => t('أعد التوليد'), 'promptEdit' => t('وصف الصورة (قابل للتعديل)'),
+          'logoT' => t('اللوجو على الصورة'), 'logoOn' => t('ركّب اللوجو'), 'logoPos' => t('المكان'), 'logoSize' => t('الحجم'), 'logoOp' => t('الشفافية'), 'logoTint' => t('اللون'), 'logoPlate' => t('خلفية اللوجو'), 'saved' => t('اتحفظ'), 'noLogoKb' => t('لا يوجد لوجو في ملف الشركة.'),
+          'tOrig' => t('الأصلي'), 'tWhite' => t('أبيض'), 'tBlack' => t('أسود'), 'pNone' => t('بدون'), 'pLight' => t('فاتحة'), 'pDark' => t('داكنة')],
         'ux' => ['dCampaign' => t('الاسم بيظهر ليك بس، مش للعملاء.'), 'dGoal' => t('المنصة بتحسّن العرض على حسب الهدف ده.'), 'dBudget' => t('هتدفع كام وإزاي المنصة تصرفها.'), 'dSchedule' => t('إمتى تبدأ وتخلص، والفئات اللي ليها قواعد خاصة.'),
           'dAdset' => t('كل مجموعة = جمهور وميزانية. اعمل أكتر من واحدة عشان تقارن.'), 'dLoc' => t('الدول والمدن اللي الإعلان هيظهر فيها.'), 'dPeople' => t('السن والنوع والاهتمامات.'), 'dPlace' => t('الإعلان هيظهر فين جوه المنصة.'),
           'dAd' => t('اسم الإعلان وشكله.'), 'dMedia' => t('الصورة أو الفيديو أول حاجة الناس بتشوفها.'), 'dCopy' => t('أول سطر هو اللي بيوقف الناس. خليه قصير وواضح.'), 'dCta' => t('الزرار ورايح على فين.'), 'age' => t('السن'), 'month' => t('≈ %s في الشهر')],

@@ -53,14 +53,68 @@
       var up = function () { var u = el.value.trim(); t.innerHTML = /^https?:\/\//.test(u) ? '<img src="' + esc(u) + '" alt="" onerror="this.parentNode.classList.add(\'bad\');this.remove()">' : ic('image', 'w-5 h-5'); t.classList.remove('bad'); }; el.addEventListener('change', up); el.addEventListener('input', function () { clearTimeout(el._t); el._t = setTimeout(up, 500); }); up(); });
     if (X.locked) ed.querySelectorAll('.abx-step button, .abx-quick button, .abx-seg button, .abx-age input').forEach(function (b) { b.disabled = true; });
   }
-  // التوجيه الفني للإعلان (من الذكاء الاصطناعي)
-  function artCard() { var ed = document.getElementById('ab-editor'), s = X.sel(), P2 = A.ai2 || {}; if (!ed || s.t !== 'ad' || ed.querySelector('.abx-art')) return; var ad = X.D.adSets[s.s] && X.D.adSets[s.s].ads[s.a]; if (!ad || !ad.art) return; var a = ad.art;
+  // التوجيه الفني للإعلان + توليد الصورة/الكاروسيل + اللوجو
+  function artCard() { var ed = document.getElementById('ab-editor'), s = X.sel(), P2 = A.ai2 || {}; if (!ed || s.t !== 'ad' || ed.querySelector('.abx-art')) return;
+    var ad = X.D.adSets[s.s] && X.D.adSets[s.s].ads[s.a]; if (!ad) return; if (!ad.art) ad.art = { concept: '', composition: '', palette: '', overlay: '', prompt: '' }; var a = ad.art;
+    var isCar = ad.format === 'carousel', isVid = ad.format === 'video';
     var sec = document.createElement('section'); sec.className = 'card p-5 abx-art';
-    sec.innerHTML = '<div class="flex items-center gap-2 mb-3"><span class="abx-ic" style="--c:#db2777">' + ic('image') + '</span><b class="text-ink-900 me-auto">' + esc(P2.artT) + '</b>' + (ad.angle ? '<span class="text-xs font-semibold text-brand-700">' + esc(ad.angle) + '</span>' : '') + '</div>' +
-      '<dl class="grid gap-2 sm:grid-cols-2 text-sm">' + [['concept', P2.concept], ['composition', P2.composition], ['palette', P2.palette], ['overlay', P2.overlay]].filter(function (k) { return a[k[0]]; }).map(function (k) { return '<div class="rounded-xl bg-ink-50 p-3"><dt class="text-[11px] text-ink-500">' + esc(k[1]) + '</dt><dd class="text-ink-900 mt-0.5" dir="auto">' + esc(a[k[0]]) + '</dd></div>'; }).join('') + '</dl>' +
-      (a.prompt ? '<div class="mt-3 rounded-xl border border-dashed border-ink-300 p-3"><span class="text-[11px] text-ink-500">' + esc(P2.prompt) + '</span><p class="text-xs text-ink-800 mt-1 font-mono" dir="ltr">' + esc(a.prompt) + '</p><div class="flex gap-2 mt-2"><button type="button" class="btn-ghost !py-1 !text-xs" data-cp>' + ic('copy', 'w-3.5 h-3.5') + esc(P2.copy) + '</button><a class="btn-ghost !py-1 !text-xs" target="_blank" href="' + esc(P2.designUrl) + '">' + ic('image', 'w-3.5 h-3.5') + esc(P2.design) + '</a></div></div>' : '');
+    var meta = [['concept', P2.concept], ['composition', P2.composition], ['palette', P2.palette], ['overlay', P2.overlay]].filter(function (k) { return a[k[0]]; }).map(function (k) { return '<div class="rounded-xl bg-ink-50 p-3"><dt class="text-[11px] text-ink-500">' + esc(k[1]) + '</dt><dd class="text-ink-900 mt-0.5" dir="auto">' + esc(a[k[0]]) + '</dd></div>'; }).join('');
+    var pth = 'adSets.' + s.s + '.ads.' + s.a + '.art.prompt';
+    var genBtn = isVid ? '<a class="btn-ghost !py-1.5 !text-xs" target="_blank" href="' + esc(A.listUrl || '#') + '">' + esc(P2.genVid) + '</a>'
+      : '<button type="button" class="btn-primary !py-1.5 !text-xs abx-gen" data-kind="' + (isCar ? 'carousel' : 'image') + '">' + ic('spark', 'w-3.5 h-3.5') + esc(isCar ? fmt(P2.genCar, (ad.cards || []).length || 5) : P2.gen) + '</button>';
+    sec.innerHTML = '<div class="flex items-center gap-2 mb-3"><span class="abx-ic" style="--c:#db2777">' + ic('image') + '</span><b class="text-ink-900 me-auto">' + esc(P2.artT) + '</b>' + (ad.angle ? '<span class="text-xs font-semibold text-brand-700">' + esc(ad.angle) + '</span>' : '') + '</div>'
+      + (meta ? '<dl class="grid gap-2 sm:grid-cols-2 text-sm mb-3">' + meta + '</dl>' : '')
+      + '<label class="block"><span class="text-[11px] text-ink-500">' + esc(P2.promptEdit) + '</span><textarea class="input !mt-1 text-xs font-mono" rows="4" dir="ltr" data-p="' + pth + '">' + esc(a.prompt || '') + '</textarea></label>'
+      + '<div class="flex flex-wrap items-center gap-2 mt-2">' + genBtn
+      + '<button type="button" class="btn-ghost !py-1.5 !text-xs" data-cp>' + ic('copy', 'w-3.5 h-3.5') + esc(P2.copy) + '</button>'
+      + '<button type="button" class="btn-ghost !py-1.5 !text-xs abx-logo">' + ic('image', 'w-3.5 h-3.5') + esc(P2.logoT) + '</button>'
+      + '<span class="abx-gstat text-[11px] text-ink-500"></span></div>'
+      + '<div class="abx-logo-panel hidden mt-3 rounded-xl border border-ink-200 p-3"></div>'
+      + '<div class="abx-prev flex flex-wrap gap-2 mt-3"></div>';
     var first = ed.querySelector(':scope > section.card'); if (first) first.after(sec); else ed.prepend(sec);
-    sec.addEventListener('click', function (e) { var b = e.target.closest('[data-cp]'); if (!b) return; if (navigator.clipboard) navigator.clipboard.writeText(a.prompt); b.lastChild.textContent = P2.copied; setTimeout(function () { b.lastChild.textContent = P2.copy; }, 1500); }); }
+    paintPrev(sec, ad, isCar);
+    sec.addEventListener('click', function (e) {
+      var cp = e.target.closest('[data-cp]'); if (cp) { if (navigator.clipboard) navigator.clipboard.writeText((sec.querySelector('[data-p$=".art.prompt"]') || {}).value || a.prompt || ''); cp.lastChild.textContent = P2.copied; setTimeout(function () { cp.lastChild.textContent = P2.copy; }, 1500); return; }
+      var g = e.target.closest('.abx-gen'); if (g) return genImg(sec, ad, g);
+      var lg = e.target.closest('.abx-logo'); if (lg) { var pn = sec.querySelector('.abx-logo-panel'); pn.classList.toggle('hidden'); if (!pn.dataset.on) { pn.dataset.on = '1'; logoPanel(pn); } return; }
+    });
+  }
+  function paintPrev(sec, ad, isCar) { var box = sec.querySelector('.abx-prev'); if (!box) return;
+    var urls = isCar ? (ad.cards || []).map(function (c) { return c.imageUrl; }).filter(Boolean) : (ad.imageUrl ? [ad.imageUrl] : []);
+    box.innerHTML = urls.map(function (u) { return '<a href="' + esc(u) + '" target="_blank"><img src="' + esc(u) + '" class="w-24 h-28 object-cover rounded-lg border border-ink-200" alt=""></a>'; }).join('');
+  }
+  function genImg(sec, ad, btn) { var s = X.sel(), P2 = A.ai2 || {}, stat = sec.querySelector('.abx-gstat');
+    if (A.imgProvider === '') { stat.textContent = (A.s && A.s.iBody) || '...'; return; }
+    var prompt = ((sec.querySelector('[data-p$=".art.prompt"]') || {}).value || '').trim(); if (!prompt) { stat.textContent = P2.promptEdit; return; }
+    var kind = btn.dataset.kind; btn.disabled = true; stat.textContent = P2.genning;
+    var fd = new FormData(); fd.append('_csrf', A.csrf); fd.append('action', 'ai_image'); fd.append('id', A.id); fd.append('prompt', prompt); fd.append('kind', kind); if (kind === 'carousel') fd.append('n', (ad.cards || []).length || 5);
+    fetch(A.url, { method: 'POST', body: fd, credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) {
+      btn.disabled = false; if (!j.ok) { stat.textContent = fmt(P2.genErr, j.error || ''); return; } stat.textContent = '';
+      var adObj = X.D.adSets[s.s].ads[s.a];
+      if (kind === 'carousel') { if (!adObj.cards) adObj.cards = []; (j.urls || []).forEach(function (u, k) { if (!adObj.cards[k]) adObj.cards[k] = { imageUrl: '', linkUrl: '', headline: '', description: '' }; adObj.cards[k].imageUrl = u; }); }
+      else { adObj.imageUrl = (j.urls || [])[0] || ''; }
+      X.save(); X.rerender();
+    }).catch(function () { btn.disabled = false; stat.textContent = fmt(P2.genErr, ''); });
+  }
+  function logoPanel(pn) { var P2 = A.ai2 || {}, o = A.logoOpts || {};
+    if (!A.logoUrl) { pn.innerHTML = '<p class="text-xs text-ink-500">' + esc(P2.noLogoKb) + '</p>'; return; }
+    var presets = [[86, 9], [50, 9], [14, 9], [86, 91], [50, 91], [14, 91]];
+    pn.innerHTML = '<div class="grid gap-3 sm:grid-cols-2 text-sm">'
+      + '<label class="flex items-center gap-2"><input type="checkbox" class="lg-on"' + (o.logo_on ? ' checked' : '') + '>' + esc(P2.logoOn) + '</label><span></span>'
+      + '<div><span class="text-[11px] text-ink-500">' + esc(P2.logoPos) + '</span><div class="grid grid-cols-3 gap-1 w-32 mt-1" dir="ltr">' + presets.map(function (p) { return '<button type="button" class="lg-pos h-7 rounded border ' + (o.logo_x === p[0] && o.logo_y === p[1] ? 'border-brand-500 bg-brand-50' : 'border-ink-200') + '" data-xy="' + p[0] + ',' + p[1] + '"></button>'; }).join('') + '</div></div>'
+      + '<div><label class="block"><span class="text-[11px] text-ink-500">' + esc(P2.logoSize) + '</span><input type="range" min="8" max="45" value="' + (o.logo_w || 18) + '" class="w-full accent-brand-600 lg-w"></label><label class="block mt-1"><span class="text-[11px] text-ink-500">' + esc(P2.logoOp) + '</span><input type="range" min="30" max="100" value="' + (o.logo_op || 100) + '" class="w-full accent-brand-600 lg-op"></label></div>'
+      + '<div><span class="text-[11px] text-ink-500">' + esc(P2.logoTint) + '</span><select class="input !mt-1 !py-1 lg-tint">' + [['orig', P2.tOrig], ['white', P2.tWhite], ['black', P2.tBlack]].map(function (x) { return '<option value="' + x[0] + '"' + (o.logo_tint === x[0] ? ' selected' : '') + '>' + esc(x[1]) + '</option>'; }).join('') + '</select>'
+      + '<span class="text-[11px] text-ink-500 block mt-1">' + esc(P2.logoPlate) + '</span><select class="input !mt-1 !py-1 lg-plate">' + [['none', P2.pNone], ['light', P2.pLight], ['dark', P2.pDark]].map(function (x) { return '<option value="' + x[0] + '"' + (o.logo_plate === x[0] ? ' selected' : '') + '>' + esc(x[1]) + '</option>'; }).join('') + '</select></div>'
+      + '<span class="lg-stat text-[11px] text-lime-600 self-end"></span></div>';
+    var save = function () {
+      var xy = (pn.querySelector('.lg-pos.on') || {}).dataset; var cur = pn.querySelector('[data-xy].sel');
+      var lo = { logo_on: pn.querySelector('.lg-on').checked ? 1 : 0, logo_x: +(pn._xy ? pn._xy[0] : (o.logo_x || 86)), logo_y: +(pn._xy ? pn._xy[1] : (o.logo_y || 9)), logo_w: +pn.querySelector('.lg-w').value, logo_op: +pn.querySelector('.lg-op').value, logo_tint: pn.querySelector('.lg-tint').value, logo_plate: pn.querySelector('.lg-plate').value };
+      var fd = new FormData(); fd.append('_csrf', A.csrf); fd.append('action', 'ad_logo'); fd.append('id', A.id); fd.append('logo', JSON.stringify(lo));
+      fetch(A.url, { method: 'POST', body: fd, credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) { if (j.ok) { A.logoOpts = j.logo; var st = pn.querySelector('.lg-stat'); if (st) { st.textContent = '✓ ' + P2.saved; setTimeout(function () { st.textContent = ''; }, 1500); } } });
+    };
+    pn.addEventListener('click', function (e) { var p = e.target.closest('.lg-pos'); if (!p) return; pn.querySelectorAll('.lg-pos').forEach(function (b) { b.classList.remove('on', 'border-brand-500', 'bg-brand-50'); }); p.classList.add('on', 'border-brand-500', 'bg-brand-50'); pn._xy = p.dataset.xy.split(','); save(); });
+    pn.addEventListener('change', save);
+  }
   document.addEventListener('ab:render', function (e) { if (!(e.detail && e.detail.soft)) { enhance(); artCard(); } });
   enhance();
 })();
