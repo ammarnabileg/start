@@ -17,20 +17,23 @@
     function paintRefs() { $('#cp-refs').innerHTML = refs.map(function (r, i) { return '<span class="relative"><img src="' + esc(r.thumb) + '" class="w-20 h-24 object-cover rounded-xl border border-ink-200" alt=""><button type="button" data-rm="' + i + '" class="absolute -top-1.5 -end-1.5 w-6 h-6 rounded-full bg-white border border-ink-200 text-xs">×</button></span>'; }).join(''); }
     function collect() { var d = { refs: refs.map(function (r) { return r.id; }), services: $$('[name=services]:checked', W).map(function (x) { return x.value; }) };
       ['goal', 'count', 'name', 'tone', 'cta', 'audience', 'about', 'avoid', 'dialect_other', 'lang_all', 'lang_li', 'lang_x', 'lang_img', 'lang_vo', 'dialect_k'].forEach(function (n) { if (W[n]) d[n] = W[n].value; }); d.video = W.video.checked; d.carousel = W.carousel.checked; d.humanize = W.humanize.checked;
+      if (W.font) d.font = (W.querySelector('[name=font]:checked') || {}).value || 'auto';
       if (W.logo_w) { ['logo_x', 'logo_y', 'logo_w', 'logo_op'].forEach(function (n) { d[n] = +W[n].value; }); ['logo_tint', 'logo_plate'].forEach(function (n) { d[n] = (W.querySelector('[name=' + n + ']:checked') || {}).value; }); d.logo_on = W.logo_on.checked; } return d; }
     var dr = ls(key);
     if (dr && (dr.goal || (dr.refsFull || []).length)) {
       ['goal', 'count', 'name', 'tone', 'cta', 'audience', 'about', 'avoid', 'dialect_other', 'lang_all', 'lang_li', 'lang_x', 'lang_img', 'lang_vo', 'dialect_k'].forEach(function (n) { if (dr[n] != null && W[n]) W[n].value = dr[n]; });
       W.video.checked = dr.video !== false; W.carousel.checked = dr.carousel !== false; W.humanize.checked = dr.humanize !== false;
+      if (W.font && dr.font) Array.prototype.slice.call(W.querySelectorAll('[name=font]')).forEach(function (x) { x.checked = x.value === dr.font; });
+      if (W.font && dr.font) Array.prototype.slice.call(W.querySelectorAll('[name=font]')).forEach(function (x) { x.checked = x.value === dr.font; });
       if (W.logo_w) { ['logo_x', 'logo_y', 'logo_w', 'logo_op'].forEach(function (n) { if (dr[n] != null) W[n].value = dr[n]; }); ['logo_tint', 'logo_plate'].forEach(function (n) { if (dr[n]) $$('[name=' + n + ']', W).forEach(function (x) { x.checked = x.value === dr[n]; }); }); W.logo_on.checked = dr.logo_on !== false; }
       $$('[name=services]', W).forEach(function (x) { x.checked = (dr.services || []).indexOf(x.value) >= 0; });
       refs = dr.refsFull || []; paintRefs(); toast(T.draftRestored, 'info');
     }
     // معاينة اللوجو التفاعلية: سحب، أماكن جاهزة، حجم، شفافية، لون، خلفية. نفس معادلات السيرفر بالظبط (cpl_logo_box)
     var bgIx = 0;
-    function lbox(bw, bh, ar) { var w = +W.logo_w.value / 100 * bw, h = w / ar, mh = 0.14 * bh; if (h > mh) { h = mh; w = h * ar; }
-      var pd = 0.07, cx = +W.logo_x.value / 100 * bw, cy = +W.logo_y.value / 100 * bh;
-      cx = Math.min(Math.max(cx, pd * bw + w / 2), bw - pd * bw - w / 2); cy = Math.min(Math.max(cy, pd * bh + h / 2), bh - pd * bh - h / 2); return { x: cx - w / 2, y: cy - h / 2, w: w, h: h }; }
+    function lbox(bw, bh, ar) { var w = +W.logo_w.value / 100 * bw, h = w / ar, mh = 0.18 * bh; if (h > mh) { h = mh; w = h * ar; }
+      var cx = Math.min(Math.max(+W.logo_x.value / 100 * bw, 0), bw), cy = Math.min(Math.max(+W.logo_y.value / 100 * bh, 0), bh); // يُسمح بالخروج عن الإطار
+      return { x: cx - w / 2, y: cy - h / 2, w: w, h: h }; }
     function lprev() { var bx = $('#cp-lprev'), lg = $('#cp-lprev-logo'), pl = $('#cp-lplate'); if (!bx || !lg) return;
       $('#cp-lbgs').innerHTML = refs.map(function (r, i) { return '<button type="button" data-bg="' + i + '" class="w-8 h-10 rounded border-2 ' + (i === bgIx ? 'border-brand-500' : 'border-transparent') + ' bg-cover bg-center" style="background-image:url(\'' + esc(r.thumb) + '\')"></button>'; }).join('');
       if (refs[bgIx] || refs[0]) bx.style.backgroundImage = 'url("' + (refs[bgIx] || refs[0]).thumb + '")';
@@ -54,7 +57,24 @@
         var g = e.target.closest('[data-bg]'); if (g) { bgIx = +g.dataset.bg; lprev(); } });
       W.addEventListener('input', function (e) { if (/^logo_/.test(e.target.name || '')) lprev(); });
     }
-    W.addEventListener('change', lprev); setTimeout(lprev, 0);
+    // سلايدرز داخل المودال تكتب في الحقول المخفية
+    W.addEventListener('input', function (e) { var sl = e.target.closest('[data-logo]'); if (sl && W[sl.dataset.logo]) { W[sl.dataset.logo].value = sl.value; lprev(); } });
+    // مصغّر اللوجو في الخطوة (خارج المودال)
+    function lthumb() { var t = $('#cp-lthumb-logo'), bx = $('#cp-lthumb'); if (!t || !bx) { return; } if (refs[0]) bx.style.backgroundImage = 'url("' + refs[0].thumb + '")';
+      var on = W.logo_on.checked; t.style.display = on ? '' : 'none'; if (!on) return;
+      var ar = (t.naturalWidth || 3) / (t.naturalHeight || 1), bw = bx.clientWidth, bh = bx.clientHeight, w = Math.min(0.45, +W.logo_w.value / 100) * bw, h = w / ar;
+      var cx = +W.logo_x.value / 100 * bw, cy = +W.logo_y.value / 100 * bh;
+      t.style.position = 'absolute'; t.style.left = (cx - w / 2) + 'px'; t.style.top = (cy - h / 2) + 'px'; t.style.width = w + 'px'; t.style.height = h + 'px';
+      t.style.opacity = +W.logo_op.value / 100; var tint = (W.querySelector('[name=logo_tint]:checked') || {}).value; t.style.filter = tint === 'white' ? 'brightness(0) invert(1)' : tint === 'black' ? 'brightness(0)' : ''; }
+    // المودال: فتح/غلق
+    var modal = $('#cp-logo-modal');
+    function openLogo() { if (!modal) return; modal.classList.remove('hidden'); document.body.style.overflow = 'hidden'; lprev(); }
+    function closeLogo() { if (!modal) return; modal.classList.add('hidden'); document.body.style.overflow = ''; lthumb(); saveDraft(); }
+    if ($('#cp-logo-open')) $('#cp-logo-open').addEventListener('click', openLogo);
+    if ($('#cp-logo-done')) $('#cp-logo-done').addEventListener('click', closeLogo);
+    if (modal) modal.addEventListener('click', function (e) { if (e.target === modal) closeLogo(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) closeLogo(); });
+    W.addEventListener('change', function () { lprev(); lthumb(); }); setTimeout(lthumb, 60);
     // اللهجة: مثال حي، وخانة «أخرى»، واللهجة بتختفي لو مفيش ولا قناة عربي
     function dial() { var k = W.dialect_k ? W.dialect_k.value : '', ex = $('#cp-dial-ex'); if (!ex) return;
       W.dialect_other.classList.toggle('hidden', k !== 'other');

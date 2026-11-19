@@ -180,31 +180,56 @@ render($plan ? (string)$plan['name'] : t('خطة محتوى بالذكاء ال�
         <div id="cp-refs" class="flex flex-wrap gap-2"></div>
         <label class="btn-ghost !py-1.5 mt-2 cursor-pointer"><input id="cp-ref-in" type="file" accept="image/*,application/pdf,.pdf" multiple class="hidden"><?= e(t('أضف صورًا أو PDF')) ?></label>
       </div>
+      <?php $cpFonts = ['auto' => [t('تلقائي (من الريفرنس/الهوية)'), ''], 'Cairo' => ['Cairo', 'geometric humanist sans, clean and modern'], 'Tajawal' => ['Tajawal', 'modern geometric sans, friendly'], 'Almarai' => ['Almarai', 'neutral rounded sans, highly legible'], 'Changa' => ['Changa', 'bold condensed display'], 'El Messiri' => ['El Messiri', 'elegant contemporary with calligraphic touch'], 'Reem Kufi' => ['Reem Kufi', 'kufic geometric display'], 'Amiri' => ['Amiri', 'classic Naskh serif, editorial'], 'Lateef' => ['Lateef', 'traditional Arabic'], 'IBM Plex Sans Arabic' => ['IBM Plex Sans Arabic', 'technical corporate sans']]; ?>
+      <div>
+        <span class="label"><?= e(t('خط العناوين')) ?></span>
+        <p class="text-xs text-ink-500 mb-2"><?= e(t('يُستخدم كأسلوب للنص على الصور والشرائح. اضغط للمعاينة.')) ?></p>
+        <div id="cp-fonts" class="flex gap-2 overflow-x-auto pb-1">
+          <?php foreach ($cpFonts as $fk => [$fl, $fd]): ?>
+          <label class="shrink-0 cursor-pointer"><input type="radio" name="font" value="<?= e($fk) ?>" class="peer sr-only" <?= $fk === 'auto' ? 'checked' : '' ?>>
+            <span class="flex flex-col items-center justify-center gap-1 w-28 h-20 rounded-xl border border-ink-200 px-2 text-center transition hover:border-brand-300 peer-checked:border-brand-500 peer-checked:bg-brand-50">
+              <span class="text-lg leading-tight truncate w-full" style="<?= $fk === 'auto' ? '' : 'font-family:\'' . e($fk) . '\',sans-serif' ?>"><?= $fk === 'auto' ? '✨' : e(t('وتد Watad')) ?></span>
+              <span class="text-[10px] text-ink-500 truncate w-full"><?= e($fl) ?></span>
+            </span></label>
+          <?php endforeach; ?>
+        </div>
+      </div>
       <?php $lgRow = function_exists('kb_logo') ? kb_logo($wid) : null; ?>
       <div class="rounded-2xl border border-ink-200 p-4">
-        <span class="label"><?= e(t('مكان اللوجو على التصميم')) ?></span>
+        <span class="label"><?= e(t('اللوجو على التصميم')) ?></span>
         <?php if (!$lgRow): ?><p class="text-sm text-amber-700"><?= e(t('لا يوجد لوجو في ملف الشركة. أضفه من قاعدة المعرفة ليُركَّب على الصور تلقائيًا.')) ?> <a class="link" href="<?= e(url('knowledge')) ?>"><?= e(t('قاعدة المعرفة')) ?></a></p>
         <?php else: ?>
-        <p class="text-xs text-ink-500 mb-3"><?= e(t('السيستم يركّب لوجو شركتك الحقيقي على كل صورة وشريحة بعد توليدها (الذكاء الاصطناعي لا يرسم لوجو). المعاينة على أول صورة مرجعية.')) ?></p>
-        <div class="flex flex-wrap items-start gap-5">
-          <div class="space-y-2">
-            <div id="cp-lprev" class="relative w-56 aspect-[4/5] rounded-xl overflow-hidden border border-ink-200 bg-cover bg-center select-none touch-none" style="background-color:#0b1f3a;background-image:linear-gradient(135deg,#0b1f3a,#155e75)">
-              <div class="absolute inset-[7%] border border-dashed border-[#ffffff66] rounded pointer-events-none"></div>
-              <div id="cp-lplate" class="absolute rounded-lg pointer-events-none"></div>
-              <img id="cp-lprev-logo" src="<?= e(url('media', ['file' => $lgRow['id']])) ?>" alt="" draggable="false" class="absolute object-contain cursor-grab active:cursor-grabbing" title="<?= e(t('اسحب اللوجو لأي مكان')) ?>">
+        <p class="text-xs text-ink-500 mb-3"><?= e(t('السيستم يركّب لوجو شركتك الحقيقي على كل صورة وشريحة (الذكاء الاصطناعي لا يرسمه).')) ?></p>
+        <div class="flex items-center gap-3 flex-wrap">
+          <div id="cp-lthumb" class="relative w-16 h-20 rounded-lg border border-ink-200 bg-cover bg-center overflow-hidden shrink-0" style="background-color:#0b1f3a;background-image:linear-gradient(135deg,#0b1f3a,#155e75)"><img id="cp-lthumb-logo" src="<?= e(url('media', ['file' => $lgRow['id']])) ?>" alt="" class="absolute object-contain"></div>
+          <button type="button" id="cp-logo-open" class="btn-ghost"><?= ui_icon('image', 'w-4 h-4') ?><?= e(t('اضبط اللوجو ومكانه')) ?></button>
+          <label class="flex items-center gap-1.5 text-sm"><input type="checkbox" name="logo_on" checked><?= e(t('ركّب اللوجو على الصور')) ?></label>
+        </div>
+        <input type="hidden" name="logo_x" value="86"><input type="hidden" name="logo_y" value="9">
+        <input type="hidden" name="logo_w" value="18"><input type="hidden" name="logo_op" value="100">
+
+        <div id="cp-logo-modal" class="hidden fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm grid place-items-center p-4" dir="rtl">
+          <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-auto">
+            <div class="flex items-center justify-between gap-3 px-5 py-3 border-b border-ink-100 sticky top-0 bg-white z-10"><b class="text-ink-900"><?= e(t('ضبط اللوجو')) ?></b><button type="button" id="cp-logo-done" class="btn-primary !py-1.5"><?= e(t('تم')) ?></button></div>
+            <div class="p-5 flex flex-wrap items-start gap-5">
+              <div class="space-y-2">
+                <div id="cp-lprev" class="relative w-64 aspect-[4/5] rounded-xl overflow-hidden border border-ink-200 bg-cover bg-center select-none touch-none" style="background-color:#0b1f3a;background-image:linear-gradient(135deg,#0b1f3a,#155e75)">
+                  <div class="absolute inset-[7%] border border-dashed border-[#ffffff55] rounded pointer-events-none"></div>
+                  <div id="cp-lplate" class="absolute rounded-lg pointer-events-none"></div>
+                  <img id="cp-lprev-logo" src="<?= e(url('media', ['file' => $lgRow['id']])) ?>" alt="" draggable="false" class="absolute object-contain cursor-grab active:cursor-grabbing" title="<?= e(t('اسحب اللوجو لأي مكان، حتى خارج الإطار')) ?>">
+                </div>
+                <p class="text-[11px] text-ink-400 w-64"><?= e(t('اسحب اللوجو لأي مكان — حتى خارج حدود الصورة. الخط المتقطع = المنطقة الآمنة.')) ?></p>
+                <div id="cp-lbgs" class="flex flex-wrap gap-1 w-64"></div>
+              </div>
+              <div class="space-y-3 text-sm min-w-0 flex-1">
+                <div><span class="text-xs text-ink-500 block mb-1"><?= e(t('أماكن جاهزة')) ?></span>
+                  <div class="grid grid-cols-3 gap-1.5 w-40" dir="ltr"><?php foreach (['top-left' => [14, 9], 'top-center' => [50, 9], 'top-right' => [86, 9], 'middle-left' => [14, 50], 'center' => [50, 50], 'middle-right' => [86, 50], 'bottom-left' => [14, 91], 'bottom-center' => [50, 91], 'bottom-right' => [86, 91]] as $pos => [$px, $py]): ?><button type="button" data-lp="<?= $px ?>,<?= $py ?>" class="h-8 rounded-lg border border-ink-200 relative hover:border-brand-300 [&.on]:border-brand-500 [&.on]:bg-brand-50"><span class="absolute w-3 h-2 rounded-sm bg-ink-400" style="left:calc(<?= $px ?>% - 6px);top:calc(<?= $py ?>% - 4px)"></span></button><?php endforeach; ?></div></div>
+                <label class="block"><span class="text-xs text-ink-500 flex justify-between"><span><?= e(t('الحجم')) ?></span><b id="cp-lw-v" class="tabular-nums"></b></span><input type="range" min="8" max="45" value="18" class="w-full accent-brand-600" data-logo="logo_w"></label>
+                <label class="block"><span class="text-xs text-ink-500 flex justify-between"><span><?= e(t('الشفافية')) ?></span><b id="cp-lo-v" class="tabular-nums"></b></span><input type="range" min="30" max="100" value="100" class="w-full accent-brand-600" data-logo="logo_op"></label>
+                <div><span class="text-xs text-ink-500 block mb-1"><?= e(t('لون اللوجو')) ?></span><div class="flex flex-wrap gap-1.5"><?php foreach (['orig' => t('الأصلي'), 'white' => t('أبيض'), 'black' => t('أسود')] as $v => $l) echo $chip('logo_tint', $v, $l, $v === 'orig'); ?></div></div>
+                <div><span class="text-xs text-ink-500 block mb-1"><?= e(t('خلفية خلف اللوجو')) ?></span><div class="flex flex-wrap gap-1.5"><?php foreach (['none' => t('بدون'), 'light' => t('فاتحة'), 'dark' => t('داكنة')] as $v => $l) echo $chip('logo_plate', $v, $l, $v === 'none'); ?></div></div>
+              </div>
             </div>
-            <p class="text-[11px] text-ink-400 w-56"><?= e(t('اسحب اللوجو بالماوس أو بإصبعك. الخط المتقطع = المنطقة الآمنة.')) ?></p>
-            <div id="cp-lbgs" class="flex flex-wrap gap-1 w-56"></div>
-          </div>
-          <div class="space-y-3 text-sm min-w-0 flex-1">
-            <div><span class="text-xs text-ink-500 block mb-1"><?= e(t('أماكن جاهزة')) ?></span>
-              <div class="grid grid-cols-3 gap-1.5 w-40" dir="ltr"><?php foreach (['top-left' => [14, 9], 'top-center' => [50, 9], 'top-right' => [86, 9], 'middle-left' => [14, 50], 'center' => [50, 50], 'middle-right' => [86, 50], 'bottom-left' => [14, 91], 'bottom-center' => [50, 91], 'bottom-right' => [86, 91]] as $pos => [$px, $py]): ?><button type="button" data-lp="<?= $px ?>,<?= $py ?>" data-pos="<?= $pos ?>" class="h-8 rounded-lg border border-ink-200 relative hover:border-brand-300 [&.on]:border-brand-500 [&.on]:bg-brand-50"><span class="absolute w-3 h-2 rounded-sm bg-ink-400" style="left:calc(<?= $px ?>% - 6px);top:calc(<?= $py ?>% - 4px)"></span></button><?php endforeach; ?></div></div>
-            <label class="block"><span class="text-xs text-ink-500 flex justify-between"><span><?= e(t('الحجم')) ?></span><b id="cp-lw-v" class="tabular-nums"></b></span><input type="range" name="logo_w" min="8" max="35" value="18" class="w-full accent-brand-600"></label>
-            <label class="block"><span class="text-xs text-ink-500 flex justify-between"><span><?= e(t('الشفافية')) ?></span><b id="cp-lo-v" class="tabular-nums"></b></span><input type="range" name="logo_op" min="30" max="100" value="100" class="w-full accent-brand-600"></label>
-            <div><span class="text-xs text-ink-500 block mb-1"><?= e(t('لون اللوجو')) ?></span><div class="flex flex-wrap gap-1.5"><?php foreach (['orig' => t('الأصلي'), 'white' => t('أبيض'), 'black' => t('أسود')] as $v => $l) echo $chip('logo_tint', $v, $l, $v === 'orig'); ?></div></div>
-            <div><span class="text-xs text-ink-500 block mb-1"><?= e(t('خلفية خلف اللوجو')) ?></span><div class="flex flex-wrap gap-1.5"><?php foreach (['none' => t('بدون'), 'light' => t('فاتحة'), 'dark' => t('داكنة')] as $v => $l) echo $chip('logo_plate', $v, $l, $v === 'none'); ?></div></div>
-            <input type="hidden" name="logo_x" value="86"><input type="hidden" name="logo_y" value="9">
-            <label class="flex items-center gap-1.5"><input type="checkbox" name="logo_on" checked><?= e(t('ركّب اللوجو على الصور')) ?></label>
           </div>
         </div>
         <?php endif; ?>
@@ -241,6 +266,7 @@ render($plan ? (string)$plan['name'] : t('خطة محتوى بالذكاء ال�
     <?php endif; endif; ?>
     <?php $cfg['media'] = url('media'); ?><script>window.CP = <?= json_encode($cfg, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;</script>
     <?php if (!$plan): ?><script src="assets/extract.js?v=<?= e(APP_VERSION) ?>"></script><?php endif; ?>
+    <?php if (!$plan): ?><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&family=Tajawal:wght@400;700&family=Almarai:wght@400;700&family=Changa:wght@400;700&family=El+Messiri:wght@400;700&family=Reem+Kufi:wght@400;700&family=Amiri:wght@400;700&family=Lateef&family=IBM+Plex+Sans+Arabic:wght@400;700&display=swap" rel="stylesheet"><?php endif; ?>
     <script src="assets/content-plan.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
 });

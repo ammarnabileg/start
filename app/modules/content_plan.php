@@ -75,6 +75,7 @@ function cpl_create(array $in): int
         'tone' => mb_substr(trim((string)($in['tone'] ?? '')), 0, 200), 'cta' => mb_substr(trim((string)($in['cta'] ?? '')), 0, 300), 'avoid' => mb_substr(trim((string)($in['avoid'] ?? '')), 0, 600),
         'video' => !empty($in['video']), 'carousel' => !isset($in['carousel']) || !empty($in['carousel']), 'humanize' => !isset($in['humanize']) || !empty($in['humanize']),
         'logo_x' => max(0, min(100, (int)($in['logo_x'] ?? 86))), 'logo_y' => max(0, min(100, (int)($in['logo_y'] ?? 9))), 'logo_w' => max(8, min(35, (int)($in['logo_w'] ?? 18))), 'logo_op' => max(30, min(100, (int)($in['logo_op'] ?? 100))),
+        'font' => preg_match('/^[\w .-]{1,40}$/', (string)($in['font'] ?? 'auto')) ? (string)$in['font'] : 'auto',
         'logo_tint' => in_array($in['logo_tint'] ?? '', ['orig', 'white', 'black'], true) ? $in['logo_tint'] : 'orig', 'logo_plate' => in_array($in['logo_plate'] ?? '', ['none', 'light', 'dark'], true) ? $in['logo_plate'] : 'none', 'logo_on' => !isset($in['logo_on']) || !empty($in['logo_on'])];
     $name = mb_substr(trim((string)($in['name'] ?? '')), 0, 150) ?: mb_substr(preg_replace('/\s+/u', ' ', $goal), 0, 60);
     $hasLogo = function_exists('kb_logo') && kb_logo($wid);
@@ -83,7 +84,7 @@ function cpl_create(array $in): int
     $nid = (int)db()->lastInsertId(); cpl_log($nid, t('اتعملت الخطة: %s منشور، %s صورة مرجعية%s.', $n, count($refs), $hasLogo ? t('، والشعار من ملف الشركة') : '')); return $nid;
 }
 
-function cpl_opts(array $p): array { return (json_decode((string)$p['opts'], true) ?: []) + ['lang' => 'ar', 'dialect' => '', 'audience' => '', 'services' => [], 'tone' => '', 'cta' => '', 'avoid' => '', 'about' => '', 'video' => true, 'carousel' => true, 'humanize' => true]; }
+function cpl_opts(array $p): array { return (json_decode((string)$p['opts'], true) ?: []) + ['lang' => 'ar', 'dialect' => '', 'audience' => '', 'services' => [], 'tone' => '', 'cta' => '', 'avoid' => '', 'about' => '', 'font' => 'auto', 'video' => true, 'carousel' => true, 'humanize' => true]; }
 
 /** البرومبت الأساسي = برومبت المستخدم بالحرف (app/prompts/content_plan.md) + إعدادات الخطة. قسم HTML اتشال لأن السيستم هو اللي بيعرض ويصدّر. */
 function cpl_master(array $p): string
@@ -582,16 +583,31 @@ function cpl_jobs_finalize(int $itemId, string $kind): void
     db()->prepare('UPDATE cp_items SET fmt = ?, media_ids = ?, media_id = ? WHERE id = ?')->execute([$kind, json_encode(array_values($ms)), $ms[0], $itemId]);
 }
 
+function cpl_text_dir(array $p): string
+{
+    $v = cpl_opts($p)['lang_img'] ?? cpl_opts($p)['lang'];
+    if ($v === 'en') return "On-image text is English only; left-to-right (LTR) layout, latin typography.";
+    if ($v === 'none') return "No text on the image.";
+    if ($v === 'ar_en' || $v === 'both') return "Bilingual text: Arabic is primary (larger, full-strength brand colour, right-to-left) and the English line is noticeably smaller and in a lighter/muted tone beneath it. Overall RTL layout, correct Arabic letter joining.";
+    if ($v === 'en_ar') return "Bilingual text: English is primary (larger, full-strength colour, left-to-right) and the Arabic line is noticeably smaller and in a lighter/muted tone beneath it. Correct Arabic letter joining.";
+    return "On-image text is Arabic only; right-to-left (RTL) layout, correct Arabic letter joining.";
+}
+function cpl_font_note(array $p): string
+{
+    $f = cpl_opts($p)['font'] ?? 'auto';
+    $d = ['Cairo' => 'geometric humanist sans (Cairo)', 'Tajawal' => 'modern geometric sans (Tajawal)', 'Almarai' => 'neutral rounded sans (Almarai)', 'Changa' => 'bold condensed display (Changa)', 'El Messiri' => 'elegant contemporary with calligraphic touch (El Messiri)', 'Reem Kufi' => 'geometric kufic display (Reem Kufi)', 'Amiri' => 'classic Naskh serif (Amiri)', 'Lateef' => 'traditional Arabic (Lateef)', 'IBM Plex Sans Arabic' => 'technical corporate sans (IBM Plex Sans Arabic)'];
+    return isset($d[$f]) ? ' Headline typography: ' . $d[$f] . ', rendered cleanly and spelled correctly.' : ' Headline typography: choose a strong typeface matching the brand references.';
+}
 function cpl_job_prompt(array $p, array $it, array $j): string
 {
     $o = cpl_opts($p); $vis = trim((string)$p['visual']);
     $rules = "\nIf the image shows people: make them look like real, candid photographed humans, not AI renders. Add authentic, specific features: natural asymmetric faces, real skin texture with pores and subtle blemishes, flyaway hair, correct hands with five fingers, natural eye catchlights and gaze, believable clothing fit and wrinkles, and lived-in environment detail. No waxy skin, no plastic smoothness, no uncanny symmetry, no extra fingers.\nOVERRIDE: ignore any instruction above about drawing a logo. Do NOT draw any logo, brand name, wordmark or watermark anywhere; keep the " . cpl_logo_corner($p) . " corner area (about 260x160px) clean for the real logo added later.\n" . "Safe area: keep the headline, any text and every key element at least 100px (about 9%) inside each edge of the 1080x1350 frame; nothing touches or is cropped by an edge; generous padding around the headline; headline at most 3 short lines in a clean bold sans-serif, spelled exactly, high contrast.";
-    if ($j['kind'] === 'image') return $it['image_prompt'] . ($vis !== '' ? "\n\nBrand visual DNA: " . mb_substr($vis, 0, 1200) : '') . "\nRender the headline text \"" . $it['headline'] . "\" accurately, spelled exactly. " . cpl_text_dir($p) . $rules;
+    if ($j['kind'] === 'image') return $it['image_prompt'] . ($vis !== '' ? "\n\nBrand visual DNA: " . mb_substr($vis, 0, 1200) : '') . "\nRender the headline text \"" . $it['headline'] . "\" accurately, spelled exactly. " . cpl_text_dir($p) . cpl_font_note($p) . $rules;
     if ($j['kind'] === 'video') return $it['video_prompt'] . "\nDo NOT render any logo, brand name or wordmark; end on a clean frame with empty space where the logo can be added in editing.";
     $s = $it['carousel'][(int)$j['slide']] ?? []; $n = count($it['carousel']);
     return "Carousel slide " . ((int)$j['slide'] + 1) . " of {$n} (" . ($s['role'] ?? '') . ") for a premium social campaign, 4:5 1080x1350, one consistent series across all slides.\n"
         . "Visual concept: " . ($s['visual'] ?? '') . "\nLayout: " . ($s['layout'] ?? '') . "\nOn-slide text, render exactly and legibly" . (($o['lang_img'] ?? $o['lang']) !== 'en' ? ' (Arabic, right-to-left, correct letter joining)' : '') . ":\nHeadline: " . ($s['title'] ?? '') . "\nBody: " . ($s['body'] ?? '')
-        . ($vis !== '' ? "\n\nBrand visual DNA: " . mb_substr($vis, 0, 1200) : '') . "\nNo other text, no fake UI, no clutter. " . cpl_text_dir($p) . $rules;
+        . ($vis !== '' ? "\n\nBrand visual DNA: " . mb_substr($vis, 0, 1200) : '') . "\nNo other text, no fake UI, no clutter. " . cpl_text_dir($p) . cpl_font_note($p) . $rules;
 }
 
 /** ركن اللوجو: عربي = أعلى اليمين، إنجليزي = أعلى اليسار */
@@ -608,7 +624,7 @@ function cpl_logo_box(array $o, int $W, int $Hh, float $ar): array
 {
     if (!isset($o['logo_x'])) { $pos = $o['logo_pos'] ?? 'top-right'; $o['logo_x'] = substr($pos, -4) === 'left' ? 0 : (substr($pos, -5) === 'right' ? 100 : 50); $o['logo_y'] = strpos($pos, 'top') === 0 ? 0 : 100; $o['logo_w'] = (int)($o['logo_size'] ?? 20); }
     $w = $o['logo_w'] / 100 * $W; $h = $w / max(0.01, $ar); if ($h > 0.14 * $Hh) { $h = 0.14 * $Hh; $w = $h * $ar; }
-    $cx = min(max($o['logo_x'] / 100 * $W, 0.07 * $W + $w / 2), $W - 0.07 * $W - $w / 2); $cy = min(max($o['logo_y'] / 100 * $Hh, 0.07 * $Hh + $h / 2), $Hh - 0.07 * $Hh - $h / 2);
+    $cx = min(max($o['logo_x'] / 100 * $W, 0), $W); $cy = min(max($o['logo_y'] / 100 * $Hh, 0), $Hh); // يُسمح بخروج اللوجو عن الإطار
     return [(int)round($cx - $w / 2), (int)round($cy - $h / 2), max(1, (int)round($w)), max(1, (int)round($h))];
 }
 
@@ -635,7 +651,9 @@ function cpl_stamp_logo(array $p, int $mid): int
         $x1 = $x - $pd; $y1 = $y - $pd; $x2 = $x + $tw + $pd; $y2 = $y + $th + $pd; $rr = min($pd, 24); imagealphablending($im, true);
         imagefilledrectangle($im, $x1 + $rr, $y1, $x2 - $rr, $y2, $col); imagefilledrectangle($im, $x1, $y1 + $rr, $x1 + $rr - 1, $y2 - $rr, $col); imagefilledrectangle($im, $x2 - $rr + 1, $y1 + $rr, $x2, $y2 - $rr, $col);
         foreach ([[$x1 + $rr, $y1 + $rr, 180, 270], [$x2 - $rr, $y1 + $rr, 270, 360], [$x1 + $rr, $y2 - $rr, 90, 180], [$x2 - $rr, $y2 - $rr, 0, 90]] as [$cx, $cy, $s1, $s2]) imagefilledarc($im, $cx, $cy, 2 * $rr, 2 * $rr, $s1, $s2, $col, IMG_ARC_PIE); }
-    imagealphablending($im, true); imagecopy($im, $rs, $x, $y, 0, 0, $tw, $th);
+    imagealphablending($im, true);
+    $sx = 0; $sy = 0; $cw = $tw; $ch = $th; $dx = $x; $dy = $y; if ($dx < 0) { $sx = -$dx; $cw += $dx; $dx = 0; } if ($dy < 0) { $sy = -$dy; $ch += $dy; $dy = 0; } if ($dx + $cw > $W) $cw = $W - $dx; if ($dy + $ch > $Hh) $ch = $Hh - $dy;
+    if ($cw > 0 && $ch > 0) imagecopy($im, $rs, $dx, $dy, $sx, $sy, $cw, $ch);
     $tmp = tempnam(sys_get_temp_dir(), 'cpl') . '.png'; imagepng($im, $tmp); imagedestroy($im); imagedestroy($lo); imagedestroy($rs);
     try { $row = media_store_path($wid, $tmp, 'logo-' . preg_replace('/^ai-/', '', (string)$m['name']), 'image/png', media_ai_folder()); } catch (Throwable $e) { @unlink($tmp); return $mid; }
     @unlink($tmp); return (int)$row['id'];
