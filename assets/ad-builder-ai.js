@@ -12,13 +12,21 @@
   }
   var wait = function (el, t) { el.innerHTML = '<div class="flex items-center gap-3 text-sm text-ink-600 py-6 justify-center"><span class="inline-block w-4 h-4 rounded-full border-2 border-brand-500 border-t-transparent animate-spin"></span>' + esc(t) + '</div>'; };
   var clampAge = function (v, d) { v = +v; return v >= 13 && v <= 65 ? Math.round(v) : d; };
-  // بحث الاهتمامات في المنصة (أول نتيجة) — قراءة بس
-  function resolveInterests(queries) {
-    if (!C.targeting.interests || !queries || !queries.length) return Promise.resolve([]);
+  // بحث بُعد استهداف في المنصة (أول نتيجة لكل كلمة) — قراءة بس
+  function resolveDim(queries, dim) {
+    if (!queries || !queries.length) return Promise.resolve([]);
     return Promise.all(queries.slice(0, 6).map(function (q) {
-      return fetch(A.geoUrl + '&dim=interest&q=' + encodeURIComponent(q) + '&conn=' + encodeURIComponent(D.connId) + '&acc=' + encodeURIComponent(D.adAccountId), { credentials: 'same-origin' }).then(function (r) { return r.json(); })
+      return fetch(A.geoUrl + '&dim=' + dim + '&q=' + encodeURIComponent(q) + '&conn=' + encodeURIComponent(D.connId) + '&acc=' + encodeURIComponent(D.adAccountId), { credentials: 'same-origin' }).then(function (r) { return r.json(); })
         .then(function (j) { var x = (j.results || [])[0]; return x ? { id: x.id, name: x.name, size: x.size || null } : null; }).catch(function () { return null; });
     })).then(function (l) { var seen = {}; return l.filter(function (x) { if (!x || seen[x.id]) return false; seen[x.id] = 1; return true; }); });
+  }
+  function resolveInterests(queries) { return C.targeting.interests ? resolveDim(queries, 'interest') : Promise.resolve([]); }
+  // كل أبعاد الاستهداف المدعومة في المنصة: من مصفوفات الـ AI للحقول الفعلية
+  var DIMAP = [['interestQueries', 'interest', 'interests', C.targeting.interests], ['industryQueries', 'industry', 'industries', C.targeting.b2b], ['seniorityQueries', 'seniority', 'seniorities', C.targeting.b2b], ['jobFunctionQueries', 'jobFunction', 'jobFunctions', C.targeting.b2b], ['skillQueries', 'skill', 'skills', C.targeting.b2b], ['workQueries', 'workPosition', 'workPositions', C.targeting.work]];
+  function resolveTargeting(t) {
+    var jobs = DIMAP.filter(function (d) { return d[3] && (t[d[0]] || []).length; });
+    return Promise.all(jobs.map(function (d) { return resolveDim(t[d[0]], d[1]).then(function (res) { return { field: d[2], res: res }; }); }))
+      .then(function (list) { var out = {}; list.forEach(function (x) { if (x.res.length) out[x.field] = x.res; }); return out; });
   }
   function toTargeting(t, base) {
     var o = X.clone(base || D.adSets[0].targeting);
@@ -105,13 +113,13 @@
     $('.apply', d).onclick = function () {
       if (D.adSets.some(function (s) { return s.ads.some(function (a) { return a.body; }); }) && !(window.fxRe ? fxRe : confirm)(I.replaceQ)) return;
       var btn = this; btn.disabled = true; btn.textContent = I.resolving;
-      Promise.all(sets.map(function (s) { return resolveInterests((s.targeting || {}).interestQueries); })).then(function (ints) {
+      Promise.all(sets.map(function (s) { return resolveTargeting(s.targeting || {}); })).then(function (tgs) {
         if (c.name) D.campaign.name = String(c.name).slice(0, 200); D.campaign.goal = goal;
         D.campaign.budgetLevel = cbo ? 'campaign' : 'adset'; if (cbo && daily) D.campaign.budget = { amount: daily, type: 'daily' };
         var base = D.adSets[0] ? D.adSets[0].targeting : null; D.adSets.splice(0, D.adSets.length);
         sets.forEach(function (s, i) { var amt = daily ? Math.round(daily * (+s.budgetShare || 100 / sets.length) / share * 100) / 100 : '';
           var st = { id: X.uid('s'), name: String(s.name || '').slice(0, 200), budget: { amount: cbo ? '' : amt, type: 'daily' }, targeting: toTargeting(s.targeting || {}, base), ads: [] };
-          st.targeting.interests = ints[i] || [];
+          Object.keys(tgs[i] || {}).forEach(function (fld) { st.targeting[fld] = tgs[i][fld]; });
           (s._ads || []).slice(0, C.maxAdsPerSet === 1 ? 1 : 7).forEach(function (a) { st.ads.push(toAd2(a)); }); if (!st.ads.length) st.ads.push(X.newAd());
           D.adSets.push(st); });
         d.close(); X.save(true); X.go('campaign'); if (window.fxToast) fxToast(I.applied, 'success'); else if (window.aiToast) aiToast(I.applied, 'ok'); });
@@ -128,8 +136,8 @@
         + '<div class="flex justify-end"><button type="button" class="btn-primary apply">' + esc(I.applyAud) + '</button></div></div>';
       $('.apply', d).onclick = function () {
         this.disabled = true; this.textContent = I.resolving;
-        resolveInterests(t.interestQueries).then(function (ints) {
-          var st = D.adSets[si]; st.targeting = toTargeting(t, st.targeting); st.targeting.interests = ints; if (!st.name && r.name) st.name = String(r.name).slice(0, 200);
+        resolveTargeting(t).then(function (tg) {
+          var st = D.adSets[si]; st.targeting = toTargeting(t, st.targeting); Object.keys(tg).forEach(function (fld) { st.targeting[fld] = tg[fld]; }); if (!st.name && r.name) st.name = String(r.name).slice(0, 200);
           d.close(); X.save(true); X.go('adset', si);
         });
       };

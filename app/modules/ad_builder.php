@@ -357,8 +357,9 @@ function ab_normalize_targeting(array $t): array
     $amin = max(13, min(65, $amin ?: 18)); $amax = max(13, min(65, $amax ?: 65)); if ($amax < $amin) $amax = 65;
     $t['ageMin'] = $amin; $t['ageMax'] = $amax;
     $t['gender'] = in_array($t['gender'] ?? '', ['all', 'male', 'female'], true) ? $t['gender'] : 'all';
-    $t['interestQueries'] = array_values(array_filter(array_map(function ($q) { return trim((string)$q); }, (array)($t['interestQueries'] ?? [])), function ($q) { return $q !== ''; }));
-    $t['interestQueries'] = array_slice($t['interestQueries'], 0, 6);
+    foreach (['interestQueries', 'industryQueries', 'seniorityQueries', 'jobFunctionQueries', 'skillQueries', 'workQueries'] as $qk) {
+        $t[$qk] = array_slice(array_values(array_filter(array_map(function ($q) { return trim((string)$q); }, (array)($t[$qk] ?? [])), function ($q) { return $q !== ''; })), 0, 6);
+    }
     return $t;
 }
 
