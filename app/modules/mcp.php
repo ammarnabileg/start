@@ -116,35 +116,35 @@ function mcp_action_execute(int $wid, string $type, array $payload): string
 function mcp_tools(): array
 {
     return [
-        ['name' => 'list_social_accounts', 'description' => 'List the social media accounts connected to this workspace (platform, name, id).', 'inputSchema' => ['type' => 'object', 'properties' => new stdClass()]],
-        ['name' => 'list_posts', 'description' => 'List recent posts with their status (scheduled, published, draft, failed).', 'inputSchema' => ['type' => 'object', 'properties' => ['status' => ['type' => 'string', 'enum' => ['', 'scheduled', 'published', 'draft', 'failed'], 'description' => 'Optional status filter'], 'limit' => ['type' => 'integer', 'description' => 'Max posts (1-50)']]]],
-        ['name' => 'list_content_bank', 'description' => 'List ready-to-publish posts in the content bank (approved AI content waiting to be scheduled).', 'inputSchema' => ['type' => 'object', 'properties' => ['limit' => ['type' => 'integer']]]],
-        ['name' => 'get_company_brief', 'description' => 'Get the auto-generated company summary used as context for all AI content (services, audience, brand voice).', 'inputSchema' => ['type' => 'object', 'properties' => new stdClass()]],
-        ['name' => 'list_content_plans', 'description' => 'List AI content plans in this workspace with their status and how many posts are ready.', 'inputSchema' => ['type' => 'object', 'properties' => ['limit' => ['type' => 'integer']]]],
-        ['name' => 'create_content_plan', 'description' => 'Start a new AI content plan. It writes a full plan (topics, captions, image/video prompts) from the company knowledge base. Nothing is published; drafts land in the content bank for review.', 'inputSchema' => ['type' => 'object', 'required' => ['goal'], 'properties' => [
-            'goal' => ['type' => 'string', 'description' => 'Campaign goal / what the posts should achieve'],
+        ['name' => 'list_social_accounts', 'description' => 'List the social accounts connected to this workspace, with the platform, name, and id of each one.', 'inputSchema' => ['type' => 'object', 'properties' => new stdClass()]],
+        ['name' => 'list_posts', 'description' => 'List recent posts and the status of each one: scheduled, published, draft, or failed.', 'inputSchema' => ['type' => 'object', 'properties' => ['status' => ['type' => 'string', 'enum' => ['', 'scheduled', 'published', 'draft', 'failed'], 'description' => 'Optional status filter'], 'limit' => ['type' => 'integer', 'description' => 'Max posts (1-50)']]]],
+        ['name' => 'list_content_bank', 'description' => 'List the posts in the content bank. These are approved AI posts that are ready to schedule or publish.', 'inputSchema' => ['type' => 'object', 'properties' => ['limit' => ['type' => 'integer']]]],
+        ['name' => 'get_company_brief', 'description' => 'Get the company summary the platform keeps up to date and uses for every AI post. It covers the services, the audience, and the brand voice.', 'inputSchema' => ['type' => 'object', 'properties' => new stdClass()]],
+        ['name' => 'list_content_plans', 'description' => 'List the AI content plans in this workspace, with the status of each plan and how many of its posts are ready.', 'inputSchema' => ['type' => 'object', 'properties' => ['limit' => ['type' => 'integer']]]],
+        ['name' => 'create_content_plan', 'description' => 'Start a new AI content plan. The platform writes a full plan from the company knowledge base: topics, captions, and image and video prompts. It publishes nothing. The drafts go to the content bank for review.', 'inputSchema' => ['type' => 'object', 'required' => ['goal'], 'properties' => [
+            'goal' => ['type' => 'string', 'description' => 'What the campaign should achieve'],
             'count' => ['type' => 'integer', 'description' => 'Number of posts (default 12)'],
             'language' => ['type' => 'string', 'enum' => ['ar', 'en', 'ar_en', 'en_ar'], 'description' => 'Content language (default ar)'],
-            'dialect' => ['type' => 'string', 'description' => 'Arabic dialect/tone, e.g. "saudi", "egyptian", or free text'],
+            'dialect' => ['type' => 'string', 'description' => 'Arabic dialect or tone, such as "saudi" or "egyptian", or free text'],
             'audience' => ['type' => 'string', 'description' => 'Target audience (optional)'],
             'tone' => ['type' => 'string', 'description' => 'Tone of voice (optional)'],
         ]]],
-        ['name' => 'schedule_post', 'description' => 'Request to publish or schedule a post. REQUIRES a token with "publish" permission, and the action is NOT executed until the workspace owner approves it inside the panel. Returns a pending-approval id.', 'inputSchema' => ['type' => 'object', 'required' => ['text', 'account_ids'], 'properties' => [
+        ['name' => 'schedule_post', 'description' => 'Publish or schedule a post to the chosen accounts. This needs a token with publish permission. It runs right away with no approval step, and the platform records every post in its activity log.', 'inputSchema' => ['type' => 'object', 'required' => ['text', 'account_ids'], 'properties' => [
             'text' => ['type' => 'string', 'description' => 'Post text'],
             'account_ids' => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'Target account ids (from list_social_accounts)'],
             'when' => ['type' => 'string', 'enum' => ['now', 'queue', 'schedule'], 'description' => 'now, queue, or schedule (default schedule)'],
             'time' => ['type' => 'string', 'description' => 'For schedule: local time YYYY-MM-DDTHH:MM:SS'],
         ]]],
-        ['name' => 'publish_content_bank_item', 'description' => 'Request to publish/schedule a ready item from the content bank by its id. REQUIRES "publish" permission and the workspace owner must approve it in the panel before it runs.', 'inputSchema' => ['type' => 'object', 'required' => ['item_id', 'account_ids'], 'properties' => [
+        ['name' => 'publish_content_bank_item', 'description' => 'Publish or schedule a ready item from the content bank by its id. This needs a token with publish permission. It runs right away with no approval step, and the platform records it in its activity log.', 'inputSchema' => ['type' => 'object', 'required' => ['item_id', 'account_ids'], 'properties' => [
             'item_id' => ['type' => 'integer', 'description' => 'Content bank item id (from list_content_bank)'],
             'account_ids' => ['type' => 'array', 'items' => ['type' => 'string']],
             'when' => ['type' => 'string', 'enum' => ['now', 'queue', 'schedule']],
             'time' => ['type' => 'string', 'description' => 'For schedule: local time YYYY-MM-DDTHH:MM:SS'],
         ]]],
-        ['name' => 'launch_ad_campaign', 'description' => 'DANGER — spends real money. Launch a saved ad campaign build live on the platform. REQUIRES an "admin" token. Use list_ad_campaigns to get the id.', 'inputSchema' => ['type' => 'object', 'required' => ['campaign_id'], 'properties' => ['campaign_id' => ['type' => 'integer', 'description' => 'Ad build id']]]],
-        ['name' => 'list_ad_campaigns', 'description' => 'List ad campaign builds in this workspace (id, name, platform, state).', 'inputSchema' => ['type' => 'object', 'properties' => new stdClass()]],
-        ['name' => 'delete_post', 'description' => 'DANGER — permanent. Delete a scheduled/published post by id. REQUIRES an "admin" token.', 'inputSchema' => ['type' => 'object', 'required' => ['post_id'], 'properties' => ['post_id' => ['type' => 'string']]]],
-        ['name' => 'delete_content_plan', 'description' => 'DANGER — permanent. Delete an AI content plan and its unsent drafts by id. REQUIRES an "admin" token.', 'inputSchema' => ['type' => 'object', 'required' => ['plan_id'], 'properties' => ['plan_id' => ['type' => 'integer']]]],
+        ['name' => 'launch_ad_campaign', 'description' => 'Launch a saved ad campaign so it goes live. This spends real money. It needs an admin token. Use list_ad_campaigns to find the id.', 'inputSchema' => ['type' => 'object', 'required' => ['campaign_id'], 'properties' => ['campaign_id' => ['type' => 'integer', 'description' => 'Ad build id']]]],
+        ['name' => 'list_ad_campaigns', 'description' => 'List the ad campaigns saved in this workspace, with the id, name, platform, and state of each one.', 'inputSchema' => ['type' => 'object', 'properties' => new stdClass()]],
+        ['name' => 'delete_post', 'description' => 'Permanently delete a scheduled or published post by its id. This cannot be undone. It needs an admin token.', 'inputSchema' => ['type' => 'object', 'required' => ['post_id'], 'properties' => ['post_id' => ['type' => 'string']]]],
+        ['name' => 'delete_content_plan', 'description' => 'Permanently delete an AI content plan and its unsent drafts by its id. This cannot be undone. It needs an admin token.', 'inputSchema' => ['type' => 'object', 'required' => ['plan_id'], 'properties' => ['plan_id' => ['type' => 'integer']]]],
     ];
 }
 

@@ -8,14 +8,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($a === 'create') {
         $sc = in_array($_POST['scope'] ?? '', ['read', 'write', 'publish', 'admin'], true) ? $_POST['scope'] : 'read';
         $newToken = mcp_token_create($wid, (int)(current_user()['id'] ?? 0), (string)($_POST['name'] ?? ''), $sc);
-        flash('success', t('اتعمل توكن جديد. انسخه دلوقتي — مش هيظهر تاني.'));
+        flash('success', t('أُنشئ توكن جديد. انسخه الآن، فلن يظهر مرة أخرى.'));
     } elseif ($a === 'delete') {
         mcp_token_delete($wid, (int)($_POST['id'] ?? 0));
-        flash('success', t('اتمسح التوكن.'));
+        flash('success', t('حُذف التوكن.'));
         redirect(url('connect_ai'));
     } elseif ($a === 'delete_all') {
         $n = mcp_tokens_delete_all($wid);
-        flash('success', t('اتمسحت كل التوكنات (%s). أي ربط شغّال هيتوقف فورًا.', $n));
+        flash('success', t('حُذفت كل التوكنات (%s). سيتوقف أي اتصال قائم فورًا.', $n));
         redirect(url('connect_ai'));
     }
 }
@@ -24,11 +24,11 @@ $tokens = mcp_tokens_list($wid);
 $mcpUrl = base_url() . '/index.php?p=mcp';
 
 render(t('ربط ChatGPT / Claude'), 'connect_ai', function () use ($tokens, $mcpUrl, $newToken) { ?>
-    <p class="text-sm text-ink-500 mb-5"><?= e(t('اربط تطبيق ChatGPT أو Claude بمنصتك، وخلي المساعد يشغّل الشغل بدالك: يقرا حساباتك ومنشوراتك ومخزون المحتوى، ويبدأ خطط محتوى جديدة بالذكاء الاصطناعي — كل ده من داخل الشات.')) ?></p>
+    <p class="text-sm text-ink-500 mb-5"><?= e(t('اربط تطبيق ChatGPT أو Claude بمنصتك ليدير العمل من داخل المحادثة: يقرأ حساباتك ومنشوراتك ومخزون المحتوى، ويبدأ خطط محتوى جديدة بالذكاء الاصطناعي.')) ?></p>
 
     <?php if ($newToken): ?>
     <div class="card p-4 mb-5 border-brand-300 bg-brand-50/50">
-      <b class="text-ink-900 block mb-1"><?= e(t('التوكن الجديد (انسخه الآن — لن يظهر مرة أخرى):')) ?></b>
+      <b class="text-ink-900 block mb-1"><?= e(t('التوكن الجديد. انسخه الآن، فلن يظهر مرة أخرى:')) ?></b>
       <div class="flex gap-2 items-center"><code id="newtok" class="flex-1 text-xs bg-white border border-ink-200 rounded-lg p-2 overflow-x-auto" dir="ltr"><?= e($newToken) ?></code>
         <button type="button" class="btn-ghost !py-1.5" onclick="navigator.clipboard.writeText(document.getElementById('newtok').textContent);this.textContent='✓'"><?= e(t('نسخ')) ?></button></div>
     </div>
@@ -39,15 +39,15 @@ render(t('ربط ChatGPT / Claude'), 'connect_ai', function () use ($tokens, $mc
         <b class="text-ink-900 block mb-3"><?= e(t('أنشئ توكن ربط')) ?></b>
         <form method="post" class="space-y-3">
           <?= csrf_field() ?><input type="hidden" name="action" value="create">
-          <label class="block"><span class="label"><?= e(t('اسم (للتمييز)')) ?></span><input name="name" class="input" placeholder="<?= e(t('مثلاً: ChatGPT بتاعي')) ?>" maxlength="120"></label>
+          <label class="block"><span class="label"><?= e(t('اسم للتمييز')) ?></span><input name="name" class="input" placeholder="<?= e(t('مثال: ChatGPT الخاص بي')) ?>" maxlength="120"></label>
           <label class="block"><span class="label"><?= e(t('الصلاحية')) ?></span>
             <select name="scope" class="input">
-              <option value="read"><?= e(t('قراءة فقط (آمن: يقرا بس)')) ?></option>
-              <option value="write"><?= e(t('قراءة + بدء خطط محتوى')) ?></option>
-              <option value="publish"><?= e(t('نشر: قراءة + خطط + نشر وجدولة مباشرة')) ?></option>
-              <option value="admin"><?= e(t('مدير (خطر): كل ما سبق + صرف إعلانات + حذف')) ?></option>
+              <option value="read"><?= e(t('قراءة فقط (الأكثر أمانًا)')) ?></option>
+              <option value="write"><?= e(t('قراءة وبدء خطط المحتوى')) ?></option>
+              <option value="publish"><?= e(t('نشر: قراءة وخطط ونشر وجدولة مباشرة')) ?></option>
+              <option value="admin"><?= e(t('مدير (خطر): كل ما سبق مع صرف الإعلانات والحذف')) ?></option>
             </select></label>
-          <p class="text-[11px] text-red-700"><?= e(t('تنبيه خطر: توكن «مدير» يقدر يطلق حملات إعلانية (صرف فلوس حقيقي) ويحذف منشورات وخطط — كله مباشرة وبدون موافقة. أنشئه فقط لو إنت متأكد، وامسحه لو تسرّب. كل عملية تتسجّل بالأسفل.')) ?></p>
+          <p class="text-[11px] text-red-700"><?= e(t('تنبيه: توكن «مدير» يطلق حملات إعلانية بمصروف فعلي، ويحذف منشورات وخططًا، مباشرةً ودون موافقة. أنشئه عند الحاجة فقط، واحذفه إذا تسرّب. تُسجَّل كل عملية في الأسفل.')) ?></p>
           <button class="btn-primary"><?= e(t('أنشئ التوكن')) ?></button>
         </form>
       </div>
@@ -57,16 +57,16 @@ render(t('ربط ChatGPT / Claude'), 'connect_ai', function () use ($tokens, $mc
         <div class="flex gap-2 items-center mb-3"><code id="mcpurl" class="flex-1 text-xs bg-ink-50 border border-ink-200 rounded-lg p-2 overflow-x-auto" dir="ltr"><?= e($mcpUrl) ?></code>
           <button type="button" class="btn-ghost !py-1.5" onclick="navigator.clipboard.writeText(document.getElementById('mcpurl').textContent);this.textContent='✓'"><?= e(t('نسخ')) ?></button></div>
         <div class="text-sm text-ink-600 space-y-2">
-          <p><b>ChatGPT:</b> <?= e(t('Settings ← Connectors ← Add (MCP)، وحطّ الرابط فوق، وفي خانة الـ Authorization اكتب: Bearer ثم مسافة ثم التوكن.')) ?></p>
-          <p><b>Claude:</b> <?= e(t('Settings ← Connectors ← Add custom connector، وحطّ نفس الرابط، والتوكن كـ Bearer.')) ?></p>
-          <p class="text-[11px] text-ink-400"><?= e(t('بعد الربط اكتب في الشات مثلاً: «ابدأ خطة محتوى عن كذا» أو «وريني مخزون المحتوى».')) ?></p>
+          <p><b>ChatGPT:</b> <?= e(t('من الإعدادات، افتح Connectors ثم أضف موصّلًا جديدًا (MCP)، والصق الرابط أعلاه. في حقل المصادقة ضع الكلمة Bearer ثم مسافة ثم التوكن.')) ?></p>
+          <p><b>Claude:</b> <?= e(t('من الإعدادات، افتح Connectors ثم أضف موصّلًا مخصصًا، والصق الرابط نفسه، والتوكن بصيغة Bearer.')) ?></p>
+          <p class="text-[11px] text-ink-400"><?= e(t('بعد الربط اكتب في المحادثة مثلًا: «ابدأ خطة محتوى عن كذا» أو «اعرض مخزون المحتوى».')) ?></p>
         </div>
       </div>
     </div>
 
     <div class="card p-5 mt-5">
       <div class="flex items-center gap-3 mb-3"><b class="text-ink-900 flex-1"><?= e(t('التوكنات')) ?></b>
-        <?php if ($tokens): ?><form method="post" onsubmit="return confirm('<?= e(t('مسح كل التوكنات؟ أي ربط مع ChatGPT أو Claude هيتوقف فورًا. مش ممكن التراجع.')) ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="delete_all"><button class="btn-ghost !py-1.5 text-red-600"><?= e(t('امسح كل التوكنات')) ?></button></form><?php endif; ?>
+        <?php if ($tokens): ?><form method="post" onsubmit="return confirm('<?= e(t('حذف كل التوكنات؟ سيتوقف أي اتصال مع ChatGPT أو Claude فورًا، ولا يمكن التراجع.')) ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="delete_all"><button class="btn-ghost !py-1.5 text-red-600"><?= e(t('امسح كل التوكنات')) ?></button></form><?php endif; ?>
       </div>
       <?php if (!$tokens): ?><p class="text-sm text-ink-500"><?= e(t('لا توجد توكنات بعد.')) ?></p><?php else: ?>
       <div class="divide-y divide-ink-100">
@@ -74,7 +74,7 @@ render(t('ربط ChatGPT / Claude'), 'connect_ai', function () use ($tokens, $mc
         <div class="flex items-center gap-3 py-2 text-sm">
           <div class="flex-1 min-w-0"><b class="text-ink-900"><?= e($tk['name']) ?></b>
             <span class="text-xs text-ink-400"><?= e($tk['scopes'] === 'write' ? t('قراءة + كتابة') : t('قراءة فقط')) ?> · <?= e($tk['last_used_at'] ? t('آخر استخدام %s', $tk['last_used_at']) : t('لم يُستخدم')) ?></span></div>
-          <form method="post" onsubmit="return confirm('<?= e(t('حذف التوكن؟ أي ربط يستخدمه هيتوقف.')) ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int)$tk['id'] ?>"><button class="btn-ghost !py-1 text-red-600"><?= e(t('حذف')) ?></button></form>
+          <form method="post" onsubmit="return confirm('<?= e(t('حذف التوكن؟ سيتوقف أي اتصال يستخدمه.')) ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int)$tk['id'] ?>"><button class="btn-ghost !py-1 text-red-600"><?= e(t('حذف')) ?></button></form>
         </div>
         <?php endforeach; ?>
       </div>
