@@ -73,6 +73,14 @@ if (($_GET['ajax'] ?? '') === 'ads') {
     echo $h; exit;
 }
 
+// فريق الوكلاء: حالة لحظية (أي وكيل شغّال دلوقتي) — طلب خفيف للـ polling
+if (($_GET['ajax'] ?? '') === 'aiteam' && function_exists('ai_team_states')) {
+    header('Content-Type: application/json; charset=utf-8');
+    $out = [];
+    foreach (ai_team_states((int)ws('id')) as $k => $st) $out[$k] = $st['active'] ? 1 : 0;
+    echo json_encode($out); exit;
+}
+
 $d = ['accounts' => null, 'scheduled' => null, 'convs' => null, 'comments' => null, 'daily' => null];
 $e = [];
 // كاش الرئيسية: كل فتحة للرئيسية كانت بتعمل 5 طلبات لـ Zernio (منها أرقام وتعليقات X وهي الأغلى).
@@ -242,6 +250,24 @@ render(t('الرئيسية'), 'dashboard', function () use ($z, $d, $e, $activit
         <button type="button" id="dash-edit" class="tb px-3 gap-1.5 text-sm" title="<?= e(t('تخصيص الرئيسية')) ?>"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg><span class="hidden sm:inline"><?= e(t('تخصيص')) ?></span></button>
       </div>
     </div>
+
+    <?php if (function_exists('ai_team_svg')): /* فريق الوكلاء: 8 وكلاء بيشتغلوا لحظيًا مع نشاط كل فانكشن */ ?>
+      <div class="mb-6" data-w="aiteam">
+        <?= ai_team_svg((string)ws('name'), ai_team_states((int)ws('id'))) ?>
+      </div>
+      <script>
+      (function () {
+        var box = document.getElementById('ait'); if (!box) return;
+        function apply(s) { box.querySelectorAll('.st').forEach(function (g) { var k = g.getAttribute('data-k'); g.classList.toggle('on', !!(s && s[k])); }); }
+        function poll() {
+          fetch('index.php?p=dashboard&ajax=aiteam', { headers: { 'X-Requested-With': 'fetch' } })
+            .then(function (r) { return r.ok ? r.json() : null; }).then(function (s) { if (s) apply(s); }).catch(function () {});
+        }
+        var t = setInterval(poll, 9000);
+        document.addEventListener('visibilitychange', function () { if (!document.hidden) poll(); });
+      })();
+      </script>
+    <?php endif; ?>
 
     <?php if (!$z): no_api_box(); endif; /* الباقي (المتابعات والمهام) يفضل ظاهر */ ?>
 
