@@ -62,11 +62,20 @@ function cpl_create(array $in): int
     $refs = array_values(array_filter($refs, function ($id) use ($wid) { $m = media_get($wid, $id); return $m && empty($m['deleted_at']) && media_kind((string)$m['mime']) === 'image'; }));
     $goal = trim(mb_substr((string)($in['goal'] ?? ''), 0, 3000));
     if ($goal === '') throw new RuntimeException(t('اكتب هدف الحملة.'));
-    $opts = ['lang' => in_array($in['lang'] ?? '', ['ar', 'en', 'both'], true) ? $in['lang'] : 'ar', 'dialect' => mb_substr(trim((string)($in['dialect'] ?? '')), 0, 60),
-        'audience' => mb_substr(trim((string)($in['audience'] ?? '')), 0, 600), 'services' => array_slice(array_map(function ($s) { return mb_substr((string)$s, 0, 150); }, (array)($in['services'] ?? [])), 0, 20),
+    $L = function ($k, $ok = ['ar', 'en', 'both']) use ($in) { return in_array($in[$k] ?? '', $ok, true) ? $in[$k] : 'ar'; };
+    $dk = ['msa' => 'Modern Standard Arabic', 'saudi' => 'Saudi Arabic (light Najdi/Hijazi)', 'gulf' => 'Gulf Arabic', 'emirati' => 'Emirati Arabic', 'kuwaiti' => 'Kuwaiti Arabic', 'egyptian' => 'Egyptian Arabic', 'levantine' => 'Levantine Arabic', 'maghrebi' => 'simplified Maghrebi Arabic', 'white' => 'neutral "white" Arabic understood across the Arab world'];
+    $dialect = ($in['dialect_k'] ?? '') === 'other' ? mb_substr(trim((string)($in['dialect_other'] ?? '')), 0, 120) : ($dk[$in['dialect_k'] ?? ''] ?? mb_substr(trim((string)($in['dialect'] ?? '')), 0, 60));
+    $tone = implode('، ', array_filter(array_merge(array_map('strval', (array)($in['tone_k'] ?? [])), [trim((string)($in['tone'] ?? ''))])));
+    $cta = trim((string)($in['cta'] ?? '')) !== '' ? (string)$in['cta'] : (string)($in['cta_k'] ?? '');
+    $in['tone'] = $tone; $in['cta'] = $cta;
+    $lli = isset($in['lang_li']) ? $L('lang_li') : (in_array($in['lang'] ?? '', ['ar', 'en', 'both'], true) ? ($in['lang'] === 'both' ? 'ar' : $in['lang']) : 'ar');
+    $opts = ['lang' => $lli, 'lang_li' => $lli, 'lang_x' => isset($in['lang_x']) ? $L('lang_x') : (($in['lang'] ?? '') === 'both' ? 'en' : $lli), 'lang_img' => isset($in['lang_img']) ? $L('lang_img', ['ar', 'en', 'both', 'none']) : $lli, 'lang_vo' => isset($in['lang_vo']) ? $L('lang_vo') : $lli,
+        'dialect' => $dialect,
+        'audience' => mb_substr(trim((string)($in['audience'] ?? '')), 0, 800), 'about' => mb_substr(trim((string)($in['about'] ?? '')), 0, 1500), 'services' => array_slice(array_map(function ($s) { return mb_substr((string)$s, 0, 150); }, (array)($in['services'] ?? [])), 0, 20),
         'tone' => mb_substr(trim((string)($in['tone'] ?? '')), 0, 200), 'cta' => mb_substr(trim((string)($in['cta'] ?? '')), 0, 300), 'avoid' => mb_substr(trim((string)($in['avoid'] ?? '')), 0, 600),
         'video' => !empty($in['video']), 'carousel' => !isset($in['carousel']) || !empty($in['carousel']), 'humanize' => !isset($in['humanize']) || !empty($in['humanize']),
-        'logo_pos' => in_array($in['logo_pos'] ?? '', ['top-left', 'top-center', 'top-right', 'bottom-left', 'bottom-center', 'bottom-right'], true) ? $in['logo_pos'] : (($in['lang'] ?? '') === 'en' ? 'top-left' : 'top-right'), 'logo_size' => in_array((int)($in['logo_size'] ?? 20), [14, 20, 26], true) ? (int)$in['logo_size'] : 20, 'logo_on' => !isset($in['logo_on']) || !empty($in['logo_on'])];
+        'logo_x' => max(0, min(100, (int)($in['logo_x'] ?? 86))), 'logo_y' => max(0, min(100, (int)($in['logo_y'] ?? 9))), 'logo_w' => max(8, min(35, (int)($in['logo_w'] ?? 18))), 'logo_op' => max(30, min(100, (int)($in['logo_op'] ?? 100))),
+        'logo_tint' => in_array($in['logo_tint'] ?? '', ['orig', 'white', 'black'], true) ? $in['logo_tint'] : 'orig', 'logo_plate' => in_array($in['logo_plate'] ?? '', ['none', 'light', 'dark'], true) ? $in['logo_plate'] : 'none', 'logo_on' => !isset($in['logo_on']) || !empty($in['logo_on'])];
     $name = mb_substr(trim((string)($in['name'] ?? '')), 0, 150) ?: mb_substr(preg_replace('/\s+/u', ' ', $goal), 0, 60);
     $hasLogo = function_exists('kb_logo') && kb_logo($wid);
     db()->prepare('INSERT INTO cp_plans (workspace_id, user_id, name, goal, cnt, opts, refs, stage, status) VALUES (?,?,?,?,?,?,?,?, "generating")')
@@ -74,7 +83,7 @@ function cpl_create(array $in): int
     $nid = (int)db()->lastInsertId(); cpl_log($nid, t('اتعملت الخطة: %s منشور، %s صورة مرجعية%s.', $n, count($refs), $hasLogo ? t('، والشعار من ملف الشركة') : '')); return $nid;
 }
 
-function cpl_opts(array $p): array { return (json_decode((string)$p['opts'], true) ?: []) + ['lang' => 'ar', 'dialect' => '', 'audience' => '', 'services' => [], 'tone' => '', 'cta' => '', 'avoid' => '', 'video' => true, 'carousel' => true, 'humanize' => true]; }
+function cpl_opts(array $p): array { return (json_decode((string)$p['opts'], true) ?: []) + ['lang' => 'ar', 'dialect' => '', 'audience' => '', 'services' => [], 'tone' => '', 'cta' => '', 'avoid' => '', 'about' => '', 'video' => true, 'carousel' => true, 'humanize' => true]; }
 
 /** البرومبت الأساسي = برومبت المستخدم بالحرف (app/prompts/content_plan.md) + إعدادات الخطة. قسم HTML اتشال لأن السيستم هو اللي بيعرض ويصدّر. */
 function cpl_master(array $p): string
@@ -86,10 +95,12 @@ function cpl_master(array $p): string
 function cpl_rules(array $p): string
 {
     $o = cpl_opts($p);
-    $lang = ['ar' => 'Arabic' . ($o['dialect'] !== '' ? ' (' . $o['dialect'] . ')' : ' (clear Modern Standard Arabic unless the KB shows another brand voice)'), 'en' => 'English', 'both' => 'Arabic for LinkedIn and carousel copy, English for X'][$o['lang']];
+    $ar = 'Arabic' . ($o['dialect'] !== '' ? ' (' . $o['dialect'] . ')' : ' (clear Modern Standard Arabic unless the KB shows another brand voice)');
+    $nm = function ($k) use ($o, $ar) { $v = $o[$k] ?? $o['lang']; return ['ar' => $ar, 'en' => 'English', 'both' => 'bilingual: ' . $ar . ' first, then the English version', 'none' => 'NO text on the image or slide at all (purely visual; put the message in the caption)'][$v] ?? $ar; };
+    $lang = "LinkedIn: " . $nm('lang_li') . "; X: " . $nm('lang_x') . "; headline and on-slide copy: " . $nm('lang_img') . "; video voice-over dialogue: " . $nm('lang_vo');
     static $craft = null; if ($craft === null) $craft = (string)@file_get_contents(__DIR__ . '/../prompts/image_craft.md');
     return cpl_master($p) . "\n\n" . $craft
-        . "\n\nPLAN SETTINGS\n- Copy language (LinkedIn, X, headline, on-slide copy, video voice-over dialogue): {$lang}. Image prompts and video directions: professional English.\n"
+        . "\n\nPLAN SETTINGS\n- Languages per channel: {$lang}. Image prompts and video directions themselves: professional English.\n"
         . ($o['dialect'] !== '' ? "- Voice-over dialogue dialect: {$o['dialect']}.\n" : '')
         . ($o['tone'] !== '' ? "- Brand tone: {$o['tone']}\n" : '')
         . ($o['cta'] !== '' ? "- Preferred CTA: {$o['cta']}\n" : '')
@@ -105,6 +116,7 @@ function cpl_brief(array $p): string
 {
     $o = cpl_opts($p); $pal = function_exists('kb_logo_palette') ? kb_logo_palette((int)ws('id')) : [];
     return "Campaign goal (build the strategy around it): " . $p['goal']
+        . ($o['about'] !== '' ? "\nAbout the company (context): " . $o['about'] : '')
         . ($o['audience'] !== '' ? "\nTarget audience / decision-makers: " . $o['audience'] : '')
         . ($o['services'] ? "\nFocus services: " . implode('; ', $o['services']) : '')
         . ($pal ? "\nLogo colors (hex): " . implode(', ', $pal) : '')
@@ -575,12 +587,27 @@ function cpl_job_prompt(array $p, array $it, array $j): string
     if ($j['kind'] === 'video') return $it['video_prompt'] . "\nDo NOT render any logo, brand name or wordmark; end on a clean frame with empty space where the logo can be added in editing.";
     $s = $it['carousel'][(int)$j['slide']] ?? []; $n = count($it['carousel']);
     return "Carousel slide " . ((int)$j['slide'] + 1) . " of {$n} (" . ($s['role'] ?? '') . ") for a premium social campaign, 4:5 1080x1350, one consistent series across all slides.\n"
-        . "Visual concept: " . ($s['visual'] ?? '') . "\nLayout: " . ($s['layout'] ?? '') . "\nOn-slide text, render exactly and legibly" . ($o['lang'] !== 'en' ? ' (Arabic, right-to-left, correct letter joining)' : '') . ":\nHeadline: " . ($s['title'] ?? '') . "\nBody: " . ($s['body'] ?? '')
+        . "Visual concept: " . ($s['visual'] ?? '') . "\nLayout: " . ($s['layout'] ?? '') . "\nOn-slide text, render exactly and legibly" . (($o['lang_img'] ?? $o['lang']) !== 'en' ? ' (Arabic, right-to-left, correct letter joining)' : '') . ":\nHeadline: " . ($s['title'] ?? '') . "\nBody: " . ($s['body'] ?? '')
         . ($vis !== '' ? "\n\nBrand visual DNA: " . mb_substr($vis, 0, 1200) : '') . "\nNo other text, no fake UI, no clutter." . $rules;
 }
 
 /** ركن اللوجو: عربي = أعلى اليمين، إنجليزي = أعلى اليسار */
-function cpl_logo_corner(array $p): string { $o = cpl_opts($p); return (string)($o['logo_pos'] ?? ($o['lang'] === 'en' ? 'top-left' : 'top-right')); }
+/** وصف منطقة اللوجو للبرومبت (عشان الموديل يسيبها فاضية) من إحداثيات المستخدم */
+function cpl_logo_corner(array $p): string
+{
+    $o = cpl_opts($p); if (!isset($o['logo_x'])) return (string)($o['logo_pos'] ?? ((($o['lang_img'] ?? $o['lang']) === 'en') ? 'top-left' : 'top-right'));
+    $v = $o['logo_y'] < 34 ? 'top' : ($o['logo_y'] > 66 ? 'bottom' : 'middle'); $h = $o['logo_x'] < 34 ? 'left' : ($o['logo_x'] > 66 ? 'right' : 'center');
+    return $v === 'middle' && $h === 'center' ? 'center' : $v . '-' . $h;
+}
+
+/** صندوق اللوجو بالبكسل: نفس معادلة المعاينة في المتصفح (عرض %، ارتفاع أقصاه 14%، مركز عند x/y، جوه هامش 7%) */
+function cpl_logo_box(array $o, int $W, int $Hh, float $ar): array
+{
+    if (!isset($o['logo_x'])) { $pos = $o['logo_pos'] ?? 'top-right'; $o['logo_x'] = substr($pos, -4) === 'left' ? 0 : (substr($pos, -5) === 'right' ? 100 : 50); $o['logo_y'] = strpos($pos, 'top') === 0 ? 0 : 100; $o['logo_w'] = (int)($o['logo_size'] ?? 20); }
+    $w = $o['logo_w'] / 100 * $W; $h = $w / max(0.01, $ar); if ($h > 0.14 * $Hh) { $h = 0.14 * $Hh; $w = $h * $ar; }
+    $cx = min(max($o['logo_x'] / 100 * $W, 0.07 * $W + $w / 2), $W - 0.07 * $W - $w / 2); $cy = min(max($o['logo_y'] / 100 * $Hh, 0.07 * $Hh + $h / 2), $Hh - 0.07 * $Hh - $h / 2);
+    return [(int)round($cx - $w / 2), (int)round($cy - $h / 2), max(1, (int)round($w)), max(1, (int)round($h))];
+}
 
 /** يركّب لوجو الشركة الحقيقي (من ملف الشركة) على الصورة بهامش آمن، ويحفظها نسخة جديدة في المكتبة. لو مفيش لوجو بترجع نفس الصورة */
 function cpl_stamp_logo(array $p, int $mid): int
@@ -592,11 +619,19 @@ function cpl_stamp_logo(array $p, int $mid): int
     if (!$im || !$lo) return $mid;
     if (!imageistruecolor($im)) imagepalettetotruecolor($im); if (!imageistruecolor($lo)) imagepalettetotruecolor($lo);
     $W = imagesx($im); $Hh = imagesy($im); $lw = imagesx($lo); $lh = imagesy($lo);
-    $tw = (int)round($W * ((int)($o['logo_size'] ?? 20)) / 100); $th = (int)round($lh * $tw / max(1, $lw)); if ($th > $Hh * 0.10) { $th = (int)round($Hh * 0.10); $tw = (int)round($lw * $th / max(1, $lh)); } // عرض 20% وارتفاع أقصاه 10%
-    $pos = cpl_logo_corner($p); $pad = (int)round($W * 0.07);
-    $x = substr($pos, -4) === 'left' ? $pad : (substr($pos, -5) === 'right' ? $W - $pad - $tw : intdiv($W - $tw, 2)); $y = strpos($pos, 'top') === 0 ? (int)round($Hh * 0.07) : $Hh - (int)round($Hh * 0.07) - $th;
+    [$x, $y, $tw, $th] = cpl_logo_box($o, $W, $Hh, $lw / max(1, $lh));
     $rs = imagecreatetruecolor($tw, $th); imagealphablending($rs, false); imagesavealpha($rs, true); imagefill($rs, 0, 0, imagecolorallocatealpha($rs, 0, 0, 0, 127));
     imagecopyresampled($rs, $lo, 0, 0, 0, 0, $tw, $th, $lw, $lh);
+    $tint = $o['logo_tint'] ?? 'orig'; $op = (int)($o['logo_op'] ?? 100) / 100;
+    if ($tint !== 'orig' || $op < 1) for ($yy = 0; $yy < $th; $yy++) for ($xx = 0; $xx < $tw; $xx++) { // لون أبيض/أسود مع الحفاظ على الشفافية، وتخفيف الشفافية
+        $c = imagecolorat($rs, $xx, $yy); $a = ($c >> 24) & 127; $r = ($c >> 16) & 255; $g = ($c >> 8) & 255; $b = $c & 255;
+        if ($tint === 'white') $r = $g = $b = 255; elseif ($tint === 'black') $r = $g = $b = 0;
+        $a = 127 - (int)round((127 - $a) * $op); imagesetpixel($rs, $xx, $yy, imagecolorallocatealpha($rs, $r, $g, $b, $a)); }
+    if (($o['logo_plate'] ?? 'none') !== 'none') { // خلفية مستديرة خلف اللوجو
+        $pd = (int)round($th * 0.3); $col = $o['logo_plate'] === 'light' ? imagecolorallocatealpha($im, 255, 255, 255, 19) : imagecolorallocatealpha($im, 0, 0, 0, 57);
+        $x1 = $x - $pd; $y1 = $y - $pd; $x2 = $x + $tw + $pd; $y2 = $y + $th + $pd; $rr = min($pd, 24); imagealphablending($im, true);
+        imagefilledrectangle($im, $x1 + $rr, $y1, $x2 - $rr, $y2, $col); imagefilledrectangle($im, $x1, $y1 + $rr, $x1 + $rr - 1, $y2 - $rr, $col); imagefilledrectangle($im, $x2 - $rr + 1, $y1 + $rr, $x2, $y2 - $rr, $col);
+        foreach ([[$x1 + $rr, $y1 + $rr, 180, 270], [$x2 - $rr, $y1 + $rr, 270, 360], [$x1 + $rr, $y2 - $rr, 90, 180], [$x2 - $rr, $y2 - $rr, 0, 90]] as [$cx, $cy, $s1, $s2]) imagefilledarc($im, $cx, $cy, 2 * $rr, 2 * $rr, $s1, $s2, $col, IMG_ARC_PIE); }
     imagealphablending($im, true); imagecopy($im, $rs, $x, $y, 0, 0, $tw, $th);
     $tmp = tempnam(sys_get_temp_dir(), 'cpl') . '.png'; imagepng($im, $tmp); imagedestroy($im); imagedestroy($lo); imagedestroy($rs);
     try { $row = media_store_path($wid, $tmp, 'logo-' . preg_replace('/^ai-/', '', (string)$m['name']), 'image/png', media_ai_folder()); } catch (Throwable $e) { @unlink($tmp); return $mid; }
@@ -653,4 +688,26 @@ function cpl_jobs_status(int $planId): array
     foreach (cpl_jobs($planId) as $j) { $k = (int)$j['item_id']; $by[$k][$j['kind']][(string)$j['slide']] = ['s' => $j['status'], 'e' => (string)$j['error']]; if (in_array($j['status'], ['queued', 'running'], true)) $pending++; }
     $out = []; foreach ($by as $item => $kinds) foreach ($kinds as $kind => $sl) { $c = array_count_values(array_column($sl, 's')); $out[$item][$kind] = ['done' => $c['done'] ?? 0, 'total' => count($sl), 'failed' => $c['failed'] ?? 0, 'busy' => ($c['queued'] ?? 0) + ($c['running'] ?? 0), 'err' => implode(' | ', array_filter(array_unique(array_column($sl, 'e'))))]; }
     return ['pending' => $pending, 'items' => $out];
+}
+
+/** قيم مبدئية من قاعدة المعرفة (للتعبئة فقط؛ التعديل في المعالج يخص الحملة ولا يغيّر قاعدة المعرفة) */
+function cpl_kb_defaults(int $wid): array
+{
+    $k = function_exists('kb_get') ? kb_get($wid) : [];
+    $co = $k['company'] ?? []; $aud = $k['audience'] ?? []; $tone = $k['tone'] ?? [];
+    $toneTxt = '';
+    if (function_exists('kb_tone_options') && !empty($tone['style'])) $toneTxt = implode('، ', array_intersect_key(kb_tone_options(), array_flip((array)$tone['style'])));
+    if (trim((string)($tone['notes'] ?? '')) !== '') $toneTxt = trim($toneTxt . ($toneTxt ? ' — ' : '') . $tone['notes']);
+    $dialMap = ['egyptian' => 'egyptian', 'gulf' => 'gulf', 'saudi' => 'saudi', 'levantine' => 'levantine', 'msa' => 'msa', 'match' => 'white'];
+    $svc = array_values(array_filter(array_map(function ($r) { return trim((string)($r['name'] ?? '')); }, (array)($k['services']['rows'] ?? []))));
+    return [
+        'company' => trim((string)($co['name'] ?? '')),
+        'about' => trim((string)($co['about'] ?? $co['tagline'] ?? '')),
+        'audience' => trim((string)($aud['who'] ?? $aud['text'] ?? '')),
+        'services' => $svc,
+        'tone' => $toneTxt,
+        'dialect_k' => $dialMap[$tone['dialect'] ?? ''] ?? '',
+        'cta' => trim((string)($co['cta'] ?? '')),
+        'has_logo' => (function_exists('kb_logo') && kb_logo($wid)) ? 1 : 0,
+    ];
 }

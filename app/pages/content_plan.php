@@ -73,7 +73,7 @@ render($plan ? (string)$plan['name'] : t('خطة محتوى بالذكاء ال�
         'li' => 'LinkedIn', 'x' => 'X', 'img' => t('برومبت الصورة'), 'vid' => t('برومبت الفيديو'), 'car' => t('كاروسيل (5 شرائح)'), 'head' => t('عنوان الصورة'), 'words' => t('%s كلمة'), 'chars' => t('%s حرف'),
         's_pending' => t('قيد الكتابة'), 's_draft' => t('مسودة'), 's_approved' => t('معتمد'), 's_rejected' => t('مرفوض'), 's_scheduled' => t('مجدول'), 's_queued' => t('في الطابور'), 's_published' => t('تم النشر'),
         'toBank' => t('افتح مخزون المحتوى'), 'nApproved' => t('%s معتمد في المخزون'), 'f_all' => t('الكل'), 'delPlan' => t('حذف الخطة؟ المنشورات المجدولة أو المنشورة تبقى في المخزون.'),
-        'uploading' => t('جارٍ رفع الصور…'), 'imported' => t('تم تحديث %s منشور من الملف (تخطّينا %s).'), 'needGoal' => t('اكتب هدف الحملة.'), 'draftRestored' => t('استرجعنا المسودة التي لم تُرسل.'), 'refMax' => t('حتى 12 صورة.'), 'uploaded' => t('تم رفع الصور.'), 'fSel' => t('%s محدد'), 'genAsk' => t('توليد %s لـ %s منشور؟ يُخصم من رصيد مزوّد الصور/الفيديو.'), 'kImage' => t('صورة'), 'kVideo' => t('فيديو'), 'kCarousel' => t('كاروسيل (5 صور)'), 'genAdded' => t('بدأ التوليد: %s مهمة. يكمل في الخلفية حتى لو أغلقت الصفحة.'), 'genNone' => t('لا شيء جديد للتوليد (ربما قيد التوليد بالفعل، أو لا يوجد كاروسيل).'),
+        'uploading' => t('جارٍ رفع الصور…'), 'imported' => t('تم تحديث %s منشور من الملف (تخطّينا %s).'), 'needGoal' => t('اكتب هدف الحملة.'), 'draftRestored' => t('استرجعنا المسودة التي لم تُرسل.'), 'refMax' => t('حتى 12 صورة.'), 'uploaded' => t('تم رفع الصور.'), 'sum' => ['goal' => t('الهدف'), 'count' => t('عدد المنشورات'), 'aud' => t('الجمهور'), 'svc' => t('الخدمات'), 'lang' => t('اللغة'), 'dial' => t('اللهجة'), 'tone' => t('النبرة'), 'cta' => t('الدعوة للإجراء'), 'refs' => t('صور مرجعية'), 'logo' => t('اللوجو'), 'none' => t('—'), 'on' => t('مركّب'), 'off' => t('بدون'), 'li' => 'LinkedIn', 'x' => 'X', 'img' => t('الصور'), 'vo' => t('الصوت')], 'langN' => ['ar' => t('عربي'), 'en' => 'English', 'both' => t('عربي + English'), 'none' => t('بدون نص')], 'dialEx' => ['msa' => t('مثال: نساعد فرق المشتريات على تقليل وقت التوريد دون التضحية بالجودة.'), 'saudi' => t('مثال: نساعد فريق المشتريات يختصر وقت التوريد بدون ما يضحّي بالجودة.'), 'gulf' => t('مثال: نساعد فريق المشتريات يختصر وقت التوريد من دون ما يتأثر المستوى.'), 'emirati' => t('مثال: نساعد فريق المشتريات يختصر وقت التوريد بدون ما تتأثر الجودة.'), 'kuwaiti' => t('مثال: نساعد فريق المشتريات يختصر وقت التوريد بدون ما تنزل الجودة.'), 'egyptian' => t('مثال: بنساعد فريق المشتريات يختصر وقت التوريد من غير ما الجودة تتأثر.'), 'levantine' => t('مثال: منساعد فريق المشتريات يختصر وقت التوريد بدون ما تتأثر الجودة.'), 'maghrebi' => t('مثال: نعاونو فريق المشتريات باش يختصر وقت التوريد بلا ما تنقص الجودة.'), 'white' => t('مثال: نساعد فريق المشتريات يختصر وقت التوريد بدون ما تتأثر الجودة.'), 'other' => t('اكتب اللهجة أو الأسلوب الذي تريده في الخانة.')], 'fSel' => t('%s محدد'), 'genAsk' => t('توليد %s لـ %s منشور؟ يُخصم من رصيد مزوّد الصور/الفيديو.'), 'kImage' => t('صورة'), 'kVideo' => t('فيديو'), 'kCarousel' => t('كاروسيل (5 صور)'), 'genAdded' => t('بدأ التوليد: %s مهمة. يكمل في الخلفية حتى لو أغلقت الصفحة.'), 'genNone' => t('لا شيء جديد للتوليد (ربما قيد التوليد بالفعل، أو لا يوجد كاروسيل).'),
         'jBusy' => t('جارٍ التوليد'), 'jDone' => t('جاهز'), 'jFail' => t('فشل'), 'toBankOne' => t('إرسال للمخزون'), 'fmtText' => t('نص فقط'), 'useFmt' => t('اضغط لاستخدام هذا الشكل في النشر'), 'inUse' => t('المستخدم في النشر'), 'sent' => t('أُرسل %s منشور للمخزون.'), 'logT' => t('سجل التنفيذ المباشر'), 'srcBg' => t('خلفية'), 'srcPage' => t('الصفحة'), 'elapsed' => t('%s ثانية'), 'busyBg' => t('خطوة تعمل في الخلفية، ننتظرها'), 'pdfPages' => t('جارٍ تحويل صفحات PDF إلى صور…'), 'qc' => t('فحص الجودة:'), 'cats' => array_map('t', cpl_categories()),
     ];
     
@@ -114,23 +114,66 @@ render($plan ? (string)$plan['name'] : t('خطة محتوى بالذكاء ال�
     <?php else: $plans = cpl_plans(); $kb = kb_get($wid); $svc = array_values(array_filter(array_map(function ($r) { return trim((string)($r['name'] ?? '')); }, (array)($kb['services']['rows'] ?? []))));
       $hasLogo = function_exists('kb_logo') && kb_logo($wid); ?>
     <p class="text-sm text-ink-500 mb-4"><?= e(t('اكتب هدفك وعدد المنشورات وارفع تصميمات مرجعية. نكتب لك خطة كاملة من ملف شركتك: موضوع، نص لينكدإن، نص X، برومبت صورة، برومبت فيديو، وكاروسيل لكل منشور. لا نولّد صورًا هنا؛ أنت تعتمد ما يعجبك فيذهب إلى مخزون المحتوى للجدولة والنشر.')) ?></p>
-    <form id="cp-wiz" class="card p-5 mb-6 space-y-4">
-      <div class="grid lg:grid-cols-[2fr_1fr] gap-4">
+    <form id="cp-wiz" class="card p-0 mb-6 overflow-hidden" novalidate>
+      <ol id="cp-steps" class="flex border-b border-ink-100 bg-ink-50/60 text-sm overflow-x-auto">
+        <li><button type="button" data-go="0" class="flex items-center gap-2 px-4 py-3 whitespace-nowrap text-ink-500 [&.on]:text-brand-700 [&.on]:font-semibold [&.done]:text-ink-800"><span class="w-6 h-6 rounded-full grid place-items-center text-xs bg-white border border-ink-200">1</span><?= e(t('الهدف')) ?></button></li>
+        <li><button type="button" data-go="1" class="flex items-center gap-2 px-4 py-3 whitespace-nowrap text-ink-500 [&.on]:text-brand-700 [&.on]:font-semibold [&.done]:text-ink-800"><span class="w-6 h-6 rounded-full grid place-items-center text-xs bg-white border border-ink-200">2</span><?= e(t('الجمهور')) ?></button></li>
+        <li><button type="button" data-go="2" class="flex items-center gap-2 px-4 py-3 whitespace-nowrap text-ink-500 [&.on]:text-brand-700 [&.on]:font-semibold [&.done]:text-ink-800"><span class="w-6 h-6 rounded-full grid place-items-center text-xs bg-white border border-ink-200">3</span><?= e(t('الأسلوب')) ?></button></li>
+        <li><button type="button" data-go="3" class="flex items-center gap-2 px-4 py-3 whitespace-nowrap text-ink-500 [&.on]:text-brand-700 [&.on]:font-semibold [&.done]:text-ink-800"><span class="w-6 h-6 rounded-full grid place-items-center text-xs bg-white border border-ink-200">4</span><?= e(t('الشكل')) ?></button></li>
+        <li><button type="button" data-go="4" class="flex items-center gap-2 px-4 py-3 whitespace-nowrap text-ink-500 [&.on]:text-brand-700 [&.on]:font-semibold [&.done]:text-ink-800"><span class="w-6 h-6 rounded-full grid place-items-center text-xs bg-white border border-ink-200">5</span><?= e(t('المراجعة')) ?></button></li>
+      </ol>
+      <div class="p-5 space-y-5">
+      <?php
+        $chip = function (string $name, string $val, string $label, bool $on = false, string $type = 'radio', string $sub = '') { return '<label class="cursor-pointer"><input type="' . $type . '" name="' . $name . '" value="' . e($val) . '" class="peer sr-only"' . ($on ? ' checked' : '') . '><span class="inline-flex flex-col rounded-xl border border-ink-200 px-3 py-1.5 text-sm text-ink-700 transition hover:border-brand-300 peer-checked:border-brand-500 peer-checked:bg-brand-50 peer-checked:text-brand-800">' . e($label) . ($sub !== '' ? '<span class="text-[11px] text-ink-400">' . e($sub) . '</span>' : '') . '</span></label>'; };
+        $kbd = function_exists('cpl_kb_defaults') ? cpl_kb_defaults($wid) : [];
+        $opt = function (array $a, string $cur = '') { $h = ''; foreach ($a as $v => $l) $h .= '<option value="' . e($v) . '"' . ($v === $cur ? ' selected' : '') . '>' . e($l) . '</option>'; return $h; };
+        $langs = ['ar' => t('عربي'), 'en' => 'English', 'both' => t('عربي + English')];
+        $chanLangs = ['ar' => t('عربي'), 'en' => 'English', 'both' => t('عربي + English')];
+        $dialects = ['' => t('— اختر —'), 'msa' => t('فصحى'), 'saudi' => t('سعودية'), 'gulf' => t('خليجية'), 'emirati' => t('إماراتية'), 'kuwaiti' => t('كويتية'), 'egyptian' => t('مصرية'), 'levantine' => t('شامية'), 'maghrebi' => t('مغاربية مبسطة'), 'white' => t('عربية بيضاء (مفهومة لكل العرب)'), 'other' => t('أخرى (اكتبها)…')];
+        $tonePresets = [t('واثقة وعملية بلا مبالغة'), t('خبيرة وتعليمية'), t('ودودة وقريبة'), t('رسمية ومحترفة'), t('جريئة وملهمة'), t('مختصرة ومباشرة')];
+        $ctaPresets = [t('اطلب عرض سعر'), t('احجز مكالمة استشارية'), t('احجز عرضًا تجريبيًا'), t('تواصل عبر واتساب'), t('زر الموقع'), t('حمّل الدليل'), t('سجّل في الفعالية'), t('اطلب زيارة ميدانية')];
+      ?>
+      <section data-step="0" class="space-y-5">
+        <div><h2 class="text-lg font-bold text-ink-900"><?= e(t('ما هدف الحملة؟')) ?></h2><p class="text-sm text-ink-500"><?= e(t('اكتبه في جملة أو اثنتين: من تريد أن تصل إليه، وماذا تريده أن يفعل.')) ?></p></div>
         <label class="block"><span class="label"><?= e(t('هدف الحملة')) ?> *</span><textarea name="goal" rows="4" class="input" dir="auto" placeholder="<?= e(t('مثال: نريد طلبات عروض أسعار من مديري المشتريات في الشركات الكبيرة لخدمة تجهيز المطابخ التجارية خلال الربع القادم.')) ?>"></textarea></label>
-        <div class="space-y-3">
-          <label class="block"><span class="label"><?= e(t('عدد المنشورات')) ?></span><input name="count" type="number" min="1" max="<?= CPL_MAX ?>" value="12" class="input"></label>
+        <div class="grid sm:grid-cols-2 gap-4">
+          <div><span class="label"><?= e(t('عدد المنشورات')) ?></span><div class="flex flex-wrap items-center gap-1.5 mt-1"><?php foreach ([6, 12, 30, 60] as $nn): ?><button type="button" data-cnt="<?= $nn ?>" class="rounded-xl border border-ink-200 px-3 py-1.5 text-sm hover:border-brand-300 [&.on]:border-brand-500 [&.on]:bg-brand-50 [&.on]:text-brand-800"><?= $nn ?></button><?php endforeach; ?><input name="count" type="number" min="1" max="<?= CPL_MAX ?>" value="12" class="input !mt-0 !w-20"></div></div>
           <label class="block"><span class="label"><?= e(t('اسم الخطة (اختياري)')) ?></span><input name="name" class="input" dir="auto"></label>
         </div>
-      </div>
-      <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <label class="block"><span class="label"><?= e(t('اللغة')) ?></span><select name="lang" class="input"><option value="ar"><?= e(t('عربي')) ?></option><option value="en">English</option><option value="both"><?= e(t('لينكدإن عربي و X إنجليزي')) ?></option></select></label>
-        <label class="block"><span class="label"><?= e(t('اللهجة (اختياري)')) ?></span><input name="dialect" class="input" placeholder="<?= e(t('فصحى، سعودية، مصرية…')) ?>"></label>
-        <label class="block"><span class="label"><?= e(t('النبرة')) ?></span><input name="tone" class="input" placeholder="<?= e(t('واثقة، عملية، بلا مبالغة')) ?>"></label>
-        <label class="block"><span class="label"><?= e(t('الدعوة للإجراء')) ?></span><input name="cta" class="input" placeholder="<?= e(t('اطلب عرض سعر، احجز مكالمة…')) ?>"></label>
-      </div>
-      <label class="block"><span class="label"><?= e(t('الجمهور المستهدف (اختياري)')) ?></span><input name="audience" class="input" dir="auto" placeholder="<?= e(t('مثال: مديرو المشتريات والمرافق في الفنادق والمستشفيات بالسعودية')) ?>"></label>
-      <?php if ($svc): ?><div><span class="label"><?= e(t('ركّز على خدمات (من ملف الشركة)')) ?></span><div class="flex flex-wrap gap-2 mt-1"><?php foreach (array_slice($svc, 0, 30) as $s): ?><label class="inline-flex items-center gap-1.5 rounded-full border border-ink-200 px-3 py-1 text-sm"><input type="checkbox" name="services" value="<?= e($s) ?>"><?= e($s) ?></label><?php endforeach; ?></div></div><?php endif; ?>
-      <label class="block"><span class="label"><?= e(t('تجنّب (اختياري)')) ?></span><input name="avoid" class="input" dir="auto" placeholder="<?= e(t('كلمات أو وعود أو أساليب لا تريدها')) ?>"></label>
+      </section>
+      <section data-step="1" class="space-y-5 hidden">
+        <div><h2 class="text-lg font-bold text-ink-900"><?= e(t('من تخاطب؟')) ?></h2><p class="text-sm text-ink-500"><?= e(t('كلما كان الجمهور أدق كان المحتوى أقوى. يمكنك تركها فارغة لنعتمد على ملف الشركة.')) ?></p></div>
+      <label class="block"><span class="label"><?= e(t('الجمهور المستهدف')) ?> <span class="text-xs text-ink-400"><?= e(t('(من ملف الشركة، عدّله لهذه الحملة)')) ?></span></span><textarea name="audience" rows="2" class="input" dir="auto" placeholder="<?= e(t('مثال: مديرو المشتريات والمرافق في الفنادق والمستشفيات بالسعودية')) ?>"><?= e((string)($kbd['audience'] ?? '')) ?></textarea></label>
+      <label class="block"><span class="label"><?= e(t('نبذة عن الشركة')) ?> <span class="text-xs text-ink-400"><?= e(t('(من ملف الشركة، تُستخدم كسياق)')) ?></span></span><textarea name="about" rows="2" class="input" dir="auto"><?= e((string)($kbd['about'] ?? '')) ?></textarea></label>
+      <?php if ($svc): ?><div><span class="label"><?= e(t('ركّز على خدمات (من ملف الشركة)')) ?></span><div class="flex flex-wrap gap-2 mt-1"><?php foreach (array_slice($svc, 0, 30) as $s): ?><label class="inline-flex items-center gap-1.5 rounded-full border border-ink-200 px-3 py-1 text-sm has-[:checked]:border-brand-400 has-[:checked]:bg-brand-50"><input type="checkbox" name="services" value="<?= e($s) ?>" checked><?= e($s) ?></label><?php endforeach; ?></div></div><?php endif; ?>
+      </section>
+      <section data-step="2" class="space-y-5 hidden">
+        <div><h2 class="text-lg font-bold text-ink-900"><?= e(t('بأي لغة وأسلوب؟')) ?></h2><p class="text-sm text-ink-500"><?= e(t('الإعداد الافتراضي يناسب أغلب الحالات؛ غيّر ما تحتاجه فقط.')) ?></p></div>
+        <div class="grid sm:grid-cols-2 gap-4">
+          <label class="block"><span class="label"><?= e(t('اللغة')) ?></span>
+            <select name="lang_all" class="input"><?= $opt($langs, 'ar') ?></select></label>
+          <label class="block"><span class="label"><?= e(t('اللهجة العربية')) ?></span>
+            <select name="dialect_k" class="input"><?= $opt($dialects, $kbd['dialect_k'] ?? '') ?></select>
+            <input name="dialect_other" class="input hidden mt-2" placeholder="<?= e(t('اكتب اللهجة أو الأسلوب (مثال: سعودية رسمية بمصطلحات تقنية إنجليزية)')) ?>"></label>
+        </div>
+        <p id="cp-dial-ex" class="rounded-xl bg-ink-50 px-3 py-2 text-sm text-ink-600 hidden" dir="rtl"></p>
+        <details class="group" id="cp-lang"><summary class="cursor-pointer text-sm link select-none"><?= e(t('تخصيص لغة كل قناة (اختياري)')) ?></summary>
+          <div class="mt-3 grid sm:grid-cols-2 gap-3">
+            <?php foreach (['lang_li' => t('نص لينكدإن'), 'lang_x' => t('نص X'), 'lang_img' => t('النص على الصور والشرائح'), 'lang_vo' => t('التعليق الصوتي في الفيديو')] as $nm => $lab): $o = $chanLangs; if ($nm === 'lang_img') $o = $o + ['none' => t('بدون نص (صورة فقط)')]; ?>
+            <label class="block"><span class="text-xs text-ink-500 block mb-1"><?= e($lab) ?></span><select name="<?= $nm ?>" class="input !mt-0"><?= $opt($o, 'ar') ?></select></label>
+            <?php endforeach; ?>
+          </div>
+        </details>
+        <label class="block"><span class="label"><?= e(t('النبرة')) ?></span>
+          <input name="tone" class="input" list="cp-tones" dir="auto" value="<?= e((string)($kbd['tone'] ?? '')) ?>" placeholder="<?= e(t('اكتب أو اختر من القائمة')) ?>">
+          <datalist id="cp-tones"><?php foreach ($tonePresets as $tp) echo '<option value="' . e($tp) . '">'; ?></datalist></label>
+        <label class="block"><span class="label"><?= e(t('الدعوة للإجراء')) ?></span>
+          <input name="cta" class="input" list="cp-ctas" dir="auto" value="<?= e((string)($kbd['cta'] ?? '')) ?>" placeholder="<?= e(t('اكتب أو اختر من القائمة')) ?>">
+          <datalist id="cp-ctas"><?php foreach ($ctaPresets as $cp) echo '<option value="' . e($cp) . '">'; ?></datalist></label>
+        <label class="block"><span class="label"><?= e(t('تجنّب (اختياري)')) ?></span><input name="avoid" class="input" dir="auto" placeholder="<?= e(t('كلمات أو وعود أو أساليب لا تريدها')) ?>"></label>
+      </section>
+      <section data-step="3" class="space-y-5 hidden">
+        <div><h2 class="text-lg font-bold text-ink-900"><?= e(t('شكل التصميمات')) ?></h2><p class="text-sm text-ink-500"><?= e(t('ارفع تصميمات تعجبك وحدد مكان الشعار. كل ذلك اختياري.')) ?></p></div>
       <div>
         <span class="label"><?= e(t('تصميمات مرجعية (اختياري، حتى 12 صورة أو صفحة PDF)')) ?></span>
         <p class="text-xs text-ink-500 mb-2"><?= e(t('نحلل أسلوبها (الألوان، الخطوط، التكوين) ونطبقه في كل برومبت، وتُرسل لموديل الصور كمرجع للأسلوب أثناء التوليد، بدون نسخ محتواها.')) ?> <?= $hasLogo ? e(t('الشعار موجود في ملف الشركة وسيُذكر موضعه في البرومبتات.')) : '' ?></p>
@@ -144,25 +187,45 @@ render($plan ? (string)$plan['name'] : t('خطة محتوى بالذكاء ال�
         <?php else: ?>
         <p class="text-xs text-ink-500 mb-3"><?= e(t('السيستم يركّب لوجو شركتك الحقيقي على كل صورة وشريحة بعد توليدها (الذكاء الاصطناعي لا يرسم لوجو). المعاينة على أول صورة مرجعية.')) ?></p>
         <div class="flex flex-wrap items-start gap-5">
-          <div id="cp-lprev" class="relative w-48 aspect-[4/5] rounded-xl overflow-hidden border border-ink-200 bg-cover bg-center" style="background-color:#0b1f3a;background-image:linear-gradient(135deg,#0b1f3a,#155e75)">
-            <img id="cp-lprev-logo" src="<?= e(url('media', ['file' => $lgRow['id']])) ?>" alt="" class="absolute object-contain drop-shadow">
-            <div class="absolute inset-[7%] border border-dashed border-[#ffffff66] rounded pointer-events-none" title="<?= e(t('المنطقة الآمنة')) ?>"></div>
+          <div class="space-y-2">
+            <div id="cp-lprev" class="relative w-56 aspect-[4/5] rounded-xl overflow-hidden border border-ink-200 bg-cover bg-center select-none touch-none" style="background-color:#0b1f3a;background-image:linear-gradient(135deg,#0b1f3a,#155e75)">
+              <div class="absolute inset-[7%] border border-dashed border-[#ffffff66] rounded pointer-events-none"></div>
+              <div id="cp-lplate" class="absolute rounded-lg pointer-events-none"></div>
+              <img id="cp-lprev-logo" src="<?= e(url('media', ['file' => $lgRow['id']])) ?>" alt="" draggable="false" class="absolute object-contain cursor-grab active:cursor-grabbing" title="<?= e(t('اسحب اللوجو لأي مكان')) ?>">
+            </div>
+            <p class="text-[11px] text-ink-400 w-56"><?= e(t('اسحب اللوجو بالماوس أو بإصبعك. الخط المتقطع = المنطقة الآمنة.')) ?></p>
+            <div id="cp-lbgs" class="flex flex-wrap gap-1 w-56"></div>
           </div>
-          <div class="space-y-3 text-sm">
-            <div><span class="text-xs text-ink-500 block mb-1"><?= e(t('المكان')) ?></span>
-              <div class="grid grid-cols-3 gap-1.5 w-36" dir="ltr"><?php foreach (['top-left', 'top-center', 'top-right', 'bottom-left', 'bottom-center', 'bottom-right'] as $pos): ?><label class="cursor-pointer"><input type="radio" name="logo_pos" value="<?= $pos ?>" class="peer sr-only" <?= $pos === 'top-right' ? 'checked' : '' ?>><span class="block h-9 rounded-lg border border-ink-200 peer-checked:border-brand-500 peer-checked:bg-brand-50 relative"><span class="absolute w-3 h-2 rounded-sm bg-ink-400 peer-checked:bg-brand-600 <?= ['top-left' => 'top-1 left-1', 'top-center' => 'top-1 left-1/2 -translate-x-1/2', 'top-right' => 'top-1 right-1', 'bottom-left' => 'bottom-1 left-1', 'bottom-center' => 'bottom-1 left-1/2 -translate-x-1/2', 'bottom-right' => 'bottom-1 right-1'][$pos] ?>"></span></span></label><?php endforeach; ?></div></div>
-            <label class="block"><span class="text-xs text-ink-500 block mb-1"><?= e(t('الحجم')) ?></span><select name="logo_size" class="input !mt-0 !py-1.5 !w-36"><option value="14"><?= e(t('صغير')) ?></option><option value="20" selected><?= e(t('متوسط')) ?></option><option value="26"><?= e(t('كبير')) ?></option></select></label>
+          <div class="space-y-3 text-sm min-w-0 flex-1">
+            <div><span class="text-xs text-ink-500 block mb-1"><?= e(t('أماكن جاهزة')) ?></span>
+              <div class="grid grid-cols-3 gap-1.5 w-40" dir="ltr"><?php foreach (['top-left' => [14, 9], 'top-center' => [50, 9], 'top-right' => [86, 9], 'middle-left' => [14, 50], 'center' => [50, 50], 'middle-right' => [86, 50], 'bottom-left' => [14, 91], 'bottom-center' => [50, 91], 'bottom-right' => [86, 91]] as $pos => [$px, $py]): ?><button type="button" data-lp="<?= $px ?>,<?= $py ?>" data-pos="<?= $pos ?>" class="h-8 rounded-lg border border-ink-200 relative hover:border-brand-300 [&.on]:border-brand-500 [&.on]:bg-brand-50"><span class="absolute w-3 h-2 rounded-sm bg-ink-400" style="left:calc(<?= $px ?>% - 6px);top:calc(<?= $py ?>% - 4px)"></span></button><?php endforeach; ?></div></div>
+            <label class="block"><span class="text-xs text-ink-500 flex justify-between"><span><?= e(t('الحجم')) ?></span><b id="cp-lw-v" class="tabular-nums"></b></span><input type="range" name="logo_w" min="8" max="35" value="18" class="w-full accent-brand-600"></label>
+            <label class="block"><span class="text-xs text-ink-500 flex justify-between"><span><?= e(t('الشفافية')) ?></span><b id="cp-lo-v" class="tabular-nums"></b></span><input type="range" name="logo_op" min="30" max="100" value="100" class="w-full accent-brand-600"></label>
+            <div><span class="text-xs text-ink-500 block mb-1"><?= e(t('لون اللوجو')) ?></span><div class="flex flex-wrap gap-1.5"><?php foreach (['orig' => t('الأصلي'), 'white' => t('أبيض'), 'black' => t('أسود')] as $v => $l) echo $chip('logo_tint', $v, $l, $v === 'orig'); ?></div></div>
+            <div><span class="text-xs text-ink-500 block mb-1"><?= e(t('خلفية خلف اللوجو')) ?></span><div class="flex flex-wrap gap-1.5"><?php foreach (['none' => t('بدون'), 'light' => t('فاتحة'), 'dark' => t('داكنة')] as $v => $l) echo $chip('logo_plate', $v, $l, $v === 'none'); ?></div></div>
+            <input type="hidden" name="logo_x" value="86"><input type="hidden" name="logo_y" value="9">
             <label class="flex items-center gap-1.5"><input type="checkbox" name="logo_on" checked><?= e(t('ركّب اللوجو على الصور')) ?></label>
           </div>
         </div>
         <?php endif; ?>
       </div>
+      </section>
+      <section data-step="4" class="space-y-5 hidden">
+        <div><h2 class="text-lg font-bold text-ink-900"><?= e(t('مراجعة قبل الكتابة')) ?></h2><p class="text-sm text-ink-500"><?= e(t('راجع اختياراتك. يمكنك العودة إلى أي خطوة من الأعلى.')) ?></p></div>
+        <dl id="cp-sum" class="grid sm:grid-cols-2 gap-x-6 gap-y-2 text-sm"></dl>
       <div class="flex flex-wrap gap-4 text-sm">
         <label class="flex items-center gap-1.5"><input type="checkbox" name="video" checked><?= e(t('برومبت فيديو لكل منشور')) ?></label>
         <label class="flex items-center gap-1.5"><input type="checkbox" name="carousel" checked><?= e(t('كاروسيل 5 شرائح')) ?></label>
         <label class="flex items-center gap-1.5" title="<?= e(t('مهارة Humanizer كاملة تدخل في برومبت الكتابة نفسه، فيُكتب المحتوى بأسلوب بشري من البداية دون تغيير المعلومات.')) ?>"><input type="checkbox" name="humanize" checked><?= e(t('الكتابة بمهارة Humanizer')) ?></label>
       </div>
-      <div class="flex items-center gap-3"><button class="btn-primary"><?= e(t('اكتب الخطة')) ?></button><span class="text-xs text-ink-500"><?= e(t('المسودة تُحفظ على جهازك أثناء الكتابة.')) ?></span></div>
+      </section>
+      </div>
+      <div class="flex items-center gap-3 border-t border-ink-100 px-5 py-3 bg-white">
+        <button type="button" id="cp-back" class="btn-ghost invisible"><?= e(t('السابق')) ?></button>
+        <span class="text-xs text-ink-400 flex-1"><?= e(t('المسودة تُحفظ على جهازك أثناء الكتابة.')) ?></span>
+        <button type="button" id="cp-next" class="btn-primary"><?= e(t('التالي')) ?></button>
+        <button type="submit" id="cp-go" class="btn-primary hidden"><?= e(t('اكتب الخطة')) ?></button>
+      </div>
     </form>
     <?php if ($plans): ?>
     <h2 class="font-bold mb-2"><?= e(t('خططك')) ?></h2>
