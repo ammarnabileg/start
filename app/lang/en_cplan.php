@@ -140,4 +140,8 @@ return [
     'أضف صورًا أو PDF' => 'Add images or PDF',
     'تصميمات مرجعية (اختياري، حتى 12 صورة أو صفحة PDF)' => 'Reference designs (optional, up to 12 images or PDF pages)',
     'جارٍ تحويل صفحات PDF إلى صور…' => 'Converting PDF pages to images…',
+    'الخطوة الأولى' => 'Step 1',
+    'الخطوة الثانية' => 'Step 2',
+    'الهدف وعدد المنشورات والصور المرجعية ← تجهيز الملف والبرومبتات (بدون صور أو فيديو)' => 'Goal, number of posts and reference images → the file and all prompts (no images or video)',
+    'وافق على بعضها أو كلها ← المعتمد يذهب إلى مخزون المحتوى' => 'Approve some or all → approved posts go to the content bank',
 ];

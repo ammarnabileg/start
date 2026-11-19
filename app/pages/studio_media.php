@@ -7,6 +7,7 @@ $lib = $on ? hf_lib_list($wid, 30) : [];
 $libIds = []; // الصورة اللي اتولدت ليها نسخة في المكتبة: "في منشور" يفتح الكتابة بيها
 if ($lib && function_exists('media_sync_ai')) { try { media_sync_ai($wid); $q = db()->prepare('SELECT id, name FROM media_files WHERE workspace_id = ? AND deleted_at IS NULL AND name IN (' . implode(',', array_fill(0, count($lib), '?')) . ')'); $q->execute(array_merge([$wid], array_map(function ($n) { return 'ai-' . $n; }, $lib))); foreach ($q->fetchAll() as $r) $libIds[substr((string)$r['name'], 3)] = (int)$r['id']; } catch (Throwable $e) {} }
 render(t('الصور والفيديو'), 'studio_media', function () use ($on, $lib, $hf, $oa, $libIds) {
+    require_once ROOT_DIR . '/app/views/cb_tabbar.php'; echo cb_tabbar('studio_media');
     $ratios = ['1:1' => [t('مربع'), 'aspect-square'], '4:5' => [t('بوست'), 'aspect-[4/5]'], '9:16' => [t('ستوري'), 'aspect-[9/16]'], '16:9' => [t('عرضي'), 'aspect-video']];
     ?>
   <?php if (!$on): ?>

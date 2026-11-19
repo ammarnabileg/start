@@ -212,6 +212,7 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
     ?>
     <?php // هيدر الصفحة: العنوان نفسه زرار بيفتح popover فيه الصفحات الشقيقة والمرتبطة (بدل صف التابات)
       $sibs = (!empty($navActive['tabs']) && count($navActive['tabs']) > 1) ? $navActive['tabs'] : [];
+      if (in_array($active, ['studio_media', 'content_bank', 'content_plan'], true)) $sibs = []; // المستخدم طلب من غير دروب داون هنا؛ الصفحات دي ليها صف تابات ظاهر
       $sibOn = function ($tk) use ($active, $navActive) { return $tk === $active || ($tk === ($navActive['key'] ?? '') && in_array($active, $navActive['also'] ?? [], true)); };
       $keys = array_keys($sibs); $cur = null; foreach ($keys as $ix => $tk) if ($sibOn($tk)) $cur = $ix;
       $hasPop = $sibs || $rel;
