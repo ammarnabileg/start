@@ -114,6 +114,9 @@ function cpl_step(int $id): array
     if ($p['status'] !== 'generating') return cpl_status($p);
     $lk = 'cpl_' . $id; $g = db()->query('SELECT GET_LOCK(' . db()->quote($lk) . ', 0)')->fetchColumn();
     if (!$g) return cpl_status($p) + ['busy' => true];
+    $done = false;
+    register_shutdown_function(function () use (&$done, $id, $lk) { if ($done) return; $e = error_get_last();
+        try { db()->prepare('UPDATE cp_plans SET error = ?, fails = fails + 1, status = IF(fails + 1 >= 3, "paused", status) WHERE id = ?')->execute([t('انتهت مهلة السيرفر أثناء هذه الخطوة. سنعيد المحاولة تلقائيًا.') . ($e ? ' (' . mb_substr((string)$e['message'], 0, 120) . ')' : ''), $id]); db()->query('SELECT RELEASE_LOCK(' . db()->quote($lk) . ')'); } catch (Throwable $x) {} });
     try {
         @set_time_limit(300);
         if ($p['stage'] === 'visual') cpl_do_visual($p);
@@ -124,7 +127,7 @@ function cpl_step(int $id): array
         $f = (int)$p['fails'] + 1;
         // 3 محاولات فاشلة ورا بعض = نوقف ونستنى المستخدم (مش نصرف رصيد على الفاضي)
         db()->prepare('UPDATE cp_plans SET error = ?, fails = ?, status = IF(? >= 3, "paused", status) WHERE id = ?')->execute([mb_substr($e->getMessage(), 0, 500), $f, $f, $id]);
-    } finally { db()->query('SELECT RELEASE_LOCK(' . db()->quote($lk) . ')'); }
+    } finally { $done = true; db()->query('SELECT RELEASE_LOCK(' . db()->quote($lk) . ')'); }
     return cpl_status(cpl_plan($id));
 }
 
@@ -140,17 +143,28 @@ function cpl_do_visual(array $p): void
     $wid = (int)ws('id'); $parts = [['type' => 'text', 'text' => 'Visual references for the brand campaign.']];
     foreach (array_slice(json_decode((string)$p['refs'], true) ?: [], 0, 12) as $mid) {
         $m = media_get($wid, (int)$mid); if (!$m) continue;
-        $f = media_file_path($wid, $m); if (!is_file($f) || filesize($f) > 4000000) $f = media_thumb_path($wid, $m); if (!is_file($f)) continue;
-        $parts[] = ['type' => 'image_url', 'image_url' => ['url' => 'data:' . (mime_content_type($f) ?: 'image/jpeg') . ';base64,' . base64_encode((string)file_get_contents($f))]];
+        $u = cpl_small_image(media_file_path($wid, $m)) ?: cpl_small_image(media_thumb_path($wid, $m)); if ($u) $parts[] = ['type' => 'image_url', 'image_url' => ['url' => $u]];
     }
     $lg = function_exists('kb_logo') ? kb_logo($wid) : null; // اللوجو من ملف الشركة: عشان مكانه وألوانه تبقى حقيقية
-    if ($lg && is_file($lf = media_file_path($wid, $lg)) && filesize($lf) < 3000000) { $parts[] = ['type' => 'text', 'text' => 'The last image is the official company logo (not a reference design). Use it for logo colors and recommended logo placement.']; $parts[] = ['type' => 'image_url', 'image_url' => ['url' => 'data:' . (mime_content_type($lf) ?: 'image/png') . ';base64,' . base64_encode((string)file_get_contents($lf))]]; }
+    if ($lg && ($lu = cpl_small_image(media_file_path($wid, $lg), 512))) { $parts[] = ['type' => 'text', 'text' => 'The last image is the official company logo (not a reference design). Use it for logo colors and recommended logo placement.']; $parts[] = ['type' => 'image_url', 'image_url' => ['url' => $lu]]; }
     $vis = '';
     if (count($parts) > 1) {
+        if ((int)$p['fails'] >= 2) { db()->prepare('UPDATE cp_plans SET visual = "", stage = "outline", error = ? WHERE id = ?')->execute([t('تعذر تحليل الصور المرجعية؛ أكملنا من ملف الشركة وألوان الشعار.'), (int)$p['id']]); return; }
         $r = ai_chat([['role' => 'system', 'content' => "VISUAL_DNA. Act as a Commercial Art Director. Analyze the reference images to extract the visual identity: colors (hex values), typography (style, weight, case, Arabic/Latin pairing), lighting, composition, logo placement, and advertising style; also photography vs illustration vs 3D, textures, negative space, headline placement and mood. Write a reusable visual DNA in English, 150-250 words, as plain text grouped by those headings. Describe the style only; never copy brand names, text or specific people from the references."], ['role' => 'user', 'content' => $parts]], 900, 'analyze');
         $vis = trim((string)($r['text'] ?? ''));
     }
     db()->prepare('UPDATE cp_plans SET visual = ?, stage = "outline" WHERE id = ?')->execute([mb_substr($vis, 0, 4000), (int)$p['id']]);
+}
+
+/** صورة مصغرة data URI (JPEG، أطول ضلع $max) عشان طلب الرؤية يفضل صغير */
+function cpl_small_image(string $f, int $max = 1024): string
+{
+    if (!is_file($f) || !function_exists('imagecreatefromstring')) return '';
+    $im = @imagecreatefromstring((string)file_get_contents($f)); if (!$im) return '';
+    $w = imagesx($im); $h = imagesy($im); $k = min(1, $max / max($w, $h)); $nw = max(1, (int)round($w * $k)); $nh = max(1, (int)round($h * $k));
+    $o = imagecreatetruecolor($nw, $nh); imagefill($o, 0, 0, imagecolorallocate($o, 255, 255, 255)); imagecopyresampled($o, $im, 0, 0, 0, 0, $nw, $nh, $w, $h);
+    ob_start(); imagejpeg($o, null, 82); $b = (string)ob_get_clean(); imagedestroy($im); imagedestroy($o);
+    return 'data:image/jpeg;base64,' . base64_encode($b);
 }
 
 /** تصنيفات المزيج الاستراتيجي من البرومبت (بالحرف) */

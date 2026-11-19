@@ -144,4 +144,8 @@ return [
     'الخطوة الثانية' => 'Step 2',
     'الهدف وعدد المنشورات والصور المرجعية ← تجهيز الملف والبرومبتات (بدون صور أو فيديو)' => 'Goal, number of posts and reference images → the file and all prompts (no images or video)',
     'وافق على بعضها أو كلها ← المعتمد يذهب إلى مخزون المحتوى' => 'Approve some or all → approved posts go to the content bank',
+    '%s ثانية' => '%s s',
+    'خطوة تعمل في الخلفية، ننتظرها' => 'a background step is running, waiting for it',
+    'تعذر تحليل الصور المرجعية؛ أكملنا من ملف الشركة وألوان الشعار.' => 'Could not analyse the reference images; continued from the company profile and logo colors.',
+    'انتهت مهلة السيرفر أثناء هذه الخطوة. سنعيد المحاولة تلقائيًا.' => 'The server timed out during this step. We will retry automatically.',
 ];
