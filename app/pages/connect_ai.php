@@ -55,13 +55,26 @@ render(t('المساعد الخارجي'), 'connect_ai', function () use ($token
       </div>
 
       <div class="card p-5">
-        <?= $step(2, t('أضِف الرابط في ChatGPT أو Claude')) ?>
-        <div class="flex gap-2 items-center mb-3"><code id="mcpurl" class="flex-1 text-xs bg-ink-50 border border-ink-200 rounded-lg p-2 overflow-x-auto" dir="ltr"><?= e($mcpUrl) ?></code>
+        <?= $step(2, t('أضِف الرابط في تطبيقك')) ?>
+        <div class="flex gap-2 items-center mb-2"><code id="mcpurl" class="flex-1 text-xs bg-ink-50 border border-ink-200 rounded-lg p-2 overflow-x-auto" dir="ltr"><?= e($mcpUrl) ?></code>
           <button type="button" class="btn-ghost !py-1.5" onclick="navigator.clipboard.writeText(document.getElementById('mcpurl').textContent);this.textContent='✓'"><?= e(t('نسخ')) ?></button></div>
-        <ul class="text-sm text-ink-600 space-y-1.5 list-disc ps-5">
-          <li><b>ChatGPT:</b> <?= e(t('من الإعدادات، افتح Connectors ثم أضف موصّلًا جديدًا (MCP)، والصق الرابط. في حقل المصادقة اكتب Bearer ثم مسافة ثم التوكن.')) ?></li>
-          <li><b>Claude:</b> <?= e(t('من الإعدادات، افتح Connectors ثم أضف موصّلًا مخصصًا، والصق الرابط نفسه، والتوكن بصيغة Bearer.')) ?></li>
-        </ul>
+        <p class="text-[11px] text-ink-400 mb-3"><?= e(t('القاعدة واحدة في كل التطبيقات: الصق الرابط أعلاه، وأضِف ترويسة مصادقة: Authorization بقيمة «Bearer» ثم مسافة ثم التوكن. التطبيقات التي تدعم MCP عبر رابط (Streamable HTTP):')) ?></p>
+        <div class="divide-y divide-ink-100 text-sm">
+          <?php foreach ([
+            ['ChatGPT', t('الإعدادات ← Connectors ← أضف موصّلًا (MCP)، الصق الرابط، وفي المصادقة: Bearer ثم التوكن.')],
+            ['Claude', t('الإعدادات ← Connectors ← Add custom connector، الصق الرابط، والتوكن بصيغة Bearer.')],
+            [t('Claude Code (الطرفية)'), t('نفّذ: claude mcp add --transport http watad «الرابط» --header "Authorization: Bearer «التوكن»".')],
+            ['Cursor', t('Settings ← MCP ← Add new server، النوع HTTP، الصق الرابط وأضِف ترويسة Authorization: Bearer «التوكن».')],
+            ['Windsurf', t('Settings ← Cascade ← MCP Servers ← أضف خادمًا بالرابط وترويسة Authorization: Bearer «التوكن».')],
+            [t('VS Code (Copilot)'), t('لوحة الأوامر ← «MCP: Add Server» ← HTTP ← الصق الرابط وأضِف ترويسة Authorization: Bearer «التوكن».')],
+            [t('Cline (إضافة VS Code)'), t('MCP Servers ← Remote ← الصق الرابط وأضِف ترويسة Authorization: Bearer «التوكن».')],
+            ['Zed', t('في settings.json ضمن context_servers أضِف: {"source":"custom","url":"الرابط","headers":{"Authorization":"Bearer التوكن"}}.')],
+            ['Raycast', t('Settings ← AI ← Model Context Protocol ← أضف خادمًا بالرابط والتوكن (Bearer).')],
+            ['n8n', t('عقدة MCP Client ← نوع الاتصال Streamable HTTP ← ضع الرابط وترويسة Authorization: Bearer «التوكن».')],
+          ] as $row): ?>
+          <div class="py-2 flex gap-3"><b class="text-ink-900 shrink-0 min-w-[7.5rem]"><?= e($row[0]) ?></b><span class="text-ink-600 min-w-0" dir="auto"><?= e($row[1]) ?></span></div>
+          <?php endforeach; ?>
+        </div>
       </div>
 
       <div class="card p-5">
