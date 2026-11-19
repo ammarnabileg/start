@@ -48,7 +48,6 @@ function ai_team_states(int $wid): array
     } catch (Throwable $t) {
         $rows = [];
     }
-    $bestKey = null; $bestAgo = PHP_INT_MAX;
     foreach ($rows as $r) {
         $act = (string)$r['action']; $ago = (int)$r['ago'];
         foreach ($map as $k => $prefixes) {
@@ -56,15 +55,12 @@ function ai_team_states(int $wid): array
                 if (strpos($act, $p) === 0) {
                     if ($states[$k]['ago'] === null || $ago < $states[$k]['ago']) $states[$k]['ago'] = $ago;
                     if ($ago <= 10800) $states[$k]['active'] = true; // آخر 3 ساعات = «شغّال دلوقتي»
-                    if ($ago < $bestAgo) { $bestAgo = $ago; $bestKey = $k; }
                     break;
                 }
             }
         }
     }
-    // لو مفيش ولا وكيل شغّال، نوّر أحدث واحد اشتغل (خلال الـ24 ساعة) عشان المشهد ما يبانش ميّت
-    $anyActive = false; foreach ($states as $s) if ($s['active']) { $anyActive = true; break; }
-    if (!$anyActive && $bestKey !== null) $states[$bestKey]['active'] = true;
+    // ملاحظة: كل وكيل بيشتغل فقط لما يكون فيه نشاط حقيقي حديث في مجاله — مفيش تثبيت لأي وكيل.
     return $states;
 }
 
@@ -163,7 +159,9 @@ function ai_team_svg(string $wsName, array $states): string
         . '#'.$u.' .st .scr-ill{opacity:0;transition:opacity .3s}'
         . '#'.$u.' .st .tint{opacity:0;transition:opacity .3s}'
         . '#'.$u.' .st .pod{transition:stroke-opacity .3s,stroke-width .2s}'
-        . '#'.$u.' .st .led{opacity:.32;transition:opacity .3s}'
+        . '#'.$u.' .st .led{opacity:.32;transition:opacity .3s;animation:'.$u.'idle 3.2s ease-in-out infinite}'
+        . '#'.$u.' .st.on .led{animation:none}'
+        . '@keyframes '.$u.'idle{0%,100%{opacity:.2}50%{opacity:.5}}'
         . '#'.$u.' .st .selbar{opacity:0;transition:opacity .3s}'
         . '#'.$u.' .st .wp{opacity:0}'
         . '#'.$u.' .st .halo{opacity:0;transition:opacity .3s}'
