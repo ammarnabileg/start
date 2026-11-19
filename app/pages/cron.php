@@ -139,11 +139,12 @@ try {
         // قراءة موقع الشركة في الخلفية (لو المستخدم قفل الصفحة)
         try {
             $n = (int)ai_as_workspace($wid, function () use ($wid) { return function_exists('kbc_tick') ? kbc_tick($wid) : 0; });
-            try { ai_as_workspace($wid, function () use ($wid) { return function_exists('cpl_tick') ? cpl_tick($wid) : 0; }); } catch (Throwable $e) {}
             if ($n) $line .= ' crawl+' . $n;
         } catch (Throwable $t) {
             $line .= ' crawl=error';
         }
+        // خطط المحتوى: كمّل التوليد لو المستخدم قفل الصفحة (مستقل عن قراءة الموقع)
+        try { $n = (int)ai_as_workspace($wid, function () use ($wid) { return function_exists('cpl_tick') ? cpl_tick($wid) : 0; }); if ($n) $line .= ' cplan+' . $n; } catch (Throwable $t) { $line .= ' cplan=error'; }
         // Apollo: ردود وفتح وارتداد إيميلات السلاسل ترجع للعملاء (كل ساعة، بدون كريديت)
         try {
             $r = ai_as_workspace($wid, function () { return module_enabled('crm') && function_exists('crm_seq_sync') ? crm_seq_sync() : ['events' => 0]; });

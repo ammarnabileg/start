@@ -114,4 +114,6 @@ return [
     'مراجعة الأسلوب: %s من %s' => 'Style review: %s of %s',
     'روجع بالـ Humanizer' => 'Humanized',
     'مراجعة الأسلوب لم تكتمل. سنعيد المحاولة على المنشورات نفسها.' => 'Style review didn\'t finish. We\'ll retry the same posts.',
+    'اعتمده' => 'Approve',
+    'تم رفع الصور.' => 'Images uploaded.',
 ];

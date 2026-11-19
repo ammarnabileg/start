@@ -30,7 +30,7 @@
     $('#cp-ref-in').addEventListener('change', function () {
       var fs = [].slice.call(this.files, 0, Math.max(0, 12 - refs.length)); this.value = ''; if (!fs.length) return toast(T.refMax, 'error');
       toast(T.uploading, 'info');
-      post({ action: 'ref' }, fs).then(function (j) { if (!j.ok) return toast(j.error || T.err, 'error'); refs = refs.concat(j.items); paintRefs(); saveDraft(); }).catch(function () { toast(T.err, 'error'); });
+      post({ action: 'ref' }, fs).then(function (j) { if (!j.ok) return toast(j.error || T.err, 'error'); refs = refs.concat(j.items); paintRefs(); saveDraft(); toast(T.uploaded); }).catch(function () { toast(T.err, 'error'); });
     });
     W.addEventListener('submit', function (e) {
       e.preventDefault(); var d = collect(); if (!d.goal.trim()) { W.goal.focus(); return toast(T.needGoal, 'error'); }

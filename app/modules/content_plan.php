@@ -256,7 +256,8 @@ function cpl_publish(Zernio $z, array $ids, array $accIds, string $type, array $
         try {
             $at = $type === 'schedule' ? (string)($times[$i] ?? '') : '';
             if ($type === 'schedule' && !preg_match('/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d$/', $at)) throw new RuntimeException(t('الموعد غير صحيح.'));
-            if ($it['post_id'] && $it['status'] !== 'queued') { try { $z->deletePost((string)$it['post_id']); } catch (Throwable $e) {} } // إعادة جدولة: امسح القديم
+            if ($it['post_id']) { // إعادة جدولة أو نقل من الطابور: امسح القديم عشان مايتنشرش مرتين
+                try { $z->deletePost((string)$it['post_id']); } catch (Throwable $e) {} } // إعادة جدولة: امسح القديم
             $c = $z->createPost(cpl_payload($z, $it, $accs, ['type' => $type, 'at' => $at]));
             $st = ['now' => 'published', 'queue' => 'queued', 'schedule' => 'scheduled'][$type];
             $up->execute([$st, (string)($c['post']['_id'] ?? ''), $at !== '' ? str_replace('T', ' ', $at) : null, (int)$id]);
@@ -354,7 +355,7 @@ function cpl_import_xlsx(int $planId, string $path): array
     $head = array_map('trim', $sh[0]); $cols = cpl_xlsx_cols(); $idx = [];
     foreach ($cols as $k => $h) { $i = array_search($h, $head, true); if ($i !== false) $idx[$k] = $i; }
     if (!isset($idx['id'])) throw new RuntimeException(t('عمود ID غير موجود. استخدم الملف الذي نزّلته من هنا.'));
-    $stMap = [cpl_status_label('approved') => 'approved', cpl_status_label('rejected') => 'rejected', cpl_status_label('draft') => 'draft', 'approved' => 'approved', 'rejected' => 'rejected', 'draft' => 'draft', 'معتمد' => 'approved', 'مرفوض' => 'rejected', 'مسودة' => 'draft'];
+    $stMap = ['approve' => 'approved', 'reject' => 'rejected', 'معتمده' => 'approved', 'اعتماد' => 'approved', 'رفض' => 'rejected', cpl_status_label('approved') => 'approved', cpl_status_label('rejected') => 'rejected', cpl_status_label('draft') => 'draft', 'approved' => 'approved', 'rejected' => 'rejected', 'draft' => 'draft', 'معتمد' => 'approved', 'مرفوض' => 'rejected', 'مسودة' => 'draft'];
     $up = 0; $skip = 0;
     foreach (array_slice($sh, 1) as $row) {
         $it = cpl_item((int)($row[$idx['id']] ?? 0)); if (!$it || $it['plan_id'] !== $planId || $it['linkedin'] === null || !in_array($it['status'], ['draft', 'approved', 'rejected'], true)) { $skip++; continue; }
@@ -366,7 +367,7 @@ function cpl_import_xlsx(int $planId, string $path): array
             if (count($ln) > 1 && preg_match('/^\[(.*)\]$/u', trim(end($ln)), $m)) { $vis = $m[1]; array_pop($ln); }
             $car[$s] = ['role' => $car[$s]['role'], 'title' => mb_substr(trim((string)array_shift($ln)), 0, 200), 'body' => mb_substr(trim(implode("\n", $ln)), 0, 600), 'visual' => mb_substr($vis !== '' ? $vis : $car[$s]['visual'], 0, 400)]; $ch = true; }
         if ($ch) db()->prepare('UPDATE cp_items SET carousel = ? WHERE id = ?')->execute([json_encode($car, JSON_UNESCAPED_UNICODE), $it['id']]);
-        $st = $stMap[trim((string)$g('status'))] ?? null; if ($st && $st !== $it['status']) cpl_set_status([$it['id']], $st);
+        $sv = trim((string)$g('status')); $st = $stMap[$sv] ?? $stMap[mb_strtolower($sv)] ?? null; if ($st && $st !== $it['status']) cpl_set_status([$it['id']], $st);
         $up++;
     }
     return [$up, $skip];

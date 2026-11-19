@@ -261,6 +261,7 @@ function ai_humanizer_skill(): string { static $s = null; if ($s === null) $s = 
 /** تنظيف حتمي بعد الذكاء الاصطناعي: الشرط الطويلة لفواصل (خارج الروابط والكود) */
 function ai_strip_dashes(string $t): string
 {
+    $t = preg_replace('/(\d)\s*[—–]\s*(\d)/u', '$1-$2', $t); // نطاقات أرقام 9–5 تفضل نطاق
     $t = preg_replace('/\s*[—–]\s*/u', '، ', $t);
     $t = preg_replace('/ -- /u', '، ', $t);
     return preg_replace('/(^|\n)، /u', '$1', $t);
