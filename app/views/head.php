@@ -126,7 +126,7 @@ function pref_switch(): string
     $lang = '<div class="lang-seg tb relative p-[3px] text-xs font-semibold" role="radiogroup" aria-label="Language">'
         . '<span class="lang-pill absolute top-[3px] bottom-[3px] w-[38px] rounded-lg bg-brand-600 shadow-sm shadow-brand-600/30" data-on="' . $l . '"></span>'
         . '<a href="' . e(url('pref', ['lang' => 'en'])) . '" data-lang="en" role="radio" aria-checked="' . ($l === 'en' ? 'true' : 'false') . '" class="relative z-10 w-[38px] h-8 flex items-center justify-center rounded-lg transition-colors ' . ($l === 'en' ? 'text-[#fff]' : 'text-ink-500 hover:text-ink-900') . '">EN</a>'
-        . '<a href="' . e(url('pref', ['lang' => 'ar'])) . '" data-lang="ar" role="radio" aria-checked="' . ($l === 'ar' ? 'true' : 'false') . '" class="relative z-10 w-[38px] h-8 flex items-center justify-center rounded-lg transition-colors text-sm ' . ($l === 'ar' ? 'text-[#fff]' : 'text-ink-500 hover:text-ink-900') . '">ع</a>'
+        . '<a href="' . e(url('pref', ['lang' => 'ar'])) . '" data-lang="ar" role="radio" aria-checked="' . ($l === 'ar' ? 'true' : 'false') . '" class="relative z-10 w-[38px] h-8 flex items-center justify-center rounded-lg transition-colors text-sm ' . ($l === 'ar' ? 'text-[#fff]' : 'text-ink-500 hover:text-ink-900') . '">' . t('ع') . '</a>'
         . '</div>';
     $theme = '<button type="button" data-theme-toggle role="switch" aria-checked="' . ($dark ? 'true' : 'false') . '" aria-label="Dark mode" title="' . e(t('الوضع الداكن')) . '"'
         . ' data-url-light="' . e(url('pref', ['theme' => 'light'])) . '" data-url-dark="' . e(url('pref', ['theme' => 'dark'])) . '"'

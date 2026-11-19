@@ -62,7 +62,7 @@ render(t('حسابي'), 'account', function () use ($me, $recent, $wsCount) {
           <div>
             <span class="label"><?= e(t('لغة الواجهة')) ?></span>
             <div class="flex gap-2">
-              <?php foreach (['ar' => 'العربية', 'en' => 'English'] as $k => $l): ?><a href="<?= e(url('pref', ['lang' => $k])) ?>" class="flex-1 text-center rounded-xl border px-3 py-2 text-sm <?= lang() === $k ? 'border-brand-600 bg-brand-50 text-brand-800 font-medium' : 'border-ink-200 hover:bg-ink-50' ?>"><?= $l ?></a><?php endforeach; ?>
+              <?php foreach (['ar' => t('العربية'), 'en' => 'English'] as $k => $l): ?><a href="<?= e(url('pref', ['lang' => $k])) ?>" class="flex-1 text-center rounded-xl border px-3 py-2 text-sm <?= lang() === $k ? 'border-brand-600 bg-brand-50 text-brand-800 font-medium' : 'border-ink-200 hover:bg-ink-50' ?>"><?= $l ?></a><?php endforeach; ?>
             </div>
           </div>
           <div class="flex justify-end"><button class="btn-primary"><?= e(t('حفظ')) ?></button></div>
