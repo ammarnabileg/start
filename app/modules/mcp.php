@@ -10,14 +10,14 @@ function mcp_token_create(int $wid, int $uid, string $name, string $scopes = 're
 {
     $plain = 'wtd_' . bin2hex(random_bytes(24));
     db()->prepare('INSERT INTO mcp_tokens (workspace_id, user_id, name, token_hash, scopes) VALUES (?, ?, ?, ?, ?)')
-        ->execute([$wid, $uid ?: null, mb_substr(trim($name), 0, 120) ?: 'MCP', hash('sha256', $plain), in_array($scopes, ['read', 'write', 'publish'], true) ? $scopes : 'read']);
+        ->execute([$wid, $uid ?: null, mb_substr(trim($name), 0, 120) ?: 'MCP', hash('sha256', $plain), in_array($scopes, ['read', 'write', 'publish', 'admin'], true) ? $scopes : 'read']);
     return $plain;
 }
 
-/** صلاحيات متدرّجة: publish ⊇ write ⊇ read */
+/** صلاحيات متدرّجة: admin ⊇ publish ⊇ write ⊇ read */
 function mcp_scope_allows(string $have, string $need): bool
 {
-    $rank = ['read' => 1, 'write' => 2, 'publish' => 3];
+    $rank = ['read' => 1, 'write' => 2, 'publish' => 3, 'admin' => 4];
     return ($rank[$have] ?? 1) >= ($rank[$need] ?? 9);
 }
 
@@ -140,6 +140,10 @@ function mcp_tools(): array
             'when' => ['type' => 'string', 'enum' => ['now', 'queue', 'schedule']],
             'time' => ['type' => 'string', 'description' => 'For schedule: local time YYYY-MM-DDTHH:MM:SS'],
         ]]],
+        ['name' => 'launch_ad_campaign', 'description' => 'DANGER — spends real money. Launch a saved ad campaign build live on the platform. REQUIRES an "admin" token. Use list_ad_campaigns to get the id.', 'inputSchema' => ['type' => 'object', 'required' => ['campaign_id'], 'properties' => ['campaign_id' => ['type' => 'integer', 'description' => 'Ad build id']]]],
+        ['name' => 'list_ad_campaigns', 'description' => 'List ad campaign builds in this workspace (id, name, platform, state).', 'inputSchema' => ['type' => 'object', 'properties' => new stdClass()]],
+        ['name' => 'delete_post', 'description' => 'DANGER — permanent. Delete a scheduled/published post by id. REQUIRES an "admin" token.', 'inputSchema' => ['type' => 'object', 'required' => ['post_id'], 'properties' => ['post_id' => ['type' => 'string']]]],
+        ['name' => 'delete_content_plan', 'description' => 'DANGER — permanent. Delete an AI content plan and its unsent drafts by id. REQUIRES an "admin" token.', 'inputSchema' => ['type' => 'object', 'required' => ['plan_id'], 'properties' => ['plan_id' => ['type' => 'integer']]]],
     ];
 }
 
@@ -195,6 +199,67 @@ function mcp_call(string $name, array $args, string $scopes, int $tokenId = 0): 
             $when = in_array($args['when'] ?? '', ['now', 'queue', 'schedule'], true) ? $args['when'] : 'schedule';
             $pl = ['item_ids' => [$iid], 'accounts' => $accs, 'when' => $when, 'times' => array_filter([(string)($args['time'] ?? '')])];
             return mcp_do_publish($tokenId, 'bank_publish', 'Bank #' . $iid . ' → ' . count($accs) . ' acct(s), ' . $when, $pl, $text, $err);
+        case 'list_ad_campaigns':
+            if (!function_exists('ab_list')) return $text([]);
+            $out = []; foreach (ab_list((int)ws('id')) as $b) $out[] = ['id' => (int)$b['id'], 'name' => (string)($b['data']['campaign']['name'] ?? ($b['name'] ?? '')), 'platform' => (string)($b['data']['platform'] ?? ''), 'state' => (string)$b['state']];
+            return $text($out);
+        case 'launch_ad_campaign':
+            if (!mcp_scope_allows($scopes, 'admin')) return $err('Launching ad campaigns (real spend) needs an "admin" token.');
+            if (!function_exists('ab_get')) return $err('Ad builder not available.');
+            $cid = (int)($args['campaign_id'] ?? 0); if (!ab_get((int)ws('id'), $cid)) return $err('Ad campaign not found.');
+            return mcp_do_admin($tokenId, 'ad_launch', 'Launch ad build #' . $cid, ['campaign_id' => $cid], $text, $err);
+        case 'delete_post':
+            if (!mcp_scope_allows($scopes, 'admin')) return $err('Deleting posts needs an "admin" token.');
+            $dp = trim((string)($args['post_id'] ?? '')); if ($dp === '') return $err('post_id is required.');
+            return mcp_do_admin($tokenId, 'delete_post', 'Delete post ' . $dp, ['post_id' => $dp], $text, $err);
+        case 'delete_content_plan':
+            if (!mcp_scope_allows($scopes, 'admin')) return $err('Deleting content plans needs an "admin" token.');
+            $dpl = (int)($args['plan_id'] ?? 0); if (!$dpl) return $err('plan_id is required.');
+            return mcp_do_admin($tokenId, 'delete_plan', 'Delete content plan #' . $dpl, ['plan_id' => $dpl], $text, $err);
     }
     return $err('Unknown tool: ' . $name);
+}
+
+/** ينفّذ إجراء admin (صرف إعلانات/حذف) فورًا ويسجّله. */
+function mcp_do_admin(int $tokenId, string $type, string $summary, array $payload, callable $text, callable $err): array
+{
+    $wid = (int)ws('id');
+    try {
+        $res = mcp_admin_execute($wid, $type, $payload);
+        db()->prepare("INSERT INTO mcp_actions (workspace_id, token_id, type, summary, payload, status, result, resolved_at) VALUES (?, ?, ?, ?, ?, 'done', ?, NOW())")
+            ->execute([$wid, $tokenId ?: null, $type, mb_substr($summary, 0, 400), json_encode($payload, JSON_UNESCAPED_UNICODE), mb_substr($res, 0, 600)]);
+        return $text($res);
+    } catch (Throwable $e) {
+        db()->prepare("INSERT INTO mcp_actions (workspace_id, token_id, type, summary, payload, status, result, resolved_at) VALUES (?, ?, ?, ?, ?, 'failed', ?, NOW())")
+            ->execute([$wid, $tokenId ?: null, $type, mb_substr($summary, 0, 400), json_encode($payload, JSON_UNESCAPED_UNICODE), mb_substr($e->getMessage(), 0, 600)]);
+        return $err($e->getMessage());
+    }
+}
+
+function mcp_admin_execute(int $wid, string $type, array $payload): string
+{
+    return ai_as_workspace($wid, function () use ($type, $payload, $wid) {
+        if ($type === 'delete_post') {
+            $z = zernio_or_null($e); if (!$z) throw new RuntimeException(t('اربط مزود النشر أولًا.'));
+            $z->deletePost((string)$payload['post_id']); return t('تم حذف المنشور.');
+        }
+        if ($type === 'delete_plan') {
+            $pid = (int)$payload['plan_id'];
+            $st = db()->prepare('SELECT id FROM cp_plans WHERE id = ? AND workspace_id = ?'); $st->execute([$pid, $wid]); if (!$st->fetchColumn()) throw new RuntimeException(t('الخطة غير موجودة.'));
+            db()->prepare('DELETE FROM cp_items WHERE plan_id = ? AND status IN ("pending","draft","rejected","approved")')->execute([$pid]);
+            $c = db()->prepare('SELECT COUNT(*) FROM cp_items WHERE plan_id = ?'); $c->execute([$pid]);
+            if (!(int)$c->fetchColumn()) db()->prepare('DELETE FROM cp_plans WHERE id = ?')->execute([$pid]); else db()->prepare('UPDATE cp_plans SET status = "done" WHERE id = ?')->execute([$pid]);
+            return t('تم حذف خطة المحتوى.');
+        }
+        if ($type === 'ad_launch') {
+            $z = zernio_or_null($e); if (!$z) throw new RuntimeException(t('اربط مزود النشر أولًا.'));
+            $b = ab_get($wid, (int)$payload['campaign_id']); if (!$b) throw new RuntimeException(t('الحملة غير موجودة.'));
+            $d = $b['data']; $plan = ab_plan($d); $pr = $b['progress'] ?: ['done' => [], 'ids' => [], 'log' => []];
+            $done = (array)($pr['done'] ?? []); $ids = (array)($pr['ids'] ?? []); $ran = 0;
+            foreach ($plan as $i => $step) { if (in_array($i, $done, true)) continue; [$ok, $warn, $ids, $raw] = ab_run_step($z, $d, $step, $ids); $done[] = $i; $ran++; }
+            $pr['done'] = $done; $pr['ids'] = $ids; ab_set_progress($wid, (int)$b['id'], count($done) === count($plan) ? 'launched' : 'launching', $pr);
+            return t('تم إطلاق الحملة (%s خطوة).', $ran);
+        }
+        throw new RuntimeException('unknown admin action');
+    });
 }

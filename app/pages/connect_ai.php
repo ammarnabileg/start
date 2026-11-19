@@ -6,7 +6,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     check_csrf();
     $a = (string)($_POST['action'] ?? '');
     if ($a === 'create') {
-        $sc = in_array($_POST['scope'] ?? '', ['read', 'write', 'publish'], true) ? $_POST['scope'] : 'read';
+        $sc = in_array($_POST['scope'] ?? '', ['read', 'write', 'publish', 'admin'], true) ? $_POST['scope'] : 'read';
         $newToken = mcp_token_create($wid, (int)(current_user()['id'] ?? 0), (string)($_POST['name'] ?? ''), $sc);
         flash('success', t('اتعمل توكن جديد. انسخه دلوقتي — مش هيظهر تاني.'));
     } elseif ($a === 'delete') {
@@ -40,9 +40,10 @@ render(t('ربط ChatGPT / Claude'), 'connect_ai', function () use ($tokens, $mc
             <select name="scope" class="input">
               <option value="read"><?= e(t('قراءة فقط (آمن: يقرا بس)')) ?></option>
               <option value="write"><?= e(t('قراءة + بدء خطط محتوى')) ?></option>
-              <option value="publish"><?= e(t('تحكّم كامل: قراءة + خطط + نشر وجدولة مباشرة')) ?></option>
+              <option value="publish"><?= e(t('نشر: قراءة + خطط + نشر وجدولة مباشرة')) ?></option>
+              <option value="admin"><?= e(t('مدير (خطر): كل ما سبق + صرف إعلانات + حذف')) ?></option>
             </select></label>
-          <p class="text-[11px] text-amber-700"><?= e(t('تنبيه: توكن «تحكّم كامل» يقدر ينشر ويجدول على حساباتك مباشرة بدون موافقة. لا يصرف ميزانية إعلانات ولا يحذف. كل عملية نشر تتسجّل في السجل بالأسفل.')) ?></p>
+          <p class="text-[11px] text-red-700"><?= e(t('تنبيه خطر: توكن «مدير» يقدر يطلق حملات إعلانية (صرف فلوس حقيقي) ويحذف منشورات وخطط — كله مباشرة وبدون موافقة. أنشئه فقط لو إنت متأكد، وامسحه لو تسرّب. كل عملية تتسجّل بالأسفل.')) ?></p>
           <button class="btn-primary"><?= e(t('أنشئ التوكن')) ?></button>
         </form>
       </div>
