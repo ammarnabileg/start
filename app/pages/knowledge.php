@@ -160,6 +160,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // إعادة قراءة على السيرفر (Word/Excel/نص، أو لو المتصفح ماعرفش يقرا)
     if ($action === 'kb_reread') {
+        { $gid = (int)($_POST['id'] ?? 0); $gm = db()->prepare('SELECT method FROM kb_files WHERE id = ? AND workspace_id = ?'); $gm->execute([$gid, $wid]); if ($gm->fetchColumn() === 'auto_brief') $json(['ok' => false, 'error' => t('هذا الملف مرجع تلقائي للذكاء الاصطناعي؛ لا يمكن تعديله.')], 403); }
         $id = (int)($_POST['id'] ?? 0); $st = db()->prepare("SELECT name, mime FROM kb_files WHERE id = ? AND workspace_id = ?"); $st->execute([$id, $wid]); $row = $st->fetch();
         $o = $row ? kb_orig($wid, $id) : null; if (!$o) $json(['error' => t('فشل رفع الملف.')], 404);
         $ext = pathinfo($o, PATHINFO_EXTENSION); $nm = preg_replace('/\.[^.]*$/', '', (string)$row['name']) . '.' . $ext;
@@ -170,6 +171,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'kb_file_rename') {
+        { $gid = (int)($_POST['id'] ?? 0); $gm = db()->prepare('SELECT method FROM kb_files WHERE id = ? AND workspace_id = ?'); $gm->execute([$gid, $wid]); if ($gm->fetchColumn() === 'auto_brief') $json(['ok' => false, 'error' => t('هذا الملف مرجع تلقائي للذكاء الاصطناعي؛ لا يمكن تعديله.')], 403); }
         $name = trim(mb_substr(preg_replace('/[\x00-\x1f\/\\\\]+/u', '_', (string)($_POST['name'] ?? '')), 0, 180));
         if ($name === '') $json(['error' => t('اكتب اسم للملف.')], 422);
         db()->prepare("UPDATE kb_files SET name = ? WHERE id = ? AND workspace_id = ?")->execute([$name, (int)($_POST['id'] ?? 0), $wid]);
@@ -187,6 +189,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'kb_big_finish') { kb_big_finish($wid, (int)($_POST['id'] ?? 0), (string)($_POST['method'] ?? 'big')); $json(['ok' => true]); }
     if (in_array($action, ['kb_file_toggle', 'kb_file_delete', 'kb_file_save'], true)) {
         $id = (int)($_POST['id'] ?? 0);
+        $mm = db()->prepare('SELECT method FROM kb_files WHERE id = ? AND workspace_id = ?'); $mm->execute([$id, $wid]); if ($mm->fetchColumn() === 'auto_brief') $json(['ok' => false, 'error' => t('هذا الملف مرجع تلقائي للذكاء الاصطناعي ويتحدّث وحده؛ لا يمكن تعديله.')], 403);
         if ($action === 'kb_file_delete') { db()->prepare("DELETE FROM kb_files WHERE id = ? AND workspace_id = ?")->execute([$id, $wid]); db()->prepare("DELETE FROM kb_chunks WHERE file_id = ? AND workspace_id = ?")->execute([$id, $wid]); kb_orig_del($wid, $id); }
         elseif ($action === 'kb_file_save') db()->prepare("UPDATE kb_files SET content = ? WHERE id = ? AND workspace_id = ?")->execute([mb_substr((string)($_POST['content'] ?? ''), 0, 200000), $id, $wid]);
         else db()->prepare("UPDATE kb_files SET enabled = ? WHERE id = ? AND workspace_id = ?")->execute([($_POST['on'] ?? '') === '1' ? 1 : 0, $id, $wid]);
@@ -392,6 +395,7 @@ $st = db()->prepare("SELECT id, name, size, method, enabled, GREATEST(chars, CHA
 $st->execute([$wid]);
 $files = $st->fetchAll();
 
+if (function_exists('cpl_brief_refresh_if_stale') && $canEdit) { try { cpl_brief_refresh_if_stale($wid); } catch (Throwable $e) {} $st->execute([$wid]); $files = $st->fetchAll(); }
 render(t('قاعدة المعرفة'), 'knowledge', function () use ($schema, $kb, $files, $canEdit) {
     $filled = 0; foreach ($schema as $k => $s) if (kb_filled($kb[$k] ?? [], $s['type'])) $filled++;
     $total = count($schema) + 1; $done = $filled + ($files ? 1 : 0);

@@ -69,7 +69,7 @@ function cpl_create(array $in): int
     $cta = trim((string)($in['cta'] ?? '')) !== '' ? (string)$in['cta'] : (string)($in['cta_k'] ?? '');
     $in['tone'] = $tone; $in['cta'] = $cta;
     $lli = isset($in['lang_li']) ? $L('lang_li') : (in_array($in['lang'] ?? '', ['ar', 'en', 'both'], true) ? ($in['lang'] === 'both' ? 'ar' : $in['lang']) : 'ar');
-    $opts = ['lang' => $lli, 'lang_li' => $lli, 'lang_x' => isset($in['lang_x']) ? $L('lang_x') : (($in['lang'] ?? '') === 'both' ? 'en' : $lli), 'lang_img' => isset($in['lang_img']) ? $L('lang_img', ['ar', 'en', 'both', 'none']) : $lli, 'lang_vo' => isset($in['lang_vo']) ? $L('lang_vo') : $lli,
+    $opts = ['lang' => $lli, 'lang_li' => $lli, 'lang_x' => isset($in['lang_x']) ? $L('lang_x') : (($in['lang'] ?? '') === 'both' ? 'en' : $lli), 'lang_img' => isset($in['lang_img']) ? $L('lang_img', ['ar', 'en', 'ar_en', 'en_ar', 'none']) : $lli, 'lang_vo' => isset($in['lang_vo']) ? $L('lang_vo') : $lli,
         'dialect' => $dialect,
         'audience' => mb_substr(trim((string)($in['audience'] ?? '')), 0, 800), 'about' => mb_substr(trim((string)($in['about'] ?? '')), 0, 1500), 'services' => array_slice(array_map(function ($s) { return mb_substr((string)$s, 0, 150); }, (array)($in['services'] ?? [])), 0, 20),
         'tone' => mb_substr(trim((string)($in['tone'] ?? '')), 0, 200), 'cta' => mb_substr(trim((string)($in['cta'] ?? '')), 0, 300), 'avoid' => mb_substr(trim((string)($in['avoid'] ?? '')), 0, 600),
@@ -96,7 +96,7 @@ function cpl_rules(array $p): string
 {
     $o = cpl_opts($p);
     $ar = 'Arabic' . ($o['dialect'] !== '' ? ' (' . $o['dialect'] . ')' : ' (clear Modern Standard Arabic unless the KB shows another brand voice)');
-    $nm = function ($k) use ($o, $ar) { $v = $o[$k] ?? $o['lang']; return ['ar' => $ar, 'en' => 'English', 'both' => 'bilingual: ' . $ar . ' first, then the English version', 'none' => 'NO text on the image or slide at all (purely visual; put the message in the caption)'][$v] ?? $ar; };
+    $nm = function ($k) use ($o, $ar) { $v = $o[$k] ?? $o['lang']; return ['ar' => $ar, 'en' => 'English', 'both' => 'bilingual: ' . $ar . ' first, then the English version', 'ar_en' => 'bilingual: ' . $ar . ' as the primary, English smaller', 'en_ar' => 'bilingual: English as the primary, ' . $ar . ' smaller', 'none' => 'NO text on the image or slide at all (purely visual; put the message in the caption)'][$v] ?? $ar; };
     $lang = "LinkedIn: " . $nm('lang_li') . "; X: " . $nm('lang_x') . "; headline and on-slide copy: " . $nm('lang_img') . "; video voice-over dialogue: " . $nm('lang_vo');
     static $craft = null; if ($craft === null) $craft = (string)@file_get_contents(__DIR__ . '/../prompts/image_craft.md');
     return cpl_master($p) . "\n\n" . $craft
@@ -115,7 +115,9 @@ function cpl_rules(array $p): string
 function cpl_brief(array $p): string
 {
     $o = cpl_opts($p); $pal = function_exists('kb_logo_palette') ? kb_logo_palette((int)ws('id')) : [];
-    return "Campaign goal (build the strategy around it): " . $p['goal']
+    $cb = function_exists('cpl_company_brief') ? cpl_company_brief((int)ws('id')) : '';
+    return ($cb !== '' ? "COMPANY BRIEF (think like this company; use ONLY facts/prices/claims found here or in the KB, never invent):\n" . $cb . "\n\n" : "")
+        . "Campaign goal (build the strategy around it): " . $p['goal']
         . ($o['about'] !== '' ? "\nAbout the company (context): " . $o['about'] : '')
         . ($o['audience'] !== '' ? "\nTarget audience / decision-makers: " . $o['audience'] : '')
         . ($o['services'] ? "\nFocus services: " . implode('; ', $o['services']) : '')
@@ -137,6 +139,7 @@ function cpl_step(int $id): array
     $t0 = microtime(true);
     try {
         @set_time_limit(330); $GLOBALS['ai_timeout'] = 240; // نداء واحد ممكن ياخد دقيقتين مع موديل بطيء
+        $GLOBALS['__kb_skip'] = true; // الملخص المضغوط بيتبعت في البريف؛ ما نحقنش كل قاعدة المعرفة (توفير تكلفة)
         if ($p['stage'] === 'visual') cpl_do_visual($p);
         elseif ($p['stage'] === 'outline') cpl_do_outline($p);
         else cpl_do_posts($p);
@@ -147,7 +150,7 @@ function cpl_step(int $id): array
         if ($f >= 3) cpl_log($id, t('توقف التوليد بعد 3 محاولات فاشلة. اضغط «أكمل من حيث توقف».'), 'err');
         // 3 محاولات فاشلة ورا بعض = نوقف ونستنى المستخدم (مش نصرف رصيد على الفاضي)
         db()->prepare('UPDATE cp_plans SET error = ?, fails = ?, status = IF(? >= 3, "paused", status) WHERE id = ?')->execute([mb_substr($e->getMessage(), 0, 500), $f, $f, $id]);
-    } finally { $done = true; db()->query('SELECT RELEASE_LOCK(' . db()->quote($lk) . ')'); }
+    } finally { $done = true; unset($GLOBALS['__kb_skip']); db()->query('SELECT RELEASE_LOCK(' . db()->quote($lk) . ')'); }
     return cpl_status(cpl_plan($id));
 }
 
@@ -582,13 +585,13 @@ function cpl_jobs_finalize(int $itemId, string $kind): void
 function cpl_job_prompt(array $p, array $it, array $j): string
 {
     $o = cpl_opts($p); $vis = trim((string)$p['visual']);
-    $rules = "\nOVERRIDE: ignore any instruction above about drawing a logo. Do NOT draw any logo, brand name, wordmark or watermark anywhere; keep the " . cpl_logo_corner($p) . " corner area (about 260x160px) clean for the real logo added later.\n" . "Safe area: keep the headline, any text and every key element at least 100px (about 9%) inside each edge of the 1080x1350 frame; nothing touches or is cropped by an edge; generous padding around the headline; headline at most 3 short lines in a clean bold sans-serif, spelled exactly, high contrast.";
-    if ($j['kind'] === 'image') return $it['image_prompt'] . ($vis !== '' ? "\n\nBrand visual DNA: " . mb_substr($vis, 0, 1200) : '') . "\nRender the headline text \"" . $it['headline'] . "\" accurately, spelled exactly." . $rules;
+    $rules = "\nIf the image shows people: make them look like real, candid photographed humans, not AI renders. Add authentic, specific features: natural asymmetric faces, real skin texture with pores and subtle blemishes, flyaway hair, correct hands with five fingers, natural eye catchlights and gaze, believable clothing fit and wrinkles, and lived-in environment detail. No waxy skin, no plastic smoothness, no uncanny symmetry, no extra fingers.\nOVERRIDE: ignore any instruction above about drawing a logo. Do NOT draw any logo, brand name, wordmark or watermark anywhere; keep the " . cpl_logo_corner($p) . " corner area (about 260x160px) clean for the real logo added later.\n" . "Safe area: keep the headline, any text and every key element at least 100px (about 9%) inside each edge of the 1080x1350 frame; nothing touches or is cropped by an edge; generous padding around the headline; headline at most 3 short lines in a clean bold sans-serif, spelled exactly, high contrast.";
+    if ($j['kind'] === 'image') return $it['image_prompt'] . ($vis !== '' ? "\n\nBrand visual DNA: " . mb_substr($vis, 0, 1200) : '') . "\nRender the headline text \"" . $it['headline'] . "\" accurately, spelled exactly. " . cpl_text_dir($p) . $rules;
     if ($j['kind'] === 'video') return $it['video_prompt'] . "\nDo NOT render any logo, brand name or wordmark; end on a clean frame with empty space where the logo can be added in editing.";
     $s = $it['carousel'][(int)$j['slide']] ?? []; $n = count($it['carousel']);
     return "Carousel slide " . ((int)$j['slide'] + 1) . " of {$n} (" . ($s['role'] ?? '') . ") for a premium social campaign, 4:5 1080x1350, one consistent series across all slides.\n"
         . "Visual concept: " . ($s['visual'] ?? '') . "\nLayout: " . ($s['layout'] ?? '') . "\nOn-slide text, render exactly and legibly" . (($o['lang_img'] ?? $o['lang']) !== 'en' ? ' (Arabic, right-to-left, correct letter joining)' : '') . ":\nHeadline: " . ($s['title'] ?? '') . "\nBody: " . ($s['body'] ?? '')
-        . ($vis !== '' ? "\n\nBrand visual DNA: " . mb_substr($vis, 0, 1200) : '') . "\nNo other text, no fake UI, no clutter." . $rules;
+        . ($vis !== '' ? "\n\nBrand visual DNA: " . mb_substr($vis, 0, 1200) : '') . "\nNo other text, no fake UI, no clutter. " . cpl_text_dir($p) . $rules;
 }
 
 /** ركن اللوجو: عربي = أعلى اليمين، إنجليزي = أعلى اليسار */
@@ -665,7 +668,7 @@ function cpl_jobs_tick(int $planId): bool
             } else {
                 $GLOBALS['img_no_trim'] = true;
                 $refFiles = []; foreach (array_slice(json_decode((string)$p['refs'], true) ?: [], 0, 3) as $rid) { $rm = media_get($wid, (int)$rid); if ($rm && ($rd = cpl_small_image(media_file_path($wid, $rm), 1024))) { $tf = tempnam(sys_get_temp_dir(), 'cpr') . '.jpg'; file_put_contents($tf, base64_decode(substr($rd, strpos($rd, ',') + 1))); $refFiles[] = $tf; } }
-                if ($refFiles) $prompt .= "\nThe attached images are STYLE REFERENCES ONLY: match their colour palette, lighting mood, typography style, layout rhythm and level of polish. Do not copy their subjects, text, people or logos.";
+                if ($refFiles) $prompt .= "\nThe " . count($refFiles) . " attached images are STYLE REFERENCES. Study ALL of them together and infer the shared visual system: exact colour palette, lighting mood, contrast, typography style and weight, grid and layout rhythm, texture and the overall level of polish; then apply that system here. Do not copy any subject, text, person or logo from them.";
                 try { $names = img_generate($prompt, '4:5', 1, $refFiles); } finally { foreach ($refFiles as $tf) @unlink($tf); } $ms = cpl_media_for_names($names); if (!$ms) throw new RuntimeException(t('لم تُحفظ الصورة الناتجة.'));
                 $ms = array_map(function ($m) use ($p) { return cpl_stamp_logo($p, $m); }, $ms);
                 db()->prepare('UPDATE cp_jobs SET status = "done", result = ? WHERE id = ?')->execute([json_encode($ms), $j['id']]);
@@ -710,4 +713,61 @@ function cpl_kb_defaults(int $wid): array
         'cta' => trim((string)($co['cta'] ?? '')),
         'has_logo' => (function_exists('kb_logo') && kb_logo($wid)) ? 1 : 0,
     ];
+}
+
+/* ===================== ملخص الشركة التلقائي (مرجع مضغوط للذكاء الاصطناعي) ===================== */
+/* ملف مثبت في ملفات الشركة، غير قابل للتعديل من المستخدم، يتجدد تلقائيًا مع أي تغيير في قاعدة المعرفة.
+   الهدف: يفهم الـ AI الشركة بسرعة دون قراءة كل نصوص قاعدة المعرفة الضخمة في كل طلب (توفير تكلفة). */
+
+function cpl_brief_hash(int $wid): string
+{
+    $parts = [];
+    foreach (db()->query('SELECT section, data FROM kb_sections WHERE workspace_id = ' . (int)$wid . ' ORDER BY section')->fetchAll() as $r) $parts[] = $r['section'] . '=' . $r['data'];
+    foreach (db()->query("SELECT name, size, method, chars FROM kb_files WHERE workspace_id = " . (int)$wid . " AND method <> 'auto_brief' ORDER BY id")->fetchAll() as $r) $parts[] = implode('|', $r);
+    return md5(implode("\n", $parts));
+}
+
+/** يرجع ملخص الشركة (مبني من الكاش لو الهاش ما اتغيرش). $force يعيد البناء. */
+function cpl_company_brief(int $wid, bool $force = false): string
+{
+    $hash = cpl_brief_hash($wid); $cur = (string)setting('cpl_cbrief_' . $wid, '');
+    if (!$force && $cur !== '' && setting('cpl_cbrief_hash_' . $wid, '') === $hash) return $cur;
+    // السياق الخام: الأقسام المنظّمة (مضغوطة أصلًا) + عيّنة من ملفات النصوص الكبيرة
+    $structured = function_exists('kb_compile') ? kb_compile($wid) : '';
+    $files = '';
+    foreach (db()->query("SELECT name, content, chunked FROM kb_files WHERE workspace_id = " . (int)$wid . " AND method <> 'auto_brief' AND enabled = 1 ORDER BY id")->fetchAll() as $f) {
+        $txt = (string)$f['content'];
+        if ($txt === '' && (int)$f['chunked']) { $c = db()->prepare('SELECT body FROM kb_chunks WHERE file_id = (SELECT id FROM kb_files WHERE workspace_id = ? AND name = ? LIMIT 1) ORDER BY id LIMIT 3'); $c->execute([$wid, $f['name']]); $txt = implode("\n", $c->fetchAll(PDO::FETCH_COLUMN)); }
+        if (trim($txt) !== '') $files .= "\n\n### " . $f['name'] . "\n" . mb_substr(trim($txt), 0, 4000);
+    }
+    $raw = trim($structured . ($files !== '' ? "\n\n## UPLOADED FILES (samples)\n" . mb_substr($files, 0, 12000) : ''));
+    $brief = '';
+    if ($raw !== '') {
+        try {
+            $sys = "COMPANY_BRIEF. You are briefing another AI that will create marketing content for this company. From the knowledge base below, write a tight COMPANY BRIEF (250-450 words) that lets any AI think like this company without reading everything. Cover: what the company is and its one-line positioning; the main products/services with their real prices; the target audience and their motivation; the key differentiators and proof; the brand voice, language and dialect; and 3-6 hard do's and don'ts (never invent facts/prices/claims). Use the company's own language. Plain text with short labelled lines. Never add anything not in the knowledge base.";
+            $GLOBALS['__kb_skip'] = true;
+            $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => mb_substr($raw, 0, 24000)]], 900, 'analyze');
+            unset($GLOBALS['__kb_skip']);
+            $brief = trim((string)($r['text'] ?? ''));
+        } catch (Throwable $e) { unset($GLOBALS['__kb_skip']); }
+    }
+    if ($brief === '') $brief = mb_substr($raw !== '' ? $raw : (string)(kb_get($wid)['company']['about'] ?? ''), 0, 3000); // fallback بدون AI
+    save_setting('cpl_cbrief_' . $wid, $brief); save_setting('cpl_cbrief_hash_' . $wid, $hash);
+    cpl_brief_pin($wid, $brief);
+    return $brief;
+}
+
+/** يثبّت/يحدّث الملخص كملف للقراءة فقط في ملفات الشركة */
+function cpl_brief_pin(int $wid, string $brief): void
+{
+    $name = t('ملخص الشركة (تلقائي)');
+    $st = db()->prepare("SELECT id FROM kb_files WHERE workspace_id = ? AND method = 'auto_brief' LIMIT 1"); $st->execute([$wid]); $id = (int)$st->fetchColumn();
+    if ($id) db()->prepare("UPDATE kb_files SET name = ?, content = ?, size = ?, chars = ?, read_state = 'done' WHERE id = ?")->execute([$name, $brief, strlen($brief), mb_strlen($brief), $id]);
+    else db()->prepare("INSERT INTO kb_files (workspace_id, name, mime, size, method, content, enabled, read_state, chars) VALUES (?, ?, 'text/plain', ?, 'auto_brief', ?, 1, 'done', ?)")->execute([$wid, $name, strlen($brief), $brief, mb_strlen($brief)]);
+}
+
+/** يعيد البناء لو قاعدة المعرفة اتغيرت (يُستدعى من صفحة قاعدة المعرفة) — نداء AI واحد عند التغيير فقط */
+function cpl_brief_refresh_if_stale(int $wid): void
+{
+    if (setting('cpl_cbrief_hash_' . $wid, '') !== cpl_brief_hash($wid)) { try { cpl_company_brief($wid, true); } catch (Throwable $e) {} }
 }

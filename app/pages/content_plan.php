@@ -159,7 +159,7 @@ render($plan ? (string)$plan['name'] : t('خطة محتوى بالذكاء ال�
         <p id="cp-dial-ex" class="rounded-xl bg-ink-50 px-3 py-2 text-sm text-ink-600 hidden" dir="rtl"></p>
         <details class="group" id="cp-lang"><summary class="cursor-pointer text-sm link select-none"><?= e(t('تخصيص لغة كل قناة (اختياري)')) ?></summary>
           <div class="mt-3 grid sm:grid-cols-2 gap-3">
-            <?php foreach (['lang_li' => t('نص لينكدإن'), 'lang_x' => t('نص X'), 'lang_img' => t('النص على الصور والشرائح'), 'lang_vo' => t('التعليق الصوتي في الفيديو')] as $nm => $lab): $o = $chanLangs; if ($nm === 'lang_img') $o = $o + ['none' => t('بدون نص (صورة فقط)')]; ?>
+            <?php $imgLangs = ['ar' => t('عربي'), 'en' => 'English', 'ar_en' => t('عربي كبير + إنجليزي أصغر'), 'en_ar' => t('إنجليزي كبير + عربي أصغر'), 'none' => t('بدون نص (صورة فقط)')]; foreach (['lang_li' => t('نص لينكدإن'), 'lang_x' => t('نص X'), 'lang_img' => t('النص على الصور والشرائح'), 'lang_vo' => t('التعليق الصوتي في الفيديو')] as $nm => $lab): $o = $nm === 'lang_img' ? $imgLangs : $chanLangs; ?>
             <label class="block"><span class="text-xs text-ink-500 block mb-1"><?= e($lab) ?></span><select name="<?= $nm ?>" class="input !mt-0"><?= $opt($o, 'ar') ?></select></label>
             <?php endforeach; ?>
           </div>
