@@ -5,6 +5,20 @@
  * صفحة setup تشغّل أي رقم لم يُشغَّل من قبل.
  */
 return [
+    '078_mcp_tokens' => [
+        "CREATE TABLE IF NOT EXISTS mcp_tokens (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            user_id INT UNSIGNED NULL,
+            name VARCHAR(120) NOT NULL DEFAULT '',
+            token_hash CHAR(64) NOT NULL,
+            scopes VARCHAR(190) NOT NULL DEFAULT 'read',
+            last_used_at DATETIME NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY uniq_hash (token_hash),
+            KEY ws (workspace_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+    ],
     '001_initial' => [
         "CREATE TABLE IF NOT EXISTS users (
             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

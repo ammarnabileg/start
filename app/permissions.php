@@ -132,7 +132,7 @@ function page_permission(string $page): ?string
         'competitors' => 'analytics.view', 'tenders' => 'crm.view', 'tender_awards' => 'crm.view', 'prospects' => 'crm.view', 'gmb_reviews' => 'gmb.view', 'gmb_location' => 'gmb.view', 'gmb_media' => 'gmb.view',
         'phone_numbers' => 'phone.view', 'phone_kyc' => 'phone.view', 'sms_mine' => 'phone.view', 'sms' => 'phone.view', 'calls' => 'phone.view',
         'crm' => 'crm.view', 'crm_find' => 'crm.view', 'crm_leads' => 'crm.view', 'crm_reports' => 'crm.view', 'crm_capture' => 'crm.view', 'crm_settings' => 'crm.view', 'crm_doc' => 'crm.view',
-        'accounts' => 'accounts.view', 'team' => 'team.manage', 'connectors' => 'integrations.manage', 'settings' => 'settings.manage',
+        'accounts' => 'accounts.view', 'team' => 'team.manage', 'connectors' => 'integrations.manage', 'connect_ai' => 'integrations.manage', 'settings' => 'settings.manage',
     ];
     return $map[$page] ?? null;
 }

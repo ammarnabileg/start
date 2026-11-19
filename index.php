@@ -57,7 +57,7 @@ if (isset($merged[$page])) {
     redirect(url($merged[$page], array_diff_key($_GET, ['p' => 1])));
 }
 
-$public = ['home', 'login', 'forgot', 'reset', 'register', 'invite', 'pref', 'cron', 'share', 'smsgate_hook', 'zernio_hook', 'crm_hook', 'lead_form', 'crm_t', 'crm_book', 'crm_go', 'crm_v', 'crm_js', 'go', 'lp', 'manifest', 'appicon'];
+$public = ['home', 'login', 'forgot', 'reset', 'register', 'invite', 'pref', 'cron', 'share', 'smsgate_hook', 'zernio_hook', 'crm_hook', 'lead_form', 'crm_t', 'crm_book', 'crm_go', 'crm_v', 'crm_js', 'go', 'lp', 'manifest', 'appicon', 'mcp'];
 // علامة «كان مسجّل دخول» (مش سر، مجرد 1): بتتحط طول ما المستخدم داخل وبتتمسح عند الخروج.
 // لو موجودة ومفيش مستخدم = الجلسة انتهت فعلًا (مش زائر جديد).
 if (current_user() && empty($_COOKIE['zin'])) setcookie('zin', '1', ['expires' => time() + 31536000, 'path' => '/', 'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off', 'httponly' => true, 'samesite' => 'Lax']);
@@ -95,12 +95,12 @@ if (current_user() && !is_admin() && empty($_SESSION['impersonator']) && setting
 if (!empty($_COOKIE['lang']) && current_user() && ($cw = current_workspace()) && (is_ws_owner() || can('settings'))) { $lk = 'ws_lang_' . (int)$cw['id']; $lv = $_COOKIE['lang'] === 'ar' ? 'ar' : 'en'; if ((string)setting($lk, '') !== $lv) save_setting($lk, $lv); }
 
 // الويبهوك جاي من موبايل/سيرفر بره ومحمي بتوكن وتوقيع، مش بـ CSRF
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $page !== 'smsgate_hook' && $page !== 'zernio_hook' && $page !== 'crm_hook' && $page !== 'crm_t' && $page !== 'lead_form' && $page !== 'crm_book' && $page !== 'lp') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $page !== 'smsgate_hook' && $page !== 'zernio_hook' && $page !== 'crm_hook' && $page !== 'crm_t' && $page !== 'lead_form' && $page !== 'crm_book' && $page !== 'lp' && $page !== 'mcp') {
     check_csrf();
 }
 
 // كل الصفحات بتشتغل جوه شركة. لو مالوش شركات، يروح صفحة الشركات (ينشئ واحدة أو يوافق على دعوة)
-$noWorkspacePages = ['home', 'login', 'forgot', 'reset', 'register', 'invite', 'pref', 'cron', 'share', 'smsgate_hook', 'zernio_hook', 'crm_hook', 'lead_form', 'crm_t', 'crm_book', 'crm_go', 'crm_v', 'crm_js', 'go', 'lp', 'manifest', 'appicon', 'logout', 'workspaces', 'switch', 'account', 'system', 'admin', 'admin_workspaces', 'admin_users', 'admin_activity', 'admin_compare', 'impersonate_stop'];
+$noWorkspacePages = ['home', 'login', 'forgot', 'reset', 'register', 'invite', 'pref', 'cron', 'share', 'smsgate_hook', 'zernio_hook', 'crm_hook', 'lead_form', 'crm_t', 'crm_book', 'crm_go', 'crm_v', 'crm_js', 'go', 'lp', 'manifest', 'appicon', 'mcp', 'logout', 'workspaces', 'switch', 'account', 'system', 'admin', 'admin_workspaces', 'admin_users', 'admin_activity', 'admin_compare', 'impersonate_stop'];
 if (!in_array($page, $noWorkspacePages, true) && !current_workspace()) {
     redirect(url('workspaces'));
 }
