@@ -3,7 +3,20 @@
 // the ad-builder language/dialect picker, and the knowledge company-brief and website-reader strings.
 return [
     // connect_ai (ChatGPT / Claude connection)
+    'المساعد الخارجي' => 'External Assistant',
     'ربط ChatGPT / Claude' => 'Connect ChatGPT / Claude',
+    'اربط ChatGPT أو Claude بمنصتك فيدير العمل من داخل المحادثة: يقرأ حساباتك ومنشوراتك ومخزون المحتوى، ويبدأ خطط محتوى جديدة. ثلاث خطوات:' =>
+        'Connect ChatGPT or Claude to your workspace so it can run the work from inside the chat: it reads your accounts, posts, and content bank, and starts new content plans. Three steps:',
+    'أنشئ توكنًا' => 'Create a token',
+    'هذا توكنك. انسخه الآن، فلن يظهر مرة أخرى:' => 'This is your token. Copy it now, it will not be shown again:',
+    'أضِف الرابط في ChatGPT أو Claude' => 'Add the URL in ChatGPT or Claude',
+    'من الإعدادات، افتح Connectors ثم أضف موصّلًا جديدًا (MCP)، والصق الرابط. في حقل المصادقة اكتب Bearer ثم مسافة ثم التوكن.' =>
+        'In Settings, open Connectors and add a new connector (MCP), then paste the URL. In the authorization field type Bearer, a space, then the token.',
+    'استخدمه من داخل المحادثة' => 'Use it from inside the chat',
+    'اكتب للمساعد بالعربي أو الإنجليزي، مثلًا:' => 'Write to the assistant in Arabic or English, for example:',
+    '«ابدأ خطة محتوى عن عروض رمضان، 10 منشورات».' => '"Start a content plan about Ramadan offers, 10 posts."',
+    '«اعرض مخزون المحتوى الجاهز».' => '"Show the ready content bank."',
+    '«اعرض آخر منشوراتي وحالتها».' => '"Show my latest posts and their status."',
     'اربط تطبيق ChatGPT أو Claude بمنصتك ليدير العمل من داخل المحادثة: يقرأ حساباتك ومنشوراتك ومخزون المحتوى، ويبدأ خطط محتوى جديدة بالذكاء الاصطناعي.' =>
         'Connect the ChatGPT or Claude app to your workspace so it can run the work from inside the chat. It reads your accounts, posts, and content bank, and starts new AI content plans.',
     'التوكن الجديد. انسخه الآن، فلن يظهر مرة أخرى:' => 'Your new token. Copy it now, it will not be shown again:',

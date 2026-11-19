@@ -77,7 +77,7 @@ function nav_items(): array
         ['key' => 'accounts', 'label' => t('الحسابات المربوطة'), 'section' => t('الإدارة')],
         ['key' => 'connectors', 'label' => t('التكاملات'), 'section' => t('الإدارة'), 'owner' => true],
         ['key' => 'assistant', 'label' => t('إعدادات الذكاء الاصطناعي'), 'section' => t('الإدارة')],
-        ['key' => 'connect_ai', 'label' => t('ربط ChatGPT / Claude'), 'section' => t('الإدارة'), 'owner' => true],
+        ['key' => 'connect_ai', 'label' => t('المساعد الخارجي'), 'section' => t('الإدارة'), 'owner' => true],
         ['key' => 'settings', 'label' => t('إعدادات الشركة'), 'section' => t('الإدارة'),
             'tabs' => ['settings' => t('عام'), 'team' => t('الفريق')], 'owner' => true],
     ];

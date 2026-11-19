@@ -23,44 +23,55 @@ $recent = mcp_actions_recent($wid, 12);
 $tokens = mcp_tokens_list($wid);
 $mcpUrl = base_url() . '/index.php?p=mcp';
 
-render(t('ربط ChatGPT / Claude'), 'connect_ai', function () use ($tokens, $mcpUrl, $newToken) { ?>
-    <p class="text-sm text-ink-500 mb-5"><?= e(t('اربط تطبيق ChatGPT أو Claude بمنصتك ليدير العمل من داخل المحادثة: يقرأ حساباتك ومنشوراتك ومخزون المحتوى، ويبدأ خطط محتوى جديدة بالذكاء الاصطناعي.')) ?></p>
+render(t('المساعد الخارجي'), 'connect_ai', function () use ($tokens, $mcpUrl, $newToken) {
+    $step = function (int $n, string $title) { return '<div class="flex items-center gap-2 mb-3"><span class="w-7 h-7 rounded-full bg-brand-600 text-[#fff] grid place-items-center text-sm font-bold shrink-0">' . $n . '</span><b class="text-ink-900">' . e($title) . '</b></div>'; };
+    ?>
+    <p class="text-sm text-ink-500 mb-5"><?= e(t('اربط ChatGPT أو Claude بمنصتك فيدير العمل من داخل المحادثة: يقرأ حساباتك ومنشوراتك ومخزون المحتوى، ويبدأ خطط محتوى جديدة. ثلاث خطوات:')) ?></p>
 
-    <?php if ($newToken): ?>
-    <div class="card p-4 mb-5 border-brand-300 bg-brand-50/50">
-      <b class="text-ink-900 block mb-1"><?= e(t('التوكن الجديد. انسخه الآن، فلن يظهر مرة أخرى:')) ?></b>
-      <div class="flex gap-2 items-center"><code id="newtok" class="flex-1 text-xs bg-white border border-ink-200 rounded-lg p-2 overflow-x-auto" dir="ltr"><?= e($newToken) ?></code>
-        <button type="button" class="btn-ghost !py-1.5" onclick="navigator.clipboard.writeText(document.getElementById('newtok').textContent);this.textContent='✓'"><?= e(t('نسخ')) ?></button></div>
-    </div>
-    <?php endif; ?>
-
-    <div class="grid lg:grid-cols-2 gap-5">
+    <div class="space-y-4">
       <div class="card p-5">
-        <b class="text-ink-900 block mb-3"><?= e(t('أنشئ توكن ربط')) ?></b>
-        <form method="post" class="space-y-3">
+        <?= $step(1, t('أنشئ توكنًا')) ?>
+        <?php if ($newToken): ?>
+        <div class="rounded-xl border border-brand-300 bg-brand-50/60 p-3 mb-4">
+          <b class="text-ink-900 block mb-1 text-sm"><?= e(t('هذا توكنك. انسخه الآن، فلن يظهر مرة أخرى:')) ?></b>
+          <div class="flex gap-2 items-center"><code id="newtok" class="flex-1 text-xs bg-white border border-ink-200 rounded-lg p-2 overflow-x-auto" dir="ltr"><?= e($newToken) ?></code>
+            <button type="button" class="btn-ghost !py-1.5" onclick="navigator.clipboard.writeText(document.getElementById('newtok').textContent);this.textContent='✓'"><?= e(t('نسخ')) ?></button></div>
+        </div>
+        <?php endif; ?>
+        <form method="post" class="grid sm:grid-cols-2 gap-3 items-end">
           <?= csrf_field() ?><input type="hidden" name="action" value="create">
           <label class="block"><span class="label"><?= e(t('اسم للتمييز')) ?></span><input name="name" class="input" placeholder="<?= e(t('مثال: ChatGPT الخاص بي')) ?>" maxlength="120"></label>
           <label class="block"><span class="label"><?= e(t('الصلاحية')) ?></span>
-            <select name="scope" class="input">
+            <select name="scope" class="input" id="ca-scope">
               <option value="read"><?= e(t('قراءة فقط (الأكثر أمانًا)')) ?></option>
               <option value="write"><?= e(t('قراءة وبدء خطط المحتوى')) ?></option>
               <option value="publish"><?= e(t('نشر: قراءة وخطط ونشر وجدولة مباشرة')) ?></option>
               <option value="admin"><?= e(t('مدير (خطر): كل ما سبق مع صرف الإعلانات والحذف')) ?></option>
             </select></label>
-          <p class="text-[11px] text-red-700"><?= e(t('تنبيه: توكن «مدير» يطلق حملات إعلانية بمصروف فعلي، ويحذف منشورات وخططًا، مباشرةً ودون موافقة. أنشئه عند الحاجة فقط، واحذفه إذا تسرّب. تُسجَّل كل عملية في الأسفل.')) ?></p>
-          <button class="btn-primary"><?= e(t('أنشئ التوكن')) ?></button>
+          <p id="ca-warn" class="sm:col-span-2 text-[11px] text-red-700 hidden"><?= e(t('تنبيه: توكن «مدير» يطلق حملات إعلانية بمصروف فعلي، ويحذف منشورات وخططًا، مباشرةً ودون موافقة. أنشئه عند الحاجة فقط، واحذفه إذا تسرّب. تُسجَّل كل عملية في الأسفل.')) ?></p>
+          <div class="sm:col-span-2"><button class="btn-primary"><?= e(t('أنشئ التوكن')) ?></button></div>
         </form>
+        <script>(function(){var s=document.getElementById('ca-scope'),w=document.getElementById('ca-warn');if(s&&w)s.addEventListener('change',function(){w.classList.toggle('hidden',s.value!=='admin');});})();</script>
       </div>
 
       <div class="card p-5">
-        <b class="text-ink-900 block mb-3"><?= e(t('رابط الخادم (MCP)')) ?></b>
+        <?= $step(2, t('أضِف الرابط في ChatGPT أو Claude')) ?>
         <div class="flex gap-2 items-center mb-3"><code id="mcpurl" class="flex-1 text-xs bg-ink-50 border border-ink-200 rounded-lg p-2 overflow-x-auto" dir="ltr"><?= e($mcpUrl) ?></code>
           <button type="button" class="btn-ghost !py-1.5" onclick="navigator.clipboard.writeText(document.getElementById('mcpurl').textContent);this.textContent='✓'"><?= e(t('نسخ')) ?></button></div>
-        <div class="text-sm text-ink-600 space-y-2">
-          <p><b>ChatGPT:</b> <?= e(t('من الإعدادات، افتح Connectors ثم أضف موصّلًا جديدًا (MCP)، والصق الرابط أعلاه. في حقل المصادقة ضع الكلمة Bearer ثم مسافة ثم التوكن.')) ?></p>
-          <p><b>Claude:</b> <?= e(t('من الإعدادات، افتح Connectors ثم أضف موصّلًا مخصصًا، والصق الرابط نفسه، والتوكن بصيغة Bearer.')) ?></p>
-          <p class="text-[11px] text-ink-400"><?= e(t('بعد الربط اكتب في المحادثة مثلًا: «ابدأ خطة محتوى عن كذا» أو «اعرض مخزون المحتوى».')) ?></p>
-        </div>
+        <ul class="text-sm text-ink-600 space-y-1.5 list-disc ps-5">
+          <li><b>ChatGPT:</b> <?= e(t('من الإعدادات، افتح Connectors ثم أضف موصّلًا جديدًا (MCP)، والصق الرابط. في حقل المصادقة اكتب Bearer ثم مسافة ثم التوكن.')) ?></li>
+          <li><b>Claude:</b> <?= e(t('من الإعدادات، افتح Connectors ثم أضف موصّلًا مخصصًا، والصق الرابط نفسه، والتوكن بصيغة Bearer.')) ?></li>
+        </ul>
+      </div>
+
+      <div class="card p-5">
+        <?= $step(3, t('استخدمه من داخل المحادثة')) ?>
+        <p class="text-sm text-ink-600 mb-2"><?= e(t('اكتب للمساعد بالعربي أو الإنجليزي، مثلًا:')) ?></p>
+        <ul class="text-sm text-ink-700 space-y-1.5 list-disc ps-5">
+          <li><?= e(t('«ابدأ خطة محتوى عن عروض رمضان، 10 منشورات».')) ?></li>
+          <li><?= e(t('«اعرض مخزون المحتوى الجاهز».')) ?></li>
+          <li><?= e(t('«اعرض آخر منشوراتي وحالتها».')) ?></li>
+        </ul>
       </div>
     </div>
 
