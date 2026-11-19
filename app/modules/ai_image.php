@@ -32,7 +32,7 @@ function img_openai_cost(string $quality, string $size): float
 function img_lib_save_bytes(int $wid, string $bytes, string $prompt, bool $trim = true): ?string
 {
     $dir = hf_lib_dir($wid); if (!is_dir($dir)) @mkdir($dir, 0750, true);
-    if ($trim && function_exists('img_trim_bands')) $bytes = img_trim_bands($bytes);
+    if ($trim && empty($GLOBALS['img_no_trim']) && function_exists('img_trim_bands')) $bytes = img_trim_bands($bytes); // تصميمات بهوامش غامقة (خطة المحتوى) مايتقصّش منها
     $tmp = tempnam(sys_get_temp_dir(), 'oa'); file_put_contents($tmp, $bytes); $mime = (string)mime_content_type($tmp);
     $ext = ['image/png' => 'png', 'image/jpeg' => 'jpg', 'image/webp' => 'webp'][$mime] ?? null;
     if (!$ext || filesize($tmp) > 25 * 1048576) { @unlink($tmp); return null; }

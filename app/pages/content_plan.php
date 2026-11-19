@@ -133,9 +133,29 @@ render($plan ? (string)$plan['name'] : t('خطة محتوى بالذكاء ال�
       <label class="block"><span class="label"><?= e(t('تجنّب (اختياري)')) ?></span><input name="avoid" class="input" dir="auto" placeholder="<?= e(t('كلمات أو وعود أو أساليب لا تريدها')) ?>"></label>
       <div>
         <span class="label"><?= e(t('تصميمات مرجعية (اختياري، حتى 12 صورة أو صفحة PDF)')) ?></span>
-        <p class="text-xs text-ink-500 mb-2"><?= e(t('نحلل أسلوبها (الألوان، الخطوط، التكوين) ونطبقه في كل برومبت صورة، بدون نسخ محتواها.')) ?> <?= $hasLogo ? e(t('الشعار موجود في ملف الشركة وسيُذكر موضعه في البرومبتات.')) : '' ?></p>
+        <p class="text-xs text-ink-500 mb-2"><?= e(t('نحلل أسلوبها (الألوان، الخطوط، التكوين) ونطبقه في كل برومبت، وتُرسل لموديل الصور كمرجع للأسلوب أثناء التوليد، بدون نسخ محتواها.')) ?> <?= $hasLogo ? e(t('الشعار موجود في ملف الشركة وسيُذكر موضعه في البرومبتات.')) : '' ?></p>
         <div id="cp-refs" class="flex flex-wrap gap-2"></div>
         <label class="btn-ghost !py-1.5 mt-2 cursor-pointer"><input id="cp-ref-in" type="file" accept="image/*,application/pdf,.pdf" multiple class="hidden"><?= e(t('أضف صورًا أو PDF')) ?></label>
+      </div>
+      <?php $lgRow = function_exists('kb_logo') ? kb_logo($wid) : null; ?>
+      <div class="rounded-2xl border border-ink-200 p-4">
+        <span class="label"><?= e(t('مكان اللوجو على التصميم')) ?></span>
+        <?php if (!$lgRow): ?><p class="text-sm text-amber-700"><?= e(t('لا يوجد لوجو في ملف الشركة. أضفه من قاعدة المعرفة ليُركَّب على الصور تلقائيًا.')) ?> <a class="link" href="<?= e(url('knowledge')) ?>"><?= e(t('قاعدة المعرفة')) ?></a></p>
+        <?php else: ?>
+        <p class="text-xs text-ink-500 mb-3"><?= e(t('السيستم يركّب لوجو شركتك الحقيقي على كل صورة وشريحة بعد توليدها (الذكاء الاصطناعي لا يرسم لوجو). المعاينة على أول صورة مرجعية.')) ?></p>
+        <div class="flex flex-wrap items-start gap-5">
+          <div id="cp-lprev" class="relative w-48 aspect-[4/5] rounded-xl overflow-hidden border border-ink-200 bg-cover bg-center" style="background-color:#0b1f3a;background-image:linear-gradient(135deg,#0b1f3a,#155e75)">
+            <img id="cp-lprev-logo" src="<?= e(url('media', ['file' => $lgRow['id']])) ?>" alt="" class="absolute object-contain drop-shadow">
+            <div class="absolute inset-[7%] border border-dashed border-[#ffffff66] rounded pointer-events-none" title="<?= e(t('المنطقة الآمنة')) ?>"></div>
+          </div>
+          <div class="space-y-3 text-sm">
+            <div><span class="text-xs text-ink-500 block mb-1"><?= e(t('المكان')) ?></span>
+              <div class="grid grid-cols-3 gap-1.5 w-36" dir="ltr"><?php foreach (['top-left', 'top-center', 'top-right', 'bottom-left', 'bottom-center', 'bottom-right'] as $pos): ?><label class="cursor-pointer"><input type="radio" name="logo_pos" value="<?= $pos ?>" class="peer sr-only" <?= $pos === 'top-right' ? 'checked' : '' ?>><span class="block h-9 rounded-lg border border-ink-200 peer-checked:border-brand-500 peer-checked:bg-brand-50 relative"><span class="absolute w-3 h-2 rounded-sm bg-ink-400 peer-checked:bg-brand-600 <?= ['top-left' => 'top-1 left-1', 'top-center' => 'top-1 left-1/2 -translate-x-1/2', 'top-right' => 'top-1 right-1', 'bottom-left' => 'bottom-1 left-1', 'bottom-center' => 'bottom-1 left-1/2 -translate-x-1/2', 'bottom-right' => 'bottom-1 right-1'][$pos] ?>"></span></span></label><?php endforeach; ?></div></div>
+            <label class="block"><span class="text-xs text-ink-500 block mb-1"><?= e(t('الحجم')) ?></span><select name="logo_size" class="input !mt-0 !py-1.5 !w-36"><option value="14"><?= e(t('صغير')) ?></option><option value="20" selected><?= e(t('متوسط')) ?></option><option value="26"><?= e(t('كبير')) ?></option></select></label>
+            <label class="flex items-center gap-1.5"><input type="checkbox" name="logo_on" checked><?= e(t('ركّب اللوجو على الصور')) ?></label>
+          </div>
+        </div>
+        <?php endif; ?>
       </div>
       <div class="flex flex-wrap gap-4 text-sm">
         <label class="flex items-center gap-1.5"><input type="checkbox" name="video" checked><?= e(t('برومبت فيديو لكل منشور')) ?></label>

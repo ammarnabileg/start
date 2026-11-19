@@ -65,7 +65,8 @@ function cpl_create(array $in): int
     $opts = ['lang' => in_array($in['lang'] ?? '', ['ar', 'en', 'both'], true) ? $in['lang'] : 'ar', 'dialect' => mb_substr(trim((string)($in['dialect'] ?? '')), 0, 60),
         'audience' => mb_substr(trim((string)($in['audience'] ?? '')), 0, 600), 'services' => array_slice(array_map(function ($s) { return mb_substr((string)$s, 0, 150); }, (array)($in['services'] ?? [])), 0, 20),
         'tone' => mb_substr(trim((string)($in['tone'] ?? '')), 0, 200), 'cta' => mb_substr(trim((string)($in['cta'] ?? '')), 0, 300), 'avoid' => mb_substr(trim((string)($in['avoid'] ?? '')), 0, 600),
-        'video' => !empty($in['video']), 'carousel' => !isset($in['carousel']) || !empty($in['carousel']), 'humanize' => !isset($in['humanize']) || !empty($in['humanize'])];
+        'video' => !empty($in['video']), 'carousel' => !isset($in['carousel']) || !empty($in['carousel']), 'humanize' => !isset($in['humanize']) || !empty($in['humanize']),
+        'logo_pos' => in_array($in['logo_pos'] ?? '', ['top-left', 'top-center', 'top-right', 'bottom-left', 'bottom-center', 'bottom-right'], true) ? $in['logo_pos'] : (($in['lang'] ?? '') === 'en' ? 'top-left' : 'top-right'), 'logo_size' => in_array((int)($in['logo_size'] ?? 20), [14, 20, 26], true) ? (int)$in['logo_size'] : 20, 'logo_on' => !isset($in['logo_on']) || !empty($in['logo_on'])];
     $name = mb_substr(trim((string)($in['name'] ?? '')), 0, 150) ?: mb_substr(preg_replace('/\s+/u', ' ', $goal), 0, 60);
     $hasLogo = function_exists('kb_logo') && kb_logo($wid);
     db()->prepare('INSERT INTO cp_plans (workspace_id, user_id, name, goal, cnt, opts, refs, stage, status) VALUES (?,?,?,?,?,?,?,?, "generating")')
@@ -86,7 +87,8 @@ function cpl_rules(array $p): string
 {
     $o = cpl_opts($p);
     $lang = ['ar' => 'Arabic' . ($o['dialect'] !== '' ? ' (' . $o['dialect'] . ')' : ' (clear Modern Standard Arabic unless the KB shows another brand voice)'), 'en' => 'English', 'both' => 'Arabic for LinkedIn and carousel copy, English for X'][$o['lang']];
-    return cpl_master($p)
+    static $craft = null; if ($craft === null) $craft = (string)@file_get_contents(__DIR__ . '/../prompts/image_craft.md');
+    return cpl_master($p) . "\n\n" . $craft
         . "\n\nPLAN SETTINGS\n- Copy language (LinkedIn, X, headline, on-slide copy, video voice-over dialogue): {$lang}. Image prompts and video directions: professional English.\n"
         . ($o['dialect'] !== '' ? "- Voice-over dialogue dialect: {$o['dialect']}.\n" : '')
         . ($o['tone'] !== '' ? "- Brand tone: {$o['tone']}\n" : '')
@@ -94,7 +96,8 @@ function cpl_rules(array $p): string
         . ($o['avoid'] !== '' ? "- Avoid: {$o['avoid']}\n" : '')
         . (!$o['video'] ? "- The user turned off video for this plan: return video_prompt as an empty string.\n" : '')
         . (!$o['carousel'] ? "- The user turned off carousels for this plan: return carousel as an empty array.\n" : '')
-        . "- The official logo is in the KB; refer to it as \"the official logo\" and state its exact placement. Never describe or invent its design.\n"
+        . "- LOGO: never draw, write or invent any logo, brand name, wordmark or watermark in images, slides or video. The system places the real logo afterwards in the " . cpl_logo_corner($p) . " corner: keep that corner area (about 260x160px) clean and calm.\n"
+        . "- Safe area: keep the headline, any text and every key element at least 100px (about 9%) inside each edge of the 1080x1350 frame; nothing touches or is cropped by an edge; generous padding around the headline; headline at most 3 short lines in a clean bold sans-serif, spelled exactly, high contrast.\n"
         . ($o['humanize'] ? "\n=== WRITING STYLE: apply the Humanizer skill below WHILE WRITING all copy (LinkedIn, X, headlines, on-slide copy, voice-over dialogue). Write the final, human version directly; do not write a draft and fix it later. Never change the JSON format. ===\n" . ai_humanizer_skill() . "\n" : '');
 }
 
@@ -291,6 +294,12 @@ function cpl_qc(array $it, array $o = []): array
     if (mb_strlen((string)$it['x']) > 280) $q[] = t('X تجاوز 280 حرفًا'); if (trim((string)$it['x']) === '') $q[] = t('نص X فارغ');
     if (!preg_match('/#\S/u', (string)$it['linkedin'])) $q[] = t('لينكدإن بلا هاشتاجات');
     $iw = $w($it['image_prompt']); if ($iw < 110 || $iw > 220) $q[] = t('برومبت الصورة %s كلمة (المطلوب 120–200)', $iw);
+    $ip = (string)$it['image_prompt'];
+    if (!preg_match('/\b\d{2,3}\s?mm\b/i', $ip)) $q[] = t('برومبت الصورة بلا عدسة/كاميرا محددة');
+    if (!preg_match('/\b(key|rim|fill)\b/i', $ip) || !preg_match('/\d{4}\s?K\b/', $ip)) $q[] = t('برومبت الصورة بلا إعداد إضاءة دقيق (key/fill/rim ودرجة حرارة اللون)');
+    if (!preg_match('/#[0-9a-f]{6}\b/i', $ip)) $q[] = t('برومبت الصورة بلا ألوان الهوية (hex)');
+    if (!preg_match('/headline|title/i', $ip)) $q[] = t('برومبت الصورة لا يحدد مكان العنوان');
+    if (preg_match('/\b(place|add|include|put)\b[^.]{0,40}\blogo\b/i', $ip)) $q[] = t('برومبت الصورة يطلب رسم لوجو (السيستم يضيفه)');
     $hw = $w($it['headline']); if ($hw < 2 || $hw > 6) $q[] = t('عنوان الصورة %s كلمات (المطلوب 2–6)', $hw);
     if (($o['video'] ?? true) && $w($it['video_prompt']) < 60) $q[] = t('برومبت الفيديو قصير');
     if (($o['carousel'] ?? true) && count($it['carousel']) !== 5) $q[] = t('الكاروسيل %s شرائح (المطلوب 5)', count($it['carousel']));
@@ -561,12 +570,37 @@ function cpl_jobs_finalize(int $itemId, string $kind): void
 function cpl_job_prompt(array $p, array $it, array $j): string
 {
     $o = cpl_opts($p); $vis = trim((string)$p['visual']);
-    if ($j['kind'] === 'image') return $it['image_prompt'] . ($vis !== '' ? "\n\nBrand visual DNA: " . mb_substr($vis, 0, 1200) : '') . "\nPlace the official logo (attached reference) exactly as described. Render the headline text \"" . $it['headline'] . "\" accurately, spelled exactly.";
-    if ($j['kind'] === 'video') return $it['video_prompt'];
+    $rules = "\nOVERRIDE: ignore any instruction above about drawing a logo. Do NOT draw any logo, brand name, wordmark or watermark anywhere; keep the " . cpl_logo_corner($p) . " corner area (about 260x160px) clean for the real logo added later.\n" . "Safe area: keep the headline, any text and every key element at least 100px (about 9%) inside each edge of the 1080x1350 frame; nothing touches or is cropped by an edge; generous padding around the headline; headline at most 3 short lines in a clean bold sans-serif, spelled exactly, high contrast.";
+    if ($j['kind'] === 'image') return $it['image_prompt'] . ($vis !== '' ? "\n\nBrand visual DNA: " . mb_substr($vis, 0, 1200) : '') . "\nRender the headline text \"" . $it['headline'] . "\" accurately, spelled exactly." . $rules;
+    if ($j['kind'] === 'video') return $it['video_prompt'] . "\nDo NOT render any logo, brand name or wordmark; end on a clean frame with empty space where the logo can be added in editing.";
     $s = $it['carousel'][(int)$j['slide']] ?? []; $n = count($it['carousel']);
     return "Carousel slide " . ((int)$j['slide'] + 1) . " of {$n} (" . ($s['role'] ?? '') . ") for a premium social campaign, 4:5 1080x1350, one consistent series across all slides.\n"
         . "Visual concept: " . ($s['visual'] ?? '') . "\nLayout: " . ($s['layout'] ?? '') . "\nOn-slide text, render exactly and legibly" . ($o['lang'] !== 'en' ? ' (Arabic, right-to-left, correct letter joining)' : '') . ":\nHeadline: " . ($s['title'] ?? '') . "\nBody: " . ($s['body'] ?? '')
-        . ($vis !== '' ? "\n\nBrand visual DNA: " . mb_substr($vis, 0, 1200) : '') . "\nOfficial logo (attached reference) small in a corner. No other text, no fake UI, no clutter.";
+        . ($vis !== '' ? "\n\nBrand visual DNA: " . mb_substr($vis, 0, 1200) : '') . "\nNo other text, no fake UI, no clutter." . $rules;
+}
+
+/** ركن اللوجو: عربي = أعلى اليمين، إنجليزي = أعلى اليسار */
+function cpl_logo_corner(array $p): string { $o = cpl_opts($p); return (string)($o['logo_pos'] ?? ($o['lang'] === 'en' ? 'top-left' : 'top-right')); }
+
+/** يركّب لوجو الشركة الحقيقي (من ملف الشركة) على الصورة بهامش آمن، ويحفظها نسخة جديدة في المكتبة. لو مفيش لوجو بترجع نفس الصورة */
+function cpl_stamp_logo(array $p, int $mid): int
+{
+    $wid = (int)ws('id'); $lg = function_exists('kb_logo') ? kb_logo($wid) : null; $m = media_get($wid, $mid);
+    $o = cpl_opts($p); if (isset($o['logo_on']) && !$o['logo_on']) return $mid;
+    if (!$lg || !$m || !function_exists('imagecreatefromstring')) return $mid;
+    $im = @imagecreatefromstring((string)file_get_contents(media_file_path($wid, $m))); $lo = @imagecreatefromstring((string)file_get_contents(media_file_path($wid, $lg)));
+    if (!$im || !$lo) return $mid;
+    if (!imageistruecolor($im)) imagepalettetotruecolor($im); if (!imageistruecolor($lo)) imagepalettetotruecolor($lo);
+    $W = imagesx($im); $Hh = imagesy($im); $lw = imagesx($lo); $lh = imagesy($lo);
+    $tw = (int)round($W * ((int)($o['logo_size'] ?? 20)) / 100); $th = (int)round($lh * $tw / max(1, $lw)); if ($th > $Hh * 0.10) { $th = (int)round($Hh * 0.10); $tw = (int)round($lw * $th / max(1, $lh)); } // عرض 20% وارتفاع أقصاه 10%
+    $pos = cpl_logo_corner($p); $pad = (int)round($W * 0.07);
+    $x = substr($pos, -4) === 'left' ? $pad : (substr($pos, -5) === 'right' ? $W - $pad - $tw : intdiv($W - $tw, 2)); $y = strpos($pos, 'top') === 0 ? (int)round($Hh * 0.07) : $Hh - (int)round($Hh * 0.07) - $th;
+    $rs = imagecreatetruecolor($tw, $th); imagealphablending($rs, false); imagesavealpha($rs, true); imagefill($rs, 0, 0, imagecolorallocatealpha($rs, 0, 0, 0, 127));
+    imagecopyresampled($rs, $lo, 0, 0, 0, 0, $tw, $th, $lw, $lh);
+    imagealphablending($im, true); imagecopy($im, $rs, $x, $y, 0, 0, $tw, $th);
+    $tmp = tempnam(sys_get_temp_dir(), 'cpl') . '.png'; imagepng($im, $tmp); imagedestroy($im); imagedestroy($lo); imagedestroy($rs);
+    try { $row = media_store_path($wid, $tmp, 'logo-' . preg_replace('/^ai-/', '', (string)$m['name']), 'image/png', media_ai_folder()); } catch (Throwable $e) { @unlink($tmp); return $mid; }
+    @unlink($tmp); return (int)$row['id'];
 }
 
 /** تنفيذ مهمة واحدة (أو متابعة فيديو شغال). بيرجع true لو عمل حاجة */
@@ -594,8 +628,11 @@ function cpl_jobs_tick(int $planId): bool
                 $vid = vid_or_start($prompt, '9:16'); db()->prepare('UPDATE cp_jobs SET ext_id = ? WHERE id = ?')->execute([$vid, $j['id']]);
                 cpl_log($planId, t('بدأ توليد الفيديو للمنشور %s، وسنتابعه حتى يكتمل (قد يستغرق دقائق).', $it['seq']));
             } else {
-                $lg = function_exists('kb_logo') ? kb_logo($wid) : null; $refs = $lg ? [media_file_path($wid, $lg)] : [];
-                $names = img_generate($prompt, '4:5', 1, $refs); $ms = cpl_media_for_names($names); if (!$ms) throw new RuntimeException(t('لم تُحفظ الصورة الناتجة.'));
+                $GLOBALS['img_no_trim'] = true;
+                $refFiles = []; foreach (array_slice(json_decode((string)$p['refs'], true) ?: [], 0, 3) as $rid) { $rm = media_get($wid, (int)$rid); if ($rm && ($rd = cpl_small_image(media_file_path($wid, $rm), 1024))) { $tf = tempnam(sys_get_temp_dir(), 'cpr') . '.jpg'; file_put_contents($tf, base64_decode(substr($rd, strpos($rd, ',') + 1))); $refFiles[] = $tf; } }
+                if ($refFiles) $prompt .= "\nThe attached images are STYLE REFERENCES ONLY: match their colour palette, lighting mood, typography style, layout rhythm and level of polish. Do not copy their subjects, text, people or logos.";
+                try { $names = img_generate($prompt, '4:5', 1, $refFiles); } finally { foreach ($refFiles as $tf) @unlink($tf); } $ms = cpl_media_for_names($names); if (!$ms) throw new RuntimeException(t('لم تُحفظ الصورة الناتجة.'));
+                $ms = array_map(function ($m) use ($p) { return cpl_stamp_logo($p, $m); }, $ms);
                 db()->prepare('UPDATE cp_jobs SET status = "done", result = ? WHERE id = ?')->execute([json_encode($ms), $j['id']]);
                 cpl_log($planId, t('اكتملت %s للمنشور %s في %s ثانية.', $label, $it['seq'], round(microtime(true) - $t0)), 'ok');
                 cpl_jobs_finalize($it['id'], $j['kind']);

@@ -16,15 +16,25 @@
     var key = 'cp_draft_' + C.wid, refs = [];
     function paintRefs() { $('#cp-refs').innerHTML = refs.map(function (r, i) { return '<span class="relative"><img src="' + esc(r.thumb) + '" class="w-20 h-24 object-cover rounded-xl border border-ink-200" alt=""><button type="button" data-rm="' + i + '" class="absolute -top-1.5 -end-1.5 w-6 h-6 rounded-full bg-white border border-ink-200 text-xs">×</button></span>'; }).join(''); }
     function collect() { var d = { refs: refs.map(function (r) { return r.id; }), services: $$('[name=services]:checked', W).map(function (x) { return x.value; }) };
-      ['goal', 'count', 'name', 'lang', 'dialect', 'tone', 'cta', 'audience', 'avoid'].forEach(function (n) { d[n] = W[n].value; }); d.video = W.video.checked; d.carousel = W.carousel.checked; d.humanize = W.humanize.checked; return d; }
+      ['goal', 'count', 'name', 'lang', 'dialect', 'tone', 'cta', 'audience', 'avoid'].forEach(function (n) { d[n] = W[n].value; }); d.video = W.video.checked; d.carousel = W.carousel.checked; d.humanize = W.humanize.checked;
+      if (W.logo_size) { d.logo_pos = (W.querySelector('[name=logo_pos]:checked') || {}).value || 'top-right'; d.logo_size = W.logo_size.value; d.logo_on = W.logo_on.checked; } return d; }
     var dr = ls(key);
     if (dr && (dr.goal || (dr.refsFull || []).length)) {
       ['goal', 'count', 'name', 'lang', 'dialect', 'tone', 'cta', 'audience', 'avoid'].forEach(function (n) { if (dr[n] != null) W[n].value = dr[n]; });
       W.video.checked = dr.video !== false; W.carousel.checked = dr.carousel !== false; W.humanize.checked = dr.humanize !== false;
+      if (W.logo_size) { if (dr.logo_pos) $$('[name=logo_pos]', W).forEach(function (x) { x.checked = x.value === dr.logo_pos; }); if (dr.logo_size) W.logo_size.value = dr.logo_size; W.logo_on.checked = dr.logo_on !== false; }
       $$('[name=services]', W).forEach(function (x) { x.checked = (dr.services || []).indexOf(x.value) >= 0; });
       refs = dr.refsFull || []; paintRefs(); toast(T.draftRestored, 'info');
     }
-    function saveDraft() { var d = collect(); d.refsFull = refs; ls(key, d); }
+    // معاينة اللوجو: نفس الحسابات اللي السيرفر بيستخدمها (عرض % من الصورة، هامش 7%)
+    function lprev() { var bx = $('#cp-lprev'), lg = $('#cp-lprev-logo'); if (!bx || !lg) return;
+      if (refs[0]) bx.style.backgroundImage = 'url("' + refs[0].thumb + '")';
+      var pos = (W.querySelector('[name=logo_pos]:checked') || {}).value || 'top-right', sz = +W.logo_size.value, on = W.logo_on.checked;
+      lg.style.display = on ? '' : 'none'; lg.style.width = sz + '%'; lg.style.maxHeight = '10%'; lg.style.top = lg.style.bottom = lg.style.left = lg.style.right = lg.style.transform = '';
+      if (pos.indexOf('top') === 0) lg.style.top = '7%'; else lg.style.bottom = '7%';
+      if (/left$/.test(pos)) lg.style.left = '7%'; else if (/right$/.test(pos)) lg.style.right = '7%'; else { lg.style.left = '50%'; lg.style.transform = 'translateX(-50%)'; } }
+    W.addEventListener('change', lprev); setTimeout(lprev, 0);
+    function saveDraft() { lprev(); var d = collect(); d.refsFull = refs; ls(key, d); }
     W.addEventListener('input', saveDraft); W.addEventListener('change', saveDraft);
     $('#cp-refs').addEventListener('click', function (e) { var b = e.target.closest('[data-rm]'); if (!b) return; refs.splice(+b.dataset.rm, 1); paintRefs(); saveDraft(); });
     // PDF مرجعي: كل صفحة تتحول لصورة JPEG في المتصفح، فالذكاء الاصطناعي يشوفها زي الصور بالظبط
