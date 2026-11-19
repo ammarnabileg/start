@@ -38,6 +38,7 @@ function mcp_tokens_list(int $wid): array
     return $st->fetchAll();
 }
 function mcp_token_delete(int $wid, int $id): void { db()->prepare('DELETE FROM mcp_tokens WHERE id = ? AND workspace_id = ?')->execute([$id, $wid]); }
+function mcp_tokens_delete_all(int $wid): int { $st = db()->prepare('DELETE FROM mcp_tokens WHERE workspace_id = ?'); $st->execute([$wid]); return $st->rowCount(); }
 
 /** يسجّل إجراء بانتظار موافقة المستخدم من داخل المنصة (لا يُنفَّذ تلقائيًا) */
 function mcp_action_create(int $wid, ?int $tokenId, string $type, string $summary, array $payload): int

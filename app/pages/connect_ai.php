@@ -13,6 +13,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         mcp_token_delete($wid, (int)($_POST['id'] ?? 0));
         flash('success', t('اتمسح التوكن.'));
         redirect(url('connect_ai'));
+    } elseif ($a === 'delete_all') {
+        $n = mcp_tokens_delete_all($wid);
+        flash('success', t('اتمسحت كل التوكنات (%s). أي ربط شغّال هيتوقف فورًا.', $n));
+        redirect(url('connect_ai'));
     }
 }
 $recent = mcp_actions_recent($wid, 12);
@@ -61,7 +65,9 @@ render(t('ربط ChatGPT / Claude'), 'connect_ai', function () use ($tokens, $mc
     </div>
 
     <div class="card p-5 mt-5">
-      <b class="text-ink-900 block mb-3"><?= e(t('التوكنات')) ?></b>
+      <div class="flex items-center gap-3 mb-3"><b class="text-ink-900 flex-1"><?= e(t('التوكنات')) ?></b>
+        <?php if ($tokens): ?><form method="post" onsubmit="return confirm('<?= e(t('مسح كل التوكنات؟ أي ربط مع ChatGPT أو Claude هيتوقف فورًا. مش ممكن التراجع.')) ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="delete_all"><button class="btn-ghost !py-1.5 text-red-600"><?= e(t('امسح كل التوكنات')) ?></button></form><?php endif; ?>
+      </div>
       <?php if (!$tokens): ?><p class="text-sm text-ink-500"><?= e(t('لا توجد توكنات بعد.')) ?></p><?php else: ?>
       <div class="divide-y divide-ink-100">
         <?php foreach ($tokens as $tk): ?>
