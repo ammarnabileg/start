@@ -112,30 +112,33 @@ function ai_team_states(int $wid): array
 function ai_team_labels_ar(): array
 {
     return [
-        'WORKSPACE CORE' => 'المنصّة', '8 connected functions' => '٨ أقسام متصلة',
-        'IDLE' => 'خامل', 'LIVE' => 'يعمل',
-        'CONTENT STUDIO' => 'المحتوى', 'CREATE / DESIGN' => 'إنشاء وتصميم',
-        'PUBLISHING' => 'النشر', 'QUEUE / SCHEDULE' => 'الجدولة',
-        'ADS MANAGER' => 'الإعلانات', 'CAMPAIGNS / MEDIA' => 'حملات ووسائط',
-        'ANALYTICS' => 'التحليلات', 'DATA / REPORTS' => 'بيانات وتقارير',
-        'TENDER INTEL' => 'المناقصات', 'OPPORTUNITIES' => 'فرص وعطاءات',
-        'CRM &amp; LEADS' => 'العملاء', 'PIPELINE / CLIENTS' => 'عملاء ومسار',
-        'AUTOMATION' => 'الأتمتة', 'WORKFLOWS' => 'محرّك المهام',
-        'COMMUNICATIONS' => 'التواصل', 'INBOX / WHATSAPP' => 'رسائل وواتساب',
+        'AI OPERATIONS TEAM' => 'فريق عمليات الذكاء', '8 MODULES / 1 WORKSPACE' => '٨ أقسام / مساحة واحدة',
+        'AI WORKSPACE' => 'منصّة الذكاء', 'Eight agents. One engine.' => 'ثمانية وكلاء · محرّك واحد',
+        'CONNECTED SYSTEM' => 'نظام متصل', 'AGENTS' => 'وكلاء',
+        'LIVE' => 'يعمل', 'READY' => 'جاهز',
+        'CREATIVE' => 'إبداع', 'DELIVERY' => 'تسليم', 'GROWTH' => 'نمو', 'INSIGHTS' => 'رؤى',
+        'OPPORTUNITY' => 'فرص', 'REVENUE' => 'إيرادات', 'SYSTEMS' => 'أنظمة', 'ENGAGEMENT' => 'تفاعل',
+        'CONTENT STUDIO' => 'المحتوى', 'WRITE · DESIGN' => 'كتابة · تصميم',
+        'PUBLISHING' => 'النشر', 'QUEUE · SCHEDULE' => 'طابور · جدولة',
+        'AD CAMPAIGNS' => 'الإعلانات', 'PAID · CREATIVE' => 'مموّل · إبداع',
+        'ANALYTICS' => 'التحليلات', 'PERFORMANCE · DATA' => 'أداء · بيانات',
+        'TENDER INTELLIGENCE' => 'المناقصات', 'PROJECTS · AWARDS' => 'مشاريع · ترسيات',
+        'CRM &amp; LEADS' => 'العملاء', 'PIPELINE · CLIENTS' => 'مسار · عملاء',
+        'AUTOMATION' => 'الأتمتة', 'WORKFLOWS · AGENTS' => 'مهام · وكلاء',
+        'COMMUNICATIONS' => 'التواصل', 'INBOX · MESSAGING' => 'رسائل · محادثات',
+        'INTERACTIVE WORKSPACE VISUALIZATION' => 'عرض تفاعلي للمنصّة',
     ];
 }
 
-/** يضيف توكن class (مثل active/on) للمجموعة ذات data-role المطابق والتي تحمل الكلاس المطلوب. */
-function ai_team_set_class(string $svg, string $role, string $need, string $add): string
+function ai_team_apply_active(string $svg, string $tagRegex, bool $on): string
 {
-    return preg_replace_callback('/<g\b[^>]*\bdata-role="' . preg_quote($role, '/') . '"[^>]*>/', function ($m) use ($need, $add) {
+    return preg_replace_callback($tagRegex, function ($m) use ($on) {
         $tag = $m[0];
         if (!preg_match('/class="([^"]*)"/', $tag, $cm)) return $tag;
-        $cls = ' ' . $cm[1] . ' ';
-        if (strpos($cls, ' ' . $need . ' ') === false) return $tag; // عنصر تاني بنفس الـ role
-        if (strpos($cls, ' ' . $add . ' ') !== false) return $tag;   // مضاف قبل كده
-        return str_replace('class="' . $cm[1] . '"', 'class="' . trim($cm[1] . ' ' . $add) . '"', $tag);
-    }, $svg);
+        $cls = trim(preg_replace('/\s*\bactive\b/', '', $cm[1]));
+        if ($on) $cls = trim($cls . ' active');
+        return str_replace('class="' . $cm[1] . '"', 'class="' . $cls . '"', $tag);
+    }, $svg, 1);
 }
 
 /**
@@ -155,24 +158,24 @@ function ai_team_svg(string $wsName, array $states): string
         }
     }
 
-    // ضبط كلاس active للوكيل + on للخط الموصّل حسب الحالة الحقيقية (مستقل عن ترتيب الصفات)
+    // ضبط حالة كل وكيل والخط الموصّل له + شارة يعمل/جاهز حسب الحالة الحقيقية
+    $ar = function_exists('lang') && lang() === 'ar';
+    $live = $ar ? 'يعمل' : 'LIVE'; $ready = $ar ? 'جاهز' : 'READY';
     foreach (ai_team_keys() as $k) {
         $on = !empty($states[$k]['active']);
-        if (!$on) continue;
-        $svg = ai_team_set_class($svg, $k, 'agent', 'active');
-        $svg = ai_team_set_class($svg, $k, 'link', 'on');
+        $q = preg_quote($k, '/');
+        $svg = ai_team_apply_active($svg, '/<g\b[^>]*\bdata-role="' . $q . '"[^>]*>/', $on);
+        $svg = ai_team_apply_active($svg, '/<g\b[^>]*\bid="link-' . $q . '"[^>]*>/', $on);
+        // نص الشارة (كان مثبّتًا في التصميم) يتبع الحالة الحقيقية
+        $word = $on ? $live : $ready;
+        $svg = preg_replace_callback('/(id="agent-' . $q . '".*?class="ui-sub state-label"[^>]*>)[^<]*(<\/text>)/s', function ($m) use ($word) {
+            return $m[1] . $word . $m[2];
+        }, $svg, 1);
     }
 
     // جعل الـ SVG متجاوب داخل الصفحة + خط عربي للعناوين
     $svg = preg_replace('/<svg /', '<svg style="width:100%;height:auto;display:block" ', $svg, 1);
 
-    $css = '<style>'
-        . '#workspace-agents svg text{direction:ltr;unicode-bidi:isolate;font-family:Alexandria,Inter,system-ui,sans-serif}'
-        // الخطوط بين الموظفين والنواة: باهتة افتراضيًا، وتنوّر وتتدفّق وقت شغل الوكيل
-        . '#workspace-agents .link .signal{opacity:.14;transition:opacity .3s,stroke-width .3s}'
-        . '#workspace-agents .link.on .signal{opacity:.92;stroke-width:3;filter:url(#miniGlow);animation:flowDash 2s linear infinite}'
-        . '#workspace-agents .link .signal-dot{opacity:0}'
-        . '#workspace-agents .link.on .signal-dot{opacity:1}'
-        . '</style>';
+    $css = '<style>#workspace-agents svg text{direction:ltr;unicode-bidi:isolate;font-family:Alexandria,Inter,system-ui,sans-serif}</style>';
     return '<div id="workspace-agents">' . $css . $svg . '</div>';
 }
