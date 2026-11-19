@@ -55,14 +55,14 @@ function cpl_create(array $in): int
     $opts = ['lang' => in_array($in['lang'] ?? '', ['ar', 'en', 'both'], true) ? $in['lang'] : 'ar', 'dialect' => mb_substr(trim((string)($in['dialect'] ?? '')), 0, 60),
         'audience' => mb_substr(trim((string)($in['audience'] ?? '')), 0, 600), 'services' => array_slice(array_map(function ($s) { return mb_substr((string)$s, 0, 150); }, (array)($in['services'] ?? [])), 0, 20),
         'tone' => mb_substr(trim((string)($in['tone'] ?? '')), 0, 200), 'cta' => mb_substr(trim((string)($in['cta'] ?? '')), 0, 300), 'avoid' => mb_substr(trim((string)($in['avoid'] ?? '')), 0, 600),
-        'video' => !empty($in['video']), 'carousel' => !isset($in['carousel']) || !empty($in['carousel'])];
+        'video' => !empty($in['video']), 'carousel' => !isset($in['carousel']) || !empty($in['carousel']), 'humanize' => !isset($in['humanize']) || !empty($in['humanize'])];
     $name = mb_substr(trim((string)($in['name'] ?? '')), 0, 150) ?: mb_substr(preg_replace('/\s+/u', ' ', $goal), 0, 60);
     db()->prepare('INSERT INTO cp_plans (workspace_id, user_id, name, goal, cnt, opts, refs, stage, status) VALUES (?,?,?,?,?,?,?,?, "generating")')
         ->execute([$wid, (int)(current_user()['id'] ?? 0), $name, $goal, $n, json_encode($opts, JSON_UNESCAPED_UNICODE), json_encode($refs), $refs ? 'visual' : 'outline']);
     return (int)db()->lastInsertId();
 }
 
-function cpl_opts(array $p): array { return (json_decode((string)$p['opts'], true) ?: []) + ['lang' => 'ar', 'dialect' => '', 'audience' => '', 'services' => [], 'tone' => '', 'cta' => '', 'avoid' => '', 'video' => true, 'carousel' => true]; }
+function cpl_opts(array $p): array { return (json_decode((string)$p['opts'], true) ?: []) + ['lang' => 'ar', 'dialect' => '', 'audience' => '', 'services' => [], 'tone' => '', 'cta' => '', 'avoid' => '', 'video' => true, 'carousel' => true, 'humanize' => true]; }
 
 /** قواعد الكتابة الثابتة (من برومبت المستخدم، مختصرة) */
 function cpl_rules(array $p): string
@@ -117,7 +117,8 @@ function cpl_step(int $id): array
 function cpl_status(array $p): array
 {
     $st = db()->prepare('SELECT COUNT(*) total, SUM(linkedin IS NOT NULL) ready FROM cp_items WHERE plan_id = ?'); $st->execute([(int)$p['id']]); $c = $st->fetch();
-    return ['id' => (int)$p['id'], 'status' => $p['status'], 'stage' => $p['stage'], 'count' => (int)$p['cnt'], 'topics' => (int)$c['total'], 'ready' => (int)$c['ready'], 'error' => (string)($p['error'] ?? '')];
+    $h = db()->prepare('SELECT COUNT(*) FROM cp_items WHERE plan_id = ? AND humanized = 1'); $h->execute([(int)$p['id']]);
+    return ['id' => (int)$p['id'], 'status' => $p['status'], 'stage' => $p['stage'], 'count' => (int)$p['cnt'], 'topics' => (int)$c['total'], 'ready' => (int)$c['ready'], 'human' => (int)$h->fetchColumn(), 'hz' => !empty(cpl_opts($p)['humanize']), 'error' => (string)($p['error'] ?? '')];
 }
 
 function cpl_do_visual(array $p): void
@@ -150,8 +151,36 @@ function cpl_do_outline(array $p): void
     db()->prepare('UPDATE cp_plans SET stage = "posts", cnt = ? WHERE id = ?')->execute([count($topics), (int)$p['id']]);
 }
 
+/** مراجعة Humanizer: المهارة كاملة على نصوص المنشورات (لينكدإن، X، العنوان، الكاروسيل). البرومبتات الإنجليزي مابتتلمسش. */
+function cpl_do_humanize(array $p, array $rows): void
+{
+    $list = []; foreach ($rows as $r) { $car = json_decode((string)$r['carousel'], true) ?: [];
+        $list[] = ['n' => (int)$r['seq'], 'linkedin' => $r['linkedin'], 'x' => $r['x'], 'headline' => $r['headline'], 'carousel' => array_map(function ($s) { return ['title' => $s['title'] ?? '', 'body' => $s['body'] ?? '']; }, $car)]; }
+    $sys = "CONTENT_HUMANIZE_JSON\nYou are the editor. Apply the Humanizer skill below to every text field, in EMBEDDED MODE (return only the final text). The copy is social media for a company; keep its language and dialect, keep hashtags at the end, keep the CTA, keep x within 270 characters, keep headline 2-6 words. Do not add or drop any fact, number, name, price or claim. Do not translate.\n"
+        . "Return ONLY JSON with the same shape: {\"posts\":[{\"n\":1,\"linkedin\":\"...\",\"x\":\"...\",\"headline\":\"...\",\"carousel\":[{\"title\":\"...\",\"body\":\"...\"}]}]}\n\n=== HUMANIZER SKILL ===\n" . ai_humanizer_skill();
+    $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => json_encode($list, JSON_UNESCAPED_UNICODE)]], 1300 * count($rows), 'compose');
+    $j = kb_parse_json((string)($r['text'] ?? '')); $by = []; foreach ((array)($j['posts'] ?? []) as $x) if (is_array($x) && isset($x['n'])) $by[(int)$x['n']] = $x;
+    $up = db()->prepare('UPDATE cp_items SET linkedin = ?, x = ?, headline = ?, carousel = ?, humanized = 1 WHERE id = ?'); $done = 0;
+    foreach ($rows as $row) {
+        $x = $by[(int)$row['seq']] ?? null; $car = json_decode((string)$row['carousel'], true) ?: [];
+        $li = $x ? trim((string)($x['linkedin'] ?? '')) : '';
+        if ($li === '' || mb_strlen($li) < mb_strlen((string)$row['linkedin']) * 0.4) { // رد ناقص: نطبق التنظيف الحتمي بس ومانضيعش النص
+            if ($x) continue;
+            $li = (string)$row['linkedin']; $x = ['x' => $row['x'], 'headline' => $row['headline'], 'carousel' => []];
+        }
+        foreach ($car as $i => $s) { $n = $x['carousel'][$i] ?? null; if (is_array($n)) { if (trim((string)($n['title'] ?? '')) !== '') $car[$i]['title'] = mb_substr(ai_strip_dashes(trim((string)$n['title'])), 0, 200); if (trim((string)($n['body'] ?? '')) !== '') $car[$i]['body'] = mb_substr(ai_strip_dashes(trim((string)$n['body'])), 0, 600); } }
+        $xx = trim((string)($x['x'] ?? '')) ?: (string)$row['x']; $hh = trim((string)($x['headline'] ?? '')) ?: (string)$row['headline'];
+        $up->execute([mb_substr(ai_strip_dashes($li), 0, 5000), mb_substr(ai_strip_dashes($xx), 0, 600), mb_substr(ai_strip_dashes($hh), 0, 120), json_encode($car, JSON_UNESCAPED_UNICODE), (int)$row['id']]); $done++;
+    }
+    if (!$done) throw new RuntimeException(t('مراجعة الأسلوب لم تكتمل. سنعيد المحاولة على المنشورات نفسها.'));
+}
+
 function cpl_do_posts(array $p): void
 {
+    if (cpl_opts($p)['humanize']) { // اكتب ← راجع بالـ Humanizer ← اكتب الدفعة اللي بعدها
+        $h = db()->prepare('SELECT * FROM cp_items WHERE plan_id = ? AND linkedin IS NOT NULL AND humanized = 0 AND status = "draft" ORDER BY seq LIMIT ' . CPL_BATCH); $h->execute([(int)$p['id']]);
+        if ($hr = $h->fetchAll()) { cpl_do_humanize($p, $hr); return; }
+    }
     $st = db()->prepare('SELECT * FROM cp_items WHERE plan_id = ? AND linkedin IS NULL ORDER BY seq LIMIT ' . CPL_BATCH); $st->execute([(int)$p['id']]);
     $rows = $st->fetchAll();
     if (!$rows) { db()->prepare('UPDATE cp_plans SET status = "review", stage = "done" WHERE id = ?')->execute([(int)$p['id']]); return; }
@@ -160,7 +189,7 @@ function cpl_do_posts(array $p): void
     $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => cpl_brief($p) . "\n\nTopics:\n" . json_encode($list, JSON_UNESCAPED_UNICODE)]], 1600 * count($rows), 'compose');
     $j = kb_parse_json((string)($r['text'] ?? '')); $by = [];
     foreach ((array)($j['posts'] ?? []) as $x) if (is_array($x) && isset($x['n'])) $by[(int)$x['n']] = $x;
-    $up = db()->prepare('UPDATE cp_items SET linkedin = ?, x = ?, headline = ?, image_prompt = ?, video_prompt = ?, carousel = ?, status = "draft" WHERE id = ?');
+    $up = db()->prepare('UPDATE cp_items SET linkedin = ?, x = ?, headline = ?, image_prompt = ?, video_prompt = ?, carousel = ?, status = "draft", humanized = 0 WHERE id = ?');
     $done = 0;
     foreach ($rows as $row) {
         $x = $by[(int)$row['seq']] ?? null; if (!$x || trim((string)($x['linkedin'] ?? '')) === '') continue;

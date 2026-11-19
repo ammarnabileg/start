@@ -255,6 +255,17 @@ function ai_humanize_rules(): string
         . "- Never add a fact, number, name, price, date, quote or claim that is not in the provided context. If a detail is missing, write a simpler sentence instead of guessing.\n"
         . "- Sound like a specific person from this company talking to one customer, not like a template written for everyone.";
 }
+/** مهارة Humanizer كاملة (app/prompts/humanizer.md): بتتبعت كاملة في مراجعة المحتوى، مش ملخص */
+function ai_humanizer_skill(): string { static $s = null; if ($s === null) $s = (string)@file_get_contents(__DIR__ . '/prompts/humanizer.md'); return $s; }
+
+/** تنظيف حتمي بعد الذكاء الاصطناعي: الشرط الطويلة لفواصل (خارج الروابط والكود) */
+function ai_strip_dashes(string $t): string
+{
+    $t = preg_replace('/\s*[—–]\s*/u', '، ', $t);
+    $t = preg_replace('/ -- /u', '، ', $t);
+    return preg_replace('/(^|\n)، /u', '$1', $t);
+}
+
 function ai_with_style(array $messages, string $task): array
 {
     if (!in_array($task, ['assistant', 'compose', 'reply', 'reply_fast', 'analyze', 'ads_copy', 'ads_builder', 'ads_advisor', 'reviews'], true)) return $messages;

@@ -16,11 +16,11 @@
     var key = 'cp_draft_' + C.wid, refs = [];
     function paintRefs() { $('#cp-refs').innerHTML = refs.map(function (r, i) { return '<span class="relative"><img src="' + esc(r.thumb) + '" class="w-20 h-24 object-cover rounded-xl border border-ink-200" alt=""><button type="button" data-rm="' + i + '" class="absolute -top-1.5 -end-1.5 w-6 h-6 rounded-full bg-white border border-ink-200 text-xs">×</button></span>'; }).join(''); }
     function collect() { var d = { refs: refs.map(function (r) { return r.id; }), services: $$('[name=services]:checked', W).map(function (x) { return x.value; }) };
-      ['goal', 'count', 'name', 'lang', 'dialect', 'tone', 'cta', 'audience', 'avoid'].forEach(function (n) { d[n] = W[n].value; }); d.video = W.video.checked; d.carousel = W.carousel.checked; return d; }
+      ['goal', 'count', 'name', 'lang', 'dialect', 'tone', 'cta', 'audience', 'avoid'].forEach(function (n) { d[n] = W[n].value; }); d.video = W.video.checked; d.carousel = W.carousel.checked; d.humanize = W.humanize.checked; return d; }
     var dr = ls(key);
     if (dr && (dr.goal || (dr.refsFull || []).length)) {
       ['goal', 'count', 'name', 'lang', 'dialect', 'tone', 'cta', 'audience', 'avoid'].forEach(function (n) { if (dr[n] != null) W[n].value = dr[n]; });
-      W.video.checked = dr.video !== false; W.carousel.checked = dr.carousel !== false;
+      W.video.checked = dr.video !== false; W.carousel.checked = dr.carousel !== false; W.humanize.checked = dr.humanize !== false;
       $$('[name=services]', W).forEach(function (x) { x.checked = (dr.services || []).indexOf(x.value) >= 0; });
       refs = dr.refsFull || []; paintRefs(); toast(T.draftRestored, 'info');
     }
@@ -46,8 +46,8 @@
   var prog = $('#cp-prog');
   function paintProg(s, note) {
     P = Object.assign(P, s);
-    var pct = P.count ? Math.round(100 * P.ready / P.count) : 0, txt;
-    if (P.status === 'generating') txt = P.stage === 'visual' ? T.stVisual : P.stage === 'outline' ? T.stOutline : fmt(T.stPosts, P.ready, P.count);
+    var pct = P.count ? Math.round(100 * (P.hz ? (P.ready + P.human) / 2 : P.ready) / P.count) : 0, txt;
+    if (P.status === 'generating') txt = P.stage === 'visual' ? T.stVisual : P.stage === 'outline' ? T.stOutline : fmt(T.stPosts, P.ready, P.count) + (P.hz ? ' · ' + fmt(T.stHuman, P.human, P.count) : '');
     else if (P.status === 'paused') txt = T.stPaused; else txt = T.stReview;
     prog.innerHTML = '<div class="flex flex-wrap items-center gap-3"><b class="text-ink-900">' + esc(txt) + '</b><span class="flex-1"></span>'
       + (P.status === 'paused' || (P.status === 'generating' && P.error) ? '<button type="button" id="cp-resume" class="btn-primary !py-1.5">' + esc(T.resume) + '</button>' : '') + '</div>'
@@ -62,7 +62,7 @@
       post({ action: 'step' }).then(function (j) {
         if (!j.ok) { running = false; paintProg({}, j.error || T.err); return; }
         var before = P.ready; paintProg(j);
-        if (j.ready !== before || j.topics !== items.length) load();
+        if (j.ready !== before || j.human !== P._h || j.topics !== items.length) { P._h = j.human; load(); }
         if (j.status !== 'generating') { running = false; load(); return; }
         setTimeout(next, j.busy ? 4000 : j.error ? 6000 : 300);
       }).catch(function () { running = false; paintProg({}, T.offline); });
@@ -88,7 +88,7 @@
     var h = '<article class="card p-4" data-id="' + it.id + '"><header class="flex flex-wrap items-start gap-2 mb-3">'
       + (ready && ['draft', 'approved', 'rejected'].indexOf(st) >= 0 ? '<input type="checkbox" class="cp-sel mt-1.5"' + (sel[it.id] ? ' checked' : '') + '>' : '')
       + '<div class="min-w-0 flex-1"><b class="text-ink-900">' + it.seq + '. ' + esc(t.title || '') + '</b><div class="text-xs text-ink-500">' + esc([t.angle, t.category, t.service].filter(Boolean).join(' · ')) + '</div></div>'
-      + '<span class="badge ' + badge + '">' + esc(T['s_' + st] || st) + '</span></header>';
+      + (+it.humanized ? '<span class="text-[11px] text-ink-400" title="Humanizer">✓ ' + esc(T.human) + '</span>' : '') + '<span class="badge ' + badge + '">' + esc(T['s_' + st] || st) + '</span></header>';
     if (!ready) return h + '<div class="h-16 rounded-xl bg-ink-50 animate-pulse"></div></article>';
     h += '<div class="grid lg:grid-cols-2 gap-3">' + block(T.li, it.linkedin, 'linkedin', it) + block(T.x, it.x, 'x', it)
       + block(T.img + (it.headline ? ' — «' + it.headline + '»' : ''), it.image_prompt, 'image_prompt', it, true) + block(T.vid, it.video_prompt, 'video_prompt', it, true) + '</div>';

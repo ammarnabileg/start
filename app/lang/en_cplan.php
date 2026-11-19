@@ -109,4 +109,9 @@ return [
     'عدّل النصوص أو عمود الحالة (معتمد / مرفوض / مسودة) ثم ارفع الملف في صفحة الخطة. لا تغيّر عمود ID.' => 'Edit the texts or the status column (Approved / Rejected / Draft), then upload the file on the plan page. Do not change the ID column.',
     'الملف فارغ.' => 'The file is empty.',
     'عمود ID غير موجود. استخدم الملف الذي نزّلته من هنا.' => 'ID column missing. Use the file you downloaded here.',
+    'مراجعة الأسلوب (Humanizer)' => 'Style review (Humanizer)',
+    'بعد كتابة كل دفعة، يراجعها محرر بمهارة Humanizer كاملة ويزيل أنماط كتابة الذكاء الاصطناعي دون تغيير المعلومات. يضاعف تكلفة الكتابة تقريبًا.' => 'After each batch is written, an editor reviews it with the full Humanizer skill and removes AI writing patterns without changing the facts. Roughly doubles writing cost.',
+    'مراجعة الأسلوب: %s من %s' => 'Style review: %s of %s',
+    'روجع بالـ Humanizer' => 'Humanized',
+    'مراجعة الأسلوب لم تكتمل. سنعيد المحاولة على المنشورات نفسها.' => 'Style review didn\'t finish. We\'ll retry the same posts.',
 ];
