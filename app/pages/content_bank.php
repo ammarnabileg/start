@@ -41,7 +41,7 @@ $accounts = [];
 if ($z) { try { foreach (acc_filter($z->accounts(zernio_profile())) as $a) $accounts[] = ['id' => (string)$a['_id'], 'platform' => (string)$a['platform'], 'name' => (string)($a['displayName'] ?? $a['username'] ?? $a['platform'])]; } catch (Throwable $e) { $zerr = $e->getMessage(); } }
 render(t('مخزون المحتوى'), 'content_bank', function () use ($items, $plans, $accounts, $zerr, $wid) {
     foreach ($items as &$it) $it['media'] = cb_thumbs($it['media_ids']); unset($it);
-    require_once ROOT_DIR . '/app/views/cb_tabbar.php'; echo cb_tabbar('content_bank');
+    
     $saved = json_decode((string)setting('cb_accounts_' . $wid . '_' . (int)(current_user()['id'] ?? 0), '[]'), true) ?: [];
     $T = [
         'all' => t('تحديد الكل'), 'sel' => t('%s محدد'), 'now' => t('انشر الآن'), 'queue' => t('أضف للطابور'), 'sched' => t('جدولة'), 'back' => t('إرجاع للمراجعة'), 'attach' => t('أرفق صورة/فيديو'), 'more' => t('+ ملف'), 'bulkAttach' => t('أرفق صورًا للمحدد بالترتيب'), 'bulkDone' => t('تم إرفاق %s ملف.'), 'carNote' => t('للكاروسيل: أرفق الصور الخمس بالترتيب.'), 'change' => t('غيّر'), 'remove' => t('إزالة'),

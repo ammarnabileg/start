@@ -53,7 +53,9 @@ function nav_items(): array
         // استوديو المحتوى: 3 بنود رئيسية مباشرة (من غير قائمة منسدلة)
         ['key' => 'studio', 'module' => 'studio', 'label' => t('الكتابة بالذكاء الاصطناعي'), 'section' => $sC],
         // «مخزون المحتوى» تاب تحت «الصور والفيديو» (طلب المستخدم)، و«خطة المحتوى» بتتفتح منه ومن أدوات المنشورات
-        ['key' => 'studio_media', 'module' => 'studio', 'label' => t('الصور والفيديو'), 'section' => $sC, 'tabs' => ['studio_media' => t('الصور والفيديو'), 'content_bank' => t('مخزون المحتوى')], 'also' => ['content_plan']],
+        ['key' => 'studio_media', 'module' => 'studio', 'label' => t('الصور والفيديو'), 'section' => $sC],
+        ['key' => 'content_plan', 'module' => 'studio', 'label' => t('خطة محتوى بالذكاء الاصطناعي'), 'section' => $sC],
+        ['key' => 'content_bank', 'module' => 'studio', 'label' => t('مخزون المحتوى'), 'section' => $sC],
         ['key' => 'designer', 'module' => 'studio', 'label' => t('المصمم'), 'section' => $sC],
         ['key' => 'compose', 'module' => 'publishing', 'label' => t('منشور جديد'), 'section' => $s3],
         ['key' => 'posts', 'module' => 'publishing', 'label' => t('المنشورات'), 'section' => $s3,

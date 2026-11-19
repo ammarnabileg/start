@@ -44,7 +44,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($a === 'status') { session_write_close(); $J(['ok' => true] + cpl_status($p)); }
         if ($a === 'resume') { cpl_log($pid, t('استئناف يدوي من حيث توقف.')); db()->prepare('UPDATE cp_plans SET status = "generating", fails = 0, error = NULL WHERE id = ? AND status IN ("paused","generating")')->execute([$pid]); $J(['ok' => true]); }
         if ($a === 'import') { if (empty($_FILES['file']['tmp_name']) || !is_uploaded_file($_FILES['file']['tmp_name'])) $J(['ok' => false, 'error' => t('الرفع فشل، جرّب تاني.')]); [$u, $s] = cpl_import_xlsx($pid, $_FILES['file']['tmp_name']); $J(['ok' => true, 'updated' => $u, 'skipped' => $s]); }
-        if ($a === 'items') $J(['ok' => true, 'items' => cpl_items($pid)]);
+        if ($a === 'items') $J(['ok' => true, 'items' => cpl_items($pid), 'jobs' => cpl_jobs_status($pid)]);
+        if ($a === 'gen') { $J(['ok' => true, 'n' => cpl_jobs_add($pid, array_map('intval', (array)json_decode((string)($_POST['ids'] ?? '[]'), true)), (string)($_POST['kind'] ?? '')), 'jobs' => cpl_jobs_status($pid)]); }
+        if ($a === 'usefmt') { $it = cpl_item((int)($_POST['id'] ?? 0)); $k = (string)($_POST['kind'] ?? ''); if (!$it || $it['plan_id'] !== $pid) $J(['ok' => false], 404);
+            if ($k === 'text') db()->prepare('UPDATE cp_items SET fmt = NULL, media_ids = NULL, media_id = NULL WHERE id = ?')->execute([$it['id']]); else cpl_jobs_finalize($it['id'], $k);
+            $J(['ok' => true]); }
+        if ($a === 'jobs') { session_write_close(); ignore_user_abort(true); $GLOBALS['ai_timeout'] = 240; $did = cpl_jobs_tick($pid); $J(['ok' => true, 'did' => $did, 'jobs' => cpl_jobs_status($pid), 'log' => cpl_status(cpl_plan($pid))['log']]); }
         if ($a === 'set') { $ids = array_map('intval', (array)json_decode((string)($_POST['ids'] ?? '[]'), true)); $J(['ok' => true, 'n' => cpl_set_status($ids, (string)($_POST['status'] ?? ''))]); }
         if ($a === 'save') { $it = cpl_item((int)($_POST['id'] ?? 0)); if (!$it || $it['plan_id'] !== $pid) $J(['ok' => false, 'error' => t('طلب غير صحيح.')], 404); cpl_save_item($it['id'], (array)json_decode((string)($_POST['f'] ?? '{}'), true)); $J(['ok' => true, 'item' => cpl_item($it['id'])]); }
         if ($a === 'regen') {
@@ -68,11 +73,12 @@ render($plan ? (string)$plan['name'] : t('خطة محتوى بالذكاء ال�
         'li' => 'LinkedIn', 'x' => 'X', 'img' => t('برومبت الصورة'), 'vid' => t('برومبت الفيديو'), 'car' => t('كاروسيل (5 شرائح)'), 'head' => t('عنوان الصورة'), 'words' => t('%s كلمة'), 'chars' => t('%s حرف'),
         's_pending' => t('قيد الكتابة'), 's_draft' => t('مسودة'), 's_approved' => t('معتمد'), 's_rejected' => t('مرفوض'), 's_scheduled' => t('مجدول'), 's_queued' => t('في الطابور'), 's_published' => t('تم النشر'),
         'toBank' => t('افتح مخزون المحتوى'), 'nApproved' => t('%s معتمد في المخزون'), 'f_all' => t('الكل'), 'delPlan' => t('حذف الخطة؟ المنشورات المجدولة أو المنشورة تبقى في المخزون.'),
-        'uploading' => t('جارٍ رفع الصور…'), 'imported' => t('تم تحديث %s منشور من الملف (تخطّينا %s).'), 'needGoal' => t('اكتب هدف الحملة.'), 'draftRestored' => t('استرجعنا المسودة التي لم تُرسل.'), 'refMax' => t('حتى 12 صورة.'), 'uploaded' => t('تم رفع الصور.'), 'logT' => t('سجل التنفيذ المباشر'), 'srcBg' => t('خلفية'), 'srcPage' => t('الصفحة'), 'elapsed' => t('%s ثانية'), 'busyBg' => t('خطوة تعمل في الخلفية، ننتظرها'), 'pdfPages' => t('جارٍ تحويل صفحات PDF إلى صور…'), 'qc' => t('فحص الجودة:'), 'cats' => array_map('t', cpl_categories()),
+        'uploading' => t('جارٍ رفع الصور…'), 'imported' => t('تم تحديث %s منشور من الملف (تخطّينا %s).'), 'needGoal' => t('اكتب هدف الحملة.'), 'draftRestored' => t('استرجعنا المسودة التي لم تُرسل.'), 'refMax' => t('حتى 12 صورة.'), 'uploaded' => t('تم رفع الصور.'), 'fSel' => t('%s محدد'), 'genAsk' => t('توليد %s لـ %s منشور؟ يُخصم من رصيد مزوّد الصور/الفيديو.'), 'kImage' => t('صورة'), 'kVideo' => t('فيديو'), 'kCarousel' => t('كاروسيل (5 صور)'), 'genAdded' => t('بدأ التوليد: %s مهمة. يكمل في الخلفية حتى لو أغلقت الصفحة.'), 'genNone' => t('لا شيء جديد للتوليد (ربما قيد التوليد بالفعل، أو لا يوجد كاروسيل).'),
+        'jBusy' => t('جارٍ التوليد'), 'jDone' => t('جاهز'), 'jFail' => t('فشل'), 'toBankOne' => t('إرسال للمخزون'), 'fmtText' => t('نص فقط'), 'useFmt' => t('اضغط لاستخدام هذا الشكل في النشر'), 'inUse' => t('المستخدم في النشر'), 'sent' => t('أُرسل %s منشور للمخزون.'), 'logT' => t('سجل التنفيذ المباشر'), 'srcBg' => t('خلفية'), 'srcPage' => t('الصفحة'), 'elapsed' => t('%s ثانية'), 'busyBg' => t('خطوة تعمل في الخلفية، ننتظرها'), 'pdfPages' => t('جارٍ تحويل صفحات PDF إلى صور…'), 'qc' => t('فحص الجودة:'), 'cats' => array_map('t', cpl_categories()),
     ];
-    require_once ROOT_DIR . '/app/views/cb_tabbar.php'; echo cb_tabbar('content_plan');
+    
     $stepNow = !$plan ? 1 : (in_array($plan['status'], ['generating', 'paused'], true) ? 1 : 2);
-    $steps = [1 => [t('الخطوة الأولى'), t('الهدف وعدد المنشورات والصور المرجعية ← تجهيز الملف والبرومبتات (بدون صور أو فيديو)')], 2 => [t('الخطوة الثانية'), t('وافق على بعضها أو كلها ← المعتمد يذهب إلى مخزون المحتوى')]];
+    $steps = [1 => [t('الخطوة الأولى'), t('الهدف وعدد المنشورات والصور المرجعية ← تجهيز الملف والبرومبتات (بدون صور أو فيديو)')], 2 => [t('الخطوة الثانية'), t('حدد منشورات ← ولّد لها صورة أو فيديو أو كاروسيل (أو اتركها نصًا) ← أرسلها للمخزون')]];
     echo '<ol class="grid sm:grid-cols-2 gap-2 mb-5">'; foreach ($steps as $n => [$h, $d]) echo '<li class="rounded-2xl border p-3 ' . ($n === $stepNow ? 'border-brand-300 bg-brand-50/60' : 'border-ink-200 bg-white') . '"><div class="flex items-center gap-2"><span class="w-6 h-6 rounded-full grid place-items-center text-xs font-bold ' . ($n === $stepNow ? 'bg-brand-600 text-[#fff]' : ($n < $stepNow ? 'bg-lime-500 text-[#fff]' : 'bg-ink-100 text-ink-500')) . '">' . ($n < $stepNow ? '✓' : $n) . '</span><b class="text-sm">' . e($h) . '</b></div><p class="text-xs text-ink-500 mt-1">' . e($d) . '</p></li>'; echo '</ol>';
     $cfg = ['url' => url('content_plan'), 'bank' => url('content_bank'), 'csrf' => csrf_token(), 'wid' => $wid, 't' => $T];
     if ($plan): $cfg['plan'] = cpl_status($plan) + ['name' => (string)$plan['name']]; ?>
@@ -90,11 +96,21 @@ render($plan ? (string)$plan['name'] : t('خطة محتوى بالذكاء ال�
       <label class="flex items-center gap-1.5 px-2"><input type="checkbox" id="cp-all"><?= e($T['all']) ?></label>
       <select id="cp-f" class="input !mt-0 !py-1 !w-auto text-sm"><option value=""><?= e($T['f_all']) ?></option><?php foreach (['draft', 'approved', 'rejected'] as $s): ?><option value="<?= $s ?>"><?= e($T['s_' . $s]) ?></option><?php endforeach; ?><option value="qc"><?= e(t('يحتاج مراجعة (فحص الجودة)')) ?></option></select>
       <span class="flex-1"></span>
-      <button type="button" data-bulk="approved" class="btn-primary !py-1.5" disabled></button>
-      <button type="button" data-bulk="rejected" class="btn-ghost !py-1.5" disabled><?= e($T['rejectSel']) ?></button>
+
       <a href="<?= e(url('content_bank')) ?>" id="cp-tobank" class="btn-ghost !py-1.5 hidden"></a>
     </div>
-    <div id="cp-list" class="space-y-3"></div>
+    <div id="cp-list" class="space-y-3 pb-28"></div>
+    <div id="cp-float" class="hidden fixed bottom-4 inset-x-0 z-40 px-3 pointer-events-none">
+      <div class="pointer-events-auto mx-auto w-fit max-w-full rounded-2xl border border-ink-200 bg-white shadow-2xl p-2 flex flex-wrap items-center justify-center gap-2 text-sm">
+        <b id="cp-fn" class="px-2 text-ink-700"></b>
+        <button type="button" data-gen="image" class="btn-ghost !py-2"><?= ui_icon('image', 'w-4 h-4') ?><?= e(t('توليد صورة')) ?></button>
+        <button type="button" data-gen="video" class="btn-ghost !py-2"><?= ui_icon('play', 'w-4 h-4') ?><?= e(t('توليد فيديو')) ?></button>
+        <button type="button" data-gen="carousel" class="btn-ghost !py-2"><?= ui_icon('layers', 'w-4 h-4') ?><?= e(t('توليد كاروسيل')) ?></button>
+        <button type="button" data-bulk="approved" class="!py-2 px-4 rounded-xl font-semibold text-[#fff] inline-flex items-center gap-1.5" style="background:#16a34a">✓ <?= e(t('إرسال للمخزون')) ?></button>
+        <button type="button" data-bulk="rejected" class="btn-ghost !py-2 text-red-600"><?= e(t('رفض')) ?></button>
+        <button type="button" id="cp-fx" class="px-2 text-ink-400" title="<?= e(t('إلغاء التحديد')) ?>">✕</button>
+      </div>
+    </div>
     <?php else: $plans = cpl_plans(); $kb = kb_get($wid); $svc = array_values(array_filter(array_map(function ($r) { return trim((string)($r['name'] ?? '')); }, (array)($kb['services']['rows'] ?? []))));
       $hasLogo = function_exists('kb_logo') && kb_logo($wid); ?>
     <p class="text-sm text-ink-500 mb-4"><?= e(t('اكتب هدفك وعدد المنشورات وارفع تصميمات مرجعية. نكتب لك خطة كاملة من ملف شركتك: موضوع، نص لينكدإن، نص X، برومبت صورة، برومبت فيديو، وكاروسيل لكل منشور. لا نولّد صورًا هنا؛ أنت تعتمد ما يعجبك فيذهب إلى مخزون المحتوى للجدولة والنشر.')) ?></p>
@@ -140,7 +156,7 @@ render($plan ? (string)$plan['name'] : t('خطة محتوى بالذكاء ال�
       <?php endforeach; ?>
     </div>
     <?php endif; endif; ?>
-    <script>window.CP = <?= json_encode($cfg, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;</script>
+    <?php $cfg['media'] = url('media'); ?><script>window.CP = <?= json_encode($cfg, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;</script>
     <?php if (!$plan): ?><script src="assets/extract.js?v=<?= e(APP_VERSION) ?>"></script><?php endif; ?>
     <script src="assets/content-plan.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php

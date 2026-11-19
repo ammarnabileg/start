@@ -528,6 +528,26 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    '076_cp_jobs' => [
+        "CREATE TABLE IF NOT EXISTS cp_jobs (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            plan_id INT UNSIGNED NOT NULL,
+            item_id INT UNSIGNED NOT NULL,
+            workspace_id INT UNSIGNED NOT NULL,
+            kind VARCHAR(10) NOT NULL,
+            slide TINYINT UNSIGNED NULL,
+            status VARCHAR(10) NOT NULL DEFAULT 'queued',
+            ext_id VARCHAR(120) NULL,
+            result TEXT NULL,
+            error VARCHAR(300) NULL,
+            tries TINYINT UNSIGNED NOT NULL DEFAULT 0,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX plan_st (plan_id, status),
+            INDEX item_kind (item_id, kind)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        "ALTER TABLE cp_items ADD COLUMN fmt VARCHAR(10) NULL",
+    ],
     '075_cp_fix' => [
         "ALTER TABLE cp_items ADD COLUMN fix_tries TINYINT UNSIGNED NOT NULL DEFAULT 0",
     ],

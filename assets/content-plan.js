@@ -121,32 +121,59 @@
       + block(T.img + (it.headline ? ' — «' + it.headline + '»' : ''), it.image_prompt, 'image_prompt', it, true) + block(T.vid, it.video_prompt, 'video_prompt', it, true) + '</div>';
     if ((it.carousel || []).length) h += '<details class="mt-3 rounded-xl border border-ink-200 p-3"><summary class="cursor-pointer text-xs font-bold text-ink-500">' + esc(T.car) + '</summary><ol class="mt-2 grid sm:grid-cols-5 gap-2">'
       + it.carousel.map(function (s, i) { return '<li class="rounded-lg bg-ink-50 p-2 text-sm"><div class="text-[11px] text-ink-400">' + (i + 1) + ' · ' + esc(s.role) + '</div><b class="block">' + esc(s.title) + '</b><div class="text-xs text-ink-600">' + esc(s.body) + '</div><div class="text-[11px] text-ink-400 mt-1" dir="ltr">' + esc(s.visual) + (s.layout ? '<br><i>' + esc(s.layout) + '</i>' : '') + '</div></li>'; }).join('') + '</ol></details>';
+    h += mediaHtml(it);
     h += '<footer class="flex flex-wrap gap-2 mt-3">';
-    if (st === 'draft' || st === 'rejected') h += '<button type="button" data-st="approved" class="btn-primary !py-1.5">' + esc(T.approve) + '</button>';
+    if (st === 'draft' || st === 'rejected') h += '<button type="button" data-st="approved" class="!py-1.5 px-3 rounded-xl font-semibold text-[#fff]" style="background:#16a34a">' + esc(T.toBankOne) + '</button>';
     if (st === 'draft' || st === 'approved') h += '<button type="button" data-st="rejected" class="btn-ghost !py-1.5">' + esc(T.reject) + '</button>';
     if (st === 'approved' || st === 'rejected') h += '<button type="button" data-st="draft" class="btn-ghost !py-1.5">' + esc(T.undo) + '</button>';
     if (['draft', 'rejected', 'approved'].indexOf(st) >= 0) h += '<button type="button" data-regen class="btn-ghost !py-1.5">' + esc(T.regen) + '</button>';
     return h + '</footer></article>';
   }
+  var jobs = {};
+  function murl(id, th) { return C.media + (C.media.indexOf('?') >= 0 ? '&' : '?') + 'file=' + id + (th ? '&thumb=1' : ''); }
+  function mediaHtml(it) {
+    var js = jobs[it.id] || {}, chips = '';
+    ['image', 'video', 'carousel'].forEach(function (k) { var j = js[k]; if (!j) return; var lab = T['k' + k[0].toUpperCase() + k.slice(1)], bad = j.failed && !j.done && !j.busy;
+      var can = j.done && !j.busy && it.fmt !== k, on = it.fmt === k;
+      chips += '<' + (can ? 'button type="button" data-fmt="' + k + '"' : 'span') + ' class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs ' + (on ? 'ring-2 ring-lime-500 ' : '') + (j.busy ? 'bg-brand-50 text-brand-700' : bad ? 'bg-red-50 text-red-700' : 'bg-lime-50 text-lime-700') + '"' + (j.err ? ' title="' + esc(j.err) + '"' : can ? ' title="' + esc(T.useFmt) + '"' : on ? ' title="' + esc(T.inUse) + '"' : '') + '>'
+        + (j.busy ? '<span class="w-3 h-3 rounded-full border-2 border-current border-t-transparent animate-spin"></span>' : bad ? '✕' : '✓') + ' ' + esc(lab) + (j.total > 1 ? ' ' + j.done + '/' + j.total : '') + ' · ' + esc(j.busy ? T.jBusy : bad ? T.jFail : T.jDone) + '</' + (can ? 'button' : 'span') + '>'; });
+    var ms = it.media_ids || [], fm = it.fmt ? T['k' + it.fmt[0].toUpperCase() + it.fmt.slice(1)] : T.fmtText;
+    if (!chips && !ms.length) return '';
+    return '<div class="mt-3 rounded-xl border border-ink-200 p-3"><div class="flex flex-wrap items-center gap-2 mb-2"><b class="text-xs text-ink-500">' + esc(fm) + '</b>' + chips + '</div>'
+      + (ms.length ? '<div class="flex flex-wrap gap-2">' + ms.map(function (m) { return it.fmt === 'video' ? '<a href="' + esc(murl(m)) + '" target="_blank" class="w-24 h-32 rounded-lg bg-ink-900 text-[#fff] grid place-items-center text-xs">▶ ' + esc(T.kVideo) + '</a>' : '<a href="' + esc(murl(m)) + '" target="_blank"><img src="' + esc(murl(m, 1)) + '" class="w-24 h-32 object-cover rounded-lg border border-ink-200" alt=""></a>'; }).join('') + '</div>' : '') + '</div>';
+  }
+  var fl = $('#cp-float');
+  function genLoop() { if (genLoop.on) return; genLoop.on = true;
+    (function next() { post({ action: 'jobs' }).then(function (j) { if (!j.ok) { genLoop.on = false; return; } jobs = j.jobs.items || {}; if (j.log) { P.log = j.log; paintProg({}); }
+      load(); if (j.jobs.pending) setTimeout(next, j.did ? 300 : 5000); else genLoop.on = false; })
+      .catch(function () { setTimeout(function () { genLoop.on = false; genLoop(); }, 8000); }); })(); }
   function paint() {
     var vis = items.filter(function (i) { return !filter || (filter === 'qc' ? (i.qc || []).length : i.status === filter); });
     list.innerHTML = vis.map(card).join('');
     var ready = items.filter(function (i) { return i.linkedin != null; }).length; bar.classList.toggle('hidden', !ready);
     var n = Object.keys(sel).length, ap = items.filter(function (i) { return ['approved', 'scheduled', 'queued', 'published'].indexOf(i.status) >= 0; }).length;
-    $$('[data-bulk]', bar).forEach(function (b) { b.disabled = !n; }); $('[data-bulk=approved]', bar).textContent = fmt(T.approveSel, n);
+    fl.classList.toggle('hidden', !n); $('#cp-fn').textContent = fmt(T.fSel, n);
     var tb = $('#cp-tobank'); tb.classList.toggle('hidden', !ap); tb.textContent = fmt(T.nApproved, ap) + ' ←';
   }
-  function load() { return post({ action: 'items' }).then(function (j) { if (!j.ok) return; items = j.items; Object.keys(sel).forEach(function (k) { if (!items.some(function (i) { return i.id == k; })) delete sel[k]; }); paint(); }); }
+  function load() { return post({ action: 'items' }).then(function (j) { if (!j.ok) return; items = j.items; jobs = (j.jobs || {}).items || {}; if ((j.jobs || {}).pending) genLoop(); Object.keys(sel).forEach(function (k) { if (!items.some(function (i) { return i.id == k; })) delete sel[k]; }); paint(); }); }
   function setSt(ids, st) { return post({ action: 'set', ids: JSON.stringify(ids), status: st }).then(function (j) { if (!j.ok) return toast(j.error || T.err, 'error'); ids.forEach(function (id) { delete sel[id]; }); load(); }).catch(function () { toast(T.offline, 'error'); }); }
   $('#cp-f').addEventListener('change', function () { filter = this.value; paint(); });
   $('#cp-all').addEventListener('change', function () { var on = this.checked; sel = {}; if (on) items.forEach(function (i) { if (i.linkedin != null && ['draft', 'approved', 'rejected'].indexOf(i.status) >= 0 && (!filter || i.status === filter)) sel[i.id] = 1; }); paint(); });
-  bar.addEventListener('click', function (e) { var b = e.target.closest('[data-bulk]'); if (b) setSt(Object.keys(sel).map(Number), b.dataset.bulk); });
+  fl.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-bulk]'), ids = Object.keys(sel).map(Number);
+    if (b) { var st = b.dataset.bulk; return setSt(ids, st).then(function () { if (st === 'approved') toast(fmt(T.sent, ids.length)); }); }
+    if (e.target.closest('#cp-fx')) { sel = {}; return paint(); }
+    var g = e.target.closest('[data-gen]'); if (!g) return; var k = g.dataset.gen, lab = T['k' + k[0].toUpperCase() + k.slice(1)];
+    (window.fxAsk ? fxAsk(fmt(T.genAsk, lab, ids.length)) : Promise.resolve(confirm(fmt(T.genAsk, lab, ids.length)))).then(function (ok) { if (!ok) return;
+      post({ action: 'gen', ids: JSON.stringify(ids), kind: k }).then(function (j) { if (!j.ok) return toast(j.error || T.err, 'error'); if (!j.n) return toast(T.genNone, 'info'); toast(fmt(T.genAdded, j.n)); jobs = j.jobs.items || {}; paint(); genLoop(); }).catch(function () { toast(T.offline, 'error'); }); });
+  });
   list.addEventListener('change', function (e) { if (!e.target.classList.contains('cp-sel')) return; var id = e.target.closest('article').dataset.id; if (e.target.checked) sel[id] = 1; else delete sel[id]; paint(); });
   list.addEventListener('click', function (e) {
     var art = e.target.closest('article'); if (!art) return; var id = +art.dataset.id, it = items.find(function (i) { return i.id === id; }); if (!it) return;
     var b;
     if ((b = e.target.closest('[data-st]'))) return setSt([id], b.dataset.st);
     if ((b = e.target.closest('[data-copy]'))) { navigator.clipboard.writeText(it[b.dataset.copy] || '').then(function () { toast(T.copied); }); return; }
+    if ((b = e.target.closest('[data-fmt]'))) { post({ action: 'usefmt', id: id, kind: b.dataset.fmt }).then(function () { load(); }); return; }
     if (e.target.closest('[data-regen]')) { post({ action: 'regen', id: id }).then(function (j) { if (!j.ok) return toast(j.error || T.err, 'error'); P.status = 'generating'; load(); loop(); }); return; }
     if ((b = e.target.closest('[data-edit]'))) {
       var f = b.dataset.edit, box = $('.cp-txt', b.closest('section'));

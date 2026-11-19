@@ -303,6 +303,8 @@ function cpl_tick(int $wid, int $budget = 4): int
 {
     $st = db()->prepare('SELECT id FROM cp_plans WHERE workspace_id = ? AND status = "generating" ORDER BY id LIMIT 3'); $st->execute([$wid]); $n = 0;
     $GLOBALS['cpl_cron'] = true;
+    $jq = db()->prepare('SELECT DISTINCT plan_id FROM cp_jobs WHERE workspace_id = ? AND status IN ("queued","running") LIMIT 3'); $jq->execute([$wid]);
+    foreach ($jq->fetchAll(PDO::FETCH_COLUMN) as $pid) for ($i = 0; $i < 3; $i++) { if (!cpl_jobs_tick((int)$pid)) break; $n = ($n ?? 0) + 1; }
     foreach ($st->fetchAll(PDO::FETCH_COLUMN) as $id) for ($i = 0; $i < $budget; $i++) { $s = cpl_step((int)$id); $n++; if ($s['status'] !== 'generating' || !empty($s['busy']) || $s['error'] !== '') break; }
     return $n;
 }
@@ -507,4 +509,111 @@ function cpl_import_xlsx(int $planId, string $path): array
         $up++;
     }
     return [$up, $skip];
+}
+
+/* ===================== الخطوة الثانية: توليد الصور/الفيديو/الكاروسيل للمنشورات المختارة ===================== */
+/* كل طلب توليد = مهمة محفوظة في cp_jobs، بتتنفذ واحدة واحدة من الصفحة أو من الكرون، فلو النت فصل بتكمل. */
+
+/** يضيف مهام توليد لمنشورات (الكاروسيل = 5 مهام، واحدة لكل شريحة). يرجع عدد المهام */
+function cpl_jobs_add(int $planId, array $ids, string $kind): int
+{
+    if (!in_array($kind, ['image', 'video', 'carousel'], true)) throw new RuntimeException(t('طلب غير صحيح.'));
+    if ($kind === 'video' && (!function_exists('vid_provider') || vid_provider() !== 'openrouter')) throw new RuntimeException(t('توليد الفيديو هنا يحتاج ربط OpenRouter بموديل فيديو من صفحة التكاملات.'));
+    if ($kind !== 'video' && (!function_exists('img_provider') || img_provider() === '')) throw new RuntimeException(t('اربط OpenAI أو OpenRouter من التكاملات لتوليد الصور.'));
+    $n = 0; $ins = db()->prepare('INSERT INTO cp_jobs (plan_id, item_id, workspace_id, kind, slide, status) VALUES (?,?,?,?,?, "queued")');
+    $has = db()->prepare('SELECT COUNT(*) FROM cp_jobs WHERE item_id = ? AND kind = ? AND status IN ("queued","running")');
+    foreach (array_map('intval', $ids) as $id) {
+        $it = cpl_item($id); if (!$it || $it['plan_id'] !== $planId || $it['linkedin'] === null) continue;
+        $has->execute([$id, $kind]); if ((int)$has->fetchColumn()) continue;
+        if ($kind === 'carousel' && count($it['carousel']) < 2) continue;
+        foreach ($kind === 'carousel' ? array_keys(array_slice($it['carousel'], 0, 5)) : [null] as $sl) { $ins->execute([$planId, $id, (int)ws('id'), $kind, $sl]); $n++; }
+    }
+    if ($n) cpl_log($planId, t('أُضيفت %s مهمة توليد (%s) لـ %s منشور.', $n, ['image' => t('صورة'), 'video' => t('فيديو'), 'carousel' => t('كاروسيل')][$kind], count($ids)));
+    return $n;
+}
+
+function cpl_jobs(int $planId): array
+{
+    $st = db()->prepare('SELECT * FROM cp_jobs WHERE plan_id = ? ORDER BY id'); $st->execute([$planId]); return $st->fetchAll();
+}
+
+/** أرقام ملفات المكتبة لأسماء نتايج التوليد (بعد مزامنة مجلد AI Generated) */
+function cpl_media_for_names(array $names): array
+{
+    if (!$names) return []; $wid = (int)ws('id'); $names = array_map(function ($n) { return 'ai-' . basename($n); }, $names); // media_sync_ai بيحفظها باسم ai-<الملف> if (function_exists('media_sync_ai')) { try { media_sync_ai($wid); } catch (Throwable $e) {} }
+    $q = db()->prepare('SELECT id, name FROM media_files WHERE workspace_id = ? AND deleted_at IS NULL AND name IN (' . implode(',', array_fill(0, count($names), '?')) . ')'); $q->execute(array_merge([$wid], $names));
+    $by = []; foreach ($q->fetchAll() as $r) $by[$r['name']] = (int)$r['id'];
+    $sh = db()->prepare('SELECT id FROM media_files WHERE workspace_id = ? AND sha1 = ? AND deleted_at IS NULL LIMIT 1'); // نفس المحتوى اتحفظ قبل كده (المكتبة بتمنع التكرار)
+    return array_values(array_filter(array_map(function ($n) use ($by, $sh, $wid) { if (isset($by[$n])) return $by[$n]; $f = hf_lib_dir($wid) . '/' . substr($n, 3); if (!is_file($f)) return 0; $sh->execute([$wid, sha1_file($f)]); return (int)$sh->fetchColumn(); }, $names)));
+}
+
+/** لما كل مهام نوع معين لمنشور تخلص: الوسائط بتتحط على المنشور بالترتيب ونوعه بيتحدد (صورة/فيديو/كاروسيل) */
+function cpl_jobs_finalize(int $itemId, string $kind): void
+{
+    $st = db()->prepare('SELECT * FROM cp_jobs WHERE item_id = ? AND kind = ? ORDER BY id DESC'); $st->execute([$itemId, $kind]); $jobs = $st->fetchAll();
+    $latest = []; foreach ($jobs as $j) { $k = (string)$j['slide']; if (!isset($latest[$k])) $latest[$k] = $j; }
+    foreach ($latest as $j) if (in_array($j['status'], ['queued', 'running'], true)) return;
+    ksort($latest); $ms = []; foreach ($latest as $j) if ($j['status'] === 'done') $ms = array_merge($ms, array_map('intval', (array)json_decode((string)$j['result'], true)));
+    if (!$ms) return;
+    db()->prepare('UPDATE cp_items SET fmt = ?, media_ids = ?, media_id = ? WHERE id = ?')->execute([$kind, json_encode(array_values($ms)), $ms[0], $itemId]);
+}
+
+function cpl_job_prompt(array $p, array $it, array $j): string
+{
+    $o = cpl_opts($p); $vis = trim((string)$p['visual']);
+    if ($j['kind'] === 'image') return $it['image_prompt'] . ($vis !== '' ? "\n\nBrand visual DNA: " . mb_substr($vis, 0, 1200) : '') . "\nPlace the official logo (attached reference) exactly as described. Render the headline text \"" . $it['headline'] . "\" accurately, spelled exactly.";
+    if ($j['kind'] === 'video') return $it['video_prompt'];
+    $s = $it['carousel'][(int)$j['slide']] ?? []; $n = count($it['carousel']);
+    return "Carousel slide " . ((int)$j['slide'] + 1) . " of {$n} (" . ($s['role'] ?? '') . ") for a premium social campaign, 4:5 1080x1350, one consistent series across all slides.\n"
+        . "Visual concept: " . ($s['visual'] ?? '') . "\nLayout: " . ($s['layout'] ?? '') . "\nOn-slide text, render exactly and legibly" . ($o['lang'] !== 'en' ? ' (Arabic, right-to-left, correct letter joining)' : '') . ":\nHeadline: " . ($s['title'] ?? '') . "\nBody: " . ($s['body'] ?? '')
+        . ($vis !== '' ? "\n\nBrand visual DNA: " . mb_substr($vis, 0, 1200) : '') . "\nOfficial logo (attached reference) small in a corner. No other text, no fake UI, no clutter.";
+}
+
+/** تنفيذ مهمة واحدة (أو متابعة فيديو شغال). بيرجع true لو عمل حاجة */
+function cpl_jobs_tick(int $planId): bool
+{
+    $lk = 'cplj_' . $planId; if (!db()->query('SELECT GET_LOCK(' . db()->quote($lk) . ', 0)')->fetchColumn()) return false;
+    try {
+        @set_time_limit(330); $p = cpl_plan($planId); if (!$p) return false; $wid = (int)ws('id');
+        // الفيديوهات الشغالة: متابعة
+        $st = db()->prepare('SELECT * FROM cp_jobs WHERE plan_id = ? AND status = "running" AND kind = "video" ORDER BY id LIMIT 3'); $st->execute([$planId]);
+        foreach ($st->fetchAll() as $j) {
+            try { $r = vid_or_poll((string)$j['ext_id']); } catch (Throwable $e) { $r = ['status' => 'pending']; }
+            if ($r['status'] === 'completed') { $ms = cpl_media_for_names($r['names']); db()->prepare('UPDATE cp_jobs SET status = "done", result = ? WHERE id = ?')->execute([json_encode($ms), $j['id']]); cpl_jobs_finalize((int)$j['item_id'], 'video'); cpl_log($planId, t('اكتمل فيديو المنشور %s.', cpl_item((int)$j['item_id'])['seq'] ?? ''), 'ok'); }
+            elseif ($r['status'] === 'failed') { db()->prepare('UPDATE cp_jobs SET status = "failed", error = ? WHERE id = ?')->execute([mb_substr((string)($r['error'] ?? ''), 0, 300), $j['id']]); cpl_log($planId, t('فشل فيديو المنشور %s: %s', cpl_item((int)$j['item_id'])['seq'] ?? '', $r['error'] ?? ''), 'err'); }
+        }
+        $st = db()->prepare('SELECT * FROM cp_jobs WHERE plan_id = ? AND status = "queued" ORDER BY id LIMIT 1'); $st->execute([$planId]); $j = $st->fetch();
+        if (!$j) return false;
+        $it = cpl_item((int)$j['item_id']); if (!$it) { db()->prepare('UPDATE cp_jobs SET status = "failed", error = "item" WHERE id = ?')->execute([$j['id']]); return true; }
+        db()->prepare('UPDATE cp_jobs SET status = "running", tries = tries + 1 WHERE id = ?')->execute([$j['id']]);
+        $label = ['image' => t('صورة'), 'video' => t('فيديو'), 'carousel' => t('شريحة كاروسيل %s', (int)$j['slide'] + 1)][$j['kind']];
+        cpl_log($planId, t('توليد %s للمنشور %s…', $label, $it['seq'])); $t0 = microtime(true);
+        try {
+            $prompt = cpl_job_prompt($p, $it, $j);
+            if ($j['kind'] === 'video') {
+                $vid = vid_or_start($prompt, '9:16'); db()->prepare('UPDATE cp_jobs SET ext_id = ? WHERE id = ?')->execute([$vid, $j['id']]);
+                cpl_log($planId, t('بدأ توليد الفيديو للمنشور %s، وسنتابعه حتى يكتمل (قد يستغرق دقائق).', $it['seq']));
+            } else {
+                $lg = function_exists('kb_logo') ? kb_logo($wid) : null; $refs = $lg ? [media_file_path($wid, $lg)] : [];
+                $names = img_generate($prompt, '4:5', 1, $refs); $ms = cpl_media_for_names($names); if (!$ms) throw new RuntimeException(t('لم تُحفظ الصورة الناتجة.'));
+                db()->prepare('UPDATE cp_jobs SET status = "done", result = ? WHERE id = ?')->execute([json_encode($ms), $j['id']]);
+                cpl_log($planId, t('اكتملت %s للمنشور %s في %s ثانية.', $label, $it['seq'], round(microtime(true) - $t0)), 'ok');
+                cpl_jobs_finalize($it['id'], $j['kind']);
+            }
+        } catch (Throwable $e) {
+            $retry = (int)$j['tries'] + 1 < 2; // محاولتين لكل مهمة
+            db()->prepare('UPDATE cp_jobs SET status = ?, error = ? WHERE id = ?')->execute([$retry ? 'queued' : 'failed', mb_substr($e->getMessage(), 0, 300), $j['id']]);
+            cpl_log($planId, t('فشل توليد %s للمنشور %s: %s', $label, $it['seq'], $e->getMessage()) . ($retry ? ' ' . t('(سنعيد المحاولة)') : ''), 'err');
+            if (!$retry) cpl_jobs_finalize($it['id'], $j['kind']);
+        }
+        return true;
+    } finally { db()->query('SELECT RELEASE_LOCK(' . db()->quote($lk) . ')'); }
+}
+
+function cpl_jobs_status(int $planId): array
+{
+    $by = []; $pending = 0;
+    foreach (cpl_jobs($planId) as $j) { $k = (int)$j['item_id']; $by[$k][$j['kind']][(string)$j['slide']] = ['s' => $j['status'], 'e' => (string)$j['error']]; if (in_array($j['status'], ['queued', 'running'], true)) $pending++; }
+    $out = []; foreach ($by as $item => $kinds) foreach ($kinds as $kind => $sl) { $c = array_count_values(array_column($sl, 's')); $out[$item][$kind] = ['done' => $c['done'] ?? 0, 'total' => count($sl), 'failed' => $c['failed'] ?? 0, 'busy' => ($c['queued'] ?? 0) + ($c['running'] ?? 0), 'err' => implode(' | ', array_filter(array_unique(array_column($sl, 'e'))))]; }
+    return ['pending' => $pending, 'items' => $out];
 }
