@@ -257,13 +257,13 @@ render(t('الرئيسية'), 'dashboard', function () use ($z, $d, $e, $activit
       </div>
       <script>
       (function () {
-        var box = document.getElementById('ait'); if (!box) return;
-        function apply(s) { box.querySelectorAll('.st').forEach(function (g) { var k = g.getAttribute('data-k'); g.classList.toggle('on', !!(s && s[k])); }); }
+        var box = document.getElementById('workspace-agents'); if (!box) return;
+        function apply(s) { box.querySelectorAll('.agent[data-role]').forEach(function (g) { var k = g.getAttribute('data-role'); g.classList.toggle('active', !!(s && s[k])); }); }
         function poll() {
           fetch('index.php?p=dashboard&ajax=aiteam', { headers: { 'X-Requested-With': 'fetch' } })
             .then(function (r) { return r.ok ? r.json() : null; }).then(function (s) { if (s) apply(s); }).catch(function () {});
         }
-        var t = setInterval(poll, 9000);
+        setInterval(poll, 9000);
         document.addEventListener('visibilitychange', function () { if (!document.hidden) poll(); });
       })();
       </script>

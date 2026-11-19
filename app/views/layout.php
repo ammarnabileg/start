@@ -369,5 +369,14 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
 })();
 </script>
 <?php endif; ?>
+<?php if ($curWs): /* فريق الوكلاء: نبضة حضور تحافظ على إضاءة وكيل الصفحة طول ما أنت فيها */ ?>
+<script>
+(function () {
+  var p = new URLSearchParams(location.search).get('p') || 'dashboard';
+  function ping() { if (document.hidden) return; fetch('index.php?p=' + encodeURIComponent(p) + '&aiping=1', { cache: 'no-store' }).catch(function () {}); }
+  ping(); setInterval(ping, 15000);
+})();
+</script>
+<?php endif; ?>
 </body>
 </html>

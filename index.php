@@ -139,7 +139,12 @@ if (!is_file($file)) {
 }
 
 if (!empty($_FILES)) { require_once __DIR__ . '/app/upload_shrink.php'; try { upload_shrink_all(); } catch (Throwable $e) {} }
-// فريق الوكلاء: دخول صفحة أي فانكشن بيشعّل وكيله (بمجرد ما ندخل على صفحاته)
+// فريق الوكلاء: نبضة حضور — بتفضّل تشعّل وكيل الصفحة طول ما أنت فيها
+if (isset($_GET['aiping']) && current_workspace() && function_exists('ai_team_touch')) {
+    try { ai_team_touch((int)ws('id'), $page); } catch (Throwable $e) {}
+    http_response_code(204); exit;
+}
+// دخول صفحة أي فانكشن بيشعّل وكيله فورًا
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && empty($_GET['ajax']) && current_workspace() && function_exists('ai_team_touch')) {
     try { ai_team_touch((int)ws('id'), $page); } catch (Throwable $e) {}
 }
