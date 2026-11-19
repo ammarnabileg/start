@@ -314,6 +314,38 @@ function ab_strings(): array
 /* ===================== الإطلاق ===================== */
 
 /** خطوات الإطلاق بالترتيب: حملة ← لكل مجموعة: أول إعلان (بيعمل المجموعة) ← باقي الإعلانات */
+/** هوية الشركة البصرية لبرومبت صور الإعلانات: الألوان والأسلوب من قاعدة المعرفة + لوحة ألوان اللوجو */
+function ab_brand_visual(): string
+{
+    $wid = (int)ws('id'); $vs = (array)(kb_get($wid)['visual_style'] ?? []);
+    $colors = trim((string)($vs['colors'] ?? '')); $style = trim((string)($vs['style'] ?? ''));
+    $pal = function_exists('kb_logo_palette') ? kb_logo_palette($wid) : [];
+    if ($pal) $colors = implode(', ', $pal) . (($colors !== '') ? '; ' . $colors : '');
+    $out = array_filter([$colors !== '' ? 'colours: ' . $colors : '', $style !== '' ? 'style: ' . $style : '']);
+    return $out ? mb_substr(implode('. ', $out), 0, 600) : '';
+}
+
+/** تطبيع استهداف جاية من الـ AI: أسماء الدول → ISO2، أعمار/جنس صالحة، اهتمامات نصية نظيفة */
+function ab_normalize_targeting(array $t): array
+{
+    $valid = function_exists('countries') ? array_change_key_case(countries(), CASE_UPPER) : [];
+    $cc = [];
+    foreach ((array)($t['countries'] ?? []) as $c) {
+        $c = trim((string)$c); if ($c === '') continue;
+        $up = strtoupper($c);
+        $iso = ($valid && isset($valid[$up])) ? $up : (function_exists('crm_country_iso') ? crm_country_iso($c) : (preg_match('/^[A-Za-z]{2}$/', $c) ? $up : ''));
+        if ($iso !== '' && (!$valid || isset($valid[$iso])) && !in_array($iso, $cc, true)) $cc[] = $iso;
+    }
+    $t['countries'] = $cc;
+    $amin = (int)($t['ageMin'] ?? 18); $amax = (int)($t['ageMax'] ?? 65);
+    $amin = max(13, min(65, $amin ?: 18)); $amax = max(13, min(65, $amax ?: 65)); if ($amax < $amin) $amax = 65;
+    $t['ageMin'] = $amin; $t['ageMax'] = $amax;
+    $t['gender'] = in_array($t['gender'] ?? '', ['all', 'male', 'female'], true) ? $t['gender'] : 'all';
+    $t['interestQueries'] = array_values(array_filter(array_map(function ($q) { return trim((string)$q); }, (array)($t['interestQueries'] ?? [])), function ($q) { return $q !== ''; }));
+    $t['interestQueries'] = array_slice($t['interestQueries'], 0, 6);
+    return $t;
+}
+
 function ab_plan(array $d): array
 {
     $C = ab_caps((string)$d['platform']); $steps = [];
