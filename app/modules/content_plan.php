@@ -70,7 +70,7 @@ function cpl_create(array $in): int
     $hasLogo = function_exists('kb_logo') && kb_logo($wid);
     db()->prepare('INSERT INTO cp_plans (workspace_id, user_id, name, goal, cnt, opts, refs, stage, status) VALUES (?,?,?,?,?,?,?,?, "generating")')
         ->execute([$wid, (int)(current_user()['id'] ?? 0), $name, $goal, $n, json_encode($opts, JSON_UNESCAPED_UNICODE), json_encode($refs), ($refs || $hasLogo) ? 'visual' : 'outline']);
-    return (int)db()->lastInsertId();
+    $nid = (int)db()->lastInsertId(); cpl_log($nid, t('اتعملت الخطة: %s منشور، %s صورة مرجعية%s.', $n, count($refs), $hasLogo ? t('، والشعار من ملف الشركة') : '')); return $nid;
 }
 
 function cpl_opts(array $p): array { return (json_decode((string)$p['opts'], true) ?: []) + ['lang' => 'ar', 'dialect' => '', 'audience' => '', 'services' => [], 'tone' => '', 'cta' => '', 'avoid' => '', 'video' => true, 'carousel' => true, 'humanize' => true]; }
@@ -116,7 +116,9 @@ function cpl_step(int $id): array
     if (!$g) return cpl_status($p) + ['busy' => true];
     $done = false;
     register_shutdown_function(function () use (&$done, $id, $lk) { if ($done) return; $e = error_get_last();
+        cpl_log($id, t('انتهت مهلة السيرفر أثناء الخطوة. سنعيد المحاولة.') . ($e ? ' (' . mb_substr((string)$e['message'], 0, 120) . ')' : ''), 'err');
         try { db()->prepare('UPDATE cp_plans SET error = ?, fails = fails + 1, status = IF(fails + 1 >= 3, "paused", status) WHERE id = ?')->execute([t('انتهت مهلة السيرفر أثناء هذه الخطوة. سنعيد المحاولة تلقائيًا.') . ($e ? ' (' . mb_substr((string)$e['message'], 0, 120) . ')' : ''), $id]); db()->query('SELECT RELEASE_LOCK(' . db()->quote($lk) . ')'); } catch (Throwable $x) {} });
+    $t0 = microtime(true);
     try {
         @set_time_limit(300);
         if ($p['stage'] === 'visual') cpl_do_visual($p);
@@ -125,6 +127,8 @@ function cpl_step(int $id): array
         db()->prepare('UPDATE cp_plans SET error = NULL, fails = 0 WHERE id = ?')->execute([$id]);
     } catch (Throwable $e) {
         $f = (int)$p['fails'] + 1;
+        cpl_log($id, t('فشلت الخطوة بعد %s ثانية (محاولة %s من 3): %s', round(microtime(true) - $t0), $f, $e->getMessage()), 'err');
+        if ($f >= 3) cpl_log($id, t('توقف التوليد بعد 3 محاولات فاشلة. اضغط «أكمل من حيث توقف».'), 'err');
         // 3 محاولات فاشلة ورا بعض = نوقف ونستنى المستخدم (مش نصرف رصيد على الفاضي)
         db()->prepare('UPDATE cp_plans SET error = ?, fails = ?, status = IF(? >= 3, "paused", status) WHERE id = ?')->execute([mb_substr($e->getMessage(), 0, 500), $f, $f, $id]);
     } finally { $done = true; db()->query('SELECT RELEASE_LOCK(' . db()->quote($lk) . ')'); }
@@ -135,7 +139,7 @@ function cpl_status(array $p): array
 {
     $st = db()->prepare('SELECT COUNT(*) total, SUM(linkedin IS NOT NULL) ready FROM cp_items WHERE plan_id = ?'); $st->execute([(int)$p['id']]); $c = $st->fetch();
     $h = db()->prepare('SELECT COUNT(*) FROM cp_items WHERE plan_id = ? AND humanized = 1'); $h->execute([(int)$p['id']]);
-    return ['id' => (int)$p['id'], 'status' => $p['status'], 'stage' => $p['stage'], 'count' => (int)$p['cnt'], 'topics' => (int)$c['total'], 'ready' => (int)$c['ready'], 'human' => (int)$h->fetchColumn(), 'hz' => !empty(cpl_opts($p)['humanize']), 'error' => (string)($p['error'] ?? '')];
+    return ['id' => (int)$p['id'], 'status' => $p['status'], 'stage' => $p['stage'], 'count' => (int)$p['cnt'], 'topics' => (int)$c['total'], 'ready' => (int)$c['ready'], 'human' => (int)$h->fetchColumn(), 'hz' => !empty(cpl_opts($p)['humanize']), 'error' => (string)($p['error'] ?? ''), 'log' => json_decode((string)($p['log'] ?? ''), true) ?: []];
 }
 
 function cpl_do_visual(array $p): void
@@ -147,13 +151,23 @@ function cpl_do_visual(array $p): void
     }
     $lg = function_exists('kb_logo') ? kb_logo($wid) : null; // اللوجو من ملف الشركة: عشان مكانه وألوانه تبقى حقيقية
     if ($lg && ($lu = cpl_small_image(media_file_path($wid, $lg), 512))) { $parts[] = ['type' => 'text', 'text' => 'The last image is the official company logo (not a reference design). Use it for logo colors and recommended logo placement.']; $parts[] = ['type' => 'image_url', 'image_url' => ['url' => $lu]]; }
-    $vis = '';
+    $vis = ''; $nImg = count(array_filter($parts, function ($x) { return $x['type'] === 'image_url'; }));
     if (count($parts) > 1) {
-        if ((int)$p['fails'] >= 2) { db()->prepare('UPDATE cp_plans SET visual = "", stage = "outline", error = ? WHERE id = ?')->execute([t('تعذر تحليل الصور المرجعية؛ أكملنا من ملف الشركة وألوان الشعار.'), (int)$p['id']]); return; }
+        if ((int)$p['fails'] >= 2) { cpl_log((int)$p['id'], t('تخطّينا تحليل الصور بعد محاولتين فاشلتين، ونكمل من ملف الشركة وألوان الشعار.'), 'warn'); db()->prepare('UPDATE cp_plans SET visual = "", stage = "outline", error = ? WHERE id = ?')->execute([t('تعذر تحليل الصور المرجعية؛ أكملنا من ملف الشركة وألوان الشعار.'), (int)$p['id']]); return; }
+        cpl_log((int)$p['id'], t('إرسال %s صورة (المرجعية + الشعار) للذكاء الاصطناعي لاستخراج الهوية البصرية…', $nImg)); $tv = microtime(true);
         $r = ai_chat([['role' => 'system', 'content' => "VISUAL_DNA. Act as a Commercial Art Director. Analyze the reference images to extract the visual identity: colors (hex values), typography (style, weight, case, Arabic/Latin pairing), lighting, composition, logo placement, and advertising style; also photography vs illustration vs 3D, textures, negative space, headline placement and mood. Write a reusable visual DNA in English, 150-250 words, as plain text grouped by those headings. Describe the style only; never copy brand names, text or specific people from the references."], ['role' => 'user', 'content' => $parts]], 900, 'analyze');
         $vis = trim((string)($r['text'] ?? ''));
     }
+    if (isset($tv)) cpl_log((int)$p['id'], t('الهوية البصرية جاهزة في %s ثانية: %s', round(microtime(true) - $tv), mb_substr($vis, 0, 160) . '…'), 'ok');
     db()->prepare('UPDATE cp_plans SET visual = ?, stage = "outline" WHERE id = ?')->execute([mb_substr($vis, 0, 4000), (int)$p['id']]);
+}
+
+/** سجل حي لكل خطوة (آخر 200 سطر): المستخدم بيشوف كل اللي بيحصل */
+function cpl_log(int $id, string $msg, string $kind = 'info'): void
+{
+    try { $st = db()->prepare('SELECT log FROM cp_plans WHERE id = ?'); $st->execute([$id]); $l = json_decode((string)$st->fetchColumn(), true) ?: [];
+        $l[] = ['t' => date('H:i:s'), 'm' => mb_substr($msg, 0, 400), 'k' => $kind, 'src' => PHP_SAPI === 'cli' || !empty($GLOBALS['cpl_cron']) ? 'bg' : 'page'];
+        db()->prepare('UPDATE cp_plans SET log = ? WHERE id = ?')->execute([json_encode(array_slice($l, -200), JSON_UNESCAPED_UNICODE), $id]); } catch (Throwable $e) {}
 }
 
 /** صورة مصغرة data URI (JPEG، أطول ضلع $max) عشان طلب الرؤية يفضل صغير */
@@ -179,6 +193,7 @@ function cpl_do_outline(array $p): void
     $n = (int)$p['cnt'];
     $sys = "CONTENT_PLAN_OUTLINE_JSON\n" . cpl_rules($p) . "\n\nSTEP 1 OF 2: STRATEGY. Plan {$n} distinct posts (topics only, no copy yet). Cover the strategic mix across the plan and prioritize services by their commercial importance in the KB."
         . "\nReturn ONLY JSON: {\"topics\":[{\"title\":\"the strong, distinctive hook\",\"angle\":\"one sentence: the specific insight or argument of this post\",\"category\":\"" . implode('|', array_keys(cpl_categories())) . "\",\"service\":\"the relevant product/service exactly as named in the KB\",\"audience\":\"the specific decision-maker this post targets\",\"objective\":\"awareness|engagement|consideration|leads|conversion\"}]} with exactly {$n} items, ordered as a smart publishing sequence. No two topics may share the same hook or argument.";
+    cpl_log((int)$p['id'], t('تخطيط %s موضوع بالاستراتيجية من ملف الشركة والهدف… (قد يستغرق دقيقة أو أكثر)', $n)); $to = microtime(true);
     $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => cpl_brief($p)]], min(8000, 400 + $n * 110), 'compose');
     $j = kb_parse_json((string)($r['text'] ?? '')); $topics = array_values(array_filter((array)($j['topics'] ?? []), 'is_array'));
     if (!$topics) throw new RuntimeException(t('لم يُرجع الذكاء الاصطناعي مواضيع صالحة. حاول مرة أخرى.'));
@@ -187,6 +202,7 @@ function cpl_do_outline(array $p): void
     db()->prepare('DELETE FROM cp_items WHERE plan_id = ?')->execute([(int)$p['id']]);
     foreach ($topics as $i => $t) $ins->execute([(int)$p['id'], (int)ws('id'), $i + 1, json_encode(array_map(function ($v) { return is_string($v) ? mb_substr($v, 0, 300) : ''; }, array_intersect_key($t, array_flip(['title', 'angle', 'category', 'service', 'audience', 'objective']))), JSON_UNESCAPED_UNICODE)]);
     db()->prepare('UPDATE cp_plans SET stage = "posts", cnt = ? WHERE id = ?')->execute([count($topics), (int)$p['id']]);
+    cpl_log((int)$p['id'], t('%s موضوع جاهز في %s ثانية. أول موضوع: %s', count($topics), round(microtime(true) - $to), (string)($topics[0]['title'] ?? '')), 'ok');
 }
 
 /** مراجعة Humanizer: المهارة كاملة على نصوص المنشورات (لينكدإن، X، العنوان، الكاروسيل). البرومبتات الإنجليزي مابتتلمسش. */
@@ -196,6 +212,7 @@ function cpl_do_humanize(array $p, array $rows): void
         $list[] = ['n' => (int)$r['seq'], 'linkedin' => $r['linkedin'], 'x' => $r['x'], 'headline' => $r['headline'], 'carousel' => array_map(function ($s) { return ['title' => $s['title'] ?? '', 'body' => $s['body'] ?? '']; }, $car)]; }
     $sys = "CONTENT_HUMANIZE_JSON\nYou are the editor. Apply the Humanizer skill below to every text field, in EMBEDDED MODE (return only the final text). The copy is social media for a company; keep its language and dialect, keep hashtags at the end, keep the CTA, keep x within 270 characters, keep headline 2-6 words. Do not add or drop any fact, number, name, price or claim. Do not translate.\n"
         . "Return ONLY JSON with the same shape: {\"posts\":[{\"n\":1,\"linkedin\":\"...\",\"x\":\"...\",\"headline\":\"...\",\"carousel\":[{\"title\":\"...\",\"body\":\"...\"}]}]}\n\n=== HUMANIZER SKILL ===\n" . ai_humanizer_skill();
+    cpl_log((int)$p['id'], t('مراجعة الأسلوب (Humanizer) للمنشور %s…', implode(' و', array_column($list, 'n')))); $th = microtime(true);
     $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => json_encode($list, JSON_UNESCAPED_UNICODE)]], 1300 * count($rows), 'compose');
     $j = kb_parse_json((string)($r['text'] ?? '')); $by = []; foreach ((array)($j['posts'] ?? []) as $x) if (is_array($x) && isset($x['n'])) $by[(int)$x['n']] = $x;
     $up = db()->prepare('UPDATE cp_items SET linkedin = ?, x = ?, headline = ?, carousel = ?, humanized = 1 WHERE id = ?'); $done = 0;
@@ -211,6 +228,7 @@ function cpl_do_humanize(array $p, array $rows): void
         $up->execute([mb_substr(ai_strip_dashes($li), 0, 5000), mb_substr(ai_strip_dashes($xx), 0, 600), mb_substr(ai_strip_dashes($hh), 0, 120), json_encode($car, JSON_UNESCAPED_UNICODE), (int)$row['id']]); $done++;
     }
     if (!$done) throw new RuntimeException(t('مراجعة الأسلوب لم تكتمل. سنعيد المحاولة على المنشورات نفسها.'));
+    cpl_log((int)$p['id'], t('روجع %s منشور في %s ثانية.', $done, round(microtime(true) - $th)), 'ok');
 }
 
 function cpl_do_posts(array $p): void
@@ -221,12 +239,13 @@ function cpl_do_posts(array $p): void
     }
     $st = db()->prepare('SELECT * FROM cp_items WHERE plan_id = ? AND linkedin IS NULL ORDER BY seq LIMIT ' . CPL_BATCH); $st->execute([(int)$p['id']]);
     $rows = $st->fetchAll();
-    if (!$rows) { db()->prepare('UPDATE cp_plans SET status = "review", stage = "done" WHERE id = ?')->execute([(int)$p['id']]); return; }
+    if (!$rows) { db()->prepare('UPDATE cp_plans SET status = "review", stage = "done" WHERE id = ?')->execute([(int)$p['id']]); cpl_log((int)$p['id'], t('اكتملت الخطة. جاهزة للمراجعة والموافقة.'), 'ok'); return; }
     $list = []; foreach ($rows as $r) { $t = json_decode((string)$r['topic'], true) ?: []; $list[] = ['n' => (int)$r['seq']] + array_intersect_key($t, array_flip(['title', 'angle', 'category', 'service', 'audience', 'objective'])); }
     $st2 = db()->prepare('SELECT seq, headline FROM cp_items WHERE plan_id = ? AND linkedin IS NOT NULL ORDER BY seq'); $st2->execute([(int)$p['id']]); $used = array_filter(array_column($st2->fetchAll(), 'headline'));
     $sys = "CONTENT_PLAN_JSON\n" . cpl_rules($p) . "\n\nSTEP 2 OF 2: write the complete posts for the topics given, all six sections each, finished and usable."
         . "\nReturn ONLY JSON: {\"posts\":[{\"n\":1,\"linkedin\":\"130-220 words\",\"x\":\"max 280 characters incl. hashtags\",\"headline\":\"2-6 word poster headline\",\"image_prompt\":\"120-200 words English, covering concept, subject, art direction, composition, camera, lighting, brand identity, realism, the headline with its exact placement, output 4:5 1080x1350, and the avoid list\",\"video_prompt\":\"universal production-ready video prompt\",\"carousel\":[{\"role\":\"Hook|Problem|Insight|Solution|CTA\",\"title\":\"on-slide headline\",\"body\":\"on-slide supporting copy\",\"visual\":\"visual concept and composition\",\"layout\":\"layout instructions\"}]}]} one object per topic with the same n; carousel has exactly 5 slides in the order Hook, Problem, Insight, Solution, CTA."
         . ($used ? "\nHeadlines and visual concepts already used in this plan (do not repeat them): " . implode(' | ', array_slice($used, -40)) : '');
+    $seqs = array_column($list, 'n'); cpl_log((int)$p['id'], t('كتابة المنشور %s بالأقسام الستة…', implode(' و', $seqs))); $tw = microtime(true);
     $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => cpl_brief($p) . "\n\nTopics:\n" . json_encode($list, JSON_UNESCAPED_UNICODE)]], 3200 * count($rows), 'compose');
     $j = kb_parse_json((string)($r['text'] ?? '')); $by = [];
     foreach ((array)($j['posts'] ?? []) as $x) if (is_array($x) && isset($x['n'])) $by[(int)$x['n']] = $x;
@@ -239,6 +258,7 @@ function cpl_do_posts(array $p): void
         $done++;
     }
     if (!$done) throw new RuntimeException(t('رد الذكاء الاصطناعي ناقص. سنكمل من المنشور نفسه.'));
+    cpl_log((int)$p['id'], t('كُتب %s منشور في %s ثانية (%s).', $done, round(microtime(true) - $tw), implode('، ', $seqs)), 'ok');
 }
 
 /** فحص الجودة (QUALITY CONTROL في البرومبت) لكل منشور: أرقام قابلة للقياس فقط، ومش بيحكم على الإبداع */
@@ -261,6 +281,7 @@ function cpl_qc(array $it, array $o = []): array
 function cpl_tick(int $wid, int $budget = 4): int
 {
     $st = db()->prepare('SELECT id FROM cp_plans WHERE workspace_id = ? AND status = "generating" ORDER BY id LIMIT 3'); $st->execute([$wid]); $n = 0;
+    $GLOBALS['cpl_cron'] = true;
     foreach ($st->fetchAll(PDO::FETCH_COLUMN) as $id) for ($i = 0; $i < $budget; $i++) { $s = cpl_step((int)$id); $n++; if ($s['status'] !== 'generating' || !empty($s['busy']) || $s['error'] !== '') break; }
     return $n;
 }

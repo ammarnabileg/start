@@ -528,6 +528,9 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    '074_cp_log' => [
+        "ALTER TABLE cp_plans ADD COLUMN log MEDIUMTEXT NULL",
+    ],
     '073_cp_media_ids' => [
         "ALTER TABLE cp_items ADD COLUMN media_ids TEXT NULL",
     ],
