@@ -192,6 +192,57 @@ function img_generate(string $prompt, string $aspect = '1:1', int $n = 1, array 
     return $out;
 }
 
+/**
+ * توليد عدة صور بالتوازي على OpenAI (curl_multi) — صورة واحدة لكل عنصر.
+ * $jobs: [ ['prompt'=>..., 'refs'=>[ملفات]], ... ]
+ * بيرجّع مصفوفة بنفس الترتيب: كل عنصر ['names'=>[...]] أو ['error'=>'...'].
+ * للاستخدام في توليد خطط المحتوى الكبيرة. يتطلب مزوّد openai.
+ */
+function img_openai_batch(array $jobs, string $aspect = '4:5'): array
+{
+    $c = img_openai_conn(); if (!$c) throw new RuntimeException(t('اربط OpenAI أولًا من صفحة التكاملات.'));
+    $wid = (int)ws('id'); $budget = function_exists('ai_budget') ? ai_budget($wid) : 0;
+    if ($budget > 0 && function_exists('ai_month_spend') && ai_month_spend($wid) >= $budget) throw new RuntimeException(t('وصلت الشركة لحد استهلاك الذكاء الاصطناعي هذا الشهر ($%s). صاحب الشركة يقدر يرفعه من صفحة التكاملات.', number_format($budget, 2)));
+    $model = img_openai_model(); $size = img_openai_size($aspect); $q = img_openai_quality();
+    $key = (string)$c['credentials']['api_key'];
+    $mh = curl_multi_init(); $handles = [];
+    foreach ($jobs as $i => $job) {
+        $prompt = mb_substr((string)($job['prompt'] ?? ''), 0, 30000);
+        $refs = array_slice(array_values(array_filter((array)($job['refs'] ?? []), 'is_file')), 0, 4);
+        $ch = curl_init();
+        if ($refs) {
+            $post = ['model' => $model, 'prompt' => $prompt, 'size' => $size, 'quality' => $q, 'n' => '1'];
+            foreach ($refs as $k => $f) $post['image[' . $k . ']'] = new CURLFile($f, (string)(mime_content_type($f) ?: 'image/png'), basename($f));
+            curl_setopt_array($ch, [CURLOPT_URL => ai_base('openai') . '/images/edits', CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true, CURLOPT_TIMEOUT => 170, CURLOPT_CONNECTTIMEOUT => 15, CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $key], CURLOPT_POSTFIELDS => $post]);
+        } else {
+            curl_setopt_array($ch, [CURLOPT_URL => ai_base('openai') . '/images/generations', CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true, CURLOPT_TIMEOUT => 170, CURLOPT_CONNECTTIMEOUT => 15, CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'Authorization: Bearer ' . $key], CURLOPT_POSTFIELDS => json_encode(['model' => $model, 'prompt' => $prompt, 'size' => $size, 'quality' => $q, 'n' => 1], JSON_UNESCAPED_UNICODE)]);
+        }
+        $handles[$i] = $ch; curl_multi_add_handle($mh, $ch);
+    }
+    $run = null; do { curl_multi_exec($mh, $run); curl_multi_select($mh, 1.0); } while ($run > 0);
+    $out = [];
+    foreach ($handles as $i => $ch) {
+        $raw = (string)curl_multi_getcontent($ch); $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); $cerr = curl_error($ch);
+        curl_multi_remove_handle($mh, $ch); curl_close($ch);
+        $j = json_decode($raw, true);
+        if (($raw === '' && $cerr !== '') || $code >= 400 || !is_array($j)) {
+            $msg = is_array($j) ? (string)($j['error']['message'] ?? ('HTTP ' . $code)) : ($cerr !== '' ? net_friendly('OpenAI', $cerr) : ('HTTP ' . $code));
+            $out[$i] = ['error' => mb_substr('OpenAI: ' . $msg, 0, 300)]; continue;
+        }
+        $prompt = (string)($jobs[$i]['prompt'] ?? '');
+        $names = [];
+        foreach ((array)($j['data'] ?? []) as $d) {
+            $bytes = !empty($d['b64_json']) ? base64_decode((string)$d['b64_json'], true) : null;
+            if ($bytes === null && !empty($d['url'])) { $rr = safe_fetch((string)$d['url'], ['max' => 25 * 1048576]); $bytes = empty($rr['err']) ? (string)$rr['body'] : null; }
+            if ($bytes) { $nm = img_lib_save_bytes($wid, $bytes, $prompt); if ($nm) $names[] = $nm; }
+        }
+        if ($names) { $out[$i] = ['names' => $names]; if (function_exists('ai_log_usage')) { try { ai_log_usage($wid, 'image', 'openai', $model, ['cost' => round(img_openai_cost($q, $size) * count($names), 4), 'prompt_tokens' => 0, 'completion_tokens' => 0]); } catch (Throwable $e) {} } }
+        else $out[$i] = ['error' => t('لم يرجع OpenAI صورة.')];
+    }
+    curl_multi_close($mh);
+    return $out;
+}
+
 /* ---------- فيديو OpenRouter: غير متزامن (طلب ← متابعة ← تنزيل) ---------- */
 
 function vid_or_models(array $c): array

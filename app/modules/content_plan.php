@@ -336,9 +336,9 @@ function cpl_tick(int $wid, int $budget = 4): int
     if (isset($GLOBALS['cron_t0'])) { $rem = 560 - (microtime(true) - (float)$GLOBALS['cron_t0']); $cap = max(8, min($cap, $rem)); }
     while (microtime(true) - $t0 < $cap) {
         $did = 0;
-        // مهام الصور/الفيديو
+        // مهام الصور/الفيديو — بالتوازي (دفعة صور في نفس الوقت)
         $jq = db()->prepare('SELECT DISTINCT plan_id FROM cp_jobs WHERE workspace_id = ? AND status IN ("queued","running") LIMIT 4'); $jq->execute([$wid]);
-        foreach ($jq->fetchAll(PDO::FETCH_COLUMN) as $pid) { if (cpl_jobs_tick((int)$pid)) { $n++; $did++; } if (microtime(true) - $t0 >= $cap) break 2; }
+        foreach ($jq->fetchAll(PDO::FETCH_COLUMN) as $pid) { $m = function_exists('cpl_jobs_burst') ? cpl_jobs_burst((int)$pid, 5) : (cpl_jobs_tick((int)$pid) ? 1 : 0); if ($m > 0) { $n += $m; $did += $m; } elseif (cpl_jobs_tick((int)$pid)) { $n++; $did++; } if (microtime(true) - $t0 >= $cap) break 2; }
         // خطوات المخطط/النصوص
         $st = db()->prepare('SELECT id FROM cp_plans WHERE workspace_id = ? AND status = "generating" ORDER BY id LIMIT 4'); $st->execute([$wid]);
         foreach ($st->fetchAll(PDO::FETCH_COLUMN) as $id) { $s = cpl_step((int)$id); $n++; $did++; if (!empty($s['busy']) || $s['error'] !== '') break; if (microtime(true) - $t0 >= $cap) break 2; }
@@ -852,6 +852,60 @@ function cpl_jobs_tick(int $planId): bool
             if (!$retry) cpl_jobs_finalize($it['id'], $j['kind']);
         }
         return true;
+    } finally { db()->query('SELECT RELEASE_LOCK(' . db()->quote($lk) . ')'); }
+}
+
+/**
+ * نسخة متوازية: بتولّد صور عدة مهام في نفس الوقت (curl_multi) بدل واحدة واحدة — تسريع التوليد الكبير.
+ * بترجّع عدد الصور اللي خلصت. الفيديو والكاروسيل-بدون-صور بيرجعوا لـ cpl_jobs_tick.
+ */
+function cpl_jobs_burst(int $planId, int $concurrency = 5): int
+{
+    if (img_provider() !== 'openai' || !function_exists('img_openai_batch')) return cpl_jobs_tick($planId) ? 1 : 0;
+    $lk = 'cplj_' . $planId; if (!db()->query('SELECT GET_LOCK(' . db()->quote($lk) . ', 0)')->fetchColumn()) return 0;
+    try {
+        @set_time_limit(330); $p = cpl_plan($planId); if (!$p) return 0; $wid = (int)ws('id');
+        // متابعة الفيديوهات الشغالة
+        $st = db()->prepare('SELECT * FROM cp_jobs WHERE plan_id = ? AND status = "running" AND kind = "video" ORDER BY id LIMIT 4'); $st->execute([$planId]);
+        foreach ($st->fetchAll() as $j) {
+            try { $r = vid_or_poll((string)$j['ext_id']); } catch (Throwable $e) { $r = ['status' => 'pending']; }
+            if ($r['status'] === 'completed') { $ms = cpl_media_for_names($r['names']); db()->prepare('UPDATE cp_jobs SET status = "done", result = ? WHERE id = ?')->execute([json_encode($ms), $j['id']]); cpl_jobs_finalize((int)$j['item_id'], 'video'); cpl_log($planId, t('اكتمل فيديو المنشور %s.', cpl_item((int)$j['item_id'])['seq'] ?? ''), 'ok'); }
+            elseif ($r['status'] === 'failed') { db()->prepare('UPDATE cp_jobs SET status = "failed", error = ? WHERE id = ?')->execute([mb_substr((string)($r['error'] ?? ''), 0, 300), $j['id']]); cpl_log($planId, t('فشل فيديو المنشور %s.', cpl_item((int)$j['item_id'])['seq'] ?? ''), 'err'); }
+        }
+        // مهام الصور/الكاروسيل المنتظرة: دفعة واحدة متوازية
+        $st = db()->prepare('SELECT * FROM cp_jobs WHERE plan_id = ? AND status = "queued" AND kind IN ("image","carousel") ORDER BY id LIMIT ' . max(1, min(8, (int)$concurrency))); $st->execute([$planId]);
+        $jobs = $st->fetchAll();
+        if (!$jobs) return cpl_jobs_tick($planId) ? 1 : 0; // مفيش صور: خلي cpl_jobs_tick يبدأ فيديو منتظر أو يخلص
+        // ملفات الريفرانس (مشتركة للخطة) مرة واحدة
+        $refFiles = [];
+        foreach (array_slice(json_decode((string)$p['refs'], true) ?: [], 0, 3) as $rid) { $rm = media_get($wid, (int)$rid); if ($rm && ($rd = cpl_small_image(media_file_path($wid, $rm), 1024))) { $tf = tempnam(sys_get_temp_dir(), 'cpr') . '.jpg'; file_put_contents($tf, base64_decode(substr($rd, strpos($rd, ',') + 1))); $refFiles[] = $tf; } }
+        $refHint = $refFiles ? ("\nThe " . count($refFiles) . " attached images are STYLE REFERENCES. Study ALL of them together and infer the shared visual system: exact colour palette, lighting mood, contrast, typography style and weight, grid and layout rhythm, texture and the overall level of polish; then apply that system here. Do not copy any subject, text, person or logo from them.") : '';
+        $batch = []; $meta = [];
+        foreach ($jobs as $j) {
+            $it = cpl_item((int)$j['item_id']); if (!$it) { db()->prepare('UPDATE cp_jobs SET status = "failed", error = "item" WHERE id = ?')->execute([$j['id']]); continue; }
+            db()->prepare('UPDATE cp_jobs SET status = "running", tries = tries + 1 WHERE id = ?')->execute([$j['id']]);
+            $GLOBALS['img_no_trim'] = true;
+            $batch[] = ['prompt' => cpl_job_prompt($p, $it, $j) . $refHint, 'refs' => $refFiles];
+            $meta[] = ['job' => $j, 'it' => $it];
+            cpl_log($planId, t('توليد صورة للمنشور %s…', $it['seq']));
+        }
+        $fail_all = function (string $msg) use ($meta) { foreach ($meta as $mm) { $retry = (int)$mm['job']['tries'] + 1 < 2; db()->prepare('UPDATE cp_jobs SET status = ?, error = ? WHERE id = ?')->execute([$retry ? 'queued' : 'failed', mb_substr($msg, 0, 300), $mm['job']['id']]); if (!$retry) cpl_jobs_finalize((int)$mm['it']['id'], $mm['job']['kind']); } };
+        try { $res = img_openai_batch($batch, '4:5'); }
+        catch (Throwable $e) { $fail_all($e->getMessage()); foreach ($refFiles as $tf) @unlink($tf); return 0; }
+        $n = 0;
+        foreach ($meta as $k => $mm) {
+            $j = $mm['job']; $it = $mm['it']; $r = $res[$k] ?? ['error' => 'no result'];
+            if (!empty($r['names']) && ($ms = cpl_media_for_names($r['names']))) {
+                db()->prepare('UPDATE cp_jobs SET status = "done", result = ? WHERE id = ?')->execute([json_encode($ms), $j['id']]);
+                cpl_jobs_finalize((int)$it['id'], $j['kind']); cpl_log($planId, t('اكتملت صورة المنشور %s.', $it['seq']), 'ok'); $n++;
+            } else {
+                $retry = (int)$j['tries'] + 1 < 2; db()->prepare('UPDATE cp_jobs SET status = ?, error = ? WHERE id = ?')->execute([$retry ? 'queued' : 'failed', mb_substr((string)($r['error'] ?? 'fail'), 0, 300), $j['id']]);
+                cpl_log($planId, t('فشل توليد صورة المنشور %s: %s', $it['seq'], (string)($r['error'] ?? '')) . ($retry ? ' ' . t('(سنعيد المحاولة)') : ''), 'err');
+                if (!$retry) cpl_jobs_finalize((int)$it['id'], $j['kind']);
+            }
+        }
+        foreach ($refFiles as $tf) @unlink($tf);
+        return $n;
     } finally { db()->query('SELECT RELEASE_LOCK(' . db()->quote($lk) . ')'); }
 }
 
