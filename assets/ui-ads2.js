@@ -121,15 +121,30 @@
     var close = function () { drawer.remove(); drawer = null; document.removeEventListener('keydown', onEsc); };
     var onEsc = function (e) { if (e.key === 'Escape' && !document.querySelector('dialog[open]')) close(); };
     document.addEventListener('keydown', onEsc); $('.x', drawer).onclick = close; $('.x', drawer).focus();
-    var box = $('.body', drawer), dr = drawer;
-    fetch(d.href, { credentials: 'same-origin' }).then(function (r) { return r.text(); }).then(function (h) {
-      if (dr !== drawer) return;
-      var doc = new DOMParser().parseFromString(h, 'text/html'), kpi = doc.querySelector('.ads-num'), sets = doc.querySelector('.acx-set');
-      box.innerHTML = ''; box.className = 'body space-y-4';
-      if (kpi) { var g = kpi.closest('.grid'); g.className = 'grid grid-cols-2 gap-2'; box.appendChild(g); }
-      if (sets) { var wrap = sets.parentNode; $$('form, details, #acx-q, #acx-toggle, #acx-help', wrap).forEach(function (x) { x.remove(); }); box.appendChild(wrap); }
-      if (!kpi && !sets) box.textContent = S.loadErr;
-    }).catch(function () { box.textContent = S.loadErr; });
+    var box = $('.body', drawer);
+    // بنبني الملخّص من بيانات الصف نفسها (الأرقام موجودة بالفعل) بدل ما نحاول نقرا صفحة بتتبني بالـJS
+    (function () {
+      var V = d.v || [], cur = d.cur;
+      var items = [
+        [S.cols[0], money(V[0] || 0, cur)], [S.cols[1], num(V[1] || 0)],
+        [S.cols[2], num(V[2] || 0)], [S.cols[3], num(V[3] || 0) + '%'],
+        [S.cols[4], money(V[4] || 0, cur)], [S.cols[5], num(V[5] || 0)]
+      ];
+      var grid = '<div class="grid grid-cols-2 gap-2">' + items.map(function (x) {
+        return '<div class="rounded-xl border border-ink-200 p-3"><div class="text-[11px] text-ink-500 mb-1">' + esc(x[0]) + '</div><div class="text-lg font-bold text-ink-900 tabular-nums" dir="ltr">' + esc(x[1]) + '</div></div>';
+      }).join('') + '</div>';
+      var extra = '';
+      if (d.b) extra += '<div class="rounded-xl border border-ink-200 p-3 flex items-center justify-between gap-3"><span class="text-[11px] text-ink-500">' + esc(S.budget) + '</span><b class="text-ink-900 tabular-nums" dir="ltr">' + esc(money(d.b[0] || 0, cur) + (d.b[1] === 'lifetime' ? ' ' + (S.lifetime || '') : ' / ' + (S.daily || ''))) + '</b></div>';
+      if (d.p) {
+        var dv = function (a, b) { a = +a || 0; b = +b || 0; if (!b) return '—'; var p = Math.round((a - b) / b * 100); return (p > 0 ? '+' : '') + p + '%'; };
+        extra += '<div class="rounded-xl border border-ink-200 p-3"><div class="text-[11px] text-ink-500 mb-1.5">' + esc(S.vsPrev) + '</div><div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-700" dir="ltr">'
+          + '<span>' + esc(S.cols[0]) + ' <b>' + esc(dv(V[0], d.p[0])) + '</b></span>'
+          + '<span>' + esc(S.cols[2]) + ' <b>' + esc(dv(V[2], d.p[2])) + '</b></span>'
+          + '<span>' + esc(S.cols[5]) + ' <b>' + esc(dv(V[5], d.p[5])) + '</b></span></div></div>';
+      }
+      box.className = 'body space-y-3';
+      box.innerHTML = grid + (extra ? '<div class="space-y-2">' + extra + '</div>' : '');
+    })();
     $('.ai', drawer).onclick = function () {
       var b = this, out = $('.aiout', drawer), a = avg[d.cur]; b.disabled = true; out.classList.remove('hidden'); out.textContent = S.aiWait;
       var data = { name: d.name, platform: d.pf, status: d.st, currency: d.cur, budget: d.b ? d.b[0] + ' ' + d.b[1] : '', spend: d.v[0], impressions: d.v[1], clicks: d.v[2], ctr: d.v[3], cpc: d.v[4], results: d.v[5], account_avg_ctr: a.ctr.toFixed(2), account_avg_cpc: a.cpc.toFixed(2), period: C.period };
