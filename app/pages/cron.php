@@ -212,5 +212,15 @@ try {
     save_setting('cron_running', '0');
     try { db()->query("SELECT RELEASE_LOCK(CONCAT(DATABASE(), '_cron'))"); } catch (Throwable $e) {}
 }
+// تكملة فورية: لو لسه فيه توليد محتوى شغّال، نشغّل الكرون مرة تانية فورًا بدل انتظار الساعة الجاية
+// (سلسلة محدودة بعمق أقصى عشان ما تجريش للأبد؛ القفل بيمنع تشغيلين في نفس الوقت)
+$depth = (int)($_GET['d'] ?? 0);
+if ($depth < 40 && function_exists('cpl_pending_any') && cpl_pending_any()) {
+    $nextUrl = base_url() . '/index.php?p=cron&token=' . rawurlencode($token) . '&d=' . ($depth + 1);
+    $ch = curl_init($nextUrl);
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT_MS => 300, CURLOPT_NOSIGNAL => 1, CURLOPT_CONNECTTIMEOUT => 2]);
+    @curl_exec($ch); @curl_close($ch); // fire-and-forget؛ ما بنستناش الرد
+    $out[] = 'continue d=' . ($depth + 1);
+}
 echo "ok\n" . implode("\n", $out) . "\n";
 exit;

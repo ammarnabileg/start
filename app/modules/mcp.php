@@ -147,6 +147,10 @@ function mcp_tools(): array
         ['name' => 'list_ad_campaigns', 'description' => 'List the ad campaigns saved in this workspace, with the id, name, platform, and state of each one.', 'inputSchema' => ['type' => 'object', 'properties' => new stdClass()]],
         ['name' => 'delete_post', 'description' => 'Permanently delete a scheduled or published post by its id. This cannot be undone. It needs an admin token.', 'inputSchema' => ['type' => 'object', 'required' => ['post_id'], 'properties' => ['post_id' => ['type' => 'string']]]],
         ['name' => 'delete_content_plan', 'description' => 'Permanently delete an AI content plan and its unsent drafts by its id. This cannot be undone. It needs an admin token.', 'inputSchema' => ['type' => 'object', 'required' => ['plan_id'], 'properties' => ['plan_id' => ['type' => 'integer']]]],
+        ['name' => 'auto_launch_ad_campaign', 'description' => 'Launch a saved ad campaign automatically, but ONLY if its daily budget is within a cap. This spends real money and needs an admin token. Always ASK the user for the highest daily budget they allow, then pass it as max_daily_budget: if the campaign\'s budget is higher, nothing launches and you are told to adjust. Use list_ad_campaigns to find the id.', 'inputSchema' => ['type' => 'object', 'required' => ['campaign_id', 'max_daily_budget'], 'properties' => [
+            'campaign_id' => ['type' => 'integer', 'description' => 'Ad build id (from list_ad_campaigns)'],
+            'max_daily_budget' => ['type' => 'number', 'description' => 'Maximum daily budget the user allows, in the account currency (ask the user)'],
+        ]]],
         ['name' => 'list_media', 'description' => 'List images in the workspace media library, with id and name. Use this to get reference-image ids for create_content_plan. If the user wants a specific visual style, ASK them to add a reference image to the media library first, then pass its id.', 'inputSchema' => ['type' => 'object', 'properties' => ['limit' => ['type' => 'integer']]]],
         ['name' => 'analytics_summary', 'description' => 'Review social (organic) performance for a period and get stats plus concrete suggestions on what to improve. Returns impressions, reach, engagement and rate, follower growth, posts published, a messages summary, top posts, and a suggestions list. Read-only.', 'inputSchema' => ['type' => 'object', 'properties' => [
             'period' => ['type' => 'string', 'enum' => ['last_week', 'last_month', 'custom'], 'description' => 'Default last_week'],
@@ -325,6 +329,21 @@ function mcp_call(string $name, array $args, string $scopes, int $tokenId = 0): 
                 foreach ($ids as $_) { $h = $slots[$k % $perDay] ?? 10; $times[] = gmdate('Y-m-d', strtotime($start) + $day * 86400) . sprintf('T%02d:00:00', $h); $k++; if ($k % $perDay === 0) $day++; }
             }
             return mcp_do_publish($tokenId, 'bank_publish', 'Bulk schedule ' . count($ids) . ' bank item(s) → ' . count($accs) . ' acct(s), ' . $when, ['item_ids' => $ids, 'accounts' => $accs, 'when' => $when, 'times' => $times], $text, $err);
+
+        case 'auto_launch_ad_campaign':
+            if (!mcp_scope_allows($scopes, 'admin')) return $err('Launching ad campaigns (real spend) needs an "admin" token.');
+            if (!function_exists('ab_get') || !function_exists('ab_main_budget')) return $err('Ad builder not available.');
+            $cid = (int)($args['campaign_id'] ?? 0);
+            $cap = (float)($args['max_daily_budget'] ?? 0);
+            if (!$cid) return $err('campaign_id is required (from list_ad_campaigns).');
+            if ($cap <= 0) return $err('max_daily_budget is required — ASK the user for the highest daily budget they allow before launching, then pass it here.');
+            $build = ab_get((int)ws('id'), $cid);
+            if (!$build) return $err('Ad campaign not found.');
+            $d = (array)($build['data'] ?? []);
+            $budget = ab_main_budget($d); $curr = (string)($d['currency'] ?? '');
+            if ($budget <= 0) return $err('مفيش ميزانية يومية محددة على الحملة. حدّد الميزانية في اللوحة الأول.');
+            if ($budget > $cap) return $text('مش هطلقها: الميزانية اليومية ' . rtrim(rtrim(number_format($budget, 2), '0'), '.') . ' ' . $curr . ' أكبر من الحد اللي سمحت بيه (' . rtrim(rtrim(number_format($cap, 2), '0'), '.') . ' ' . $curr . '). اطلب من المستخدم يرفع الحد أو يقلّل ميزانية الحملة.');
+            return mcp_do_admin($tokenId, 'ad_launch', 'Auto-launch ad build #' . $cid . ' (budget ' . $budget . ' ≤ cap ' . $cap . ' ' . $curr . ')', ['campaign_id' => $cid], $text, $err);
 
         case 'create_ad_campaign':
             if (!mcp_scope_allows($scopes, 'write')) return $err('Building ad campaigns needs a token with "write" permission.');

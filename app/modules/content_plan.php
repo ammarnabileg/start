@@ -329,12 +329,32 @@ function cpl_qc(array $it, array $o = []): array
 /** الكرون: كمّل الخطط اللي شغالة حتى لو المتصفح مقفول */
 function cpl_tick(int $wid, int $budget = 4): int
 {
-    $st = db()->prepare('SELECT id FROM cp_plans WHERE workspace_id = ? AND status = "generating" ORDER BY id LIMIT 3'); $st->execute([$wid]); $n = 0;
     $GLOBALS['cpl_cron'] = true;
-    $jq = db()->prepare('SELECT DISTINCT plan_id FROM cp_jobs WHERE workspace_id = ? AND status IN ("queued","running") LIMIT 3'); $jq->execute([$wid]);
-    foreach ($jq->fetchAll(PDO::FETCH_COLUMN) as $pid) for ($i = 0; $i < 3; $i++) { if (!cpl_jobs_tick((int)$pid)) break; $n = ($n ?? 0) + 1; }
-    foreach ($st->fetchAll(PDO::FETCH_COLUMN) as $id) for ($i = 0; $i < $budget; $i++) { $s = cpl_step((int)$id); $n++; if ($s['status'] !== 'generating' || !empty($s['busy']) || $s['error'] !== '') break; }
+    $t0 = microtime(true); $n = 0;
+    // ميزانية وقت لكل شركة في التشغيلة: نعالج أكبر كمية ممكنة بدل عدد ثابت صغير (تسريع التوليد الكبير)
+    $cap = 70;
+    if (isset($GLOBALS['cron_t0'])) { $rem = 560 - (microtime(true) - (float)$GLOBALS['cron_t0']); $cap = max(8, min($cap, $rem)); }
+    while (microtime(true) - $t0 < $cap) {
+        $did = 0;
+        // مهام الصور/الفيديو
+        $jq = db()->prepare('SELECT DISTINCT plan_id FROM cp_jobs WHERE workspace_id = ? AND status IN ("queued","running") LIMIT 4'); $jq->execute([$wid]);
+        foreach ($jq->fetchAll(PDO::FETCH_COLUMN) as $pid) { if (cpl_jobs_tick((int)$pid)) { $n++; $did++; } if (microtime(true) - $t0 >= $cap) break 2; }
+        // خطوات المخطط/النصوص
+        $st = db()->prepare('SELECT id FROM cp_plans WHERE workspace_id = ? AND status = "generating" ORDER BY id LIMIT 4'); $st->execute([$wid]);
+        foreach ($st->fetchAll(PDO::FETCH_COLUMN) as $id) { $s = cpl_step((int)$id); $n++; $did++; if (!empty($s['busy']) || $s['error'] !== '') break; if (microtime(true) - $t0 >= $cap) break 2; }
+        if ($did === 0) break; // مفيش شغل متبقّي
+    }
     return $n;
+}
+
+/** هل لسه فيه توليد محتوى شغّال على مستوى المنصة (لتكملة الكرون نفسه فورًا بدل انتظار ساعة). */
+function cpl_pending_any(): bool
+{
+    try {
+        $a = (int)db()->query('SELECT COUNT(*) FROM cp_plans WHERE status = "generating"')->fetchColumn();
+        $b = (int)db()->query('SELECT COUNT(*) FROM cp_jobs WHERE status IN ("queued","running")')->fetchColumn();
+        return ($a + $b) > 0;
+    } catch (Throwable $e) { return false; }
 }
 
 function cpl_set_status(array $ids, string $status): int
