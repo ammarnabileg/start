@@ -146,37 +146,56 @@ function ai_team_apply_active(string $svg, string $tagRegex, bool $on): string
  * يبني مشهد فريق الوكلاء: يحمّل الـ SVG، يعرّب العناوين (وقت العربي)،
  * ويضبط كلاس active لكل وكيل حسب الحالة الحقيقية.
  */
+/** أسماء الوكلاء القصيرة للطبقة العلوية. */
+function ai_team_overlay_names(): array
+{
+    $ar = function_exists('lang') && lang() === 'ar';
+    return $ar ? [
+        'content' => 'المحتوى', 'publishing' => 'النشر', 'ads' => 'الإعلانات', 'analytics' => 'التحليلات',
+        'tenders' => 'المناقصات', 'crm' => 'العملاء', 'automation' => 'الأتمتة', 'communications' => 'التواصل',
+    ] : [
+        'content' => 'Content', 'publishing' => 'Publishing', 'ads' => 'Ads', 'analytics' => 'Analytics',
+        'tenders' => 'Tenders', 'crm' => 'CRM', 'automation' => 'Automation', 'communications' => 'Comms',
+    ];
+}
+
 function ai_team_svg(string $wsName, array $states): string
 {
     $file = ROOT_DIR . '/assets/workspace_agents.svg';
-    $svg = is_file($file) ? (string)file_get_contents($file) : '';
-    if ($svg === '') return '';
+    if (!is_file($file)) return '';
+    // الصورة كبيرة (فيها رسوم مدمجة)؛ نعرضها كـ <img> أخف ويتكاش، وأنيميشناتها الداخلية بتشتغل برضو
+    $ver = defined('APP_VERSION') ? APP_VERSION : (string)@filemtime($file);
+    $svg = '<img src="assets/workspace_agents.svg?v=' . e($ver) . '" alt="' . e(function_exists('t') ? t('فريق الوكلاء') : 'AI team') . '" style="width:100%;height:auto;display:block" loading="lazy">';
 
-    // تعريب العناوين وقت واجهة العربي
-    if (function_exists('lang') && lang() === 'ar') {
-        foreach (ai_team_labels_ar() as $en => $ar) {
-            $svg = str_replace('>' . $en . '</text>', '>' . $ar . '</text>', $svg);
-        }
-    }
-
-    // ضبط حالة كل وكيل والخط الموصّل له + شارة يعمل/جاهز حسب الحالة الحقيقية
+    // التصميم صورة بدون هوكس لكل وكيل → نحط طبقة مؤشرات حيّة فوقه (شارة يعمل/جاهز + توهّج)
     $ar = function_exists('lang') && lang() === 'ar';
     $live = $ar ? 'يعمل' : 'LIVE'; $ready = $ar ? 'جاهز' : 'READY';
-    foreach (ai_team_keys() as $k) {
+    $names = ai_team_overlay_names();
+    $keys = ai_team_keys(); $N = count($keys);
+    $chips = ''; $glows = '';
+    foreach ($keys as $i => $k) {
         $on = !empty($states[$k]['active']);
-        $q = preg_quote($k, '/');
-        $svg = ai_team_apply_active($svg, '/<g\b[^>]*\bdata-role="' . $q . '"[^>]*>/', $on);
-        $svg = ai_team_apply_active($svg, '/<g\b[^>]*\bid="link-' . $q . '"[^>]*>/', $on);
-        // نص الشارة (كان مثبّتًا في التصميم) يتبع الحالة الحقيقية
-        $word = $on ? $live : $ready;
-        $svg = preg_replace_callback('/(id="agent-' . $q . '".*?class="ui-sub state-label"[^>]*>)[^<]*(<\/text>)/s', function ($m) use ($word) {
-            return $m[1] . $word . $m[2];
-        }, $svg, 1);
+        $left = round(($i + 0.5) / $N * 100, 3);
+        $chips .= '<div class="wa-chip' . ($on ? ' on' : '') . '" data-role="' . $k . '" style="left:' . $left . '%">'
+            . '<span class="wa-dot"></span><span class="wa-nm">' . e($names[$k] ?? $k) . '</span> · <span class="wa-st">' . e($on ? $live : $ready) . '</span></div>';
+        $glows .= '<div class="wa-glow' . ($on ? ' on' : '') . '" data-glow="' . $k . '" style="left:' . $left . '%"></div>';
     }
 
-    // جعل الـ SVG متجاوب داخل الصفحة + خط عربي للعناوين
-    $svg = preg_replace('/<svg /', '<svg style="width:100%;height:auto;display:block" ', $svg, 1);
-
-    $css = '<style>#workspace-agents svg text{direction:ltr;unicode-bidi:isolate;font-family:Alexandria,Inter,system-ui,sans-serif}</style>';
-    return '<div id="workspace-agents">' . $css . $svg . '</div>';
+    $css = '<style>'
+        . '#workspace-agents{position:relative;direction:ltr}'
+        . '#workspace-agents .wa-glow{position:absolute;top:4%;width:' . round(100 / $N - 0.5, 2) . '%;height:58%;transform:translateX(-50%);border-radius:26px;pointer-events:none;opacity:0;transition:opacity .4s;background:radial-gradient(ellipse at 50% 42%,rgba(99,102,241,.38),transparent 70%)}'
+        . '#workspace-agents .wa-glow.on{opacity:1;animation:waBreath 2.4s ease-in-out infinite}'
+        . '#workspace-agents .wa-chip{position:absolute;top:1%;transform:translateX(-50%);display:flex;align-items:center;gap:5px;font-family:Alexandria,Inter,system-ui,sans-serif;font-size:11.5px;font-weight:800;color:#64748b;background:rgba(255,255,255,.86);border:1px solid #e2e8f0;border-radius:999px;padding:3px 9px;white-space:nowrap;box-shadow:0 2px 8px rgba(15,23,42,.08)}'
+        . 'html.dark #workspace-agents .wa-chip{background:rgba(15,23,41,.72);color:#8fa0c0;border-color:#243354}'
+        . '#workspace-agents .wa-chip .wa-dot{width:8px;height:8px;border-radius:50%;background:#94a3b8;flex:none}'
+        . '#workspace-agents .wa-chip .wa-st{color:#94a3b8}'
+        . '#workspace-agents .wa-chip.on{color:#0f172a;border-color:#86efac}'
+        . 'html.dark #workspace-agents .wa-chip.on{color:#eaf0fb}'
+        . '#workspace-agents .wa-chip.on .wa-dot{background:#22c55e;animation:waPulse 1.4s infinite}'
+        . '#workspace-agents .wa-chip.on .wa-st{color:#16a34a}'
+        . '@keyframes waPulse{0%,100%{box-shadow:0 0 0 3px rgba(34,197,94,.28)}50%{box-shadow:0 0 0 7px rgba(34,197,94,.06)}}'
+        . '@keyframes waBreath{0%,100%{opacity:.5}50%{opacity:1}}'
+        . '@media(max-width:640px){#workspace-agents .wa-chip{font-size:9px;padding:2px 5px;gap:3px}#workspace-agents .wa-chip .wa-nm{display:none}}'
+        . '</style>';
+    return '<div id="workspace-agents">' . $css . $glows . $svg . $chips . '</div>';
 }
