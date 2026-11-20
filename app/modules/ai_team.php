@@ -211,10 +211,10 @@ function ai_team_svg(string $wsName, array $states): string
 
     // لوحة تحكّم/مفتاح الوكلاء (نفس هوية التصميم، ثنائية اللغة)
     $labels = [
-        'content' => ['المحتوى', 'Content Studio'], 'publishing' => ['الجدولة', 'Publishing'],
-        'ads' => ['الإعلانات', 'Ads Manager'], 'analytics' => ['التحليلات', 'Analytics'],
-        'tenders' => ['المناقصات', 'Tender Intel'], 'crm' => ['العملاء', 'CRM & Leads'],
-        'automation' => ['الأتمتة', 'Automation'], 'communications' => ['التواصل', 'Communications'],
+        'content' => ['المحتوى', 'Content'], 'publishing' => ['الجدولة', 'Publishing'],
+        'ads' => ['الإعلانات', 'Ads'], 'analytics' => ['التحليلات', 'Analytics'],
+        'tenders' => ['المناقصات', 'Tenders'], 'crm' => ['العملاء', 'CRM'],
+        'automation' => ['الأتمتة', 'Automation'], 'communications' => ['التواصل', 'Comms'],
     ];
     // مواضع رأس كل موظف فوق الرسمة (مراكز المحطات ÷ عرض الرسمة 2172)
     $centers = [152, 423, 673, 912, 1184, 1444, 1694, 1955];
@@ -225,8 +225,9 @@ function ai_team_svg(string $wsName, array $states): string
         $lab = $labels[$k];
         $on = !empty($states[$k]['active']);
         $left = round($centers[$i] / 2172 * 100, 3);
+        $nm = $ar ? $lab[0] : $lab[1];
         $tags .= '<button class="aw-tag' . ($on ? ' on' : '') . '" data-role="' . $k . '" type="button" aria-pressed="' . ($on ? 'true' : 'false') . '" style="--accent:' . $colors[$k] . ';left:' . $left . '%">'
-            . '<span class="aw-tdot"></span><b>' . e($lab[0]) . '</b><span class="aw-tst">' . e($on ? $live : $ready) . '</span></button>';
+            . '<span class="aw-tdot"></span><b>' . e($nm) . '</b><span class="aw-tst">' . e($on ? $live : $ready) . '</span></button>';
     }
     $liveLbl = $ar ? 'شبكة الوكلاء شغّالة' : 'SIGNAL FABRIC LIVE';
     $capTxt = $ar ? '٨ وظائف متصلة · الإشارات بتتحرّك لحظيًا مع كل شغل حقيقي على القسم' : '8 connected functions · signals move live with real activity';
