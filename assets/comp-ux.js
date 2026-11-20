@@ -34,7 +34,7 @@
     var k = D.k;
     var h = '<div class="cx-top"><div class="cx-kpis">' + [[k.n, T.kN, '#2563eb', 'eye'], [k.changes, T.kCh, '#7c3aed', 'refresh'], [k.up, T.kUp, '#dc2626', 'trend_up'], [k.down, T.kDown, '#16a34a', 'trend_down'], [k.cheaper, T.kCheap, '#ea580c', 'tag']].filter(function (x, i) { return i < 2 || (k.up + k.down + k.cheaper) > 0; }).map(function (x) {
       return '<div class="cx-kpi" style="--c:' + x[2] + '"><span>' + ic(x[3]) + '</span><b>' + num(x[0]) + '</b><small>' + esc(x[1]) + '</small></div>'; }).join('') + '</div>' +
-      '<button type="button" class="btn-primary" data-open-add>' + ic('plus') + esc(T.add) + '</button></div><div class="cx-pop hidden" data-pop>' + addForm() + '</div>';
+      '<span class="text-xs text-ink-400 self-center tabular-nums">' + cs.filter(function (c) { return !c.self; }).length + ' / 15</span><button type="button" class="btn-primary" data-open-add>' + ic('plus') + esc(T.add) + '</button></div><div class="cx-pop hidden" data-pop>' + addForm() + '</div>';
     // الكروت
     cs = cs.slice().sort(function (a, b) { return (b.self || 0) - (a.self || 0); });
     h += '<section class="cx-cards">' + cs.map(function (c) { var st = stand(c.id), ev = D.events.filter(function (e) { return e.cid === c.id; }), last = ev[0];
@@ -43,6 +43,7 @@
         '<div class="cx-mini">' + (c.services.length ? '<span><b>' + c.services.length + '</b> ' + esc(T.svc) + '</span>' : '') + (c.offers.length ? '<span><b>' + c.offers.length + '</b> ' + esc(T.offers) + '</span>' : '') + (st.ch ? '<span class="cheap">' + esc(f(T.cheaperIn, st.ch)) + '</span>' : '') + (st.ex ? '<span class="exp">' + esc(f(T.pricierIn, st.ex)) + '</span>' : '') + '</div>' +
         (c.self ? '' : c.lastDays != null ? '<p class="cx-last' + (c.lastDays > 30 ? ' idle' : '') + '">' + esc(c.lastDays === 0 ? T.oLastToday : f(c.lastDays > 30 ? T.oIdle : T.oLast, c.lastDays)) + '</p>' : '') + (c.checked && !c.ok ? '<p class="cx-why">' + esc(T.whyDown) + (c.err ? ' <small dir="auto">(' + esc(c.err) + ')</small>' : '') + '</p>' : '') + (c.rate ? '<div class="cs-cardl"><span class="cg-st">★</span><b>' + c.rate.avg + '</b> ' + esc(f(T.gCard, kfmt(c.rate.n), c.rate.b)) + '</div>' : '') + (c.soc && c.soc.followers ? '<div class="cs-cardl">' + ic('users', 'w-3.5 h-3.5') + '<b>' + kfmt(c.soc.followers) + '</b> ' + esc(T.sFol) + (c.soc.g7 != null && c.soc.g7 !== 0 ? ' <em class="' + (c.soc.g7 > 0 ? 'up' : 'dn') + '">' + (c.soc.g7 > 0 ? '+' : '') + kfmt(c.soc.g7) + ' ' + esc(T.sWeek) + '</em>' : '') + '</div>' : '') +
         (last ? evRow(last) : '<p class="text-xs text-ink-400">' + esc(T.noCh) + '</p>') +
+        (c.self ? '' : '<div class="mt-2 text-[11px] font-semibold text-brand-600 flex items-center gap-1">' + esc(T.drill) + ' <span aria-hidden="true">‹</span></div>') +
         '<div class="cx-acts" data-stop><button type="button" class="btn-ghost !py-1 !text-xs" data-check>' + ic('refresh') + '<span>' + esc(T.check) + '</span></button>' + c.links.map(function (l) { return '<a class="cx-lk" href="' + esc(l) + '" target="_blank" rel="noopener" title="' + esc(l) + '">' + ic('link') + '</a>'; }).join('') +
         '<button type="button" class="cx-del" data-del title="' + esc(T.del) + '">' + ic('trash') + '</button></div></article>'; }).join('') + '</section>';
     // السجل + المقارنة
