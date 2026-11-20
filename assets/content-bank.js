@@ -16,7 +16,7 @@
   }
   function card(i) {
     var t = i.topic || {}, can = i.status !== 'published';
-    var st = i.status === 'scheduled' ? fmt(T.s_scheduled, String(i.scheduled_at || '').slice(0, 16)) : T['s_' + i.status];
+    var st = i.status === 'scheduled' ? fmt(T.s_scheduled, String(i.scheduled_at || '').slice(0, 16).replace('T', ' ')) : T['s_' + i.status];
     return '<article class="card p-3 flex flex-col gap-2 min-w-0" data-id="' + i.id + '"><header class="flex items-start gap-2">' + (can ? '<input type="checkbox" class="cb-sel mt-1"' + (sel[i.id] ? ' checked' : '') + '>' : '')
       + '<div class="min-w-0 flex-1"><b class="block truncate">' + esc(t.title || '') + '</b><span class="text-[11px] text-ink-400">' + esc(C.plans[i.plan_id] || '') + '</span></div><span class="badge ' + (i.status === 'published' ? 'badge-green' : i.status === 'approved' ? '' : 'badge-amber') + '">' + esc(st) + '</span></header>'
       + '<div class="flex gap-3"><div class="shrink-0 w-24">' + ((i.media || []).length ? '<div class="relative"><img src="' + esc(i.media[0].thumb) + '" class="w-24 h-28 object-cover rounded-xl border border-ink-200" alt="">' + (i.media.length > 1 ? '<span class="absolute bottom-1 end-1 rounded-full bg-black/70 text-[#fff] text-[10px] px-1.5">' + i.media.length + '</span>' : '') + '</div>' + (i.media.length > 1 ? '<div class="flex flex-wrap gap-0.5 mt-1">' + i.media.slice(1).map(function (m) { return '<img src="' + esc(m.thumb) + '" class="w-7 h-7 object-cover rounded" alt="">'; }).join('') + '</div>' : '') : '<div class="w-24 h-28 rounded-xl border border-dashed border-ink-300 grid place-items-center text-[11px] text-ink-400 text-center p-1">' + esc(i.headline || '') + '</div>')
