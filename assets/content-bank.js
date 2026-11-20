@@ -43,7 +43,10 @@
   // رفع متتابع (واحد ورا التاني): لو النت فصل في النص، اللي اترفع بيفضل محفوظ
   function upSeq(pairs) { var n = 0; (function next() { var pr = pairs.shift(); if (!pr) { paint(); if (n) toast(fmt(T.bulkDone, n)); return; }
     post({ action: 'media', id: pr[0].id }, pr[1]).then(function (j) { if (!j.ok) { toast(j.error || T.err, 'error'); return next(); } n++; pr[0].media = j.media; pr[0].media_id = (j.media[0] || {}).id || null; paint(); next(); }).catch(function () { paint(); toast(T.offline, 'error'); }); })(); }
-  document.getElementById('cb-bulk').addEventListener('change', function () { var fs = [].slice.call(this.files), sl = items.filter(function (x) { return sel[x.id]; }); this.value = ''; upSeq(fs.slice(0, sl.length).map(function (f, k) { return [sl[k], f]; })); });
+  document.getElementById('cb-bulk').addEventListener('change', function () { var fs = [].slice.call(this.files), sl = items.filter(function (x) { return sel[x.id]; }); this.value = ''; if (!fs.length) return;
+    if (!sl.length) { toast(T.bulkNone, 'error'); return; }
+    var go = function () { upSeq(fs.slice(0, sl.length).map(function (f, k) { return [sl[k], f]; })); };
+    (fs.length > sl.length ? ask(fmt(T.bulkExtra, fs.length, sl.length)) : Promise.resolve(true)).then(function (ok) { if (ok) go(); }); });
   function accs() { return $$('.cb-acc:checked').map(function (x) { return x.value; }); }
   function run(type, times) {
     var a = accs(), list2 = ids(); if (!a.length) return toast(T.noAcc, 'error');
@@ -78,6 +81,11 @@
   ['cb-start', 'cb-every', 'cb-unit', 'cb-from', 'cb-to'].forEach(function (id) { $('#' + id).addEventListener('change', function () { if (mode() !== 'spread' || !$('#cb-start').value) return;
     times().then(function (ts) { $('#cb-prev').textContent = T.preview + ': ' + ts.map(function (x) { return x.slice(5, 16).replace('T', ' '); }).join(' · '); }).catch(function (e) { $('#cb-prev').textContent = e.message; }); }); });
   $('#cb-go').addEventListener('click', function () { times().then(function (ts) { var pre = noImgWarn() ? T.noImg : ''; return (pre ? ask(pre) : Promise.resolve(true)).then(function (ok) { if (ok) return run('schedule', ts); }); }).catch(function (e) { toast(e.message || T.err, 'error'); }); });
-  var dt = new Date(Date.now() + 3600e3); dt.setMinutes(0, 0, 0); $('#cb-start').value = new Date(dt - dt.getTimezoneOffset() * 6e4).toISOString().slice(0, 16);
+  // الموعد الافتراضي محسوب بتوقيت مساحة العمل (CB.tz) لأن السيرفر بيفسّر الموعد بنفس التوقيت
+  (function () { var el = $('#cb-start'); if (!el) return; var v;
+    try { var p = new Intl.DateTimeFormat('en-CA', { timeZone: CB.tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date(Date.now() + 3600e3)).reduce(function (o, x) { o[x.type] = x.value; return o; }, {});
+      v = p.year + '-' + p.month + '-' + p.day + 'T' + (p.hour === '24' ? '00' : p.hour) + ':00'; }
+    catch (e) { var dt = new Date(Date.now() + 3600e3); dt.setMinutes(0, 0, 0); v = new Date(dt - dt.getTimezoneOffset() * 6e4).toISOString().slice(0, 16); }
+    el.value = v; })();
   paint();
 })();

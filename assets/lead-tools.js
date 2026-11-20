@@ -181,20 +181,10 @@
     api({ action: 'send_email', id: lead().id, subject: f.subject.value, body: f.body.value }).then(function (j) { busy(b, false); b.lastChild.textContent = T.send; if (!j.ok) return fail(j); f.reset(); toast(T.sent); LP.reload(); }).catch(function () { busy(b, false); b.lastChild.textContent = T.send; fail(); }); });
 
   /* ---------- البيانات ---------- */
-  function dtPaint(j) { var hp = $('pd-plsel'); if (hp) hp.value = j.pl || hp.value; var p0 = $('pd-p-dt'); if (p0) { p0.classList.add('hidden'); p0.innerHTML = ''; } return;
-  function dtOld(j) { var p = $('pd-p-dt'), byDeals = (j.deals || []).length > 0, cf = j.cf || {};
-    var row = function (lab, inner, k) { return '<label class="pd-fld" data-f="' + k + '"><span>' + esc(lab) + '</span>' + inner + '<i class="pd-tick2">✓</i></label>'; };
-    var h = '';
-    if (Object.keys(X.pipes).length > 1) h += row(T.pipe, '<select class="input !mt-0 text-sm" data-fv="pipeline">' + Object.keys(X.pipes).map(function (k) { return '<option value="' + esc(k) + '"' + (k === j.pl ? ' selected' : '') + '>' + esc(X.pipes[k]) + '</option>'; }).join('') + '</select>', 'pipeline');
-    if (X.cf.length) { h += '<b class="block text-xs text-ink-500 mt-3 mb-1">' + esc(T.fields) + '</b>'; X.cf.forEach(function (f) { var v = cf[f.key] || '', k = 'cf.' + f.key;
-      h += row(f.label, f.type === 'select' ? '<select class="input !mt-0 text-sm" data-fv="' + esc(k) + '"><option value="">—</option>' + (f.opts || []).map(function (o) { return '<option' + (o === v ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select>'
-        : '<input class="input !mt-0 text-sm" data-fv="' + esc(k) + '" value="' + esc(v) + '" ' + (f.type === 'number' ? 'inputmode="decimal" dir="ltr"' : 'dir="auto"') + ' maxlength="200">', k); }); }
-    p.classList.toggle('hidden', !h); p.innerHTML = h ? '<div class="space-y-2">' + h.replace('mt-3 mb-1', 'mb-1') + '</div>' : ''; } }
+  function dtPaint(j) { var hp = $('pd-plsel'); if (hp) hp.value = j.pl || hp.value; var p0 = $('pd-p-dt'); if (p0) { p0.classList.add('hidden'); p0.innerHTML = ''; } }
   (function () { if (Object.keys(X.pipes || {}).length < 2) return; var meta = $('pd-meta'); if (!meta) return; var sel = document.createElement('select'); sel.id = 'pd-plsel'; sel.className = 'pd-plsel'; sel.title = T.pipe;
     sel.innerHTML = Object.keys(X.pipes).map(function (k) { return '<option value="' + esc(k) + '">' + esc(X.pipes[k]) + '</option>'; }).join(''); meta.parentNode.insertBefore(sel, meta.nextSibling);
     sel.addEventListener('change', function () { api({ action: 'field', id: lead().id, f: 'pipeline', v: sel.value }).then(function (j) { if (j && j.ok === false) return fail(j); toast(T.saved); }); }); })();
-  $('pd-p-dt').addEventListener('change', function (e) { var el = e.target.closest('[data-fv]'); if (!el) return; var lab = el.closest('.pd-fld');
-    api({ action: 'field', id: lead().id, f: el.dataset.fv, v: el.value }, C.selfUrl).then(function (j) { if (!j.ok) return fail(j); lab.classList.remove('ok'); void lab.offsetWidth; lab.classList.add('ok'); if (el.dataset.fv === 'value') LP.refresh(); }).catch(function () { fail(); }); });
 
   /* ---------- كشف Apollo ---------- */
   function enrichPaint(d) { $('pd-enrich').classList.toggle('hidden', !X.apollo || !!(d.phone && d.email)); }
