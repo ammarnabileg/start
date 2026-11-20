@@ -289,7 +289,7 @@ render(t('التكاملات'), 'connectors', function () use ($registry, $detai
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2">
                   <b class="text-ink-900 truncate"><?= e($c['label']) ?></b>
-                  <?php if ($i === 0 && count($conns) > 1): ?><span class="badge"><?= e(t('الأساسي')) ?></span><?php endif; ?>
+                  <?php if ($isAi ? !empty($c['settings']['primary']) : ($i === 0 && count($conns) > 1)): ?><span class="badge !bg-brand-50 !text-brand-700" title="<?= e(t('المزود المختار للمساعد')) ?>">★ <?= e(t('الأساسي')) ?></span><?php endif; ?>
                   
                   <?php if (!empty($c['settings']['disabled'])): ?><span class="badge !bg-amber-100 !text-amber-700"><?= e(t('متوقف')) ?></span><?php endif; ?>
                 </div>
@@ -311,6 +311,10 @@ render(t('التكاملات'), 'connectors', function () use ($registry, $detai
             <div class="flex flex-wrap gap-2">
               <form method="post"><?= csrf_field() ?><input type="hidden" name="provider" value="<?= e($key) ?>"><input type="hidden" name="cid" value="<?= (int)$c['id'] ?>"><input type="hidden" name="action" value="retest">
                 <button class="btn-ghost !py-1.5 !px-3 !text-xs"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4v6h6M20 20v-6h-6M5 13a7 7 0 0012.9 3M19 11A7 7 0 006.1 8"/></svg><?= e(t('اختبار الاتصال')) ?></button></form>
+
+              <?php if ($isAi && empty($c['settings']['primary']) && empty($c['settings']['disabled'])): ?>
+              <form method="post"><?= $hid($key, $c, 'primary') ?><button class="btn-ghost !py-1.5 !px-3 !text-xs" title="<?= e(t('يخلّي المساعد يستخدم المزود ده أولًا')) ?>">★ <?= e(t('اجعله الأساسي')) ?></button></form>
+              <?php endif; ?>
 
               <form method="post" class="ms-auto" data-confirm="<?= e(t('تشيل الاتصال "%s"؟ الحسابات اللي عليه هتختفي من البرنامج (مش هتتمسح من عندهم).', $c['label'])) ?>">
                 <?= csrf_field() ?><input type="hidden" name="provider" value="<?= e($key) ?>"><input type="hidden" name="cid" value="<?= (int)$c['id'] ?>"><input type="hidden" name="action" value="delete">

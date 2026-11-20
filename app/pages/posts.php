@@ -337,6 +337,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && in_array($_POST['action'] ?? 
 }
 
 $status = (string)($_GET['status'] ?? '');
+$q = trim((string)($_GET['q'] ?? '')); // نص البحث يُحمَل في الروابط ليبقى بعد التنقل (التطبيق على العميل)
 $validStatus = ['', 'scheduled', 'published', 'draft', 'failed', 'partial'];
 if (!in_array($status, $validStatus, true)) $status = '';
 // صفحة واحدة بعرضين (قائمة / تقويم): بنفتكر آخر عرض اختاره المستخدم
@@ -457,7 +458,7 @@ if ($z && $fixture && is_file($fixture)) {
     }
 }
 
-render(t('المنشورات'), 'posts', function () use ($z, $posts, $pages, $pageNo, $status, $view, $total, $apiError, $accounts, $counts, $metrics, $tagsMap, $sort) {
+render(t('المنشورات'), 'posts', function () use ($z, $posts, $pages, $pageNo, $status, $view, $total, $apiError, $accounts, $counts, $metrics, $tagsMap, $sort, $q) {
     if (!$z) { no_api_box(); return; }
     // رابط العودة من صفحة التعديل يحافظ على حالة القائمة (التبويب/الفرز/الفلاتر/الصفحة)
     $editRet = 'index.php?' . ($_SERVER['QUERY_STRING'] ?? '' ?: 'p=posts');
@@ -472,7 +473,7 @@ render(t('المنشورات'), 'posts', function () use ($z, $posts, $pages, $p
       $allN = $counts ? array_sum(array_map('intval', $counts)) : null; ?>
     <div class="flex gap-1.5 mb-3 overflow-x-auto pb-1 -mx-1 px-1" role="tablist" aria-label="<?= e(t('الحالة')) ?>">
       <?php foreach ($stMeta as $k => [$lbl, $ic, $col]): $n = $k === '' ? $allN : ($counts[$k] ?? null); $on = $status === $k; $bad = $k === 'failed' && (int)$n > 0; ?>
-        <a href="<?= e(url('posts', array_filter(['status' => $k, 'view' => $view === 'cal' ? 'cal' : '']))) ?>" role="tab" aria-selected="<?= $on ? 'true' : 'false' ?>"
+        <a href="<?= e(url('posts', array_filter(['status' => $k, 'view' => $view === 'cal' ? 'cal' : '', 'q' => $q]))) ?>" role="tab" aria-selected="<?= $on ? 'true' : 'false' ?>"
            class="group flex-1 min-w-[120px] rounded-2xl border px-3.5 py-2.5 transition hover:-translate-y-0.5 hover:shadow-md <?= $on ? 'border-brand-400 bg-brand-50 ring-2 ring-brand-500/15' : ($bad ? 'border-red-200 bg-red-50/70' : 'border-ink-200 bg-white') ?>">
           <span class="flex items-center gap-1.5 text-xs <?= $on ? 'text-brand-700 font-semibold' : 'text-ink-500' ?>"><?= ui_icon($ic, 'w-4 h-4') ?><?= e($lbl) ?></span>
           <span class="flex items-baseline gap-2 mt-0.5"><b class="text-xl tabular-nums <?= $bad ? 'text-red-600' : $col ?>"><?= $n === null ? '—' : (int)$n ?></b><?php if ($bad && !$on): ?><span class="text-[11px] font-semibold text-red-700"><?= e(t('اعرضها وأصلحها')) ?></span><?php endif; ?></span>
@@ -702,13 +703,13 @@ render(t('المنشورات'), 'posts', function () use ($z, $posts, $pages, $p
         </div>
       </div>
       <?php if ($pageNo < $pages): ?>
-        <div class="text-center mt-6"><button type="button" id="ps-loadmore" data-next="<?= e(url('posts', array_filter(['status' => $status, 'sort' => $sort, 'n' => $pageNo + 1]))) ?>" data-pages="<?= (int)$pages ?>" data-page="<?= (int)$pageNo ?>" class="btn-ghost"><?= e(t('اعرض أكتر')) ?> <span class="text-ink-400 text-xs"><?= e(t('(صفحة %s من %s)', $pageNo + 1, $pages)) ?></span></button></div>
+        <div class="text-center mt-6"><button type="button" id="ps-loadmore" data-next="<?= e(url('posts', array_filter(['status' => $status, 'sort' => $sort, 'n' => $pageNo + 1, 'q' => $q]))) ?>" data-pages="<?= (int)$pages ?>" data-page="<?= (int)$pageNo ?>" class="btn-ghost"><?= e(t('اعرض أكتر')) ?> <span class="text-ink-400 text-xs"><?= e(t('(صفحة %s من %s)', $pageNo + 1, $pages)) ?></span></button></div>
       <?php endif; ?>
       <?php if ($pages > 1): ?>
         <div class="ps-pager flex items-center justify-center gap-1 mt-6">
-          <?php if ($pageNo > 1): ?><a class="tb px-3 text-sm" href="<?= e(url('posts', array_filter(['status' => $status, 'sort' => $sort, 'n' => $pageNo - 1]))) ?>">‹ <?= e(t('السابق')) ?></a><?php endif; ?>
-          <?php for ($i = max(1, $pageNo - 2); $i <= min($pages, $pageNo + 2); $i++): ?><a class="tb w-9 justify-center text-sm <?= $i === $pageNo ? '!bg-brand-600 !text-[#fff]' : '' ?>" href="<?= e(url('posts', array_filter(['status' => $status, 'sort' => $sort, 'n' => $i]))) ?>"><?= $i ?></a><?php endfor; ?>
-          <?php if ($pageNo < $pages): ?><a class="tb px-3 text-sm" href="<?= e(url('posts', array_filter(['status' => $status, 'sort' => $sort, 'n' => $pageNo + 1]))) ?>"><?= e(t('التالي')) ?> ›</a><?php endif; ?>
+          <?php if ($pageNo > 1): ?><a class="tb px-3 text-sm" href="<?= e(url('posts', array_filter(['status' => $status, 'sort' => $sort, 'n' => $pageNo - 1, 'q' => $q]))) ?>">‹ <?= e(t('السابق')) ?></a><?php endif; ?>
+          <?php for ($i = max(1, $pageNo - 2); $i <= min($pages, $pageNo + 2); $i++): ?><a class="tb w-9 justify-center text-sm <?= $i === $pageNo ? '!bg-brand-600 !text-[#fff]' : '' ?>" href="<?= e(url('posts', array_filter(['status' => $status, 'sort' => $sort, 'n' => $i, 'q' => $q]))) ?>"><?= $i ?></a><?php endfor; ?>
+          <?php if ($pageNo < $pages): ?><a class="tb px-3 text-sm" href="<?= e(url('posts', array_filter(['status' => $status, 'sort' => $sort, 'n' => $pageNo + 1, 'q' => $q]))) ?>"><?= e(t('التالي')) ?> ›</a><?php endif; ?>
         </div>
       <?php endif; ?>
 

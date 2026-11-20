@@ -157,19 +157,23 @@ $__sec = function () use ($wid, $accounts, $accErr, $sched, $token, $canManage) 
           <?php endif; ?>
         </div>
 
-        <?php if ($canManage && $token !== ''): $cmd = 'curl -s "' . base_url() . '/index.php?p=cron&token=' . $token . '"'; ?>
+        <?php if ($canManage): ?>
           <div class="card p-6 space-y-3">
             <?php $cl = (string)setting('cron_last_run', ''); $age = $cl !== '' ? time() - strtotime($cl . ' UTC') : null; ?>
             <div class="flex items-center gap-2"><h2 class="font-bold text-ink-900 me-auto"><?= e(t('تشغيل تلقائي (Cron)')) ?></h2>
               <?php if ($age === null): ?><span class="rounded-full bg-red-50 text-red-700 text-[11px] px-2.5 py-0.5"><?= e(t('ما اشتغلش ولا مرة')) ?></span>
               <?php elseif ($age < 7200): ?><span class="rounded-full bg-lime-50 text-lime-700 text-[11px] px-2.5 py-0.5"><?= e(t('شغال · آخر تشغيل من %s دقيقة', max(1, (int)round($age / 60)))) ?></span>
               <?php else: ?><span class="rounded-full bg-amber-50 text-amber-700 text-[11px] px-2.5 py-0.5"><?= e(t('متوقف؟ آخر تشغيل من %s ساعة', (int)round($age / 3600))) ?></span><?php endif; ?></div>
+            <?php if ($token !== ''): $cmd = 'curl -s "' . base_url() . '/index.php?p=cron&token=' . $token . '"'; ?>
             <p class="text-sm text-ink-600"><?= e(t('عشان التقارير تتبعت والتنبيهات تتحدث لوحدها، ضيف الأمر ده في Cron Jobs في لوحة الاستضافة يشتغل كل ساعة:')) ?></p>
             <div class="flex items-stretch gap-2">
               <code id="rp-cron" class="flex-1 min-w-0 block rounded-xl bg-ink-100 text-ink-800 text-xs p-3 break-all" dir="ltr"><?= e($cmd) ?></code>
               <button type="button" class="btn-ghost shrink-0" onclick="navigator.clipboard.writeText(document.getElementById('rp-cron').textContent).then(()=>{this.textContent='<?= tjs('اتنسخ') ?>'})"><?= e(t('نسخ')) ?></button>
             </div>
             <p class="text-xs text-ink-500"><?= e(t('الرابط ده سري. أي حد معاه يقدر يشغل الإرسال، فما تشاركهوش.')) ?></p>
+            <?php else: ?>
+            <p class="text-sm text-ink-600"><?= e(t('التشغيل التلقائي بيضبطه مدير المنصة. لو الحالة فوق «متوقف»، كلّمه عشان التقارير والتنبيهات تشتغل لوحدها.')) ?></p>
+            <?php endif; ?>
             <div class="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-3 text-xs">
               <?php $smc = smtp_config(); if ($smc): ?>
                 <?= e($smc['scope'] === 'workspace' ? t('الإيميلات بتتبعت من SMTP الخاص بالشركة (%s).', $smc['host']) : t('الإيميلات بتتبعت عن طريق SMTP (%s).', $smc['host'])) ?>

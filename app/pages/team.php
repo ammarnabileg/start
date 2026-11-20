@@ -455,7 +455,13 @@ render(t('فريق %s', $w['name']), 'team', function () use ($members, $links, 
         document.querySelectorAll('.tm-row').forEach(function (x) { var ok = (!s || x.dataset.q.indexOf(s) > -1) && (!r || x.dataset.role === r); x.style.display = ok ? '' : 'none'; if (ok) n++; });
         document.getElementById('tm-none').style.display = n ? 'none' : '';
       }
-      q.addEventListener('input', f); rl.addEventListener('change', f);
+      // الحفاظ على البحث/الفلتر ومكان التمرير بعد تغيير الدور (اللي بيعمل إعادة تحميل)
+      var SK = 'tm-filter';
+      function saveF(extra) { try { sessionStorage.setItem(SK, JSON.stringify(Object.assign({ q: q.value, r: rl.value }, extra || {}))); } catch (e) {} }
+      q.addEventListener('input', function () { f(); saveF(); });
+      rl.addEventListener('change', function () { f(); saveF(); });
+      document.addEventListener('change', function (e) { if (e.target.matches && e.target.matches('select[name="role"]')) saveF({ y: window.scrollY || window.pageYOffset || 0 }); }, true);
+      try { var st = JSON.parse(sessionStorage.getItem(SK) || 'null'); if (st) { if (st.q) q.value = st.q; if (st.r) rl.value = st.r; if (st.q || st.r) f(); if (st.y != null) { window.scrollTo(0, st.y); saveF(); } } } catch (e) {}
       document.querySelectorAll('.tm-grp').forEach(function (g) {
         g.addEventListener('click', function () {
           var open = g.dataset.open !== '1'; g.dataset.open = open ? '1' : '';
