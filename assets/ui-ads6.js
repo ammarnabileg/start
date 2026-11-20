@@ -18,30 +18,42 @@
   /* ---------- الصف: مفتاح + ميزانية + قايمة ---------- */
   function paintRow(r) { var st = r.dataset.st, cell = r.lastElementChild, b = J(r, 'b'), dup = cell.querySelector('a[href*="ad_create"]');
     if (!cell.dataset.x) { cell.dataset.x = 1; cell.dataset.dup = dup ? dup.href : ''; }
-    cell.innerHTML = '<div class="flex items-center gap-1.5">' + (/^(active|paused|pending_review)$/.test(st) ? '<button type="button" class="acp-sw sm' + (on(st) ? ' on' : '') + '" data-rsw role="switch" aria-checked="' + on(st) + '" title="' + esc(T[st] || st) + '"><i></i><span></span></button>' : '') +
-      '<details class="adx-menu"><summary title="' + esc(T.more) + '">⋯</summary><div><a href="' + esc(r.dataset.detail) + '">' + ic('eye') + esc(T.details) + '</a>' + (cell.dataset.dup ? '<a href="' + esc(cell.dataset.dup) + '">' + ic('copy') + esc(T.dup) + '</a>' : '') + '</div></details></div>';
-    var bc = r.querySelector('.ads-budget'); if (bc) { bc.textContent = b ? bText(r) : bc.textContent; var td = bc.closest('td'); td.classList.add('adx-bud'); td.classList.toggle('edit', !!(b && b[2] && X.spend)); td.title = b && b[2] ? (X.spend ? T.budgetT : T.ownerOnly) : (b ? T.bySets : ''); }
-    var badge = r.children[2]; if (badge) badge.innerHTML = '<span class="acp-st" style="--c:' + (SC[st] || '#64748b') + '">' + esc(T[st] || st) + '</span>'; }
+    var ab = 'inline-flex items-center justify-center w-8 h-8 rounded-lg text-ink-500 hover:bg-ink-100 hover:text-ink-900 transition';
+    // آخر عمود: التفاصيل + التكرار بس (الأزرار الأساسية بقت جنب معلوماتها)
+    cell.innerHTML = '<div class="flex items-center gap-0.5 justify-end">'
+      + '<a href="' + esc(r.dataset.detail) + '" class="' + ab + '" title="' + esc(T.details) + '" aria-label="' + esc(T.details) + '">' + ic('eye') + '</a>'
+      + (cell.dataset.dup ? '<a href="' + esc(cell.dataset.dup) + '" class="' + ab + '" title="' + esc(T.dup) + '" aria-label="' + esc(T.dup) + '">' + ic('copy') + '</a>' : '')
+      + '</div>';
+    // خانة الميزانية: النص زيّ ما هو + قلم تعديل واضح (ظاهر دايمًا جنب الرقم)
+    var bc = r.querySelector('.ads-budget'); if (bc) { bc.textContent = b ? bText(r) : bc.textContent; var td = bc.closest('td'); td.classList.add('adx-bud'); var editable = !!(b && b[2] && X.spend);
+      td.classList.toggle('edit', editable); td.title = b && b[2] ? '' : (b ? T.bySets : '');
+      if (editable && !td.querySelector('[data-bedit]')) { td.insertAdjacentHTML('beforeend', '<button type="button" data-bedit class="' + ab + ' !w-7 !h-7 align-middle ms-1" title="' + esc(T.budgetT) + '" aria-label="' + esc(T.budgetT) + '">' + ic('pencil') + '</button>'); } }
+    // خانة الحالة: الشارة + مفتاح تشغيل/إيقاف واضح جنبها
+    var badge = r.children[2]; if (badge) badge.innerHTML = '<div class="flex items-center gap-2"><span class="acp-st" style="--c:' + (SC[st] || '#64748b') + '">' + esc(T[st] || st) + '</span>' + (/^(active|paused|pending_review)$/.test(st) ? '<button type="button" class="acp-sw sm' + (on(st) ? ' on' : '') + '" data-rsw role="switch" aria-checked="' + on(st) + '" title="' + esc(on(st) ? T.pause : T.resume) + '"><i></i><span></span></button>' : '') + '</div>'; }
   rows.forEach(paintRow);
   var pop = document.createElement('dialog'); pop.className = 'acp-pop'; document.body.appendChild(pop);
   pop.addEventListener('click', function (e) { if (e.target === pop || e.target.closest('[data-x]')) pop.close(); });
-  function ask(r, btn) { var st = r.dataset.st, act = on(st), nm = r.dataset.name; if (!act && !X.spend) return toast(T.ownerOnly, 'error');
-    pop.innerHTML = '<form method="dialog" class="p-5 space-y-3 w-[min(400px,92vw)]"><div class="flex items-center gap-3"><span class="acp-pi" style="--c:' + (act ? '#d97706' : '#16a34a') + '">' + ic(act ? 'pause' : 'play', 'w-5 h-5') + '</span><b class="text-ink-900" dir="auto">' + esc(f(act ? T.pauseQ : T.resumeQ, nm)) + '</b></div>' +
-      (act ? '<p class="text-sm text-ink-600">' + esc(T.pauseHint) + '</p>' : '<label class="acp-confirm"><input type="checkbox" name="ok"><span>' + esc(f(T.spendOk, bText(r))) + '</span></label>') +
-      '<div class="flex gap-2"><button class="btn-primary flex-1' + (act ? ' !bg-amber-600' : '') + '"' + (act ? '' : ' disabled') + '>' + esc(act ? T.pause : T.resume) + '</button><button type="button" class="btn-ghost" data-x>' + esc(T.cancel) + '</button></div></form>';
-    var fm = pop.querySelector('form'), go = fm.querySelector('.btn-primary'); if (fm.ok) fm.ok.addEventListener('change', function () { go.disabled = !this.checked; });
-    fm.addEventListener('submit', function (e) { e.preventDefault(); go.disabled = true; go.textContent = T.loading; btn.classList.add('busy'); var to = act ? 'paused' : 'active', d = { action: 'campaign_status', to: to }; if (!act) d.confirm_spend = '1';
-      post(r, d).then(function (j) { btn.classList.remove('busy'); if (!j.ok) { go.disabled = false; go.textContent = act ? T.pause : T.resume; return toast(j.msg || T.err, 'error'); } r.dataset.st = to; paintRow(r); pop.close(); toast(j.msg || T.saved); r.classList.add('adx-flash'); setTimeout(function () { r.classList.remove('adx-flash'); }, 1200); })
+  // إيقاف فوري بضغطة واحدة (الإيقاف بيوفّر فلوس، فمش محتاج تأكيد)
+  function pauseNow(r, btn) { btn.classList.add('busy');
+    post(r, { action: 'campaign_status', to: 'paused' }).then(function (j) { btn.classList.remove('busy'); if (!j.ok) return toast(j.msg || T.err, 'error'); r.dataset.st = 'paused'; paintRow(r); toast(T.pausedMsg); r.classList.add('adx-flash'); setTimeout(function () { r.classList.remove('adx-flash'); }, 1200); })
+      .catch(function () { btn.classList.remove('busy'); toast(T.err, 'error'); }); }
+  // التشغيل بيصرف فلوس → تأكيد واحد بسيط (الزر نفسه هو التأكيد)
+  function ask(r, btn) { if (!X.spend) return toast(T.ownerOnly, 'error'); var nm = r.dataset.name;
+    pop.innerHTML = '<form method="dialog" class="p-5 space-y-4 w-[min(400px,92vw)]"><div class="flex items-start gap-3"><span class="acp-pi" style="--c:#16a34a">' + ic('play', 'w-5 h-5') + '</span><div class="min-w-0"><b class="text-ink-900 block" dir="auto">' + esc(f(T.resumeQ, nm)) + '</b><p class="text-sm text-ink-500 mt-1">' + esc(f(T.spendOk, bText(r))) + '</p></div></div>' +
+      '<div class="flex gap-2"><button class="btn-primary flex-1">' + esc(T.resume) + '</button><button type="button" class="btn-ghost" data-x>' + esc(T.cancel) + '</button></div></form>';
+    var fm = pop.querySelector('form'), go = fm.querySelector('.btn-primary');
+    fm.addEventListener('submit', function (e) { e.preventDefault(); go.disabled = true; go.textContent = T.loading; btn.classList.add('busy');
+      post(r, { action: 'campaign_status', to: 'active', confirm_spend: '1' }).then(function (j) { btn.classList.remove('busy'); if (!j.ok) { go.disabled = false; go.textContent = T.resume; return toast(j.msg || T.err, 'error'); } r.dataset.st = 'active'; paintRow(r); pop.close(); toast(j.msg || T.saved); r.classList.add('adx-flash'); setTimeout(function () { r.classList.remove('adx-flash'); }, 1200); })
         .catch(function () { btn.classList.remove('busy'); go.disabled = false; toast(T.err, 'error'); }); });
     pop.showModal(); }
   function budget(r) { var b = J(r, 'b'), cur0 = b[0], cur = r.dataset.cur;
     pop.innerHTML = '<form method="dialog" class="p-5 space-y-3 w-[min(420px,92vw)]"><b class="block text-ink-900">' + esc(T.budgetT) + ' · <span dir="auto">' + esc(r.dataset.name) + '</span></b><p class="text-xs text-ink-500">' + esc(f(T.now, bText(r))) + '</p>' +
       '<div class="acp-step"><button type="button" data-st="-0.1">−</button><input name="amount" type="number" step="0.01" min="0.01" value="' + esc(cur0) + '" dir="ltr"><span>' + esc(cur) + '</span><button type="button" data-st="0.1">+</button></div>' +
       '<div class="flex flex-wrap gap-1.5">' + ['-20', '+10', '+20', '+50'].map(function (p) { return '<button type="button" class="acp-q" data-pc="' + p + '">' + p + '%</button>'; }).join('') + '<div class="acp-seg !p-0.5 ms-auto"><label><input type="radio" name="type" value="daily"' + (b[1] !== 'lifetime' ? ' checked' : '') + '><span>' + esc(T.daily) + '</span></label><label><input type="radio" name="type" value="lifetime"' + (b[1] === 'lifetime' ? ' checked' : '') + '><span>' + esc(T.lifetime) + '</span></label></div></div>' +
-      '<p class="acp-delta" data-dl></p><label class="acp-confirm"><input type="checkbox" name="ok"><span>' + esc(T.budgetOk) + '</span></label><div class="flex gap-2"><button class="btn-primary flex-1" disabled>' + esc(T.save) + '</button><button type="button" class="btn-ghost" data-x>' + esc(T.cancel) + '</button></div></form>';
+      '<p class="acp-delta" data-dl></p><div class="flex gap-2"><button class="btn-primary flex-1" disabled>' + esc(T.save) + '</button><button type="button" class="btn-ghost" data-x>' + esc(T.cancel) + '</button></div></form>';
     var fm = pop.querySelector('form'), go = fm.querySelector('.btn-primary');
     function upd() { var v = +fm.amount.value || 0, d = v - cur0, daily = fm.querySelector('[name=type]:checked').value === 'daily';
-      fm.querySelector('[data-dl]').innerHTML = (d ? '<b class="' + (d > 0 ? 'text-amber-700' : 'text-lime-700') + '">' + (d > 0 ? '+' : '') + esc(f(T.delta, money(d, cur))) + '</b> · ' : '') + (daily && v ? esc(f(T.perMonth, money(v * 30, cur))) : ''); go.disabled = !(fm.ok.checked && v > 0); }
+      fm.querySelector('[data-dl]').innerHTML = (d ? '<b class="' + (d > 0 ? 'text-amber-700' : 'text-lime-700') + '">' + (d > 0 ? '+' : '') + esc(f(T.delta, money(d, cur))) + '</b> · ' : '') + (daily && v ? esc(f(T.perMonth, money(v * 30, cur))) : ''); go.disabled = !(v > 0); }
     fm.addEventListener('click', function (e) { var s = e.target.closest('[data-st]'), p = e.target.closest('[data-pc]'), v = +fm.amount.value || cur0;
       if (s) fm.amount.value = Math.max(0.01, v * (1 + +s.dataset.st)).toFixed(2); if (p) fm.amount.value = Math.max(0.01, cur0 * (1 + parseFloat(p.dataset.pc) / 100)).toFixed(2); if (s || p) upd(); });
     fm.addEventListener('input', upd); fm.addEventListener('change', upd); upd();
@@ -49,9 +61,9 @@
       post(r, d).then(function (j) { if (!j.ok) { go.disabled = false; go.textContent = T.save; return toast(j.msg || T.err, 'error'); } r.dataset.b = JSON.stringify([+d.amount, d.type, true]); paintRow(r); pop.close(); toast(j.msg || T.saved); })
         .catch(function () { go.disabled = false; go.textContent = T.save; toast(T.err, 'error'); }); });
     pop.showModal(); fm.amount.select(); }
-  document.addEventListener('click', function (e) { var sw = e.target.closest('tr.ads-row [data-rsw]'), bd = e.target.closest('tr.ads-row td.adx-bud');
-    if (sw) { e.preventDefault(); e.stopPropagation(); return ask(sw.closest('tr'), sw); }
-    if (e.target.closest('tr.ads-row .adx-menu')) { e.stopPropagation(); return; }
+  document.addEventListener('click', function (e) { var sw = e.target.closest('tr.ads-row [data-rsw]'), be = e.target.closest('tr.ads-row [data-bedit]'), bd = e.target.closest('tr.ads-row td.adx-bud');
+    if (sw) { e.preventDefault(); e.stopPropagation(); var r0 = sw.closest('tr'); return on(r0.dataset.st) ? pauseNow(r0, sw) : ask(r0, sw); }
+    if (be) { e.preventDefault(); e.stopPropagation(); var r1 = be.closest('tr'), b1 = J(r1, 'b'); if (b1 && b1[2]) return budget(r1); return; }
     if (bd) { e.stopPropagation(); var r = bd.closest('tr'), b = J(r, 'b'); if (!b) return; if (!b[2]) return toast(T.bySets, 'info'); if (!X.spend) return toast(T.ownerOnly, 'error'); budget(r); } }, true);
 
   /* ---------- التوزيع (إنفاق / نقرات / نتائج) ---------- */
