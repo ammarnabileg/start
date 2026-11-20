@@ -99,13 +99,20 @@ function cpl_master(array $p): string
 function cpl_rules(array $p): string
 {
     $o = cpl_opts($p);
-    $ar = 'Arabic' . ($o['dialect'] !== '' ? ' (' . $o['dialect'] . ')' : ' (clear Modern Standard Arabic unless the KB shows another brand voice)');
-    $nm = function ($k) use ($o, $ar) { $v = $o[$k] ?? $o['lang']; return ['ar' => $ar, 'en' => 'English', 'both' => 'bilingual: ' . $ar . ' first, then English', 'ar_en' => 'bilingual: ' . $ar . ' first, then English (secondary, smaller)', 'en_ar' => 'bilingual: English first, then ' . $ar . ' (secondary, smaller)', 'none' => 'NO text on the image or slide at all (purely visual; put the message in the caption)'][$v] ?? $ar; };
-    $lang = "LinkedIn: " . $nm('lang_li') . "; X: " . $nm('lang_x') . "; headline and on-slide copy: " . $nm('lang_img') . "; video voice-over dialogue: " . $nm('lang_vo');
+    $ar = 'Arabic' . ($o['dialect'] !== '' ? ' (' . $o['dialect'] . ' dialect — use this dialect, NOT Modern Standard Arabic)' : ' (clear Modern Standard Arabic unless the KB shows another brand voice)');
+    $nm = function ($k) use ($o, $ar) { $v = $o[$k] ?? $o['lang']; return [
+        'ar' => 'ONLY ' . $ar . ' (no English words except unavoidable technical/brand terms)',
+        'en' => 'ONLY English (no Arabic at all)',
+        'both' => 'BILINGUAL — include BOTH: ' . $ar . ' first, then the English version right after (both must appear)',
+        'ar_en' => 'BILINGUAL — include BOTH: ' . $ar . ' as the primary text, then the English version right after it, shorter/secondary (both must appear)',
+        'en_ar' => 'BILINGUAL — include BOTH: English as the primary text, then the ' . $ar . ' version right after it, shorter/secondary (both must appear)',
+        'none' => 'NO text on the image or slide at all (purely visual; put the message in the caption)'][$v] ?? $ar; };
+    $lang = "LinkedIn caption: " . $nm('lang_li') . ". | X post: " . $nm('lang_x') . ". | headline and on-slide/image copy: " . $nm('lang_img') . ". | video voice-over dialogue: " . $nm('lang_vo');
     static $craft = null; if ($craft === null) $craft = (string)@file_get_contents(__DIR__ . '/../prompts/image_craft.md');
     return cpl_master($p) . "\n\n" . $craft
-        . "\n\nPLAN SETTINGS\n- Languages per channel: {$lang}. Image prompts and video directions themselves: professional English.\n"
-        . ($o['dialect'] !== '' ? "- Voice-over dialogue dialect: {$o['dialect']}.\n" : '')
+        . "\n\nPLAN SETTINGS\n"
+        . "*** LANGUAGE — MANDATORY, OBEY EXACTLY FOR EVERY FIELD ***\nThe user explicitly chose the languages below. Follow them to the letter. When a field says BILINGUAL you MUST output BOTH languages in that field (never only one). When it says ONLY one language, use just that one. Never silently switch to Arabic-only or English-only.\n- {$lang}.\n- The image-generation prompts and video directions you write (the instructions to the image/video model) are themselves in professional English, but the visible on-image text must follow the headline/on-slide language above.\n"
+        . ($o['dialect'] !== '' ? "- Any Arabic you write uses the {$o['dialect']} dialect (not MSA), including voice-over.\n" : '')
         . ($o['tone'] !== '' ? "- Brand tone: {$o['tone']}\n" : '')
         . ($o['cta'] !== '' ? "- Preferred CTA: {$o['cta']}\n" : '')
         . ($o['avoid'] !== '' ? "- Avoid: {$o['avoid']}\n" : '')

@@ -40,6 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         if ($a === 'create') { $id = cpl_create(json_decode((string)($_POST['data'] ?? '{}'), true) ?: []); $J(['ok' => true, 'id' => $id, 'url' => url('content_plan', ['plan' => $id])]); }
         $p = cpl_plan($pid); if (!$p) $J(['ok' => false, 'error' => t('الخطة غير موجودة.')], 404);
+        if ($a === 'rename') { $nm = mb_substr(trim((string)($_POST['name'] ?? '')), 0, 150); if ($nm === '') $J(['ok' => false, 'error' => t('اكتب اسمًا للخطة.')], 422); db()->prepare('UPDATE cp_plans SET name = ? WHERE id = ?')->execute([$nm, $pid]); $J(['ok' => true, 'name' => $nm]); }
         if ($a === 'step') { session_write_close(); ignore_user_abort(true); /* النت فصل وسط الخطوة: الدفعة تكمل وتتحفظ */ $J(['ok' => true] + cpl_step($pid)); }
         if ($a === 'status') { session_write_close(); $J(['ok' => true] + cpl_status($p)); }
         if ($a === 'resume') { cpl_log($pid, t('استئناف يدوي من حيث توقف.')); db()->prepare('UPDATE cp_plans SET status = "generating", fails = 0, error = NULL WHERE id = ? AND status IN ("paused","generating")')->execute([$pid]); $J(['ok' => true]); }
@@ -176,7 +177,8 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
         <div><h2 class="text-lg font-bold text-ink-900"><?= e(t('من تخاطب؟')) ?></h2><p class="text-sm text-ink-500"><?= e(t('كلما كان الجمهور أدق كان المحتوى أقوى. يمكنك تركها فارغة لنعتمد على ملف الشركة.')) ?></p></div>
       <label class="block"><span class="label"><?= e(t('الجمهور المستهدف')) ?> <span class="text-xs text-ink-400"><?= e(t('(من ملف الشركة، عدّله لهذه الحملة)')) ?></span></span><textarea name="audience" rows="2" class="input" dir="auto" placeholder="<?= e(t('مثال: مديرو المشتريات والمرافق في الفنادق والمستشفيات بالسعودية')) ?>"><?= e((string)($kbd['audience'] ?? '')) ?></textarea></label>
       <label class="block"><span class="label"><?= e(t('نبذة عن الشركة')) ?> <span class="text-xs text-ink-400"><?= e(t('(من ملف الشركة، تُستخدم كسياق)')) ?></span></span><textarea name="about" rows="2" class="input" dir="auto"><?= e((string)($kbd['about'] ?? '')) ?></textarea></label>
-      <?php if ($svc): ?><div><span class="label"><?= e(t('ركّز على خدمات (من ملف الشركة)')) ?></span><div class="flex flex-wrap gap-2 mt-1"><?php foreach (array_slice($svc, 0, 30) as $s): ?><label class="inline-flex items-center gap-1.5 rounded-full border border-ink-200 px-3 py-1 text-sm has-[:checked]:border-brand-400 has-[:checked]:bg-brand-50"><input type="checkbox" name="services" value="<?= e($s) ?>" checked><?= e($s) ?></label><?php endforeach; ?></div></div><?php endif; ?>
+      <?php if ($svc): ?><div id="cp-svc-wrap"><div class="flex items-center flex-wrap gap-2"><span class="label !mb-0"><?= e(t('ركّز على خدمات (من ملف الشركة)')) ?></span><span class="text-xs text-ink-400">·</span><button type="button" data-svc="all" class="text-xs font-semibold text-brand-700 hover:underline"><?= e(t('تحديد الكل')) ?></button><button type="button" data-svc="none" class="text-xs font-semibold text-ink-500 hover:underline"><?= e(t('إلغاء تحديد الكل')) ?></button></div><div class="flex flex-wrap gap-2 mt-1.5"><?php foreach (array_slice($svc, 0, 30) as $s): ?><label class="inline-flex items-center gap-1.5 rounded-full border border-ink-200 px-3 py-1 text-sm has-[:checked]:border-brand-400 has-[:checked]:bg-brand-50"><input type="checkbox" name="services" value="<?= e($s) ?>" checked><?= e($s) ?></label><?php endforeach; ?></div>
+      <script>(function(){var w=document.getElementById('cp-svc-wrap');if(!w)return;w.addEventListener('click',function(e){var b=e.target.closest('[data-svc]');if(!b)return;var on=b.getAttribute('data-svc')==='all';w.querySelectorAll('input[name=services]').forEach(function(c){c.checked=on;});});})();</script></div><?php endif; ?>
       </section>
       <section data-step="2" class="space-y-5 hidden">
         <div><h2 class="text-lg font-bold text-ink-900"><?= e(t('بأي لغة وأسلوب؟')) ?></h2><p class="text-sm text-ink-500"><?= e(t('الإعداد الافتراضي يناسب أغلب الحالات؛ غيّر ما تحتاجه فقط.')) ?></p></div>
@@ -287,13 +289,26 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
     <h2 class="font-bold mb-2"><?= e(t('خططك')) ?></h2>
     <div class="card divide-y divide-ink-100">
       <?php foreach ($plans as $p): $st = ['generating' => [t('جارٍ التوليد'), 'badge-amber'], 'paused' => [t('متوقفة'), 'badge-amber'], 'review' => [t('للمراجعة'), 'badge-green'], 'done' => [t('مكتملة'), '']][$p['status']] ?? [$p['status'], '']; ?>
-      <a href="<?= e(url('content_plan', ['plan' => $p['id']])) ?>" class="flex flex-wrap items-center gap-3 px-4 py-3 hover:bg-ink-50">
-        <span class="min-w-0 flex-1"><b class="block truncate text-ink-900"><?= e($p['name']) ?></b><span class="text-xs text-ink-500"><?= e(fmt_date((string)$p['created_at'], 'd/m/Y')) ?></span></span>
+      <div class="flex flex-wrap items-center gap-3 px-4 py-3 hover:bg-ink-50" data-plan="<?= (int)$p['id'] ?>">
+        <a href="<?= e(url('content_plan', ['plan' => $p['id']])) ?>" class="min-w-0 flex-1"><b class="block truncate text-ink-900" data-pname><?= e($p['name']) ?></b><span class="text-xs text-ink-500"><?= e(fmt_date((string)$p['created_at'], 'd/m/Y')) ?></span></a>
         <span class="text-xs text-ink-500"><?= e(t('%s من %s جاهز', (int)$p['ready'], (int)$p['cnt'])) ?> · <?= e(t('%s معتمد', (int)$p['approved'])) ?></span>
         <span class="badge <?= $st[1] ?>"><?= e($st[0]) ?></span>
-      </a>
+        <div class="flex items-center gap-1 shrink-0">
+          <button type="button" data-prename class="p-1.5 rounded-lg text-ink-400 hover:bg-ink-100 hover:text-ink-700" title="<?= e(t('تعديل الاسم')) ?>" aria-label="<?= e(t('تعديل الاسم')) ?>"><?= ui_icon('pencil', 'w-4 h-4') ?></button>
+          <button type="button" data-predel class="p-1.5 rounded-lg text-ink-400 hover:bg-rose-50 hover:text-rose-600" title="<?= e(t('حذف الخطة')) ?>" aria-label="<?= e(t('حذف الخطة')) ?>"><?= ui_icon('trash', 'w-4 h-4') ?></button>
+        </div>
+      </div>
       <?php endforeach; ?>
     </div>
+    <script>(function(){
+      var box=document.querySelector('.card.divide-y'); if(!box||!window.CP)return; var C=window.CP;
+      function post(d){var fd=new FormData();Object.keys(d).forEach(function(k){fd.append(k,d[k]);});fd.append('_csrf',C.csrf);fd.append('_ws',C.wid);return fetch(C.url,{method:'POST',body:fd,headers:{'X-WS-Id':C.wid}}).then(function(r){return r.json();});}
+      box.addEventListener('click',function(e){
+        var row=e.target.closest('[data-plan]'); if(!row)return; var id=row.getAttribute('data-plan');
+        if(e.target.closest('[data-prename]')){ e.preventDefault(); var el=row.querySelector('[data-pname]'); var nm=prompt(<?= json_encode(t('اسم الخطة الجديد:'), JSON_UNESCAPED_UNICODE) ?>, el.textContent.trim()); if(nm==null)return; nm=nm.trim(); if(!nm)return; post({action:'rename',plan:id,name:nm}).then(function(j){ if(j&&j.ok)el.textContent=j.name; }); }
+        else if(e.target.closest('[data-predel]')){ e.preventDefault(); if(!confirm(<?= json_encode(t('حذف الخطة؟ المنشورات المجدولة أو المنشورة تبقى في المخزون.'), JSON_UNESCAPED_UNICODE) ?>))return; post({action:'delete',plan:id}).then(function(j){ if(j&&j.ok){ row.remove(); if(!box.querySelector('[data-plan]')) location.reload(); } }); }
+      });
+    })();</script>
     <?php endif; endif; ?>
     <?php $cfg['media'] = url('media'); ?><script>window.CP = <?= json_encode($cfg, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;</script>
     <?php if (!$plan): ?><script src="assets/extract.js?v=<?= e(APP_VERSION) ?>"></script><?php endif; ?>
