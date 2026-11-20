@@ -102,12 +102,17 @@
       // اللي موجود ومش في الاقتراح بيفضل (مابنمسحش حاجة المستخدم كاتبها)
       (cur.rows || []).forEach(function (c) { if (!(d.rows || []).some(function (r) { return (r[key] || '').trim() === (c[key] || '').trim(); })) d.rows.push(c); });
     } else {
+      // أقسام الحقول: لكل حقل خانة اختيار (الافتراضي الكل) + تعديل مباشر للحقول النصية قبل الاعتماد
       body = Object.keys(d).map(function (k) {
         var v = d[k], c = cur[k]; if (k === 'email') return '';
-        var same = JSON.stringify(Array.isArray(v) ? v.slice().sort() : String(v || '').trim()) === JSON.stringify(Array.isArray(c) ? (c || []).slice().sort() : String(c || '').trim());
+        var isArr = Array.isArray(v), isSel = !!form.querySelector('select[name="d[' + k + ']"]'), editable = !isArr && !isSel;
+        var same = JSON.stringify(isArr ? v.slice().sort() : String(v || '').trim()) === JSON.stringify(Array.isArray(c) ? (c || []).slice().sort() : String(c || '').trim());
         if (!same) changes++;
-        var shown = Array.isArray(v) ? v.map(function (x) { return '<span class="inline-block rounded-lg bg-brand-50 text-brand-700 px-2 py-0.5 text-xs m-0.5">' + esc(optLabel(form, k, x)) + '</span>'; }).join('') : (form.querySelector('select[name="d[' + k + ']"]') ? esc(optLabel(form, k, v)) : '<div class="whitespace-pre-wrap">' + esc(v) + '</div>');
-        return '<div class="rounded-xl border border-ink-200 bg-white px-3 py-2 text-sm">' + (Object.keys(d).length > 1 ? '<div class="text-[11px] text-ink-500 mb-1">' + esc((K.labels || {})[k] || k) + tag(same ? 'same' : (c && String(c).length ? 'chg' : 'new')) + '</div>' : '') + shown + '</div>';
+        var ctl = editable ? '<textarea class="kb-fval input !mt-0 text-sm w-full" rows="2" dir="auto"></textarea>'
+          : (isArr ? '<div class="flex flex-wrap">' + v.map(function (x) { return '<span class="inline-block rounded-lg bg-brand-50 text-brand-700 px-2 py-0.5 text-xs m-0.5">' + esc(optLabel(form, k, x)) + '</span>'; }).join('') + '</div>' : '<div class="whitespace-pre-wrap text-sm">' + esc(optLabel(form, k, v)) + '</div>');
+        return '<div class="kb-fld rounded-xl border border-ink-200 bg-white px-3 py-2 text-sm" data-k="' + esc(k) + '">'
+          + '<label class="flex items-center gap-2 text-[11px] text-ink-500 mb-1 cursor-pointer"><input type="checkbox" class="kb-fpick mt-0" checked><span>' + esc((K.labels || {})[k] || k) + '</span>' + tag(same ? 'same' : (c && String(c).length ? 'chg' : 'new')) + '</label>'
+          + ctl + '</div>';
       }).join('');
     }
     var card = document.createElement('div');
@@ -116,13 +121,17 @@
       + '<div class="space-y-2 max-h-[26rem] overflow-y-auto">' + body + '</div>'
       + '<div class="flex flex-wrap items-center gap-2"><button type="button" class="kb-apply btn-primary !py-1.5 !text-xs">' + K.apply + '</button><button type="button" class="kb-dismiss btn-ghost !py-1.5 !text-xs">' + K.dismiss + '</button><span class="ms-auto text-[10px] text-ink-400" dir="ltr">' + esc(meta || '') + '</span></div>';
     form.querySelector('.kb-saved').closest('.flex.items-start').after(card);
+    // تعبئة قيم الحقول القابلة للتعديل (نص الـ textarea مايتحطش في خاصية HTML) + ضبط الارتفاع تلقائيًا
+    if (type !== 'rows') card.querySelectorAll('.kb-fld').forEach(function (fld) { var ta = fld.querySelector('.kb-fval'); if (!ta) return; ta.value = d[fld.dataset.k] == null ? '' : String(d[fld.dataset.k]); var g = function () { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 220) + 'px'; }; g(); ta.addEventListener('input', g); });
     card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     card.querySelector('.kb-dismiss').onclick = function () { card.remove(); pendingCount(); };
     card.querySelector('.kb-apply').onclick = function () {
-      var final = d;
+      var final;
       if (type === 'rows') {
         var off = [].map.call(card.querySelectorAll('.kb-pick:not(:checked)'), function (c) { return +c.dataset.i; });
         final = { rows: d.rows.filter(function (r, i) { return off.indexOf(i) < 0; }) };
+      } else { // الحقول المختارة فقط، بقيمها بعد التعديل
+        final = {}; card.querySelectorAll('.kb-fld').forEach(function (fld) { var cb = fld.querySelector('.kb-fpick'); if (!cb || !cb.checked) return; var k = fld.dataset.k, ed = fld.querySelector('.kb-fval'); final[k] = ed ? ed.value : d[k]; });
       }
       form.__undo = cur; form.querySelector('.kb-undo').classList.remove('hidden');
       applyData(form, final); card.remove(); pendingCount();
@@ -145,16 +154,30 @@
     var ac = window.AbortController ? new AbortController() : null; form.__ac = ac;
     btn.classList.add('kb-running', '!border-red-200', '!bg-red-50', '!text-red-700'); btn.innerHTML = STOP + '<span></span>'; btn.querySelector('span').textContent = K.filling + ' · ' + K.stop; btn.title = K.stop;
     // الخدمات وتفاصيلها: ممكن تبقى +1000، فالسيرفر بيشتغل خطوة خطوة والمتصفح بيطلب اللي بعدها ويجمّع
-    var sec = form.dataset.section, stepped = sec === 'services' || sec === 'pos_offers', key = sec === 'pos_offers' ? 'offer' : 'name', acc = [], seen = {};
-    function ask(step) {
+    var sec = form.dataset.section, stepped = sec === 'services' || sec === 'pos_offers', key = sec === 'pos_offers' ? 'offer' : 'name', acc = [], seen = {}, total = 0, failed = 0;
+    // طلب خطوة واحدة مع إعادة محاولة واحدة لو انقطع الاتصال (مش لو المستخدم أوقف)
+    function hit(step) {
       var fd = new FormData(); fd.append('action', 'kb_fill'); fd.append('section', sec); fd.append('mode', mode || 'update'); if (stepped) fd.append('step', step);
-      return fetch('index.php?p=knowledge', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': csrf() }, signal: ac ? ac.signal : undefined }).then(function (r) { return r.json(); }).then(function (d) {
-        if (d.error) { if (acc.length) { suggest(form, { rows: acc }, d.meta); window.aiToast && aiToast(d.error); return true; } window.aiToast ? aiToast(d.error) : alert(d.error); return false; }
+      var go = function () { return fetch('index.php?p=knowledge', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': csrf() }, signal: ac ? ac.signal : undefined }).then(function (r) { if (!r.ok) throw new Error('http ' + r.status); return r.json(); }); };
+      return go().catch(function (e) { if (e && e.name === 'AbortError') throw e; return go(); });
+    }
+    function ask(step) {
+      return hit(step).then(function (d) {
+        if (d.error) { // خطوة فيها خطأ: لو فيه خطوات بعدها، نكمّل بدل ما نفضّي القسم كله
+          if (stepped && total && step + 1 < total) { failed++; return ask(step + 1); }
+          if (acc.length) { suggest(form, { rows: acc }, d.meta); window.aiToast && aiToast(d.error); return true; }
+          window.aiToast ? aiToast(d.error) : alert(d.error); return false;
+        }
         if (!d.total) { suggest(form, d.data || {}, d.meta); return true; }
+        total = d.total;
         ((d.data || {}).rows || []).forEach(function (r) { var k = String(r[key] || '').trim().toLowerCase(); if (k && !seen[k]) { seen[k] = 1; acc.push(r); } });
         var sp = btn.querySelector('span'); if (sp) sp.textContent = K.filling + ' ' + (d.step + 1) + '/' + d.total + ' · ' + acc.length + ' · ' + K.stop;
         if (d.step + 1 < d.total) return ask(d.step + 1);
-        suggest(form, { rows: acc }, d.meta); return true;
+        suggest(form, { rows: acc }, d.meta); if (failed && window.aiToast) aiToast(K.partsFail.replace('%s', failed), 'ok'); return true;
+      }).catch(function (e) {
+        if (e && e.name === 'AbortError') throw e; // إيقاف المستخدم: يتعامل معاه الـ catch الخارجي
+        if (stepped && total && step + 1 < total) { failed++; return ask(step + 1); } // جزء فشل: نكمّل الباقي
+        throw e; // أول خطوة فشلت ومافيش حاجة اتجمّعت
       });
     }
     return ask(0).catch(function (e) { if (e && e.name === 'AbortError') { if (acc.length) suggest(form, { rows: acc }, ''); window.aiToast && aiToast(K.stopped, 'ok'); return 'stopped'; } if (acc.length) { suggest(form, { rows: acc }, ''); window.aiToast && aiToast(K.err); return true; } window.aiToast ? aiToast(K.err) : alert(K.err); return false; })
