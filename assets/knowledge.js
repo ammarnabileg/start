@@ -108,7 +108,8 @@
         var isArr = Array.isArray(v), isSel = !!form.querySelector('select[name="d[' + k + ']"]'), editable = !isArr && !isSel;
         var same = JSON.stringify(isArr ? v.slice().sort() : String(v || '').trim()) === JSON.stringify(Array.isArray(c) ? (c || []).slice().sort() : String(c || '').trim());
         if (!same) changes++;
-        var ctl = editable ? '<textarea class="kb-fval input !mt-0 text-sm w-full" rows="2" dir="auto"></textarea>'
+        var longV = editable && (String(v == null ? '' : v).length > 90 || /\n/.test(String(v == null ? '' : v)));
+        var ctl = editable ? (longV ? '<textarea class="kb-fval input !mt-0 text-sm w-full" rows="3" dir="auto"></textarea>' : '<input type="text" class="kb-fval input !mt-0 text-sm w-full" dir="auto">')
           : (isArr ? '<div class="flex flex-wrap">' + v.map(function (x) { return '<span class="inline-block rounded-lg bg-brand-50 text-brand-700 px-2 py-0.5 text-xs m-0.5">' + esc(optLabel(form, k, x)) + '</span>'; }).join('') + '</div>' : '<div class="whitespace-pre-wrap text-sm">' + esc(optLabel(form, k, v)) + '</div>');
         return '<div class="kb-fld rounded-xl border border-ink-200 bg-white px-3 py-2 text-sm" data-k="' + esc(k) + '">'
           + '<label class="flex items-center gap-2 text-[11px] text-ink-500 mb-1 cursor-pointer"><input type="checkbox" class="kb-fpick mt-0" checked><span>' + esc((K.labels || {})[k] || k) + '</span>' + tag(same ? 'same' : (c && String(c).length ? 'chg' : 'new')) + '</label>'
@@ -131,7 +132,7 @@
       card.addEventListener('change', function (e) { if (e.target.matches && e.target.matches('.kb-pick,.kb-fpick')) upN(); }); upN();
     }
     // تعبئة قيم الحقول القابلة للتعديل (نص الـ textarea مايتحطش في خاصية HTML) + ضبط الارتفاع تلقائيًا
-    if (type !== 'rows') card.querySelectorAll('.kb-fld').forEach(function (fld) { var ta = fld.querySelector('.kb-fval'); if (!ta) return; ta.value = d[fld.dataset.k] == null ? '' : String(d[fld.dataset.k]); var g = function () { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 220) + 'px'; }; g(); ta.addEventListener('input', g); });
+    if (type !== 'rows') card.querySelectorAll('.kb-fld').forEach(function (fld) { var ta = fld.querySelector('.kb-fval'); if (!ta) return; ta.value = d[fld.dataset.k] == null ? '' : String(d[fld.dataset.k]); if (ta.tagName === 'TEXTAREA') { var g = function () { ta.style.height = 'auto'; ta.style.height = Math.min(Math.max(ta.scrollHeight, 44), 240) + 'px'; }; requestAnimationFrame(g); ta.addEventListener('input', g); } });
     card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     card.querySelector('.kb-dismiss').onclick = function () { card.remove(); pendingCount(); };
     card.querySelector('.kb-apply').onclick = function () {
