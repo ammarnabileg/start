@@ -217,7 +217,7 @@ function ai_team_svg(string $wsName, array $states): string
         'automation' => ['الأتمتة', 'Automation'], 'communications' => ['التواصل', 'Communications'],
     ];
     // مواضع رأس كل موظف فوق الرسمة (مراكز المحطات ÷ عرض الرسمة 2172)
-    $centers = [155, 413, 663, 916, 1149, 1412, 1661, 1911];
+    $centers = [152, 423, 673, 912, 1184, 1444, 1694, 1955];
     $order = array_keys($labels);
     $live = $ar ? 'يعمل' : 'LIVE'; $ready = $ar ? 'جاهز' : 'READY';
     $tags = '';
@@ -246,11 +246,11 @@ html.dark #ai-workforce{--awp:#111D34;--awb:#283957;--awl:#12253D;--awm:#91A2C0;
 #ai-workforce .aw-tags{position:absolute;inset:0;pointer-events:none;z-index:4}
 #ai-workforce .aw-tag{position:absolute;top:2.5%;transform:translateX(-50%);pointer-events:auto;cursor:pointer;display:flex;align-items:center;gap:5px;font-family:inherit;font-size:11.5px;font-weight:800;color:var(--awm);background:var(--awp);border:1px solid var(--awb);border-radius:999px;padding:4px 10px;white-space:nowrap;box-shadow:0 3px 12px rgba(15,23,42,.14);transition:border-color .25s,box-shadow .25s,color .25s,transform .15s}
 #ai-workforce .aw-tag:hover{transform:translateX(-50%) translateY(-1px)}
-#ai-workforce .aw-tag .aw-tdot{width:8px;height:8px;border-radius:50%;background:var(--accent);opacity:.45;flex:none;transition:opacity .25s,box-shadow .25s}
+#ai-workforce .aw-tag .aw-tdot{width:8px;height:8px;border-radius:50%;background:#F59E0B;opacity:1;flex:none;box-shadow:0 0 0 3px rgba(245,158,11,.22);transition:background .25s,box-shadow .25s}
 #ai-workforce .aw-tag b{color:var(--awink);font-weight:800}
-#ai-workforce .aw-tag .aw-tst{font-size:9px;font-weight:850;letter-spacing:.4px;color:var(--awm)}
+#ai-workforce .aw-tag .aw-tst{font-size:9px;font-weight:850;letter-spacing:.4px;color:#D97706}
 #ai-workforce .aw-tag.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 6px 18px -6px var(--accent)}
-#ai-workforce .aw-tag.on .aw-tdot{opacity:1;box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 24%,transparent);animation:awBlink 1.4s infinite}
+#ai-workforce .aw-tag.on .aw-tdot{background:var(--accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 24%,transparent);animation:awBlink 1.4s infinite}
 #ai-workforce .aw-tag.on .aw-tst{color:var(--accent)}
 @media(max-width:780px){#ai-workforce .aw-tag{font-size:9px;padding:3px 6px;gap:3px}#ai-workforce .aw-tag .aw-tst{display:none}}
 html.dark #ai-workforce .aw-visual{background:radial-gradient(ellipse 72% 62% at 50% 44%,rgba(36,70,125,.34),transparent 74%)}
