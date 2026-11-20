@@ -260,11 +260,14 @@ render(t('الرئيسية'), 'dashboard', function () use ($z, $d, $e, $activit
         var box = document.getElementById('ai-workforce'); if (!box) return;
         function apply(s) { if (window.AIWorkforceSignals && s) window.AIWorkforceSignals.setStates(s); }
         function poll() {
-          fetch('index.php?p=dashboard&ajax=aiteam', { headers: { 'X-Requested-With': 'fetch' } })
+          fetch('index.php?p=dashboard&ajax=aiteam', { headers: { 'X-Requested-With': 'fetch' }, cache: 'no-store' })
             .then(function (r) { return r.ok ? r.json() : null; }).then(function (s) { if (s) apply(s); }).catch(function () {});
         }
+        // نزامن فورًا مع نشاط الشركة الحالية (مش بننتظر 9 ثواني) عشان ما تظهرش حالة شركة سابقة بعد التبديل
+        poll(); setTimeout(poll, 1500);
         setInterval(poll, 9000);
         document.addEventListener('visibilitychange', function () { if (!document.hidden) poll(); });
+        window.addEventListener('pageshow', function (e) { if (e.persisted) poll(); });
       })();
       </script>
     <?php endif; ?>
