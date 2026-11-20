@@ -166,86 +166,55 @@ function ai_team_svg(string $wsName, array $states): string
     $ver = defined('APP_VERSION') ? APP_VERSION : (string)@filemtime($file);
     $ar = function_exists('lang') && lang() === 'ar';
 
-    // ألوان كل وكيل (نفس هوية التصميم)
+    // ألوان كل وكيل (من تصميم الروبوتات الجديد — تُستخدم في شارة كل قسم)
     $colors = [
-        'content' => '#AA85FF', 'publishing' => '#48E5F0', 'ads' => '#FE9B67', 'analytics' => '#68ADFF',
-        'tenders' => '#FFC36A', 'crm' => '#54DFB8', 'automation' => '#9E91FF', 'communications' => '#FF88C5',
+        'content' => '#B89AFF', 'publishing' => '#6CE8FF', 'ads' => '#AB86FF', 'analytics' => '#63E4F3',
+        'tenders' => '#BDA0FF', 'crm' => '#73ECD5', 'automation' => '#63D8FF', 'communications' => '#C9A3FF',
     ];
-    // المسارات الفرعية لكل وكيل (branch)
-    $branches = [
-        'content' => 'M190 482 C190 530 195 568 230 568', 'publishing' => 'M403 482 C403 530 418 568 454 568',
-        'ads' => 'M653 482 C653 531 672 568 701 568', 'analytics' => 'M916 482 C916 530 954 555 983 594',
-        'tenders' => 'M1143 482 C1143 530 1173 551 1189 594', 'crm' => 'M1403 482 C1403 534 1390 568 1364 568',
-        'automation' => 'M1667 482 C1667 527 1653 568 1625 568', 'communications' => 'M1893 482 C1893 525 1880 568 1850 568',
-    ];
-    $bridges = [
-        ['content publishing', '#AA85FF', 'M264 420 H324'], ['publishing ads', '#48E5F0', 'M510 420 H569'],
-        ['ads analytics', '#FE9B67', 'M755 420 H814'], ['analytics tenders', '#68ADFF', 'M996 420 H1056'],
-        ['tenders crm', '#FFC36A', 'M1245 420 H1306'], ['crm automation', '#54DFB8', 'M1516 420 H1575'],
-        ['automation communications', '#9E91FF', 'M1765 420 H1817'],
-    ];
-    $buses = [
-        'M230 568 H932 C950 568 954 601 988 601 H1025', 'M1134 601 H1160 C1197 601 1203 568 1230 568 H1850',
-    ];
-    $wire = function (string $cls, string $id, string $roles, string $col, string $d, string $route, string $dur): string {
-        return '<g class="wire ' . $cls . '" id="' . $id . '" data-roles="' . $roles . '" style="--wire:' . $col . '">'
-            . '<path class="wire-guide" d="' . $d . '"/><path class="wire-glow" d="' . $d . '"/>'
-            . '<path class="wire-run" d="' . $d . '"/><path class="wire-curve" d="' . $d . '" data-route="' . $route . '" data-duration="' . $dur . '"/></g>';
-    };
-    $net = '';
-    foreach ($branches as $k => $d) $net .= $wire('branch', 'wire-' . $k, $k, $colors[$k], $d, 'branch', '1.55');
-    foreach ($bridges as $i => $b) $net .= $wire('bridge', 'bridge-' . $i, $b[0], $b[1], $b[2], 'bridge', '1.4');
-    foreach ($buses as $i => $d) $net .= $wire('backbone', 'bus-' . $i, 'all', '#8FEFFF', $d, 'bus', '6.9');
 
-    $svg = '<svg id="teamArt" xmlns="http://www.w3.org/2000/svg" width="2172" height="535" viewBox="0 122 2172 535" preserveAspectRatio="xMidYMid meet" role="img" aria-label="AI workforce">'
-        . '<defs><filter id="litGlow" x="-250%" y="-250%" width="600%" height="600%"><feGaussianBlur stdDeviation="3" result="soft"/><feMerge><feMergeNode in="soft"/><feMergeNode in="SourceGraphic"/></feMerge></filter>'
-        . '<filter id="heavyGlow" x="-300%" y="-300%" width="700%" height="700%"><feGaussianBlur stdDeviation="7"/></filter></defs>'
-        . '<image x="0" y="0" width="2172" height="724" href="assets/workspace_signal.png?v=' . e($ver) . '"/>'
-        . '<g id="wireNetwork" pointer-events="none">' . $net . '</g>'
-        . '<g id="movingSignals" pointer-events="none"></g><g id="agentClickRegions" aria-hidden="true"></g></svg>';
+    // مشهد الوكلاء المتحرّك (الرسمة + طبقة الإشارات SMIL + محرّكها) — نفس تصميم الديمو «multi»،
+    // بنحمّله ونربطه بالحالة الحقيقية، والصورة بتُحمَّل كأصل خارجي.
+    $sceneFile = ROOT_DIR . '/assets/ai_team_scene.html';
+    if (!is_file($sceneFile)) return '';
+    $svg = str_replace('__VER__', e($ver), (string)file_get_contents($sceneFile));
 
     // الحالة المبدئية (أي وكيل شغّال دلوقتي حسب النشاط الحقيقي)
     $init = [];
     foreach (array_keys($colors) as $k) $init[$k] = !empty($states[$k]['active']);
     $initJson = json_encode($init);
 
-    // لوحة تحكّم/مفتاح الوكلاء (نفس هوية التصميم، ثنائية اللغة)
+    // أسماء الأقسام (ثنائية اللغة) لشارة كل روبوت
     $labels = [
         'content' => ['المحتوى', 'Content'], 'publishing' => ['الجدولة', 'Publishing'],
         'ads' => ['الإعلانات', 'Ads'], 'analytics' => ['التحليلات', 'Analytics'],
         'tenders' => ['المناقصات', 'Tenders'], 'crm' => ['العملاء', 'CRM'],
         'automation' => ['الأتمتة', 'Automation'], 'communications' => ['التواصل', 'Comms'],
     ];
-    // مواضع رأس كل موظف فوق الرسمة (مراكز المحطات ÷ عرض الرسمة 2172)
-    $centers = [152, 423, 673, 912, 1184, 1444, 1694, 1955];
+    // مراكز كل محطة فوق الرسمة (مطابقة لمواضع الروبوتات ÷ عرض الرسمة 2048)
+    $centers = [152, 400, 648, 903, 1152, 1401, 1653, 1900];
     $order = array_keys($labels);
     $live = $ar ? 'يعمل' : 'LIVE'; $ready = $ar ? 'جاهز' : 'READY';
     $tags = '';
     foreach ($order as $i => $k) {
         $lab = $labels[$k];
         $on = !empty($states[$k]['active']);
-        $left = round($centers[$i] / 2172 * 100, 3);
+        $left = round($centers[$i] / 2048 * 100, 3);
         $nm = $ar ? $lab[0] : $lab[1];
         $tags .= '<button class="aw-tag' . ($on ? ' on' : '') . '" data-role="' . $k . '" type="button" aria-pressed="' . ($on ? 'true' : 'false') . '" style="--accent:' . $colors[$k] . ';left:' . $left . '%">'
             . '<span class="aw-tdot"></span><b>' . e($nm) . '</b><span class="aw-tst">' . e($on ? $live : $ready) . '</span></button>';
     }
-    $liveLbl = $ar ? 'شبكة الوكلاء شغّالة' : 'SIGNAL FABRIC LIVE';
-    $capTxt = $ar ? '٨ وظائف متصلة · الإشارات بتتحرّك لحظيًا مع كل شغل حقيقي على القسم' : '8 connected functions · signals move live with real activity';
-    $rolesHead = $ar ? 'نشاط كل قسم لحظيًا' : 'Live activity per function';
-    $rolesSub = $ar ? 'القسم بينوّر وإشاراته بتتحرّك بمجرد ما يشتغل عليه أي عضو أو الذكاء الاصطناعي' : 'A function lights up the moment anyone — or the AI — works on it';
-    $n0 = count(array_filter($init));
+    $capTxt = $ar ? '٨ وكلاء ذكاء اصطناعي متصلين · الإشارات بتتحرّك لحظيًا مع كل شغل حقيقي على القسم' : '8 connected AI agents · signals move live with real activity';
 
     $css = <<<CSS
 <style>
 #ai-workforce{--awp:#fff;--awb:#D5E2F0;--awl:#F8FBFF;--awm:#647795;--awink:#152844;direction:ltr;position:relative}
 html.dark #ai-workforce{--awp:#111D34;--awb:#283957;--awl:#12253D;--awm:#91A2C0;--awink:#EEF4FF}
 #ai-workforce .aw-frame{border:1px solid var(--awb);border-radius:23px;background:linear-gradient(180deg,var(--awl),transparent 90%);padding:12px 15px 7px;position:relative;overflow:hidden}
-#ai-workforce .aw-top{position:absolute;z-index:3;inset-inline-start:22px;top:17px;display:flex;gap:8px;align-items:center;background:var(--awp);border:1px solid var(--awb);border-radius:999px;padding:7px 11px;font-size:10px;font-weight:760;direction:ltr;color:var(--awm)}
-#ai-workforce .aw-ind{width:7px;height:7px;border-radius:50%;background:#48E7C6;box-shadow:0 0 14px #48E7C688}
-#ai-workforce .aw-ind.off{background:#F6B45C;box-shadow:0 0 14px #F6B45C66}
 #ai-workforce .aw-visual{position:relative;overflow:hidden;width:100%;padding:9px 0 0;border-radius:18px;background:radial-gradient(ellipse 72% 62% at 50% 44%,rgba(36,70,125,.10),transparent 72%)}
+html.dark #ai-workforce .aw-visual{background:radial-gradient(ellipse 72% 62% at 50% 44%,rgba(36,70,125,.34),transparent 74%)}
+#ai-workforce .aw-visual svg{width:100%;height:auto;display:block;pointer-events:none}
 #ai-workforce .aw-tags{position:absolute;inset:0;pointer-events:none;z-index:4}
-#ai-workforce .aw-tag{position:absolute;top:2.5%;transform:translateX(-50%);pointer-events:auto;cursor:pointer;display:flex;align-items:center;gap:5px;font-family:inherit;font-size:11.5px;font-weight:800;color:var(--awm);background:var(--awp);border:1px solid var(--awb);border-radius:999px;padding:4px 10px;white-space:nowrap;box-shadow:0 3px 12px rgba(15,23,42,.14);transition:border-color .25s,box-shadow .25s,color .25s,transform .15s}
+#ai-workforce .aw-tag{position:absolute;top:2%;transform:translateX(-50%);pointer-events:auto;cursor:pointer;display:flex;align-items:center;gap:5px;font-family:inherit;font-size:11.5px;font-weight:800;color:var(--awm);background:var(--awp);border:1px solid var(--awb);border-radius:999px;padding:4px 10px;white-space:nowrap;box-shadow:0 3px 12px rgba(15,23,42,.14);transition:border-color .25s,box-shadow .25s,color .25s,transform .15s}
 #ai-workforce .aw-tag:hover{transform:translateX(-50%) translateY(-1px)}
 #ai-workforce .aw-tag .aw-tdot{width:8px;height:8px;border-radius:50%;background:#F59E0B;opacity:1;flex:none;box-shadow:0 0 0 3px rgba(245,158,11,.22);transition:background .25s,box-shadow .25s}
 #ai-workforce .aw-tag b{color:var(--awink);font-weight:800}
@@ -253,48 +222,10 @@ html.dark #ai-workforce{--awp:#111D34;--awb:#283957;--awl:#12253D;--awm:#91A2C0;
 #ai-workforce .aw-tag.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 6px 18px -6px var(--accent)}
 #ai-workforce .aw-tag.on .aw-tdot{background:var(--accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 24%,transparent);animation:awBlink 1.4s infinite}
 #ai-workforce .aw-tag.on .aw-tst{color:var(--accent)}
-@media(max-width:780px){#ai-workforce .aw-tag{font-size:9px;padding:3px 6px;gap:3px}#ai-workforce .aw-tag .aw-tst{display:none}}
-html.dark #ai-workforce .aw-visual{background:radial-gradient(ellipse 72% 62% at 50% 44%,rgba(36,70,125,.34),transparent 74%)}
-#ai-workforce .aw-visual svg{width:100%;height:auto;display:block;overflow:visible;pointer-events:none}
-#ai-workforce .aw-visual svg .agentHotspot{pointer-events:all;cursor:pointer}
-#ai-workforce .aw-visual svg .agentHotspot:focus{outline:none}
-#ai-workforce .aw-visual svg .agentHotspot:focus-visible{stroke:#fff;stroke-width:3;stroke-opacity:.8}
-#ai-workforce .wire{--wire:#83E8FB;opacity:.16;transition:opacity .3s;pointer-events:none}
-#ai-workforce .wire.on{opacity:1}
-#ai-workforce .wire-guide{fill:none;stroke:var(--wire);stroke-width:7;stroke-opacity:.08;stroke-linecap:round}
-#ai-workforce .wire-glow{fill:none;stroke:var(--wire);stroke-opacity:.5;stroke-width:5;stroke-linecap:round;filter:url(#litGlow)}
-#ai-workforce .wire-run{fill:none;stroke:#E7FFFF;stroke-width:2.5;stroke-linecap:round;stroke-dasharray:3 28;animation:awDash 1.75s linear infinite;opacity:.1}
-html.dark #ai-workforce .wire-run{stroke:#E7FFFF}
-#ai-workforce .wire.on .wire-run{opacity:.9}
-#ai-workforce .wire-curve{fill:none;stroke:none}
-@keyframes awDash{to{stroke-dashoffset:-124}}
-#ai-workforce.paused .wire-run{animation-play-state:paused}
-#ai-workforce .packet{pointer-events:none;opacity:0;transition:opacity .25s}
-#ai-workforce .packet.on{opacity:1}
-#ai-workforce .packet circle{fill:#F8FFFF}
-#ai-workforce .packet .halo{fill:var(--col);filter:url(#heavyGlow);opacity:.7}
-#ai-workforce .packet .tail{fill:var(--col);opacity:.6}
-#ai-workforce .packet .spark{filter:url(#litGlow)}
+@keyframes awBlink{0%,100%{opacity:1}50%{opacity:.35}}
 #ai-workforce .aw-cap{display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--awm);font-size:11px;padding:6px 11px 12px;flex-wrap:wrap}
 #ai-workforce .aw-cap .mark{color:#52C5D0;font-weight:750}
-#ai-workforce .aw-rh{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;margin:2px 2px 11px;gap:10px}
-#ai-workforce .roles{margin-bottom:16px}
-#ai-workforce .aw-rh b{font-size:14px;color:var(--awink)}
-#ai-workforce .aw-rh small{font-size:11px;color:var(--awm)}
-#ai-workforce .roles{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:9px}
-#ai-workforce .role{display:flex;align-items:center;gap:9px;text-align:start;background:var(--awp);border:1px solid var(--awb);border-radius:14px;padding:10px 11px;cursor:pointer;transition:border-color .25s,box-shadow .25s,transform .15s;font-family:inherit}
-#ai-workforce .role:hover{transform:translateY(-1px)}
-#ai-workforce .role .role-dot{width:11px;height:11px;border-radius:50%;background:var(--accent);opacity:.45;flex:none;transition:opacity .25s,box-shadow .25s}
-#ai-workforce .role b{display:block;font-size:12.5px;color:var(--awink);font-weight:800;line-height:1.3}
-#ai-workforce .role small{display:block;font-size:9.5px;color:var(--awm);letter-spacing:.3px}
-#ai-workforce .role .role-light{width:7px;height:7px;border-radius:50%;background:var(--awb);margin-inline-start:auto;flex:none;transition:background .25s,box-shadow .25s}
-#ai-workforce .role.on{border-color:var(--accent);box-shadow:0 6px 20px -8px var(--accent)}
-#ai-workforce .role.on .role-dot{opacity:1;box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 22%,transparent)}
-#ai-workforce .role.on .role-light{background:var(--accent);box-shadow:0 0 10px var(--accent);animation:awBlink 1.4s infinite}
-@keyframes awBlink{0%,100%{opacity:1}50%{opacity:.35}}
-@media(max-width:1190px){#ai-workforce .roles{grid-template-columns:repeat(4,minmax(0,1fr))}}
-@media(max-width:780px){#ai-workforce .aw-frame{padding:10px 5px}#ai-workforce .aw-visual{overflow:auto}#ai-workforce .aw-visual svg{min-width:950px}#ai-workforce .aw-top{inset-inline-start:8px;top:8px}#ai-workforce .roles{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(prefers-reduced-motion:reduce){#ai-workforce *,#ai-workforce *::before,#ai-workforce *::after{animation:none!important}}
+@media(max-width:780px){#ai-workforce .aw-frame{padding:10px 5px}#ai-workforce .aw-visual{overflow:auto}#ai-workforce .aw-visual svg{min-width:900px}#ai-workforce .aw-tag{font-size:9px;padding:3px 6px;gap:3px}#ai-workforce .aw-tag .aw-tst{display:none}}
 </style>
 CSS;
 
@@ -302,73 +233,25 @@ CSS;
 <script>
 (function(){
   if(window.__awInit)return; window.__awInit=true;
-  var roleKeys=['content','publishing','ads','analytics','tenders','crm','automation','communications'];
-  var ns='http://www.w3.org/2000/svg';
   var root=document.getElementById('ai-workforce'); if(!root)return;
-  var svg=root.querySelector('#teamArt');
-  var wireEls=[].slice.call(svg.querySelectorAll('.wire'));
-  var layers=svg.querySelector('#movingSignals');
-  var roleBtns=[].slice.call(root.querySelectorAll('.aw-tag'));
+  var roleKeys=['content','publishing','ads','analytics','tenders','crm','automation','communications'];
   var LIVE_T='$live', READY_T='$ready';
-  var ind=root.querySelector('#aw-ind'), cnt=root.querySelector('#aw-cnt');
-  var active=new Set(); var INIT=$initJson;
-  roleKeys.forEach(function(k){ if(INIT[k])active.add(k); });
-  var paused=false, speed=1.1, lastTime=0, elapsed=0, packets=[];
-  function el(name,props){var e=document.createElementNS(ns,name);props=props||{};for(var k in props)e.setAttribute(k,String(props[k]));return e;}
-  function setupPackets(){
-    wireEls.forEach(function(wire){
-      var path=wire.querySelector('.wire-curve'); var route=path.getAttribute('data-route');
-      var count=route==='bus'?4:1;
-      var g=el('g',{'class':'packet','style':'--col:'+getComputedStyle(wire).getPropertyValue('--wire')});
-      var units=[];
-      for(var i=0;i<count;i++){
-        var unit=el('g');
-        unit.appendChild(el('circle',{r:route==='bus'?12:10,'class':'halo'}));
-        unit.appendChild(el('circle',{r:5.4,'class':'tail'}));
-        unit.appendChild(el('circle',{r:3.15,'class':'spark'}));
-        unit.appendChild(el('circle',{r:1.5,fill:'#FFF'}));
-        g.appendChild(unit); units.push({unit:unit,offset:i/count});
-      }
-      layers.appendChild(g);
-      packets.push({wire:wire,path:path,g:g,units:units,length:path.getTotalLength(),duration:parseFloat(path.getAttribute('data-duration'))});
-    });
-  }
-  function wireIsActive(wire){var keys=wire.getAttribute('data-roles').split(' ');return keys[0]==='all'?active.size>0:keys.some(function(k){return active.has(k);});}
-  function updateUI(){
-    roleBtns.forEach(function(b){var on=active.has(b.getAttribute('data-role'));b.classList.toggle('on',on);b.setAttribute('aria-pressed',on?'true':'false');var st=b.querySelector('.aw-tst');if(st)st.textContent=on?LIVE_T:READY_T;});
-    wireEls.forEach(function(wire){wire.classList.toggle('on',wireIsActive(wire));});
-    packets.forEach(function(p){p.g.classList.toggle('on',wireIsActive(p.wire));});
-    if(cnt)cnt.textContent=active.size+' / 8';
-    if(ind)ind.classList.toggle('off',!active.size);
-  }
-  function setActive(role,on){if(roleKeys.indexOf(role)<0)return;if(on)active.add(role);else active.delete(role);updateUI();}
-  function setStates(states){active.clear();roleKeys.forEach(function(role){var v=states&&states[role];if(v===true||v===1||(v&&v.active))active.add(role);});updateUI();}
-  function animate(now){
-    if(!lastTime)lastTime=now;
-    var delta=Math.min((now-lastTime)/1000,.045);lastTime=now;
-    if(!paused&&!document.hidden){elapsed+=delta*speed;
-      packets.forEach(function(p){if(!wireIsActive(p.wire))return;
-        p.units.forEach(function(u){var fraction=((elapsed/p.duration)+u.offset)%1;var pt=p.path.getPointAtLength(p.length*fraction);u.unit.setAttribute('transform','translate('+pt.x.toFixed(2)+' '+pt.y.toFixed(2)+')');});
-      });
-    }
-    requestAnimationFrame(animate);
-  }
-  function addClickRegions(){
-    var xs=[155,413,663,916,1149,1412,1661,1911];
-    var regions=svg.querySelector('#agentClickRegions');
-    xs.forEach(function(x,i){
-      var role=roleKeys[i];
-      var rect=el('rect',{x:x-110,y:230,width:220,height:256,rx:22,fill:'transparent','class':'agentHotspot',tabindex:0,role:'button','aria-label':role});
-      rect.addEventListener('click',function(){setActive(role,!active.has(role));});
-      rect.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();setActive(role,!active.has(role));}});
-      regions.appendChild(rect);
-    });
-  }
-  roleBtns.forEach(function(btn){btn.addEventListener('click',function(){setActive(btn.getAttribute('data-role'),!active.has(btn.getAttribute('data-role')));});});
-  window.AIWorkforceSignals={setActive:setActive,setStates:setStates,getState:function(){return [].slice.call(active);}};
-  setupPackets();addClickRegions();updateUI();
-  if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches){paused=true;root.classList.add('paused');}
-  requestAnimationFrame(animate);
+  var tags=[].slice.call(root.querySelectorAll('.aw-tag'));
+  var INIT=$initJson; var active=[];
+  roleKeys.forEach(function(k){ if(INIT[k]) active.push(k); });
+  function paintTags(){ tags.forEach(function(b){ var on=active.indexOf(b.getAttribute('data-role'))>=0; b.classList.toggle('on',on); b.setAttribute('aria-pressed',on?'true':'false'); var st=b.querySelector('.aw-tst'); if(st) st.textContent=on?LIVE_T:READY_T; }); }
+  function drive(){ var api=window.aiTeamNetwork; if(!api){ setTimeout(drive,160); return; } if(active.length) api.cycleMany(active.slice()); else if(api.stop) api.stop(); }
+  function apply(){ paintTags(); drive(); }
+  window.AIWorkforceSignals={
+    setStates:function(s){ active=[]; roleKeys.forEach(function(k){ var v=s&&s[k]; if(v===true||v===1||(v&&v.active)) active.push(k); }); apply(); },
+    setActive:function(r,on){ var i=active.indexOf(r); if(on&&i<0)active.push(r); if(!on&&i>=0)active.splice(i,1); apply(); },
+    getState:function(){ return active.slice(); }
+  };
+  tags.forEach(function(b){ b.addEventListener('click',function(){ var r=b.getAttribute('data-role'); window.AIWorkforceSignals.setActive(r, active.indexOf(r)<0); }); });
+  paintTags();
+  drive();
+  // إعادة تشغيل نبضة الإشارات للأقسام النشطة باستمرار (المحرّك بيهدأ بعد كل دورة)
+  setInterval(function(){ if(active.length && window.aiTeamNetwork && !document.hidden) window.aiTeamNetwork.cycleMany(active.slice()); }, 4800);
 })();
 </script>
 JS;
