@@ -98,16 +98,13 @@ function kb_save(int $wid, string $section, array $data): void
 /** القسم ده متعبّي؟ */
 function kb_filled(array $sec, string $type): bool
 {
-    switch ($type) {
-        case 'fields': return trim(implode('', array_map('strval', array_filter((array)$sec, 'is_scalar')))) !== '';
-        case 'rows': return !empty(array_filter((array)($sec['rows'] ?? []), function ($r) { return trim(implode('', (array)$r)) !== ''; }));
-        case 'list': return trim((string)($sec['text'] ?? '')) !== '';
-        case 'tone': return !empty($sec['style']) || trim((string)($sec['notes'] ?? '')) !== '';
-        case 'antihype': return !empty($sec['rules']) || trim((string)($sec['words'] ?? '')) !== '';
-        case 'visual': return trim((string)($sec['colors'] ?? '') . ($sec['style'] ?? '')) !== '';
-        case 'escalation': return trim((string)($sec['email'] ?? '')) !== '';
-        default: return trim((string)($sec['text'] ?? '')) !== '';
+    if ($type === 'rows') return !empty(array_filter((array)($sec['rows'] ?? []), function ($r) { return trim(implode('', (array)$r)) !== ''; }));
+    // أي قسم تاني: يُعتبر متعبّي لو فيه أي قيمة (نص أو اختيار) غير فاضية — عشان النقطة الخضرا تظهر صح لكل الأنواع
+    foreach ((array)$sec as $v) {
+        if (is_scalar($v)) { if (trim((string)$v) !== '') return true; }
+        elseif (is_array($v)) { if (trim(implode('', array_map('strval', array_filter($v, 'is_scalar')))) !== '') return true; }
     }
+    return false;
 }
 
 function kb_tone_options(): array

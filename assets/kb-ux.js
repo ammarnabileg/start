@@ -19,8 +19,16 @@
   function fieldsOf(form) { return [].filter.call(form.querySelectorAll('input[name^="d["],textarea[name^="d["]'), function (el) { return el.type !== 'checkbox' && el.type !== 'radio' && el.type !== 'hidden'; }); }
   function stat(form) {
     if (form.dataset.type === 'rows') { var n = [].filter.call(form.querySelectorAll('.kb-row'), function (r) { return [].some.call(r.querySelectorAll('[data-col]'), function (x) { return x.value.trim(); }); }).length; return { done: n, total: null }; }
-    if (form.dataset.type !== 'fields') return null;
-    var f = fieldsOf(form); return { done: f.filter(function (el) { return el.value.trim(); }).length, total: f.length };
+    // أي قسم تاني: نعدّ الحقول الظاهرة فعلًا (نص/اختيار)، والاختيارات بنفس الاسم تُحسب حقلًا واحدًا — عدّاد حقيقي لكل الأنواع
+    var els = [].filter.call(form.querySelectorAll('input[name^="d["],textarea[name^="d["],select[name^="d["]'), function (el) { return el.type !== 'hidden' && !el.disabled; });
+    var groups = {}, order = [];
+    els.forEach(function (el) {
+      var grp = el.type === 'checkbox' || el.type === 'radio', key = grp ? 'g:' + el.name : 'f:' + order.length;
+      if (!(key in groups)) { groups[key] = false; order.push(key); }
+      if (grp ? el.checked : el.value.trim() !== '') groups[key] = true;
+    });
+    var total = order.length, done = order.filter(function (k) { return groups[k]; }).length;
+    return { done: done, total: total || null };
   }
   root.querySelectorAll('.kb-form').forEach(function (form) {
     var sec = form.dataset.section, tab = root.querySelector('#kb-nav [data-kb-go="' + sec + '"]'), s0 = stat(form); if (!s0) return;
@@ -38,6 +46,8 @@
       pill.classList.toggle('hidden', !s.done && !s.total);
       var full = s.total ? s.done === s.total : s.done > 0;
       pill.className = 'kb-cnt-pill text-[10px] tabular-nums rounded-full px-1.5 py-0.5 ' + (full ? 'bg-lime-100 text-lime-700' : s.done ? 'bg-brand-50 text-brand-700' : 'bg-ink-100 text-ink-500') + (!s.done && !s.total ? ' hidden' : '');
+      // النقطة الخضرا في القايمة تتبع المحتوى الفعلي: خضرا لو فيه أي محتوى
+      var dot = tab && tab.querySelector('.kb-dot'); if (dot) { var has = s.done > 0; dot.classList.toggle('bg-lime-500', has); dot.classList.toggle('bg-ink-300', !has); }
       if (bar) { bar.querySelector('.h-full').style.width = (100 * s.done / s.total) + '%'; bar.querySelector('span').textContent = (U.filledOf || '%1 / %2').replace('%1', s.done).replace('%2', s.total); }
       if (was === false && full) { var d = tab && tab.querySelector('.kb-dot'); if (d) { d.classList.remove('kb-pop'); void d.offsetWidth; d.classList.add('kb-pop'); } }
       was = full;
