@@ -307,6 +307,7 @@ function ai_settings_render(string $tab): void
               </div>
               <label class="chip !py-1 text-xs cursor-pointer"><input type="checkbox" id="mdl-free" class="w-3.5 h-3.5"> <?= e(t('المجاني فقط')) ?></label>
               <label class="chip !py-1 text-xs cursor-pointer"><input type="checkbox" id="mdl-mine" class="w-3.5 h-3.5"> <?= e(t('المختار فقط')) ?></label>
+              <select id="mdl-sort" class="input !mt-0 !py-1.5 !w-auto text-xs"><option value="cost"><?= e(t('الأرخص أولًا')) ?></option><option value="costd"><?= e(t('الأغلى أولًا')) ?></option><option value="name"><?= e(t('الاسم')) ?></option></select>
             </div>
           </div>
           <div class="overflow-x-auto">
@@ -323,8 +324,8 @@ function ai_settings_render(string $tab): void
               </thead>
               <tbody id="mdl-body">
                 <?php foreach ($catalog as $row): $mine = $picks[$row['key']] ?? []; $fmt = function ($v) { return $v === null ? '—' : '$' . rtrim(rtrim(number_format($v, 3), '0'), '.'); }; ?>
-                <tr class="mdl-row border-t border-ink-100 hover:bg-ink-50/70 transition <?= $mine ? 'bg-brand-50/40' : '' ?>" data-p="<?= e($row['provider']) ?>" data-free="<?= $row['free'] ? 1 : 0 ?>" data-mine="<?= $mine ? 1 : 0 ?>" data-q="<?= e(strtolower($row['model'] . ' ' . $row['name'])) ?>">
-                  <td class="px-4 py-2.5"><div class="font-medium text-ink-900" dir="ltr" style="text-align:start"><?= e($row['name']) ?></div><?php if ($row['name'] !== $row['model']): ?><div class="text-[11px] text-ink-400" dir="ltr" style="text-align:start"><?= e($row['model']) ?></div><?php endif; ?></td>
+                <tr class="mdl-row border-t border-ink-100 hover:bg-ink-50/70 transition <?= $mine ? 'bg-brand-50/40' : '' ?>" data-p="<?= e($row['provider']) ?>" data-free="<?= $row['free'] ? 1 : 0 ?>" data-mine="<?= $mine ? 1 : 0 ?>" data-q="<?= e(strtolower($row['model'] . ' ' . $row['name'])) ?>" data-cost="<?= (float)$row['cost'] ?>" data-name="<?= e(strtolower($row['name'])) ?>" data-prov="<?= e($registry[$row['provider']]['name']) ?>" data-in="<?= e($fmt($row['in'])) ?>" data-out="<?= e($fmt($row['out'])) ?>" data-qcost="<?= e(ai_fmt_cost($row['cost'])) ?>">
+                  <td class="px-4 py-2.5"><button type="button" class="mdl-info font-medium text-ink-900 text-start hover:text-brand-700 hover:underline" dir="ltr" style="text-align:start"><?= e($row['name']) ?></button><?php if ($row['name'] !== $row['model']): ?><div class="text-[11px] text-ink-400" dir="ltr" style="text-align:start"><?= e($row['model']) ?></div><?php endif; ?></td>
                   <td class="px-3 py-2.5"><div class="flex items-center gap-1.5 whitespace-nowrap"><?= connector_logo($registry[$row['provider']], 'w-5 h-5 text-[9px] !rounded-md') ?><span class="text-xs text-ink-600"><?= e($registry[$row['provider']]['name']) ?></span></div></td>
                   <td class="px-3 py-2.5 text-end text-ink-600" dir="ltr"><?= $fmt($row['in']) ?></td>
                   <td class="px-3 py-2.5 text-end text-ink-600" dir="ltr"><?= $fmt($row['out']) ?></td>
@@ -342,6 +343,20 @@ function ai_settings_render(string $tab): void
             <button type="button" id="mdl-more" class="btn-ghost !py-1.5 !px-3 !text-xs hidden"><?= e(t('عرض المزيد')) ?></button>
           </div>
         </div>
+        <?php endif; ?>
+        <?php if ($catalog): ?>
+        <dialog id="mdl-detail" class="w-[min(440px,94vw)] p-0 rounded-2xl border border-ink-200 bg-white shadow-2xl backdrop:bg-ink-900/40">
+          <div class="flex items-center gap-3 px-5 h-14 border-b border-ink-200"><b id="mdld-name" class="flex-1 text-ink-900 truncate" dir="ltr"></b><button type="button" id="mdld-x" class="p-2 rounded-lg text-ink-400 hover:text-ink-900 hover:bg-ink-100"><?= ui_icon('x', 'w-5 h-5') ?></button></div>
+          <div class="p-5 space-y-4">
+            <div class="text-xs text-ink-500" id="mdld-prov"></div>
+            <div class="grid grid-cols-3 gap-2 text-center">
+              <div class="rounded-xl bg-ink-50 p-2"><div class="text-[10px] text-ink-500"><?= e(t('المدخلات / مليون')) ?></div><div class="text-sm font-medium text-ink-900" id="mdld-in" dir="ltr"></div></div>
+              <div class="rounded-xl bg-ink-50 p-2"><div class="text-[10px] text-ink-500"><?= e(t('المخرجات / مليون')) ?></div><div class="text-sm font-medium text-ink-900" id="mdld-out" dir="ltr"></div></div>
+              <div class="rounded-xl bg-ink-50 p-2"><div class="text-[10px] text-ink-500"><?= e(t('السؤال الواحد')) ?></div><div class="text-sm font-medium text-ink-900" id="mdld-q" dir="ltr"></div></div>
+            </div>
+            <div><div class="text-xs font-medium text-ink-500 mb-2"><?= e(t('المهام التي يعمل عليها')) ?></div><div id="mdld-tasks" class="space-y-1"></div><p id="mdld-hint" class="text-[11px] text-amber-700 mt-2 hidden"><?= e(t('أوقف التشغيل التلقائي لتختار الموديلات بنفسك.')) ?></p></div>
+          </div>
+        </dialog>
         <?php endif; ?>
         <p class="text-xs text-ink-400"><?= e(t('الأسعار الرسمية لكل مزود، من كتالوج OpenRouter العام، وتتحدث كل 12 ساعة. OpenRouter محسوب مجانيًا لأنه يبدأ بالموديلات المجانية. الحصة المجانية في Gemini غير محسوبة.')) ?></p>
     <script>
@@ -383,6 +398,38 @@ function ai_settings_render(string $tab): void
             })
             .catch(function () { c.checked = !c.checked; alert((window.T && T.liveFailed) || 'Error'); });
         });
+        // فرز
+        var sortSel = document.getElementById('mdl-sort');
+        function doSort() { var v = sortSel.value; rows.sort(function (a, b) { if (v === 'name') return (a.dataset.name || '').localeCompare(b.dataset.name || ''); var d = parseFloat(a.dataset.cost || 0) - parseFloat(b.dataset.cost || 0); return v === 'costd' ? -d : d; }); rows.forEach(function (r) { body.appendChild(r); }); }
+        sortSel.addEventListener('change', function () { doSort(); apply(true); });
+        doSort();
+        // نافذة تفاصيل الموديل
+        var dlg = document.getElementById('mdl-detail');
+        if (dlg) {
+          var tasksBox = document.getElementById('mdld-tasks');
+          body.addEventListener('click', function (e) {
+            var inf = e.target.closest('.mdl-info'); if (!inf) return; var tr = inf.closest('tr');
+            document.getElementById('mdld-name').textContent = inf.textContent;
+            document.getElementById('mdld-prov').textContent = tr.dataset.prov || '';
+            document.getElementById('mdld-in').textContent = tr.dataset.in || '—';
+            document.getElementById('mdld-out').textContent = tr.dataset.out || '—';
+            document.getElementById('mdld-q').textContent = tr.dataset.qcost || '';
+            var picks = [].slice.call(tr.querySelectorAll('.mdl-pick')); var disabled = picks.length && picks[0].disabled;
+            document.getElementById('mdld-hint').classList.toggle('hidden', !disabled);
+            tasksBox.innerHTML = '';
+            picks.forEach(function (p) {
+              var lab = (p.getAttribute('aria-label') || '').split(' · ')[0];
+              var l = document.createElement('label'); l.className = 'flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 ' + (p.disabled ? 'opacity-60' : 'hover:bg-ink-50 cursor-pointer');
+              var sp = document.createElement('span'); sp.className = 'text-sm text-ink-700'; sp.textContent = lab;
+              var cb = document.createElement('input'); cb.type = 'checkbox'; cb.className = 'w-4 h-4'; cb.checked = p.checked; cb.disabled = p.disabled;
+              cb.addEventListener('change', function () { p.checked = cb.checked; p.dispatchEvent(new Event('change', { bubbles: true })); });
+              l.appendChild(sp); l.appendChild(cb); tasksBox.appendChild(l);
+            });
+            if (dlg.showModal) dlg.showModal();
+          });
+          document.getElementById('mdld-x').addEventListener('click', function () { dlg.close(); });
+          dlg.addEventListener('click', function (e) { if (e.target === dlg) dlg.close(); });
+        }
         apply(true);
       })();
     })();
@@ -461,12 +508,19 @@ function ai_features_render(): void
       root.addEventListener('click', function (e) {
         var a = e.target.closest('.ft-all'); if (!a) return; var on = a.dataset.on === '1';
         var boxes = [].slice.call(a.closest('.ft-group').querySelectorAll('.ft-box')).filter(function (b) { return b.checked !== on; });
-        boxes.forEach(function (b) { b.checked = on; }); if (boxes.length) save(boxes.map(function (b) { return b.dataset.k; }), on, boxes);
+        if (!boxes.length) return;
+        var apply = function () { boxes.forEach(function (b) { b.checked = on; }); save(boxes.map(function (b) { return b.dataset.k; }), on, boxes); };
+        // إيقاف مجموعة كاملة إجراء مؤثّر: نستأذن أولًا
+        if (!on) { (window.fxAsk ? fxAsk((window.T && T.ftOffQ) || 'إيقاف ' + boxes.length + ' ميزة؟') : Promise.resolve(confirm('إيقاف ' + boxes.length + ' ميزة؟'))).then(function (ok) { if (ok) apply(); }); }
+        else apply();
       });
       document.getElementById('ft-q').addEventListener('input', function () {
         var q = this.value.trim().toLowerCase();
         root.querySelectorAll('.ft-item').forEach(function (i) { i.classList.toggle('hidden', !!q && i.dataset.q.indexOf(q) < 0); });
         root.querySelectorAll('.ft-group').forEach(function (g) { g.classList.toggle('hidden', !g.querySelector('.ft-item:not(.hidden)')); });
+        var em = document.getElementById('ft-empty');
+        if (!em) { em = document.createElement('p'); em.id = 'ft-empty'; em.className = 'text-sm text-ink-500 text-center py-8 lg:col-span-2'; em.textContent = (window.T && T.ftNone) || 'لا توجد ميزة بهذا الاسم.'; root.appendChild(em); }
+        em.classList.toggle('hidden', !q || !!root.querySelector('.ft-group:not(.hidden)'));
       });
     })();
     </script>
