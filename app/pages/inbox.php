@@ -482,7 +482,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
           <div class="p-10 text-center text-ink-400 text-sm"><?= e(t('اختار منشور عشان تشوف تعليقاته')) ?></div>
         <?php else: ?>
           <div class="p-4 border-b border-ink-200 flex items-center gap-3">
-            <a href="<?= e(url('inbox', ['folder' => 'comments'])) ?>" class="lg:hidden link text-sm"><?= e(t('رجوع')) ?></a>
+            <a href="<?= e(url('inbox', $base)) ?>" class="lg:hidden inline-flex items-center gap-1 link text-sm"><svg class="w-4 h-4 rtl:rotate-180" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg><?= e(t('رجوع')) ?></a>
             <p class="text-sm line-clamp-2 flex-1"><?= e(mb_substr((string)($currentPost['content'] ?? ''), 0, 200)) ?></p>
           </div>
           <div class="p-4 space-y-5" id="thread">

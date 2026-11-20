@@ -244,7 +244,7 @@ render(t('التعليقات'), 'comments', function () use ($z, $posts, $next, 
               </div>
             </a>
           <?php endforeach; ?>
-          <?php if ($next): ?><a href="<?= e(url('comments', ['cursor' => $next])) ?>" class="block text-center p-3 text-sm link"><?= e(t('أقدم')) ?></a><?php endif; ?>
+          <?php if ($next): ?><a href="<?= e(url('comments', array_filter(['cursor' => $next, 'pf' => $pf]))) ?>" class="block text-center p-3 text-sm link"><?= e(t('أقدم')) ?></a><?php endif; ?>
         </div>
       </div>
 
@@ -258,7 +258,7 @@ render(t('التعليقات'), 'comments', function () use ($z, $posts, $next, 
           </div>
         <?php else: ?>
           <div class="px-4 h-16 border-b border-ink-200 flex items-center gap-3 shrink-0">
-            <a href="<?= e(url('comments')) ?>" class="lg:hidden p-2 -ms-2 rounded-lg hover:bg-ink-100"><svg class="w-5 h-5 rtl:rotate-180" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></a>
+            <a href="<?= e(url('comments', array_filter(['pf' => $pf]))) ?>" class="lg:hidden p-2 -ms-2 rounded-lg hover:bg-ink-100"><svg class="w-5 h-5 rtl:rotate-180" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></a>
             <?php if (!empty($current['picture'])): ?><img src="<?= e($current['picture']) ?>" class="w-10 h-10 rounded-lg object-cover bg-ink-100" referrerpolicy="no-referrer" alt=""><?php endif; ?>
             <div class="min-w-0 flex-1"><p class="text-sm font-medium text-ink-900 line-clamp-1" dir="auto"><?= e(mb_substr((string)($current['content'] ?? ''), 0, 160) ?: t('(منشور بدون نص)')) ?></p>
               <p class="text-[11px] text-ink-500"><?= e(platform_label((string)($current['platform'] ?? ''))) ?> · <?= e(t('%s تعليق', $totalC)) ?><?php if ($priceN): ?> · <span class="rounded-md bg-lime-100 text-lime-800 px-1.5 font-semibold" title="<?= e(t('تعليقات بتسأل عن السعر')) ?>"><?= ui_icon('money', 'w-3.5 h-3.5 inline-block align-[-2px]') ?> <?= e(t('%s سألوا عن السعر', $priceN)) ?></span><?php endif; ?></p></div>

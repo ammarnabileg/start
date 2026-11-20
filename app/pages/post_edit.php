@@ -131,7 +131,8 @@ render(t('تفاصيل المنشور'), 'posts', function () use ($z, $fx, $id,
     }
     ?>
     <div class="flex flex-wrap items-center gap-3 mb-5">
-      <a class="link text-sm" href="<?= e(url('posts')) ?>"><?= is_rtl() ? '&rarr;' : '&larr;' ?> <?= e(t('رجوع للمنشورات')) ?></a>
+      <?php $pbRet = (string)($_GET['ret'] ?? ''); $pbBack = (preg_match('~^index\.php\?p=posts(&|$)~', $pbRet) && strpos($pbRet, '//') === false) ? $pbRet : url('posts'); ?>
+      <a class="link text-sm" href="<?= e($pbBack) ?>"><?= is_rtl() ? '&rarr;' : '&larr;' ?> <?= e(t('رجوع للمنشورات')) ?></a>
       <span class="text-xs px-2 py-0.5 rounded-full font-semibold <?= $cls ?>"><?= e($label) ?></span>
       <?php if (!empty($post['scheduledFor'])): ?><span class="text-sm text-ink-600"><?= e(t('موعد النشر:')) ?> <?= e(fmt_date($post['scheduledFor'], 'd/m h:i A')) ?></span><?php endif; ?>
       <div class="ms-auto flex flex-wrap gap-2">
