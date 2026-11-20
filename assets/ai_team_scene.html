@@ -256,31 +256,31 @@
     clearTasks();
     selected = roles.slice();
     var current = runToken;
-    var targets = ids.filter(function(id){ return roles.indexOf(id) === -1; });
-    if(!targets.length) targets = ids.slice();
 
+    // نحرّك إشارات الأقسام النشطة فقط (مش بنوزّع على الوكلاء الخاملين) عشان كل ووركسبيس
+    // تبان فيه الأقسام اللي بتشتغل فعليًا بس، بدون ما تتحرّك الصورة كلها.
     roles.forEach(function(role, idx){
       activateRoute(role, true);
       pulseTrain(role, 'in', 3, 170, idx*120);
     });
-    notify('إرسال الإشارة من ' + roles.length + ' وكيل إلى النظام المركزي', roles.slice());
+    notify('إشارات من ' + roles.length + ' قسم نشط إلى النظام المركزي', roles.slice());
 
     after(980 + roles.length*80, function(){
       if(runToken!==current) return;
       svg.classList.add('core-receiving');
-      notify('النظام المركزي يستقبل ويعالج ' + roles.length + ' تدفقات', roles.slice());
+      notify('النظام المركزي بيعالج ' + roles.length + ' قسم نشط', roles.slice());
     });
 
     after(1460 + roles.length*90, function(){
       if(runToken!==current) return;
       svg.classList.remove('core-receiving');
       svg.classList.add('core-dispatching');
-      notify('النظام يوزّع الإشارة إلى ' + targets.length + ' وكلاء', roles.slice());
-      targets.forEach(function(id, idx){
+      // الرجوع للأقسام النشطة نفسها فقط
+      roles.forEach(function(role, idx){
         after(idx*90, function(){
           if(runToken!==current) return;
-          activateRoute(id, true);
-          pulseTrain(id, 'out', 2, 180, 0);
+          activateRoute(role, true);
+          pulseTrain(role, 'out', 2, 180, 0);
         });
       });
     });
