@@ -82,9 +82,16 @@ if ($fx && is_file($fx)) {
 
 render(t('تفاصيل الحملة'), 'ads', function () use ($z, $apiError, $camp, $cid, $pf, $range, $from, $to) {
     if (!$z && !getenv('UI_FIXTURES')) { no_api_box(); return; }
-    $back = url('ads', ['r' => $range]); ?>
+    // رابط الرجوع يحافظ على فلاتر القائمة اللي المستخدم كان فيها (ret)، بشرط إنه رابط قائمة حملات محلّي آمن
+    $ret = (string)($_GET['ret'] ?? '');
+    $back = (preg_match('~^index\.php\?p=ads(&|$)~', $ret) && strpos($ret, '//') === false) ? $ret : url('ads', ['r' => $range]);
+    $cname = (string)($camp['campaignName'] ?? $cid); ?>
     <div class="acp space-y-5">
-      <a href="<?= e($back) ?>" class="acp-back"><?= ui_icon('chevron-right', 'w-4 h-4') ?><?= e(t('رجوع للحملات')) ?></a>
+      <nav class="flex items-center gap-1.5 text-sm" aria-label="breadcrumb">
+        <a href="<?= e($back) ?>" class="inline-flex items-center gap-1 h-9 px-3 rounded-lg bg-ink-100 text-ink-700 font-medium hover:bg-ink-200 transition"><?= ui_icon('chevron-right', 'w-4 h-4') ?><?= e(t('الحملات')) ?></a>
+        <?= ui_icon('chevron-left', 'w-4 h-4 text-ink-300') ?>
+        <span class="text-ink-900 font-semibold truncate max-w-[50vw]" dir="auto"><?= e($cname) ?></span>
+      </nav>
       <?php if ($apiError) error_box($apiError); ?>
       <?php if (!$camp && !$apiError): ?><div class="card p-10 text-center text-ink-500 text-sm"><?= e(t('الحملة دي مش موجودة أو مالهاش بيانات في الفترة دي.')) ?></div><?php endif; ?>
       <?php if ($camp):

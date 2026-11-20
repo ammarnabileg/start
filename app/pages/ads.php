@@ -426,7 +426,7 @@ render(t('الحملات الإعلانية'), 'ads', function () use ($z, $apiE
                 $cpf = (string)($c['platform'] ?? '');
                 $budget = $c['campaignBudget'] ?? $c['budget'] ?? null;
                 $st = (string)($c['status'] ?? '');
-                $detail = url('ad_campaign', ['id' => $cid, 'pf' => $cpf, 'r' => $range]);
+                $detail = url('ad_campaign', ['id' => $cid, 'pf' => $cpf, 'r' => $range, 'ret' => $q(['pg' => $pg > 1 ? $pg : null])]);
                 ?>
                 <?php $pm = $prev[$cid] ?? null; $bAmt = (float)($budget['amount'] ?? 0); ?>
                 <tr class="ads-row align-top hover:bg-ink-50 transition cursor-pointer" data-id="<?= e($cid) ?>" data-pf="<?= e($cpf) ?>" data-st="<?= e($st) ?>" data-cur="<?= e((string)$cur) ?>" data-name="<?= e($c['campaignName'] ?? $cid) ?>" data-acc="<?= e((string)($c['platformAdAccountId'] ?? '')) ?>" data-accn="<?= e((string)($c['platformAdAccountName'] ?? '')) ?>"
