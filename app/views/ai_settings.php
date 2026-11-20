@@ -133,45 +133,110 @@ function ai_settings_render(string $tab): void
           $calls = array_sum(array_column($byTask, 'n')); $pct = $budget > 0 ? min(100, $spend / $budget * 100) : 0;
           $money = function ($v) { return '$' . ($v > 0 && $v < 0.01 ? number_format($v, 4) : number_format($v, 2)); };
         ?>
-        <div class="grid lg:grid-cols-[1fr_1.3fr] gap-4">
-          <div class="card p-5">
-            <div class="flex items-center justify-between"><h3 class="font-semibold text-ink-900"><?= e(t('الاستهلاك هذا الشهر')) ?></h3><span class="text-xs text-ink-400"><?= e(t('%s طلب', $calls)) ?></span></div>
-            <div class="mt-3 flex items-end gap-2"><span class="text-3xl font-semibold text-ink-900" dir="ltr"><?= e($money($spend)) ?></span><?php if ($budget > 0): ?><span class="text-sm text-ink-500 mb-1" dir="ltr">/ <?= e($money($budget)) ?></span><?php endif; ?></div>
+        <?php
+          $hum = setting('ai_humanize_' . (int)ws('id'), '1') === '1';
+          $kbMode = ai_kb_mode((int)ws('id'));
+          $swBtn = function (bool $on, string $action, array $extra = [], bool $owner = true) {
+            $h = csrf_field() . '<input type="hidden" name="back" value="usage">';
+            foreach ($extra as $k => $v) $h .= '<input type="hidden" name="' . e($k) . '" value="' . e((string)$v) . '">';
+            $h .= '<input type="hidden" name="action" value="' . e($action) . '">';
+            return '<form method="post" class="shrink-0">' . $h . '<button type="submit" role="switch" aria-checked="' . ($on ? 'true' : 'false') . '" data-switch ' . ($owner ? '' : 'disabled') . ' class="relative inline-flex w-11 h-6 rounded-full transition disabled:opacity-50 ' . ($on ? 'bg-lime-500' : 'bg-ink-300') . '"><span class="absolute top-0.5 start-0.5 w-5 h-5 rounded-full bg-[#fff] shadow transition-transform ' . ($on ? 'translate-x-5 rtl:-translate-x-5' : '') . '"></span></button></form>';
+          };
+        ?>
+        <div class="max-w-3xl space-y-4">
+
+          <!-- الاستهلاك -->
+          <div class="card p-5 sm:p-6">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <h3 class="font-semibold text-ink-900"><?= e(t('الاستهلاك هذا الشهر')) ?></h3>
+                <div class="mt-2 flex items-end gap-2"><span class="text-3xl font-semibold text-ink-900" dir="ltr"><?= e($money($spend)) ?></span><?php if ($budget > 0): ?><span class="text-sm text-ink-500 mb-1" dir="ltr">/ <?= e($money($budget)) ?></span><?php endif; ?></div>
+              </div>
+              <span class="text-xs text-ink-400 whitespace-nowrap"><?= e(t('%s طلب هذا الشهر', $calls)) ?></span>
+            </div>
             <?php if ($budget > 0): ?>
-              <div class="mt-3 h-2.5 rounded-full bg-ink-100 overflow-hidden"><div class="h-full rounded-full <?= $pct >= 90 ? 'bg-red-500' : ($pct >= 70 ? 'bg-amber-500' : 'bg-gradient-to-l from-brand-600 to-lime-500') ?>" style="width:<?= round($pct, 1) ?>%"></div></div>
-              <?php if ($pct >= 100): ?><p class="text-xs text-red-600 mt-2"><?= e(t('تم الوصول للحد. ميزات الذكاء الاصطناعي متوقفة حتى بداية الشهر أو رفع الحد.')) ?></p><?php endif; ?>
+              <div class="mt-4 h-2.5 rounded-full bg-ink-100 overflow-hidden"><div class="h-full rounded-full <?= $pct >= 90 ? 'bg-red-500' : ($pct >= 70 ? 'bg-amber-500' : 'bg-gradient-to-l from-brand-600 to-lime-500') ?>" style="width:<?= round($pct, 1) ?>%"></div></div>
+              <?php if ($pct >= 100): ?><p class="text-xs text-red-600 mt-2"><?= e(t('وصلت للحد. ميزات الذكاء الاصطناعي متوقفة حتى بداية الشهر أو حتى ترفع الحد.')) ?></p><?php endif; ?>
             <?php endif; ?>
-            <form method="post" class="mt-4 flex items-end gap-2">
-              <?= csrf_field() ?><input type="hidden" name="provider" value="openrouter"><input type="hidden" name="back" value="<?= e($tab) ?>"><input type="hidden" name="action" value="ai_budget">
-              <label class="block flex-1"><span class="label"><?= e(t('حد الاستهلاك الشهري ($)')) ?></span><input name="budget" type="number" min="0" step="0.01" dir="ltr" class="input" value="<?= $budget > 0 ? e((string)$budget) : '' ?>" placeholder="<?= e(t('بدون حد')) ?>" <?= $owner ? '' : 'disabled' ?>></label>
-              <button class="btn-ghost" <?= $owner ? '' : 'disabled' ?>><?= e(t('حفظ')) ?></button>
-            </form>
-            <?php $hum = setting('ai_humanize_' . (int)ws('id'), '1') === '1'; ?>
-            <form method="post" class="mt-4 pt-4 border-t border-ink-100 flex items-start gap-3">
-              <?= csrf_field() ?><input type="hidden" name="action" value="ai_humanize"><input type="hidden" name="back" value="<?= e($tab) ?>"><input type="hidden" name="on" value="<?= $hum ? '' : '1' ?>">
-              <div class="flex-1"><b class="text-sm text-ink-900"><?= e(t('كتابة بشرية (Humanizer)')) ?></b> <span class="badge <?= $hum ? 'badge-green' : '' ?>"><?= e($hum ? t('مفعّل') : t('متوقف')) ?></span>
-                <p class="text-xs text-ink-500 mt-1"><?= e(t('قواعد تُضاف لكل ما يكتبه الذكاء الاصطناعي (المنشورات، والردود، والإعلانات، والتقارير، والتقييمات): بلا مبالغات، ولا عبارات قوالب مثل «في عالم اليوم» و«لا تتردد في التواصل»، ولا تضخيم، ولا معلومات غير موجودة في ملف الشركة.')) ?></p></div>
-              <button class="btn-ghost" <?= $owner ? '' : 'disabled' ?>><?= e($hum ? t('إيقاف') : t('تفعيل')) ?></button>
-            </form>
-            <?php $kbMode = ai_kb_mode((int)ws('id')); ?>
-            <form method="post" class="mt-4 pt-4 border-t border-ink-100">
+            <div class="mt-4 flex flex-wrap items-end gap-2">
+              <form method="post" class="flex items-end gap-2">
+                <?= csrf_field() ?><input type="hidden" name="back" value="usage"><input type="hidden" name="action" value="ai_budget">
+                <label class="block"><span class="label"><?= e(t('حد شهري بالدولار')) ?></span><input name="budget" type="number" min="0" step="0.01" dir="ltr" class="input !mt-0 !w-40" value="<?= $budget > 0 ? e((string)$budget) : '' ?>" placeholder="<?= e(t('بدون حد')) ?>" <?= $owner ? '' : 'disabled' ?>></label>
+                <button class="btn-ghost" <?= $owner ? '' : 'disabled' ?>><?= e(t('حفظ')) ?></button>
+              </form>
+              <?php if ($byTask || $byModel): ?><button type="button" id="usage-details" class="btn-ghost ms-auto"><?= ui_icon('chart', 'w-4 h-4') ?><?= e(t('تفاصيل الاستهلاك')) ?></button><?php endif; ?>
+            </div>
+          </div>
+
+          <!-- الإعدادات -->
+          <div class="card divide-y divide-ink-100">
+            <div class="px-5 py-3.5"><h3 class="font-semibold text-ink-900"><?= e(t('إعدادات الذكاء الاصطناعي')) ?></h3></div>
+
+            <div class="flex items-start gap-3 px-5 py-4">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2"><b class="text-sm text-ink-900"><?= e(t('كتابة بأسلوب بشري')) ?></b><span class="badge <?= $hum ? 'badge-green' : '' ?>"><?= e($hum ? t('مفعّل') : t('متوقف')) ?></span></div>
+                <p class="text-xs text-ink-500 mt-1"><?= e(t('يكتب الذكاء الاصطناعي بلا مبالغة وبلا عبارات جاهزة مثل «في عالم اليوم»، ولا يذكر معلومات ليست في ملف الشركة. يسري على المنشورات والردود والإعلانات والتقارير.')) ?></p>
+              </div>
+              <?= $swBtn($hum, 'ai_humanize', ['on' => $hum ? '' : '1'], $owner) ?>
+            </div>
+
+            <form method="post" class="px-5 py-4">
               <?= csrf_field() ?><input type="hidden" name="action" value="ai_kbmode">
-              <b class="text-sm text-ink-900"><?= e(t('قراءة قاعدة المعرفة')) ?></b>
-              <p class="text-xs text-ink-500 mt-1 mb-2"><?= e(t('يتحكّم في كمية معلومات الشركة التي يقرأها الذكاء الاصطناعي في كل المنصة (المنشورات، الردود، التحليلات…).')) ?></p>
+              <b class="text-sm text-ink-900"><?= e(t('قدر المعلومات اللي يقرأها')) ?></b>
+              <p class="text-xs text-ink-500 mt-1 mb-2.5"><?= e(t('يسري على المنصة كلها: المنشورات والردود والتحليلات.')) ?></p>
               <div class="grid sm:grid-cols-2 gap-2">
-                <label class="flex items-start gap-2 rounded-xl border p-3 cursor-pointer <?= $kbMode === 'simple' ? 'border-brand-400 bg-brand-50' : 'border-ink-200' ?>">
+                <label class="flex items-start gap-2 rounded-xl border p-3 cursor-pointer <?= $kbMode === 'simple' ? 'border-brand-400 bg-brand-50' : 'border-ink-200 hover:border-ink-300' ?>">
                   <input type="radio" name="mode" value="simple" class="mt-0.5" <?= $kbMode === 'simple' ? 'checked' : '' ?> <?= $owner ? '' : 'disabled' ?>>
-                  <span><b class="block text-sm text-ink-900"><?= e(t('ذكاء بسيط')) ?></b><span class="block text-xs text-ink-500"><?= e(t('يقرأ ملف معلومات الشركة المثبّت فقط — أسرع وأوفر في الاستهلاك.')) ?></span></span>
+                  <span><b class="block text-sm text-ink-900"><?= e(t('مختصر')) ?></b><span class="block text-xs text-ink-500"><?= e(t('يقرأ ملف معلومات الشركة المثبّت فقط. أسرع وأوفر.')) ?></span></span>
                 </label>
-                <label class="flex items-start gap-2 rounded-xl border p-3 cursor-pointer <?= $kbMode === 'extended' ? 'border-brand-400 bg-brand-50' : 'border-ink-200' ?>">
+                <label class="flex items-start gap-2 rounded-xl border p-3 cursor-pointer <?= $kbMode === 'extended' ? 'border-brand-400 bg-brand-50' : 'border-ink-200 hover:border-ink-300' ?>">
                   <input type="radio" name="mode" value="extended" class="mt-0.5" <?= $kbMode === 'extended' ? 'checked' : '' ?> <?= $owner ? '' : 'disabled' ?>>
-                  <span><b class="block text-sm text-ink-900"><?= e(t('ذكاء موسّع')) ?></b><span class="block text-xs text-ink-500"><?= e(t('يراجع قاعدة المعرفة كاملة — أدقّ وأشمل، واستهلاك أعلى.')) ?></span></span>
+                  <span><b class="block text-sm text-ink-900"><?= e(t('موسّع')) ?></b><span class="block text-xs text-ink-500"><?= e(t('يراجع قاعدة المعرفة كاملة. أدقّ، واستهلاك أعلى.')) ?></span></span>
                 </label>
               </div>
-              <button class="btn-ghost mt-3" <?= $owner ? '' : 'disabled' ?>><?= e(t('حفظ الوضع')) ?></button>
+              <button class="btn-ghost mt-3" <?= $owner ? '' : 'disabled' ?>><?= e(t('حفظ')) ?></button>
             </form>
+
+            <div class="px-5 py-4">
+              <b class="text-sm text-ink-900"><?= e(t('شغل تلقائي في الخلفية')) ?></b>
+              <p class="text-xs text-ink-500 mt-1 mb-1"><?= e(t('يشتغل مع التشغيل الدوري للمنصة، ويُحتسب من حد الاستهلاك.')) ?></p>
+              <?php foreach (['alerts' => [t('تنبيهات يومية'), t('مرة في اليوم يكتشف أي هبوط أو ارتفاع غير طبيعي ويضيفه للتنبيهات.')], 'reply' => [t('رد تلقائي خارج مواعيد العمل'), t('يرد من معلومات الشركة فقط، مسودة للمراجعة أو إرسال مباشر.')]] as $wk => [$wl, $wd]): $won = ai_auto_enabled((int)ws('id'), $wk); ?>
+                <div class="flex items-start gap-3 mt-3">
+                  <div class="flex-1 min-w-0"><div class="text-sm text-ink-800"><?= e($wl) ?></div><div class="text-xs text-ink-500"><?= e($wd) ?></div></div>
+                  <?= $swBtn($won, 'ai_auto', ['what' => $wk], $owner) ?>
+                </div>
+              <?php endforeach; ?>
+            </div>
+
+            <form method="post" class="flex items-start gap-3 px-5 py-4">
+              <?= csrf_field() ?><input type="hidden" name="action" value="ai_call_consent"><input type="hidden" name="back" value="usage">
+              <div class="flex-1 min-w-0"><b class="text-sm text-ink-900"><?= e(t('تحليل جودة المكالمات')) ?></b><p class="text-xs text-ink-500 mt-1"><?= e(t('فعّلها فقط لو الموظفون يعلمون ووافقوا على تحليل مكالماتهم.')) ?></p></div>
+              <input type="checkbox" name="consent" value="1" class="mt-1 w-4 h-4 shrink-0" onchange="this.form.requestSubmit()" <?= setting('ai_call_consent_' . (int)ws('id'), '0') === '1' ? 'checked' : '' ?> <?= $owner ? '' : 'disabled' ?>>
+            </form>
+          </div>
+
+          <!-- روابط -->
+          <div class="grid sm:grid-cols-2 gap-3">
+            <a href="<?= e(url('assistant', ['tab' => 'agent'])) ?>" class="card p-4 flex items-start gap-3 hover:border-brand-300 transition">
+              <span class="w-10 h-10 rounded-xl bg-brand-50 text-brand-700 flex items-center justify-center shrink-0"><?= ai_icon('spark', 'w-5 h-5') ?></span>
+              <span class="flex-1 min-w-0"><b class="block text-sm text-ink-900"><?= e(t('الرد الذكي')) ?></b><span class="block text-xs text-ink-500 mt-0.5"><?= e(t('إعداداته وسجله وتجربته.')) ?></span></span>
+              <svg class="w-5 h-5 text-ink-400 rtl:rotate-180 mt-1.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+            </a>
+            <a href="<?= e(url('knowledge')) ?>" class="card p-4 flex items-start gap-3 hover:border-brand-300 transition">
+              <span class="w-10 h-10 rounded-xl bg-brand-50 text-brand-700 flex items-center justify-center shrink-0"><?= ui_icon('bulb', 'w-5 h-5') ?></span>
+              <span class="flex-1 min-w-0"><b class="block text-sm text-ink-900"><?= e(t('قاعدة المعرفة')) ?></b><span class="block text-xs text-ink-500 mt-0.5"><?= e(t('معلومات الشركة والأسعار والأسئلة الشائعة والنبرة.')) ?></span></span>
+              <svg class="w-5 h-5 text-ink-400 rtl:rotate-180 mt-1.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+            </a>
+          </div>
+        </div>
+
+        <?php if ($byTask || $byModel): ?>
+        <dialog id="usage-dlg" class="w-[min(560px,94vw)] p-0 rounded-2xl border border-ink-200 bg-white shadow-2xl backdrop:bg-ink-900/40">
+          <div class="flex items-center gap-3 px-5 h-14 border-b border-ink-200"><b class="flex-1 text-ink-900"><?= e(t('تفاصيل الاستهلاك هذا الشهر')) ?></b><button type="button" id="usage-x" class="p-2 rounded-lg text-ink-400 hover:text-ink-900 hover:bg-ink-100"><?= ui_icon('x', 'w-5 h-5') ?></button></div>
+          <div class="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
             <?php if ($byTask): ?>
-            <div class="mt-4 pt-4 border-t border-ink-100 space-y-2">
+            <div class="space-y-2">
+              <div class="text-xs font-medium text-ink-500"><?= e(t('حسب المهمة')) ?></div>
               <?php foreach ($byTask as $r): $w = $spend > 0 ? (float)$r['c'] / $spend * 100 : 0; ?>
                 <div class="text-xs"><div class="flex justify-between"><span class="text-ink-700"><?= e(ai_tasks()[$r['task']]['name'] ?? $r['task']) ?> <span class="text-ink-400">· <?= (int)$r['n'] ?></span></span><span class="text-ink-900 font-medium" dir="ltr"><?= e($money((float)$r['c'])) ?></span></div>
                   <div class="mt-1 h-1.5 rounded-full bg-ink-100"><div class="h-full rounded-full bg-brand-500" style="width:<?= round($w, 1) ?>%"></div></div></div>
@@ -179,43 +244,18 @@ function ai_settings_render(string $tab): void
             </div>
             <?php endif; ?>
             <?php if ($byModel): ?>
-            <div class="mt-4 pt-4 border-t border-ink-100">
-              <div class="text-xs text-ink-500 mb-2"><?= e(t('أكثر الموديلات استهلاكًا')) ?></div>
+            <div class="<?= $byTask ? 'pt-4 border-t border-ink-100' : '' ?>">
+              <div class="text-xs font-medium text-ink-500 mb-2"><?= e(t('أكثر الموديلات استهلاكًا')) ?></div>
               <?php foreach ($byModel as $r): ?>
                 <div class="flex items-center justify-between text-xs py-1"><span class="flex items-center gap-1.5 min-w-0"><?= isset($registry[$r['provider']]) ? connector_logo($registry[$r['provider']], 'w-4 h-4 text-[8px] !rounded') : '' ?><span class="truncate text-ink-700" dir="ltr"><?= e($r['model']) ?></span><span class="text-ink-400">· <?= (int)$r['n'] ?></span></span><span class="text-ink-900 shrink-0" dir="ltr"><?= e($money((float)$r['c'])) ?><?= (int)$r['unk'] ? ' *' : '' ?></span></div>
               <?php endforeach; ?>
-              <?php if (array_sum(array_column($byModel, 'unk'))): ?><p class="text-[11px] text-ink-400 mt-1">* <?= e(t('بعض الطلبات سعرها غير معروف ولم تُحسب.')) ?></p><?php endif; ?>
+              <?php if (array_sum(array_column($byModel, 'unk'))): ?><p class="text-[11px] text-ink-400 mt-1">* <?= e(t('بعض الطلبات سعرها غير معروف ولم يُحتسب.')) ?></p><?php endif; ?>
             </div>
             <?php endif; ?>
           </div>
-
-          <div class="space-y-4 flex flex-col">
-          <div class="card p-5">
-            <h3 class="font-semibold text-ink-900"><?= e(t('العمل في الخلفية')) ?></h3>
-            <p class="text-xs text-ink-500 mt-1"><?= e(t('يعمل تلقائيًا مع التشغيل الدوري للمنصة (cron)، ويحتسب من حد الاستهلاك.')) ?></p>
-            <?php foreach (['alerts' => [t('تنبيهات ذكية يومية'), t('مرة في اليوم: يكتشف أي هبوط أو ارتفاع غير طبيعي ويضيفه للتنبيهات.')], 'reply' => [t('الرد التلقائي خارج المواعيد'), t('يرد من معلومات الشركة فقط. مسودة للمراجعة، أو إرسال مباشر.')]] as $wk => [$wl, $wd]): $won = ai_auto_enabled((int)ws('id'), $wk); ?>
-              <form method="post" class="flex items-start gap-3 mt-4">
-                <?= csrf_field() ?><input type="hidden" name="provider" value="openrouter"><input type="hidden" name="back" value="<?= e($tab) ?>"><input type="hidden" name="action" value="ai_auto"><input type="hidden" name="what" value="<?= $wk ?>">
-                <div class="flex-1"><div class="text-sm text-ink-900"><?= e($wl) ?></div><div class="text-xs text-ink-500"><?= e($wd) ?></div></div>
-                <button type="submit" role="switch" aria-checked="<?= $won ? 'true' : 'false' ?>" data-switch <?= $owner ? '' : 'disabled' ?> class="relative inline-flex w-11 h-6 shrink-0 rounded-full transition disabled:opacity-50 <?= $won ? 'bg-lime-500' : 'bg-ink-300' ?>">
-                  <span class="absolute top-0.5 start-0.5 w-5 h-5 rounded-full bg-[#fff] shadow transition-transform <?= $won ? 'translate-x-5 rtl:-translate-x-5' : '' ?>"></span></button>
-              </form>
-            <?php endforeach; ?>
-            <?php  ?>
-            <a href="<?= e(url('assistant', ['tab' => 'agent'])) ?>" class="mt-4 flex items-center gap-2 rounded-xl border border-brand-200 bg-brand-50 p-3 text-sm text-brand-800 hover:bg-brand-100"><?= ui_icon('spark', 'w-4 h-4') ?><?= e(t('إعدادات الرد الذكي وسجله وتجربته في تبويب الرد الذكي')) ?> ←</a>
-            <form method="post" class="mt-4 flex items-start gap-2 text-sm">
-              <?= csrf_field() ?><input type="hidden" name="action" value="ai_call_consent"><input type="hidden" name="back" value="usage">
-              <input type="checkbox" name="consent" value="1" class="mt-1" onchange="this.form.requestSubmit()" <?= setting('ai_call_consent_' . (int)ws('id'), '0') === '1' ? 'checked' : '' ?> <?= $owner ? '' : 'disabled' ?>>
-              <span><b class="text-ink-900"><?= e(t('تقييم جودة المكالمات')) ?></b><span class="block text-xs text-ink-500"><?= e(t('أؤكد أن الموظفين يعلمون ووافقوا على تحليل مكالماتهم وتقييمها.')) ?></span></span>
-            </form>
-          </div>
-          <a href="<?= e(url('knowledge')) ?>" class="card p-5 flex items-start gap-3 hover:border-brand-300 transition">
-            <span class="w-10 h-10 rounded-xl bg-brand-50 text-brand-700 flex items-center justify-center shrink-0"><?= ui_icon('bulb', 'w-5 h-5') ?></span>
-            <span class="flex-1"><b class="block text-ink-900"><?= e(t('قاعدة المعرفة')) ?></b><span class="block text-xs text-ink-500 mt-1"><?= e(t('معلومات الشركة، الخدمات والأسعار، الأسئلة الشائعة، النبرة، الممنوعات، الملفات، والتحويل لموظف.')) ?></span></span>
-            <svg class="w-5 h-5 text-ink-400 rtl:rotate-180 mt-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
-          </a>
-          </div>
-        </div>
+        </dialog>
+        <script>(function(){var d=document.getElementById('usage-dlg'),o=document.getElementById('usage-details'),x=document.getElementById('usage-x');if(!d||!o)return;o.addEventListener('click',function(){d.showModal();});x&&x.addEventListener('click',function(){d.close();});d.addEventListener('click',function(e){if(e.target===d)d.close();});})();</script>
+        <?php endif; ?>
 
         <?php endif; ?>
         <?php if ($tab === 'models'): ?>
