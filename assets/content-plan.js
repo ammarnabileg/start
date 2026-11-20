@@ -193,7 +193,8 @@
     if (!text && field !== 'linkedin') return '';
     var meta = field === 'linkedin' ? fmt(T.words, words(text)) : field === 'x' ? fmt(T.chars, [].slice.call(text || '').length) : '';
     return '<section class="rounded-xl border border-ink-200 p-3 min-w-0"><div class="flex items-center gap-2 mb-1"><b class="text-xs text-ink-500">' + esc(label) + '</b><span class="text-[11px] ' + (field === 'x' && [].slice.call(text || '').length > 280 ? 'text-red-600' : 'text-ink-400') + '">' + esc(meta) + '</span><span class="flex-1"></span>'
-      + '<button type="button" data-copy="' + field + '" class="text-xs link">' + esc(T.copy) + '</button>' + (it.status === 'draft' || it.status === 'approved' || it.status === 'rejected' ? ' <button type="button" data-edit="' + field + '" class="text-xs link">' + esc(T.edit) + '</button>' : '') + '</div>'
+      + '<button type="button" data-copy="' + field + '" class="text-xs link">' + esc(T.copy) + '</button>' + (it.status === 'draft' || it.status === 'approved' || it.status === 'rejected' ? ' <button type="button" data-edit="' + field + '" class="text-xs link">' + esc(T.edit) + '</button>' : '')
+      + ((field === 'image_prompt' || field === 'video_prompt') && ['draft', 'approved', 'rejected'].indexOf(it.status) >= 0 ? ' <button type="button" data-gen1="' + (field === 'image_prompt' ? 'image' : 'video') + '" class="text-xs font-semibold text-brand-700 hover:underline">' + esc(T.genOne) + '</button>' : '') + '</div>'
       + '<div class="cp-txt text-sm whitespace-pre-wrap break-words" ' + (en ? 'dir="ltr"' : 'dir="auto"') + '>' + esc(text) + '</div></section>';
   }
   function card(it) {
@@ -207,7 +208,7 @@
     if ((it.qc || []).length) h += '<div class="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"><b>' + esc(T.qc) + '</b> ' + it.qc.map(esc).join(' · ') + '</div>';
     h += '<div class="grid lg:grid-cols-2 gap-3">' + block(T.li, it.linkedin, 'linkedin', it) + block(T.x, it.x, 'x', it)
       + block(T.img + (it.headline ? ' — «' + it.headline + '»' : ''), it.image_prompt, 'image_prompt', it, true) + block(T.vid, it.video_prompt, 'video_prompt', it, true) + '</div>';
-    if ((it.carousel || []).length) h += '<details class="mt-3 rounded-xl border border-ink-200 p-3"><summary class="cursor-pointer text-xs font-bold text-ink-500">' + esc(T.car) + '</summary><ol class="mt-2 grid sm:grid-cols-5 gap-2">'
+    if ((it.carousel || []).length) h += '<details class="mt-3 rounded-xl border border-ink-200 p-3"><summary class="cursor-pointer text-xs font-bold text-ink-500 flex items-center gap-2"><span>' + esc(T.car) + '</span>' + (['draft', 'approved', 'rejected'].indexOf(it.status) >= 0 ? '<button type="button" data-gen1="carousel" class="text-xs font-semibold text-brand-700 hover:underline ms-auto">' + esc(T.genOne) + '</button>' : '') + '</summary><ol class="mt-2 grid sm:grid-cols-5 gap-2">'
       + it.carousel.map(function (s, i) { return '<li class="rounded-lg bg-ink-50 p-2 text-sm"><div class="text-[11px] text-ink-400">' + (i + 1) + ' · ' + esc(s.role) + '</div><b class="block">' + esc(s.title) + '</b><div class="text-xs text-ink-600">' + esc(s.body) + '</div><div class="text-[11px] text-ink-400 mt-1" dir="ltr">' + esc(s.visual) + (s.layout ? '<br><i>' + esc(s.layout) + '</i>' : '') + '</div></li>'; }).join('') + '</ol></details>';
     h += mediaHtml(it);
     h += '<footer class="flex flex-wrap gap-2 mt-3">';
@@ -265,6 +266,9 @@
     if ((b = e.target.closest('[data-copy]'))) { navigator.clipboard.writeText(it[b.dataset.copy] || '').then(function () { toast(T.copied); }); return; }
     if (e.target.closest('[data-ilogo-open]')) { iOpen(id); return; }
     if ((b = e.target.closest('[data-fmt]'))) { post({ action: 'usefmt', id: id, kind: b.dataset.fmt }).then(function () { load(); }); return; }
+    if ((b = e.target.closest('[data-gen1]'))) { var k = b.dataset.gen1, lab = T['k' + k[0].toUpperCase() + k.slice(1)];
+      (window.fxAsk ? fxAsk(fmt(T.genAsk, lab, 1)) : Promise.resolve(confirm(fmt(T.genAsk, lab, 1)))).then(function (ok) { if (!ok) return;
+        post({ action: 'gen', ids: JSON.stringify([id]), kind: k }).then(function (j) { if (!j.ok) return toast(j.error || T.err, 'error'); if (!j.n) return toast(T.genNone, 'info'); toast(fmt(T.genAdded, j.n)); jobs = j.jobs.items || {}; paint(); genLoop(); }).catch(function () { toast(T.offline, 'error'); }); }); return; }
     if (e.target.closest('[data-regen]')) { post({ action: 'regen', id: id }).then(function (j) { if (!j.ok) return toast(j.error || T.err, 'error'); P.status = 'generating'; load(); loop(); }); return; }
     if ((b = e.target.closest('[data-edit]'))) {
       var f = b.dataset.edit, box = $('.cp-txt', b.closest('section'));
