@@ -99,8 +99,7 @@ function ai_settings_render(string $tab): void
     $owner = is_ws_owner();
     ?>
         <?php $manual = $aiMode === 'manual'; $aiProviders = array_values(array_filter(ai_provider_keys(), function ($p) use ($all) { return !empty($all[$p]); })); ?>
-        <?php /* صفحة واحدة: كل الأقسام تظهر */ ?>
-        <h2 id="sec-models" class="scroll-mt-24 text-lg font-semibold text-ink-900 mb-1"><?= e(t('الموديلات والمهام')) ?></h2>
+        <?php if ($tab !== 'usage'): // الموديلات والمهام ?>
         <div class="card p-5 sm:p-6 flex flex-wrap items-center gap-5 <?= !$manual ? 'ring-2 ring-brand-500/20 border-brand-300' : '' ?>">
           <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-600 to-cyan-500 text-[#fff] flex items-center justify-center shrink-0"><svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></div>
           <div class="flex-1 min-w-[240px]">
@@ -123,7 +122,8 @@ function ai_settings_render(string $tab): void
           </form>
         </div>
 
-        <?php /* قسم الاستهلاك والإعدادات */ ?>
+        <?php endif; ?>
+        <?php if ($tab === 'usage'): // الاستهلاك والإعدادات ?>
         <?php
           $spend = ai_month_spend((int)ws('id')); $budget = ai_budget((int)ws('id'));
           $st = db()->prepare("SELECT task, COUNT(*) n, COALESCE(SUM(cost),0) c FROM ai_usage WHERE workspace_id = ? AND created_at >= ? GROUP BY task ORDER BY c DESC");
@@ -143,7 +143,6 @@ function ai_settings_render(string $tab): void
             return '<form method="post" class="shrink-0">' . $h . '<button type="submit" role="switch" aria-checked="' . ($on ? 'true' : 'false') . '" data-switch ' . ($owner ? '' : 'disabled') . ' class="relative inline-flex w-11 h-6 rounded-full transition disabled:opacity-50 ' . ($on ? 'bg-lime-500' : 'bg-ink-300') . '"><span class="absolute top-0.5 start-0.5 w-5 h-5 rounded-full bg-[#fff] shadow transition-transform ' . ($on ? 'translate-x-5 rtl:-translate-x-5' : '') . '"></span></button></form>';
           };
         ?>
-        <h2 id="sec-usage" class="scroll-mt-24 text-lg font-semibold text-ink-900 mt-8 mb-1"><?= e(t('الاستهلاك والإعدادات')) ?></h2>
         <div class="max-w-3xl space-y-4">
 
           <!-- الاستهلاك -->
@@ -258,7 +257,8 @@ function ai_settings_render(string $tab): void
         <script>(function(){var d=document.getElementById('usage-dlg'),o=document.getElementById('usage-details'),x=document.getElementById('usage-x');if(!d||!o)return;o.addEventListener('click',function(){d.showModal();});x&&x.addEventListener('click',function(){d.close();});d.addEventListener('click',function(e){if(e.target===d)d.close();});})();</script>
         <?php endif; ?>
 
-        <?php /* قسم كتالوج الموديلات */ ?>
+        <?php endif; ?>
+        <?php if ($tab !== 'usage'): // كتالوج الموديلات ?>
         <?php if (!$aiProviders): ?>
           <div class="card p-8 text-center">
             <p class="text-ink-900 font-medium"><?= e(t('لا يوجد مزود ذكاء اصطناعي متصل')) ?></p>
@@ -387,6 +387,7 @@ function ai_settings_render(string $tab): void
       })();
     })();
     </script>
+    <?php endif; ?>
     <?php
 }
 
