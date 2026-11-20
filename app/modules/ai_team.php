@@ -260,7 +260,8 @@ html.dark #ai-workforce .wire-run{stroke:#E7FFFF}
 #ai-workforce .packet .spark{filter:url(#litGlow)}
 #ai-workforce .aw-cap{display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--awm);font-size:11px;padding:6px 11px 12px;flex-wrap:wrap}
 #ai-workforce .aw-cap .mark{color:#52C5D0;font-weight:750}
-#ai-workforce .aw-rh{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;margin:16px 2px 11px;gap:10px}
+#ai-workforce .aw-rh{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;margin:2px 2px 11px;gap:10px}
+#ai-workforce .roles{margin-bottom:16px}
 #ai-workforce .aw-rh b{font-size:14px;color:var(--awink)}
 #ai-workforce .aw-rh small{font-size:11px;color:var(--awm)}
 #ai-workforce .roles{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:9px}
@@ -355,10 +356,10 @@ CSS;
 JS;
 
     return '<div id="ai-workforce">' . $css
+        . '<div class="aw-rh"><b>' . e($rolesHead) . '</b><small>' . e($rolesSub) . '</small></div>'
+        . '<div class="roles" id="roles">' . $roles . '</div>'
         . '<div class="aw-frame"><div class="aw-top"><span class="aw-ind" id="aw-ind"></span><span>' . e($liveLbl) . '</span><span>·</span><strong id="aw-cnt">' . $n0 . ' / 8</strong></div>'
         . '<div class="aw-visual">' . $svg . '</div>'
         . '<div class="aw-cap"><span>◉ ' . e($capTxt) . '</span><span class="mark">LIVE SIGNAL LAYER</span></div></div>'
-        . '<div class="aw-rh"><b>' . e($rolesHead) . '</b><small>' . e($rolesSub) . '</small></div>'
-        . '<div class="roles" id="roles">' . $roles . '</div>'
         . $js . '</div>';
 }
