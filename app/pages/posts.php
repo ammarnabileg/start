@@ -638,7 +638,7 @@ render(t('المنشورات'), 'posts', function () use ($z, $posts, $pages, $p
             <?php endif; ?>
             <div class="p-4 flex-1 flex flex-col">
               <div class="flex items-center gap-2">
-                <label class="shrink-0 cursor-pointer flex"><input type="checkbox" class="ps-sel w-4 h-4 rounded opacity-40 group-hover:opacity-100 checked:opacity-100 focus:opacity-100 transition" aria-label="<?= e(t('تحديد')) ?>"></label>
+                <label class="shrink-0 cursor-pointer flex"><input type="checkbox" class="ps-sel w-4 h-4 rounded opacity-70 group-hover:opacity-100 checked:opacity-100 focus:opacity-100 transition" aria-label="<?= e(t('تحديد')) ?>"></label>
                 <span class="rounded-md px-1.5 py-0.5 text-[10px] font-medium <?= $stCls[$st] ?? 'bg-ink-100 text-ink-600' ?>"><?= e($label) ?></span>
                 <span class="ps-nc text-[10px] rounded-full bg-amber-100 text-amber-800 px-1.5 py-0.5 <?= $pnotes ? '' : 'hidden' ?>" title="<?= e(t('ملاحظات الفريق')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h6M9 17h6"/></svg> <b><?= count($pnotes) ?></b></span>
                 <span class="ps-when text-[11px] text-ink-500 tabular-nums" data-at="<?= e((string)$when) ?>" data-st="<?= e($st) ?>" title="<?= e(fmt_date($when)) ?>"><?= e(fmt_date($when)) ?></span>
@@ -772,7 +772,7 @@ render(t('المنشورات'), 'posts', function () use ($z, $posts, $pages, $p
       if ($view === 'cal' && getenv('UI_FIXTURES')) $calRange = ['2000-01-01', '2000-01-01']; // اختبار: نجبر التحميل بالفترات
     ?>
     <script>window.PSX = <?= json_encode(['calRange' => $calRange, 'calUrl' => url('posts', ['ajax' => 'cal']), 'view' => $view, 'weekStart' => in_array('sun', (array)cx('weekend'), true) ? 1 : 6, 'data' => $data, 'tz' => site_timezone(), 'icons' => array_combine(array_keys($plats) ?: [], array_map(function ($p) { return platform_icon($p, 'w-3 h-3'); }, array_keys($plats))) ?: new stdClass(),
-      'compose' => url('compose'), 'edit' => url('post_edit', ['id' => '__ID__']), 'canDel' => can('posts.manage'), 'canDup' => can('posts.create'), 'url' => url('posts'), 'csrf' => csrf_token(),
+      'compose' => url('compose'), 'edit' => url('post_edit', ['id' => '__ID__']), 'canDel' => can('posts.manage'), 'canDup' => can('posts.create'), 'url' => url('posts'), 'csrf' => csrf_token(), 'calToolsLbl' => t('أدوات التقويم'),
       'posts' => $pdata ?: new stdClass(), 'plab' => array_combine(array_keys($plats) ?: [], array_map('platform_label', array_keys($plats))) ?: new stdClass(),
       'q' => ['canEg' => can('posts.manage'), 'open' => t('افتح على المنصة'), 'edit' => t('تعديل كامل'), 'retry' => t('أعد المحاولة'), 'dup' => t('نسخة كمسودة'), 'del' => t('حذف'), 'resched' => t('غيّر الميعاد'), 'save' => t('احفظ'), 'editT' => t('عدّل النص'), 'moved' => t('اتنقل لـ %s'), 'moving' => t('بننقله…'), 'pastDay' => t('مينفعش تنقله ليوم فات'),
         'csvH' => ['id', 'status', 'time', 'platforms', 'text', 'links', 'errors', 'impressions', 'likes', 'comments', 'shares', 'engagement_rate'],

@@ -153,7 +153,7 @@ function comment_block(array $c, array $labels, bool $isReply = false): void
     ?>
     <div class="cm-item group flex gap-2.5 <?= $isReply ? 'ms-11 mt-2.5' : '' ?>" data-id="<?= e($c['id'] ?? '') ?>" data-name="<?= e($nm) ?>" data-mine="<?= $mine ? 1 : 0 ?>" data-hidden="<?= !empty($c['isHidden']) ? 1 : 0 ?>" data-answered="<?= $answered || $isReply ? 1 : 0 ?>"
       data-cat="<?= e($lb['category'] ?? '') ?>" data-intent="<?= (int)($lb['intent'] ?? 0) ?>" data-bad="<?= $lb && (in_array($lb['sentiment'], ['angry', 'upset'], true) || in_array($lb['category'], ['complaint', 'spam'], true)) ? 1 : 0 ?>">
-      <?php if (!$mine): ?><label class="pt-2.5 cursor-pointer"><input type="checkbox" class="cm-sel w-4 h-4 rounded opacity-0 group-hover:opacity-100 checked:opacity-100 focus:opacity-100 transition" aria-label="<?= e($nm) ?>"></label><?php else: ?><span class="w-4"></span><?php endif; ?>
+      <?php if (!$mine): ?><label class="pt-2.5 cursor-pointer"><input type="checkbox" class="cm-sel w-4 h-4 rounded opacity-60 group-hover:opacity-100 checked:opacity-100 focus:opacity-100 transition" aria-label="<?= e($nm) ?>"></label><?php else: ?><span class="w-4"></span><?php endif; ?>
       <?= !empty($c['platform']) && !$isReply ? avatar_with_platform($from['picture'] ?? null, $nm, (string)$c['platform'], 'w-9 h-9') : avatar($from['picture'] ?? null, $nm, 'w-8 h-8') ?>
       <div class="flex-1 min-w-0">
         <div class="inline-block max-w-full rounded-2xl rounded-ss-md px-3.5 py-2 shadow-sm <?= $mine ? 'bg-brand-50 border border-brand-200' : 'bg-white border border-ink-200' ?> <?= !empty($c['isHidden']) ? 'opacity-50' : '' ?>">
@@ -170,8 +170,8 @@ function comment_block(array $c, array $labels, bool $isReply = false): void
             <?php endif; ?>
           </div>
         <?php endif; ?>
-        <div class="cm-acts flex flex-wrap items-center gap-3 text-[11px] text-ink-500 mt-1 ps-1 opacity-70 group-hover:opacity-100 transition">
-          <?php if (!$isReply && ($c['canReply'] ?? true)): ?><button type="button" class="font-semibold text-brand-700 hover:underline" data-reply-to="<?= e($c['id']) ?>" data-reply-name="<?= e($from['name'] ?? '') ?>"><?= e(t('رد')) ?></button><?php endif; ?>
+        <div class="cm-acts flex flex-wrap items-center gap-3 text-[11px] text-ink-500 mt-1.5 ps-1 transition">
+          <?php if (!$isReply && ($c['canReply'] ?? true)): ?><button type="button" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-brand-200 bg-brand-50 text-brand-700 text-xs font-semibold hover:bg-brand-100" data-reply-to="<?= e($c['id']) ?>" data-reply-name="<?= e($from['name'] ?? '') ?>"><?= e(t('رد')) ?></button><?php endif; ?>
           <?php if (!empty($c['canHide']) && empty($c['isHidden'])): ?>
             <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="hide"><input type="hidden" name="comment_id" value="<?= e($c['id']) ?>"><button class="hover:text-ink-900"><?= e(t('إخفاء')) ?></button></form>
           <?php endif; ?>

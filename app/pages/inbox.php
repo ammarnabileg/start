@@ -535,7 +535,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
           <?php foreach ($convs as $c): $on = $c['id'] === $convId; $lb = $aiLab[$c['id']] ?? null; $un = (int)($c['unreadCount'] ?? 0); $nm = (string)($c['participantName'] ?? $c['participantUsername'] ?? t('بدون اسم')); ?>
             <div class="ibx-item group relative flex items-stretch border-b border-ink-100 transition <?= $on ? 'bg-brand-50/70' : 'hover:bg-ink-50' ?>" data-key="<?= e($c['id'] . '|' . $c['accountId']) ?>" data-urg="<?= (int)($lb['urgency'] ?? 0) ?>" data-intent="<?= (int)($lb['intent'] ?? 0) ?>" data-unread="<?= $un ? 1 : 0 ?>" data-mine="<?= (int)(($meta[(string)$c['id']]['assignee_id'] ?? 0) == $me && $me) ?>" data-state="<?= e($meta[(string)$c['id']]['state'] ?? 'open') ?>">
               <?php if ($on): ?><span class="absolute inset-y-0 start-0 w-1 bg-brand-600 rounded-e"></span><?php endif; ?>
-              <label class="ibx-cb flex items-center ps-3 pe-1 cursor-pointer"><input type="checkbox" class="ibx-sel w-4 h-4 rounded opacity-0 group-hover:opacity-100 checked:opacity-100 focus:opacity-100 transition" aria-label="<?= e($nm) ?>"></label>
+              <label class="ibx-cb flex items-center ps-3 pe-1 cursor-pointer"><input type="checkbox" class="ibx-sel w-4 h-4 rounded opacity-60 group-hover:opacity-100 checked:opacity-100 focus:opacity-100 transition" aria-label="<?= e($nm) ?>"></label>
               <a href="<?= e(url('inbox', $base + ['c' => $c['id'], 'a' => $c['accountId']])) ?>" class="flex-1 min-w-0 flex gap-3 py-3 pe-3">
                 <?= avatar_with_platform($c['participantPicture'] ?? null, $nm, (string)($c['platform'] ?? '')) ?>
                 <div class="flex-1 min-w-0">

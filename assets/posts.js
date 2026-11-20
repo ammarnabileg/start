@@ -52,7 +52,7 @@
   }
   document.addEventListener('click', function (e) {
     var d = e.target.closest('.ps-del'); if (d) { ask(X.del).then(function (ok) { if (!ok) return; d.disabled = true; del([d.closest('.ps-card').dataset.id]).finally(function () { d.disabled = false; }); }); return; }
-    var c = e.target.closest('.ps-copy'); if (c) { var t = c.closest('.ps-card').querySelector('.ps-txt'); navigator.clipboard && navigator.clipboard.writeText(t ? t.textContent : ''); var o = c.textContent; c.textContent = '✓ ' + X.copied; setTimeout(function () { c.textContent = o; }, 1200); }
+    var c = e.target.closest('.ps-copy'); if (c) { var card = c.closest('.ps-card'); var full = null; if (card && X.data) { var row = X.data.filter(function (p) { return String(p.id) === String(card.dataset.id); })[0]; if (row && row.txt != null) full = row.txt; } if (full == null) { var t = card.querySelector('.ps-txt'); full = t ? t.textContent : ''; } navigator.clipboard && navigator.clipboard.writeText(full); var o = c.textContent; c.textContent = '✓ ' + X.copied; setTimeout(function () { c.textContent = o; }, 1200); }
   });
   function psQuick(op, ids, extra) {
     var fd = new FormData(); fd.append('action', 'quick'); fd.append('op', op); ids.forEach(function (i) { fd.append('ids[]', i); });

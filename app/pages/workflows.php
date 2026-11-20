@@ -158,7 +158,7 @@ render(t('الردود التلقائية'), 'workflows', function () use ($z, $
         <?php endforeach; ?>
       </div>
       <button type="button" id="wf-help" class="tb w-10 justify-center text-sm font-semibold text-ink-500" title="<?= e(t('اختصارات الكيبورد')) ?> (?)">?</button>
-      <a href="<?= e(url('automations', ['new' => 1])) ?>" class="btn-primary ms-auto"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><?= e(t('رد تلقائي جديد')) ?> <kbd class="hidden sm:inline text-[10px] opacity-70">N</kbd></a>
+      <a href="<?= e(url('automations', ['new' => 1])) ?>" class="btn-primary ms-auto"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><?= e(t('رد تلقائي على التعليقات')) ?> <kbd class="hidden sm:inline text-[10px] opacity-70">N</kbd></a>
     </div>
 
     <div class="grid lg:grid-cols-[22rem_1fr] 2xl:grid-cols-[22rem_1fr_20rem] gap-4 lg:h-[calc(100vh-13rem)] min-h-[560px]" id="wf">
@@ -307,7 +307,7 @@ render(t('الردود التلقائية'), 'workflows', function () use ($z, $
             <div class="w-16 h-16 rounded-3xl bg-gradient-to-br from-brand-600/10 to-cyan-500/10 text-brand-600 flex items-center justify-center mb-4"><svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M5 4h4v4H5zM15 16h4v4h-4zM7 8v4a2 2 0 002 2h6a2 2 0 012 2"/></svg></div>
             <p class="font-medium text-ink-900"><?= e(t('اختار Workflow عشان تشوف خطواته، أو اعمل واحد جديد')) ?></p>
             <p class="text-xs text-ink-500 mt-1 max-w-sm"><?= e(t('محادثات أوتوماتيك: لما حد يبعت رسالة أو يكتب تعليق فيه كلمة معينة، البرنامج يرد عليه بالخطوات اللي حددتها.')) ?></p>
-            <a href="<?= e(url('workflows', ['new' => 1])) ?>" class="btn-primary mt-4"><?= e(t('رد تلقائي جديد')) ?></a>
+            <a href="<?= e(url('workflows', ['new' => 1])) ?>" class="btn-primary mt-4"><?= e(t('محادثة تلقائية جديدة (رسائل)')) ?></a>
           </div>
         <?php endif; ?>
       </div>
