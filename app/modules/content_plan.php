@@ -76,7 +76,7 @@ function cpl_create(array $in): int
         'dialect' => $dialect,
         'audience' => mb_substr(trim((string)($in['audience'] ?? '')), 0, 800), 'about' => mb_substr(trim((string)($in['about'] ?? '')), 0, 1500), 'services' => array_slice(array_map(function ($s) { return mb_substr((string)$s, 0, 150); }, (array)($in['services'] ?? [])), 0, 20),
         'tone' => mb_substr(trim((string)($in['tone'] ?? '')), 0, 200), 'cta' => mb_substr(trim((string)($in['cta'] ?? '')), 0, 300), 'avoid' => mb_substr(trim((string)($in['avoid'] ?? '')), 0, 600),
-        'video' => !empty($in['video']), 'carousel' => !isset($in['carousel']) || !empty($in['carousel']), 'humanize' => !isset($in['humanize']) || !empty($in['humanize']),
+        'video' => !empty($in['video']), 'carousel' => !isset($in['carousel']) || !empty($in['carousel']), 'humanize' => !isset($in['humanize']) || !empty($in['humanize']), 'qc' => !isset($in['qc']) || !empty($in['qc']),
         'logo_x' => max(0, min(100, (int)($in['logo_x'] ?? 86))), 'logo_y' => max(0, min(100, (int)($in['logo_y'] ?? 9))), 'logo_w' => max(8, min(35, (int)($in['logo_w'] ?? 18))), 'logo_op' => max(30, min(100, (int)($in['logo_op'] ?? 100))),
         'font' => preg_match('/^[\w .-]{1,40}$/', (string)($in['font'] ?? 'auto')) ? (string)$in['font'] : 'auto',
         'logo_tint' => in_array($in['logo_tint'] ?? '', ['orig', 'white', 'black'], true) ? $in['logo_tint'] : 'orig', 'logo_plate' => in_array($in['logo_plate'] ?? '', ['none', 'light', 'dark'], true) ? $in['logo_plate'] : 'none', 'logo_on' => !isset($in['logo_on']) || !empty($in['logo_on'])];
@@ -87,7 +87,7 @@ function cpl_create(array $in): int
     $nid = (int)db()->lastInsertId(); cpl_log($nid, t('اتعملت الخطة: %s منشور، %s صورة مرجعية%s.', $n, count($refs), $hasLogo ? t('، والشعار من ملف الشركة') : '')); return $nid;
 }
 
-function cpl_opts(array $p): array { return (json_decode((string)$p['opts'], true) ?: []) + ['lang' => 'ar', 'dialect' => '', 'audience' => '', 'services' => [], 'tone' => '', 'cta' => '', 'avoid' => '', 'about' => '', 'font' => 'auto', 'video' => true, 'carousel' => true, 'humanize' => true]; }
+function cpl_opts(array $p): array { return (json_decode((string)$p['opts'], true) ?: []) + ['lang' => 'ar', 'dialect' => '', 'audience' => '', 'services' => [], 'tone' => '', 'cta' => '', 'avoid' => '', 'about' => '', 'font' => 'auto', 'video' => true, 'carousel' => true, 'humanize' => true, 'qc' => true]; }
 
 /** البرومبت الأساسي = برومبت المستخدم بالحرف (app/prompts/content_plan.md) + إعدادات الخطة. قسم HTML اتشال لأن السيستم هو اللي بيعرض ويصدّر. */
 function cpl_master(array $p): string
@@ -264,7 +264,8 @@ function cpl_do_humanize(array $p, array $rows): void
 function cpl_do_posts(array $p): void
 {
     // اكتب ← فحص الجودة ← تصليح تلقائي للي فيه مشاكل (لحد محاولتين لكل منشور) ← المنشور اللي بعده
-    foreach (cpl_items((int)$p['id']) as $it) if ($it['status'] === 'draft' && $it['qc'] && (int)$it['fix_tries'] < 2) { cpl_do_fix($p, $it); return; }
+    // لو المستخدم قافل فحص الجودة، بنعدّي التصليح التلقائي خالص (بيوفّر استهلاك الكريدت)
+    if (cpl_opts($p)['qc'] ?? true) foreach (cpl_items((int)$p['id']) as $it) if ($it['status'] === 'draft' && $it['qc'] && (int)$it['fix_tries'] < 2) { cpl_do_fix($p, $it); return; }
     $st = db()->prepare('SELECT * FROM cp_items WHERE plan_id = ? AND linkedin IS NULL ORDER BY seq LIMIT ' . CPL_BATCH); $st->execute([(int)$p['id']]);
     $rows = $st->fetchAll();
     if (!$rows) { db()->prepare('UPDATE cp_plans SET status = "review", stage = "done" WHERE id = ?')->execute([(int)$p['id']]); cpl_log((int)$p['id'], t('اكتملت الخطة. جاهزة للمراجعة والموافقة.'), 'ok'); return; }
@@ -668,7 +669,7 @@ function cpl_font_note(array $p): string
 function cpl_job_prompt(array $p, array $it, array $j): string
 {
     $o = cpl_opts($p); $vis = trim((string)$p['visual']);
-    $rules = "\nFULL-BLEED: one complete, edge-to-edge photographic image that fills the entire 1080x1350 frame; do NOT add or leave any solid colour band, gradient bar, letterbox, flat panel, or cropped colour strip, and no borders or margins of flat colour, UNLESS the supplied reference designs clearly use such a band (then match them). Maximum photographic quality: sharp focus, rich detail, correct exposure, natural depth of field, professional colour grading; not flat, not AI-plastic.\nIf the image shows people: make them look like real, candid photographed humans, not AI renders. Add authentic, specific features: natural asymmetric faces, real skin texture with pores and subtle blemishes, flyaway hair, correct hands with five fingers, natural eye catchlights and gaze, believable clothing fit and wrinkles, and lived-in environment detail. No waxy skin, no plastic smoothness, no uncanny symmetry, no extra fingers.\nCRITICAL — NO TEXT AT ALL: do NOT render any text, letters, words, headline, caption, numbers, labels, signage copy, logo, brand name, wordmark or watermark anywhere in the image. The headline and logo are added afterwards by the system, so the model must output a purely visual photograph with NO typography. Any text the model draws will be wrong and must not appear.\nLEAVE CLEAN SPACE: keep the top ~28% of the frame calmer, simpler and a little darker (sky, wall, shadow, shallow background) as uncluttered negative space where the headline will be placed later, and keep the " . cpl_logo_corner($p) . " corner area (about 260x160px) clean for the logo. Keep the main subject and every key element at least 100px (about 9%) inside each edge; nothing touches or is cropped by an edge.";
+    $rules = "\nFULL-BLEED: one complete, edge-to-edge photographic image that fills the entire 1080x1350 frame; do NOT add or leave any solid colour band, gradient bar, letterbox, flat panel, or cropped colour strip, and no borders or margins of flat colour, UNLESS the supplied reference designs clearly use such a band (then match them). Maximum photographic quality: sharp focus, rich detail, correct exposure, natural depth of field, professional colour grading; not flat, not AI-plastic.\nIf the image shows people: make them look like real, candid photographed humans, not AI renders. Add authentic, specific features: natural asymmetric faces, real skin texture with pores and subtle blemishes, flyaway hair, correct hands with five fingers, natural eye catchlights and gaze, believable clothing fit and wrinkles, and lived-in environment detail. No waxy skin, no plastic smoothness, no uncanny symmetry, no extra fingers.\nCRITICAL — NO TEXT AND NO LOGOS ANYWHERE: do NOT render any text, letters, words, headline, caption, numbers, labels, signage copy, logo, brand name, wordmark or watermark ANYWHERE in the image — this includes on clothing, uniforms, hard hats, badges, lanyards, ID cards, device/tablet/monitor screens, machines, equipment, cabinets, packaging, walls, posters, vehicles and any surface. People's uniforms and chest areas must be PLAIN with no company name, no made-up logo and no emblem. Device and monitor screens must show abstract graphics only, never readable text or a logo. The headline and the real company logo are added afterwards by the system, so output a purely visual photograph with NO typography and NO brand marks of any kind. Any text or logo the model invents will be wrong and must not appear.\nLEAVE CLEAN SPACE: keep the top ~28% of the frame calmer, simpler and a little darker (sky, wall, shadow, shallow background) as uncluttered negative space where the headline will be placed later, and keep the " . cpl_logo_corner($p) . " corner area (about 260x160px) clean for the logo. Keep the main subject and every key element at least 100px (about 9%) inside each edge; nothing touches or is cropped by an edge.";
     if ($j['kind'] === 'image') return $it['image_prompt'] . ($vis !== '' ? "\n\nBrand visual DNA: " . mb_substr($vis, 0, 1200) : '') . $rules;
     if ($j['kind'] === 'video') return $it['video_prompt'] . "\nDo NOT render any logo, brand name or wordmark; end on a clean frame with empty space where the logo can be added in editing.";
     $s = $it['carousel'][(int)$j['slide']] ?? []; $n = count($it['carousel']);
@@ -795,17 +796,24 @@ function cpl_stamp_text(array $p, int $mid, string $headline): int
     $size = (int)round($W * 0.072); $lines = null; $min = max(12, (int)round($W * 0.03));
     for (; $size >= $min; $size -= 2) { $w = cpl_wrap_lines($headline, $font, $size, $maxW, $rtl); if (count($w) <= 3) { $lines = $w; break; } }
     if (!$lines) $lines = array_slice(cpl_wrap_lines($headline, $font, $size, $maxW, $rtl), 0, 3);
-    $lh = (int)round($size * 1.55); $blockH = $lh * count($lines);
-    $top = (int)round($H * 0.10);
+    $lh = (int)round($size * 1.5); $blockH = $lh * count($lines);
+    $top = (int)round($H * 0.085);
     imagealphablending($im, true); imagesavealpha($im, true);
-    // سكريم متدرّج خفيف خلف العنوان للوضوح فوق أي صورة
-    $scrimTop = max(0, $top - (int)round($size * 0.6)); $scrimBot = min($H, $top + $blockH + (int)round($size * 0.4)); $sh = max(1, $scrimBot - $scrimTop);
-    for ($i = 0; $i < $sh; $i++) { $a = (int)round(78 - 78 * ($i / $sh)); if ($a < 0) $a = 0; imagefilledrectangle($im, 0, $scrimTop + $i, $W, $scrimTop + $i, imagecolorallocatealpha($im, 0, 0, 0, 127 - min(127, $a))); }
+    // سكريم متدرّج أقوى من أعلى الصورة: أغمق خلف النص ويخفّ تدريجيًا للأسفل — يضمن الوضوح فوق أي خلفية
+    $scrimBot = min($H, $top + $blockH + (int)round($size * 0.9)); $peak = (int)round($top + $blockH * 0.45);
+    for ($yy = 0; $yy < $scrimBot; $yy++) {
+        $t = $yy <= $peak ? ($peak ? $yy / $peak : 1) : 1 - ($yy - $peak) / max(1, $scrimBot - $peak); // 0..1..0
+        $op = (int)round(118 * max(0, min(1, $t))); if ($op <= 0) continue;
+        imagefilledrectangle($im, 0, $yy, $W, $yy, imagecolorallocatealpha($im, 0, 0, 0, 127 - min(118, (int)round($op * 0.86))));
+    }
+    // حدّ (أوت‌لاين) غامق حول الحروف لضمان التباين على أي صورة، ثم التعبئة البيضاء
+    $stroke = max(2, (int)round($size * 0.055));
+    $dark = imagecolorallocate($im, 12, 16, 24); $white = imagecolorallocate($im, 255, 255, 255);
     $y = $top + $size;
     foreach ($lines as $ln) { $shaped = $rtl ? cpl_ar_shape($ln) : $ln; $bb = imagettfbbox($size, 0, $font, $shaped); $tw = abs($bb[2] - $bb[0]);
         $x = $rtl ? ($W - $margin - $tw) : $margin;
-        imagettftext($im, $size, 0, $x + 2, $y + 3, imagecolorallocatealpha($im, 0, 0, 0, 55), $font, $shaped);
-        imagettftext($im, $size, 0, $x, $y, imagecolorallocate($im, 255, 255, 255), $font, $shaped);
+        for ($dx = -$stroke; $dx <= $stroke; $dx += $stroke) for ($dy = -$stroke; $dy <= $stroke; $dy += $stroke) if ($dx || $dy) imagettftext($im, $size, 0, $x + $dx, $y + $dy, $dark, $font, $shaped);
+        imagettftext($im, $size, 0, $x, $y, $white, $font, $shaped);
         $y += $lh; }
     $tmp = tempnam(sys_get_temp_dir(), 'cpt') . '.png'; imagepng($im, $tmp); imagedestroy($im);
     try { $row = media_store_path($wid, $tmp, 'txt-' . preg_replace('/^(ai|logo|txt)-/', '', (string)$m['name']), 'image/png', media_ai_folder()); } catch (Throwable $e) { @unlink($tmp); return $mid; }

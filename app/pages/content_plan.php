@@ -44,6 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($a === 'step') { session_write_close(); ignore_user_abort(true); /* النت فصل وسط الخطوة: الدفعة تكمل وتتحفظ */ $J(['ok' => true] + cpl_step($pid)); }
         if ($a === 'status') { session_write_close(); $J(['ok' => true] + cpl_status($p)); }
         if ($a === 'resume') { cpl_log($pid, t('استئناف يدوي من حيث توقف.')); db()->prepare('UPDATE cp_plans SET status = "generating", fails = 0, error = NULL WHERE id = ? AND status IN ("paused","generating")')->execute([$pid]); $J(['ok' => true]); }
+        if ($a === 'stop') { db()->prepare('UPDATE cp_plans SET status = "review", stage = "done" WHERE id = ? AND status IN ("generating","paused")')->execute([$pid]); cpl_log($pid, t('أوقفت التوليد يدويًا. المنشورات الجاهزة محفوظة، وتقدر تكمل التوليد في أي وقت.'), 'warn'); $J(['ok' => true] + cpl_status(cpl_plan($pid))); }
         if ($a === 'import') { if (empty($_FILES['file']['tmp_name']) || !is_uploaded_file($_FILES['file']['tmp_name'])) $J(['ok' => false, 'error' => t('الرفع فشل، جرّب تاني.')]); [$u, $s] = cpl_import_xlsx($pid, $_FILES['file']['tmp_name']); $J(['ok' => true, 'updated' => $u, 'skipped' => $s]); }
         if ($a === 'items') $J(['ok' => true, 'items' => cpl_items($pid), 'jobs' => cpl_jobs_status($pid)]);
         if ($a === 'gen') { $J(['ok' => true, 'n' => cpl_jobs_add($pid, array_map('intval', (array)json_decode((string)($_POST['ids'] ?? '[]'), true)), (string)($_POST['kind'] ?? '')), 'jobs' => cpl_jobs_status($pid)]); }
@@ -73,7 +74,7 @@ $plan = $pid ? cpl_plan($pid) : null;
 render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_plan', function () use ($plan, $wid) {
     $T = [
         'stVisual' => t('تحليل الصور المرجعية…'), 'stOutline' => t('تخطيط المواضيع…'), 'stPosts' => t('كتابة المنشورات: %s من %s'), 'stHuman' => t('مراجعة الأسلوب: %s من %s'), 'human' => t('مكتوب بالـ Humanizer'), 'stReview' => t('جاهزة للمراجعة'), 'stPaused' => t('توقف التوليد بعد أكثر من محاولة فاشلة.'),
-        'resume' => t('أكمل من حيث توقف'), 'offline' => t('انقطع الاتصال. سنكمل تلقائيًا عند عودته، وكل ما تم محفوظ.'), 'bg' => t('يمكنك إغلاق الصفحة؛ التوليد يكمل في الخلفية وتجد كل شيء محفوظًا هنا.'),
+        'resume' => t('أكمل من حيث توقف'), 'stop' => t('إيقاف التوليد'), 'stopAsk' => t('إيقاف التوليد الآن؟ المنشورات الجاهزة تبقى محفوظة، وتقدر تكمل لاحقًا.'), 'offline' => t('انقطع الاتصال. سنكمل تلقائيًا عند عودته، وكل ما تم محفوظ.'), 'bg' => t('يمكنك إغلاق الصفحة؛ التوليد يكمل في الخلفية وتجد كل شيء محفوظًا هنا.'),
         'approve' => t('اعتمده'), 'reject' => t('رفض'), 'undo' => t('إرجاع لمسودة'), 'approveSel' => t('اعتمد المحدد (%s)'), 'rejectSel' => t('ارفض المحدد'), 'all' => t('تحديد الكل'), 'regen' => t('أعد كتابته'),
         'copy' => t('نسخ'), 'copied' => t('تم النسخ'), 'edit' => t('تعديل'), 'save' => t('حفظ'), 'cancel' => t('إلغاء'), 'saved' => t('تم الحفظ'), 'err' => t('حصلت مشكلة. حاول مرة أخرى.'),
         'li' => 'LinkedIn', 'x' => 'X', 'img' => t('برومبت الصورة'), 'vid' => t('برومبت الفيديو'), 'car' => t('كاروسيل (5 شرائح)'), 'head' => t('عنوان الصورة'), 'words' => t('%s كلمة'), 'chars' => t('%s حرف'),
@@ -275,6 +276,7 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
         <label class="flex items-center gap-1.5"><input type="checkbox" name="video" checked><?= e(t('برومبت فيديو لكل منشور')) ?></label>
         <label class="flex items-center gap-1.5"><input type="checkbox" name="carousel" checked><?= e(t('كاروسيل 5 شرائح')) ?></label>
         <label class="flex items-center gap-1.5" title="<?= e(t('مهارة Humanizer كاملة تدخل في برومبت الكتابة نفسه، فيُكتب المحتوى بأسلوب بشري من البداية دون تغيير المعلومات.')) ?>"><input type="checkbox" name="humanize" checked><?= e(t('الكتابة بمهارة Humanizer')) ?></label>
+        <label class="flex items-center gap-1.5" title="<?= e(t('فحص كل منشور بعد كتابته وتصحيحه تلقائيًا لو فيه مشكلة. إيقافه أسرع ويوفّر استهلاك الكريدت، لكن بدون تصحيح تلقائي.')) ?>"><input type="checkbox" name="qc" checked><?= e(t('فحص الجودة والتصحيح التلقائي')) ?></label>
       </div>
       </section>
       </div>
