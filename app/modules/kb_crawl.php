@@ -28,9 +28,9 @@ function kbc_norm(string $u): string
 function kbc_host(string $u): string { return preg_replace('/^www\./', '', strtolower((string)parse_url($u, PHP_URL_HOST))); }
 function kbc_skip(string $u): bool
 {
+    // يقرا كل حاجة (فلاتر، باجينيشن، تصنيفات، صفحات داخلية)؛ بنتخطّى بس الملفات الثنائية وصفحات الدخول/السلة/الأدمن
     return (bool)preg_match('~\.(pdf|jpe?g|png|gif|webp|svg|ico|zip|rar|7z|mp4|mov|avi|mp3|wav|docx?|xlsx?|pptx?|css|js|json|xml|woff2?|ttf|eot)(\?|$)~i', $u)
-        || (bool)preg_match('~/(wp-admin|wp-login|cart|checkout|my-account|login|logout|register|signin|signup|feed)(/|$|\?)~i', $u)
-        || (bool)preg_match('~[?&](add-to-cart|orderby|filter_|min_price|max_price|replytocom)=~i', $u);
+        || (bool)preg_match('~/(wp-admin|wp-login|cart|checkout|my-account|login|logout|register|signin|signup|feed)(/|$|\?)~i', $u);
 }
 function kbc_allowed(string $u, array $dis): bool
 {
@@ -140,6 +140,9 @@ function kbc_step(array $c, float $budget = 12.0): array
         $live = db()->prepare('SELECT status FROM kb_crawls WHERE id = ?'); $live->execute([(int)$c['id']]); if ($live->fetchColumn() !== 'running') { $c['status'] = 'stopped'; $stoppedNow = true; break; }
         $st = db()->prepare('SELECT id, url FROM kb_crawl_urls WHERE crawl_id = ? AND st = 0 ORDER BY id LIMIT 8'); $st->execute([(int)$c['id']]); $batch = $st->fetchAll();
         if (!$batch) { $c['status'] = 'done'; break; }
+        // نخزّن الصفحات اللي بنقراها دلوقتي عشان نعرضها للمستخدم (بيقرا إيه حاليًا)
+        $meta = json_decode((string)$c['meta'], true) ?: []; $meta['cur'] = array_slice(array_column($batch, 'url'), 0, 3);
+        db()->prepare('UPDATE kb_crawls SET meta = ? WHERE id = ?')->execute([json_encode($meta, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), (int)$c['id']]); $c['meta'] = json_encode($meta);
         $res = kbc_fetch_many(array_column($batch, 'url'), $c['host']); $pages = []; $links = []; $ok = 0; $bad = 0; $chars = 0;
         foreach ($batch as $b) {
             $r = $res[$b['url']] ?? ['err' => 'x'];

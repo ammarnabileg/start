@@ -42,6 +42,7 @@
     out.innerHTML = '<div class="py-4"><div class="flex items-center gap-2 text-sm text-ink-700 mb-2"><span class="w-4 h-4 rounded-full border-2 border-brand-600 border-t-transparent animate-spin"></span><b>' + esc(C.crawling) + '</b><span class="ms-auto tabular-nums text-ink-500" dir="ltr">' + c.done + ' / ' + c.found + '</span></div>'
       + '<div class="h-2 rounded-full bg-ink-100 overflow-hidden"><div class="h-full bg-brand-600 transition-all" style="width:' + pct + '%"></div></div>'
       + '<p class="text-sm font-semibold text-ink-900 mt-3 tabular-nums">' + esc(f2(C.stats, num(c.done), num(c.chars))) + '</p>'
+      + ((c.reading && c.reading.length) ? '<p class="text-[11px] text-ink-500 mt-2 truncate" dir="ltr" title="' + esc(c.reading[0]) + '">' + esc(C.readingNow) + ' ' + esc(c.reading[0]) + '</p>' : '')
       + '<p class="text-xs text-ink-500 mt-2">' + esc(C.crawlNote.replace('%s', num(c.cap))) + '</p><p class="text-[11px] text-lime-700 mt-1">' + esc(C.saved) + '</p>'
       + (c.done ? '<button type="button" data-kbs-pages class="text-xs link mt-2 me-4">' + esc(C.viewPages) + '</button>' : '') + (c.failed ? '<p class="text-[11px] text-ink-400 mt-1">' + esc(C.failed.replace('%s', c.failed)) + '</p>' : '')
       + '<button type="button" data-kbs-stop class="text-xs text-red-600 hover:underline mt-3">' + esc(C.stop) + '</button></div>';
