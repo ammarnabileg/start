@@ -73,5 +73,6 @@ render(t('الذكاء الاصطناعي'), 'assistant', function () use ($conn
     <div class="space-y-5"><?php ai_settings_render('all'); ?></div>
     <section id="sec-features" class="scroll-mt-20 pt-10 mt-4 border-t border-ink-200"><h2 class="text-lg font-semibold text-ink-900 mb-4"><?= e($tabs['features']) ?></h2><?php ai_features_render(); ?></section>
     <section id="sec-agent" class="scroll-mt-20 pt-10 mt-4 border-t border-ink-200"><h2 class="text-lg font-semibold text-ink-900 mb-4"><?= e($tabs['agent']) ?></h2><?php ai_agent_render(); ?></section>
+    <script>/* الروابط القديمة ?tab=X تنزّل على قسمها في الصفحة الواحدة */(function(){var m={models:'sec-models',usage:'sec-usage',features:'sec-features',agent:'sec-agent'};var t=new URLSearchParams(location.search).get('tab');if(t&&m[t]){var el=document.getElementById(m[t]);if(el)setTimeout(function(){el.scrollIntoView();},60);}})();</script>
     <?php
 });
