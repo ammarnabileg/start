@@ -377,23 +377,28 @@
         var pv = row.querySelector('.kb-prev'); pv.classList.toggle('hidden');
         if (pv.dataset.full || pv.classList.contains('hidden')) return;
         pv.dataset.full = '1';
-        // النص الكامل، وتقدر تعدّله (تمسح سطور الـ OCR اللي ملهاش معنى مثلًا)
+        pv.innerHTML = '<p class="text-xs text-ink-500"><span class="ai-spin"></span> ' + esc(K.loadingTxt) + '</p>';
+        // النص الكامل، وتقدر تعدّله (تمسح سطور الـ OCR اللي ملهاش معنى مثلًا) وتنزّله
         var g = new FormData(); g.append('action', 'kb_file_get'); g.append('id', row.dataset.id);
         post(g).then(function (d) {
-          if (d.error) return;
-          if (row.dataset.auto) { // ملخص الشركة: عرض للقراءة فقط
-            pv.innerHTML = '<pre class="text-xs whitespace-pre-wrap max-h-80 overflow-auto text-ink-700" dir="auto"></pre>';
-            pv.querySelector('pre').textContent = d.content; return;
+          if (!d || d.error) { pv.dataset.full = ''; pv.innerHTML = '<p class="text-xs text-red-600"></p>'; pv.querySelector('p').textContent = (d && d.error) || K.getErr; return; }
+          var fname = ((row.querySelector('.kb-name') || {}).textContent || 'text').trim().replace(/[\\\/:*?"<>|]+/g, '_').slice(0, 80) || 'text';
+          var dlBtn = function () { return '<button type="button" class="kb-dl btn-ghost !py-1.5 !text-xs border border-ink-200">' + esc(K.dlTxt) + '</button>'; };
+          var doDl = function (text) { var blob = new Blob([text], { type: 'text/plain;charset=utf-8' }); var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fname + '.txt'; document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000); };
+          if (row.dataset.auto) { // ملخص الشركة: عرض للقراءة فقط + تحميل
+            pv.innerHTML = '<pre class="text-xs whitespace-pre-wrap max-h-[28rem] overflow-auto text-ink-700 resize-y" dir="auto"></pre><div class="flex items-center gap-3 mt-2">' + dlBtn() + '<span class="text-xs text-ink-500">' + d.content.length.toLocaleString() + ' ' + esc(K.chars) + '</span></div>';
+            pv.querySelector('pre').textContent = d.content; pv.querySelector('.kb-dl').onclick = function () { doDl(pv.querySelector('pre').textContent); }; return;
           }
-          pv.innerHTML = '<p class="text-xs text-ink-500 mb-2"></p><textarea class="input !mt-0 text-xs font-mono w-full" rows="16" dir="auto"></textarea><div class="flex items-center gap-3 mt-2"><button type="button" class="kb-save-txt btn-primary !py-1.5 !text-xs"></button><span class="kb-cnt text-xs text-ink-500"></span></div>';
-          pv.querySelector('p').textContent = K.editHint; var ta = pv.querySelector('textarea'), cnt = pv.querySelector('.kb-cnt'), btn = pv.querySelector('button');
+          pv.innerHTML = '<p class="text-xs text-ink-500 mb-2"></p><textarea class="input !mt-0 text-xs font-mono w-full resize-y max-h-[32rem]" rows="18" dir="auto"></textarea><div class="flex flex-wrap items-center gap-3 mt-2"><button type="button" class="kb-save-txt btn-primary !py-1.5 !text-xs"></button>' + dlBtn() + '<span class="kb-cnt text-xs text-ink-500"></span></div>';
+          pv.querySelector('p').textContent = K.editHint; var ta = pv.querySelector('textarea'), cnt = pv.querySelector('.kb-cnt'), btn = pv.querySelector('.kb-save-txt');
           ta.value = d.content; btn.textContent = K.saveText;
           var upd = function () { cnt.textContent = ta.value.length.toLocaleString() + ' ' + K.chars; }; upd(); ta.addEventListener('input', upd);
+          pv.querySelector('.kb-dl').onclick = function () { doDl(ta.value); };
           btn.onclick = function () {
             var f = new FormData(); f.append('action', 'kb_file_save'); f.append('id', row.dataset.id); f.append('content', ta.value);
-            btn.disabled = true; post(f).then(function (r) { btn.disabled = false; cnt.textContent = (r.ok ? '✓ ' + K.saved + ' · ' : '') + ta.value.length.toLocaleString() + ' ' + K.chars; });
+            btn.disabled = true; post(f).then(function (r) { btn.disabled = false; cnt.textContent = (r && r.ok ? '✓ ' + K.saved + ' · ' : (r && r.error ? r.error + ' · ' : '')) + ta.value.length.toLocaleString() + ' ' + K.chars; });
           };
-        });
+        }).catch(function () { pv.dataset.full = ''; pv.innerHTML = '<p class="text-xs text-red-600">' + esc(K.getErr) + '</p>'; });
         return;
       }
       if (e.target.closest('.kb-rm')) { if (!(window.fxRe ? fxRe : confirm)(K.del)) return; var fd = new FormData(); fd.append('action', 'kb_file_delete'); fd.append('id', row.dataset.id); post(fd).then(function () { row.remove(); if (!list.querySelector('.kb-file')) dot('files', false); }); }
