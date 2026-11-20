@@ -198,7 +198,7 @@ render(t('الردود التلقائية'), 'automations', function () use ($z,
       <a href="<?= e(url('automations', ['new' => 1])) ?>" class="btn-primary ms-auto"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><?= e(t('رد تلقائي جديد')) ?> <kbd class="hidden sm:inline text-[10px] opacity-70">N</kbd></a>
     </div>
 
-    <div class="grid lg:grid-cols-[22rem_1fr] 2xl:grid-cols-[22rem_1fr_20rem] gap-4 lg:h-[calc(100vh-13rem)] min-h-[560px]" id="au">
+    <div class="grid lg:grid-cols-[22rem_1fr] xl:grid-cols-[20rem_1fr_18rem] gap-4 lg:h-[calc(100vh-13rem)] min-h-[560px]" id="au">
       <!-- القائمة -->
       <div class="card flex flex-col min-h-0 overflow-hidden <?= $editing ? 'hidden lg:flex' : 'flex' ?>">
         <div class="flex items-center gap-2 px-4 h-12 border-b border-ink-200 shrink-0"><b class="text-sm text-ink-900"><?= e(t('الردود التلقائية')) ?></b><span class="text-xs text-ink-400" id="au-vis"></span></div>
@@ -371,7 +371,7 @@ render(t('الردود التلقائية'), 'automations', function () use ($z,
       </div>
 
       <!-- المعاينة والإحصائيات -->
-      <aside class="hidden 2xl:flex card flex-col min-h-0 overflow-y-auto">
+      <aside class="hidden xl:flex card flex-col min-h-0 overflow-y-auto">
         <?php if ($editing): ?>
           <div class="p-4 border-b border-ink-100">
             <b class="text-sm text-ink-900"><?= e(t('جرّب تعليق')) ?></b>

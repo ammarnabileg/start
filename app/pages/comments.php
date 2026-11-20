@@ -219,8 +219,8 @@ render(t('التعليقات'), 'comments', function () use ($z, $posts, $next, 
           <b class="text-sm text-ink-900"><?= e(t('المنشورات')) ?></b><span class="text-xs text-ink-400"><?= count($posts) ?></span>
           <?php if (count($plats) > 1 || $pf !== ''): ?>
             <div class="ms-auto flex gap-1 overflow-x-auto" style="scrollbar-width:none">
-              <a href="<?= e(url('comments')) ?>" class="h-8 px-2.5 rounded-lg text-xs flex items-center whitespace-nowrap <?= $pf === '' ? 'bg-brand-50 text-brand-700 font-medium' : 'text-ink-600 hover:bg-ink-100' ?>"><?= e(t('الكل')) ?></a>
-              <?php foreach ($plats as $k => $cnt): ?><a href="<?= e(url('comments', ['pf' => $k])) ?>" class="h-8 px-2 rounded-lg flex items-center gap-1 text-xs <?= $pf === $k ? 'bg-brand-50 text-brand-700 font-medium' : 'text-ink-600 hover:bg-ink-100' ?>" title="<?= e(platform_label($k)) ?>"><?= platform_icon($k, 'w-4 h-4') ?><span><?= (int)$cnt ?></span></a><?php endforeach; ?>
+              <a href="<?= e(url('comments', array_filter(['post' => $postId, 'a' => $accId]))) ?>" class="h-8 px-2.5 rounded-lg text-xs flex items-center whitespace-nowrap <?= $pf === '' ? 'bg-brand-50 text-brand-700 font-medium' : 'text-ink-600 hover:bg-ink-100' ?>"><?= e(t('الكل')) ?></a>
+              <?php foreach ($plats as $k => $cnt): ?><a href="<?= e(url('comments', array_filter(['pf' => $k, 'post' => $postId, 'a' => $accId]))) ?>" class="h-8 px-2 rounded-lg flex items-center gap-1 text-xs <?= $pf === $k ? 'bg-brand-50 text-brand-700 font-medium' : 'text-ink-600 hover:bg-ink-100' ?>" title="<?= e(platform_label($k)) ?>"><?= platform_icon($k, 'w-4 h-4') ?><span><?= (int)$cnt ?></span></a><?php endforeach; ?>
             </div>
           <?php endif; ?>
         </div>
@@ -244,7 +244,7 @@ render(t('التعليقات'), 'comments', function () use ($z, $posts, $next, 
               </div>
             </a>
           <?php endforeach; ?>
-          <?php if ($next): ?><a href="<?= e(url('comments', array_filter(['cursor' => $next, 'pf' => $pf]))) ?>" class="block text-center p-3 text-sm link"><?= e(t('أقدم')) ?></a><?php endif; ?>
+          <?php if ($next): ?><a href="<?= e(url('comments', array_filter(['cursor' => $next, 'pf' => $pf, 'post' => $postId, 'a' => $accId]))) ?>" class="block text-center p-3 text-sm link"><?= e(t('أقدم')) ?></a><?php endif; ?>
         </div>
       </div>
 

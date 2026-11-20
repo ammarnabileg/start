@@ -127,7 +127,7 @@ render(t('تفاصيل الحملة'), 'ads', function () use ($z, $apiError, $c
       </section>
 
       <div class="flex flex-wrap items-center gap-2">
-        <div class="acp-seg"><?php foreach (ads_date_presets() as $k => $v): ?><a href="<?= e(url('ad_campaign', ['id' => $cid, 'pf' => $pf, 'r' => $k])) ?>" class="<?= (string)$k === $range ? 'on' : '' ?>"><?= e($v) ?></a><?php endforeach; ?></div>
+        <div class="acp-seg"><?php foreach (ads_date_presets() as $k => $v): ?><a href="<?= e(url('ad_campaign', array_filter(['id' => $cid, 'pf' => $pf, 'r' => $k, 'ret' => $ret], function ($x) { return $x !== '' && $x !== null; }))) ?>" class="<?= (string)$k === $range ? 'on' : '' ?>"><?= e($v) ?></a><?php endforeach; ?></div>
         <span class="text-xs text-ink-500 tabular-nums" dir="ltr"><?= e($from . ' → ' . $to) ?></span>
       </div>
 

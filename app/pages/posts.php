@@ -758,7 +758,7 @@ render(t('المنشورات'), 'posts', function () use ($z, $posts, $pages, $p
           <div id="cal-dups-body" class="flex-1 overflow-y-auto p-4 space-y-4"></div>
         </div>
       </div>
-      <p class="text-[11px] text-ink-400 mt-2"><?= e(t('التقويم بيجيب كل المنشورات المجدولة في الفترة اللي قدامك، ولما تقلّب بيجيب الباقي. اضغط على يوم فاضي في المستقبل عشان تعمل منشور فيه.')) ?><?php if (can('posts.manage')): ?> <?= e(t('اسحب أي منشور مجدول ليوم تاني عشان تغير ميعاده (نفس الساعة).')) ?><?php endif; ?></p>
+      <p class="text-[11px] text-ink-400 mt-2"><?= e(t('التقويم بيجيب كل المنشورات المجدولة في الفترة اللي قدامك، ولما تقلّب بيجيب الباقي. اضغط على يوم فاضي في المستقبل عشان تعمل منشور فيه.')) ?><?php if (can('posts.manage')): ?> <span class="hidden sm:inline"><?= e(t('اسحب أي منشور مجدول ليوم تاني عشان تغير ميعاده (نفس الساعة).')) ?></span><?php endif; ?></p>
     <?php endif; ?>
     <?php endif; ?>
     <?php $diagRows = isset($_GET['diag']) ? (array)json_decode((string)setting('ps_diag_' . (int)ws('id'), '[]'), true) : []; if ($diagRows && can('posts.manage')): // تشخيص للدعم بس (?diag=1) ?>

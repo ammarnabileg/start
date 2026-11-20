@@ -181,10 +181,26 @@
     api({ action: 'send_email', id: lead().id, subject: f.subject.value, body: f.body.value }).then(function (j) { busy(b, false); b.lastChild.textContent = T.send; if (!j.ok) return fail(j); f.reset(); toast(T.sent); LP.reload(); }).catch(function () { busy(b, false); b.lastChild.textContent = T.send; fail(); }); });
 
   /* ---------- البيانات ---------- */
-  function dtPaint(j) { var hp = $('pd-plsel'); if (hp) hp.value = j.pl || hp.value; var p0 = $('pd-p-dt'); if (p0) { p0.classList.add('hidden'); p0.innerHTML = ''; } }
+  // البيانات: الحقول المخصّصة اللي الشركة عرّفتها من الإعدادات، تظهر وتتعدّل في تفاصيل العميل
+  function dtPaint(j) {
+    var hp = $('pd-plsel'); if (hp) hp.value = j.pl || hp.value;
+    var p = $('pd-p-dt'); if (!p) return;
+    if (!(X.cf && X.cf.length)) { p.classList.add('hidden'); p.innerHTML = ''; return; }
+    var cf = j.cf || {};
+    var h = '<div class="text-xs font-semibold text-ink-500 mb-2">' + esc(T.fields) + '</div><div class="space-y-2">';
+    X.cf.forEach(function (f) {
+      var v = cf[f.key] == null ? '' : cf[f.key], k = 'cf.' + f.key, ctl;
+      if (f.type === 'select') ctl = '<select class="input !mt-0 text-sm" data-fv="' + esc(k) + '"><option value="">—</option>' + (f.opts || []).map(function (o) { return '<option' + (String(o) === String(v) ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select>';
+      else ctl = '<input class="input !mt-0 text-sm" data-fv="' + esc(k) + '" value="' + esc(v) + '" ' + (f.type === 'number' ? 'inputmode="decimal" dir="ltr"' : 'dir="auto"') + ' maxlength="200">';
+      h += '<label class="block"><span class="text-[11px] text-ink-500">' + esc(f.label) + '</span>' + ctl + '</label>';
+    });
+    p.innerHTML = h + '</div>'; p.classList.remove('hidden');
+  }
   (function () { if (Object.keys(X.pipes || {}).length < 2) return; var meta = $('pd-meta'); if (!meta) return; var sel = document.createElement('select'); sel.id = 'pd-plsel'; sel.className = 'pd-plsel'; sel.title = T.pipe;
     sel.innerHTML = Object.keys(X.pipes).map(function (k) { return '<option value="' + esc(k) + '">' + esc(X.pipes[k]) + '</option>'; }).join(''); meta.parentNode.insertBefore(sel, meta.nextSibling);
     sel.addEventListener('change', function () { api({ action: 'field', id: lead().id, f: 'pipeline', v: sel.value }).then(function (j) { if (j && j.ok === false) return fail(j); toast(T.saved); }); }); })();
+  // حفظ أي حقل مخصّص بمجرد تغييره
+  (function () { var p = $('pd-p-dt'); if (!p) return; p.addEventListener('change', function (e) { var el = e.target.closest('[data-fv]'); if (!el) return; api({ action: 'field', id: lead().id, f: el.dataset.fv, v: el.value }).then(function (j) { if (j && j.ok === false) return fail(j); toast(T.saved); }).catch(function () { fail(); }); }); })();
 
   /* ---------- كشف Apollo ---------- */
   function enrichPaint(d) { $('pd-enrich').classList.toggle('hidden', !X.apollo || !!(d.phone && d.email)); }

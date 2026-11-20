@@ -147,8 +147,8 @@
     cPost(r, b.dataset.k, 'del', b.dataset.v).then(function (j) { if (!j.ok) return toast(j.error || L.err, 'error'); var ln = b.closest('.pr-cl'); if (ln) ln.remove(); toast(L.saved || QT.qDone); }).catch(function () { toast(L.err, 'error'); }); }, true);
 
   // كشف البيانات من Apollo من خانة التواصل
-  root.addEventListener('click', function (e) { var b = e.target.closest('[data-qreveal]'); if (!b) return; e.preventDefault(); e.stopPropagation(); var r = b.closest('[data-mk-row]'), d = jd(r); b.disabled = true; b.textContent = QT.revealing;
-    bulk([d.id], 'enrich', {}).then(function (j) { if (!j.ok) { b.disabled = false; b.textContent = '!'; return toast(j.error || L.err, 'error'); } toast(QT.revealed); list.reload(); }).catch(function () { b.disabled = false; toast(L.err, 'error'); }); }, true);
+  root.addEventListener('click', function (e) { var b = e.target.closest('[data-qreveal]'); if (!b) return; e.preventDefault(); e.stopPropagation(); var r = b.closest('[data-mk-row]'), d = jd(r); var old = b.dataset.lbl || b.textContent; b.dataset.lbl = old; b.disabled = true; b.textContent = QT.revealing;
+    bulk([d.id], 'enrich', {}).then(function (j) { if (!j.ok) { b.disabled = false; b.textContent = old; return toast(j.error || L.err, 'error'); } toast(QT.revealed); list.reload(); }).catch(function () { b.disabled = false; b.textContent = old; toast(L.err, 'error'); }); }, true);
 
   /* ---------- الفلاتر المحفوظة ---------- */
   var VT = C.P.T, views = C.views || [], vbar = document.createElement('div'); vbar.className = 'pr-views';
@@ -209,7 +209,7 @@
     f.addEventListener('submit', function (e) { e.preventDefault(); var go = f.querySelector('[data-go]'), st = f.querySelector('[data-st]'), i = 0, tot = { sent: 0, leads: 0, skip: 0, fail: 0 }; go.disabled = true;
       (function step() { if (i >= all.length) { go.disabled = false; st.innerHTML = '<b>' + esc(QT.bmDone.replace('%s', tot.sent).replace('%s', tot.leads)) + '</b>' + (tot.skip ? '<br>' + esc(QT.bmSkip.replace('%s', tot.skip)) : '') + (tot.fail ? '<br>' + esc(QT.bmFail.replace('%s', tot.fail)) : ''); toast(QT.bmDone.replace('%s', tot.sent).replace('%s', tot.leads)); return; }
         var part = all.slice(i, i + 25); i += part.length; st.textContent = QT.bmProg.replace('%s', i).replace('%s', all.length);
-        post(C.selfUrl, { action: 'bmail', 'ids[]': part, subject: f.subject.value, body: f.body.value }).then(function (j) { if (!j.ok) { go.disabled = false; st.textContent = ''; return toast(j.error || L.err, 'error'); } ['sent', 'leads', 'skip', 'fail'].forEach(function (k) { tot[k] += j[k] || 0; }); step(); }).catch(function () { go.disabled = false; toast(L.err, 'error'); }); })(); }); }); });
+        post(C.selfUrl, { action: 'bmail', 'ids[]': part, subject: f.subject.value, body: f.body.value }).then(function (j) { if (!j.ok) { go.disabled = false; if (j.connect_url) { st.innerHTML = esc(j.error || L.err) + ' <a class="link" href="' + esc(j.connect_url) + '">' + esc(QT.connect || 'اربط الآن') + '</a>'; } else st.textContent = ''; return toast(j.error || L.err, 'error'); } ['sent', 'leads', 'skip', 'fail'].forEach(function (k) { tot[k] += j[k] || 0; }); step(); }).catch(function () { go.disabled = false; toast(L.err, 'error'); }); })(); }); }); });
   // قايمة واتساب: كل رقم في سطر، يتفتح بالرسالة جاهزة
   $('pb-wa').addEventListener('click', function () { scope().then(function (sc) { if (!sc.ids.length) return; return post(C.selfUrl, { action: 'walist', 'ids[]': sc.ids.slice(0, 500) }); }).then(function (j) { if (!j) return; if (!j.ok) return toast(j.error || L.err, 'error');
     var n = 0; j.list.forEach(function (x) { n += x.nums.length; });

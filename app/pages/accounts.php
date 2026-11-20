@@ -148,7 +148,7 @@ render(t('الحسابات المربوطة'), 'accounts', function () use ($z, 
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
       <?php // الكروت هي الفلتر نفسه (بدل كروت + أزرار فلتر مكررة)
       foreach ([['', 'layers', t('كل الحسابات'), count($accounts), 'text-ink-900'], ['ok', 'check', t('شغالة'), count($accounts) - $bad, 'text-lime-700'], ['bad', 'alert', t('محتاجة إعادة ربط'), $bad, $bad ? 'text-red-600' : 'text-ink-900']] as [$k, $ic, $l, $v, $c]): ?>
-        <button type="button" data-st-card="<?= $k ?>" class="acc-card text-start rounded-2xl border px-5 py-4 transition hover:-translate-y-0.5 hover:shadow-md <?= $k === '' ? 'border-brand-400 bg-brand-50 ring-2 ring-brand-500/15' : ($k === 'bad' && $bad ? 'border-red-200 bg-red-50/60' : 'border-ink-200 bg-white') ?>">
+        <button type="button" data-st-card="<?= $k ?>" class="acc-sumcard text-start rounded-2xl border px-5 py-4 transition hover:-translate-y-0.5 hover:shadow-md <?= $k === '' ? 'border-brand-400 bg-brand-50 ring-2 ring-brand-500/15' : ($k === 'bad' && $bad ? 'border-red-200 bg-red-50/60' : 'border-ink-200 bg-white') ?>">
           <div class="flex items-center gap-1.5 text-xs text-ink-500"><?= ui_icon($ic, 'w-4 h-4') ?><?= e($l) ?></div><div class="text-2xl font-semibold mt-1 <?= $c ?>"><?= (int)$v ?></div></button>
       <?php endforeach; ?>
         <div class="card px-5 py-4"><div class="flex items-center gap-1.5 text-xs text-ink-500"><?= ui_icon('grid', 'w-4 h-4') ?><?= e(t('المنصات')) ?></div><div class="text-2xl font-semibold mt-1 text-ink-900"><?= (int)count($byPlat) ?></div></div>
@@ -195,8 +195,8 @@ render(t('الحسابات المربوطة'), 'accounts', function () use ($z, 
       </div>
       <button type="button" class="btn-primary" onclick="document.getElementById('addAcc').showModal()"><?= e(t('+ ربط حساب')) ?></button>
     </div>
-    <script>document.querySelectorAll('.acc-card').forEach(function (c) { c.addEventListener('click', function () { var a = document.querySelector('#accStatus a[data-st="' + c.dataset.stCard + '"]'); if (a) a.click();
-      document.querySelectorAll('.acc-card').forEach(function (o) { var on = o === c; o.classList.toggle('ring-2', on); o.classList.toggle('ring-brand-500/15', on); o.classList.toggle('border-brand-400', on); o.classList.toggle('bg-brand-50', on); }); }); });</script>
+    <script>document.querySelectorAll('.acc-sumcard').forEach(function (c) { c.addEventListener('click', function () { var a = document.querySelector('#accStatus a[data-st="' + c.dataset.stCard + '"]'); if (a) a.click();
+      document.querySelectorAll('.acc-sumcard').forEach(function (o) { var on = o === c; o.classList.toggle('ring-2', on); o.classList.toggle('ring-brand-500/15', on); o.classList.toggle('border-brand-400', on); o.classList.toggle('bg-brand-50', on); }); }); });</script>
     <?php if (count($byPlat) > 1): ?>
       <div class="flex gap-2 overflow-x-auto pb-1 mb-5" id="accPlat" style="scrollbar-width:none">
         <button type="button" data-pf="" class="chip on"><?= e(t('كل المنصات')) ?></button>

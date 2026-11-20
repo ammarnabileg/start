@@ -398,7 +398,7 @@ render(t('الحملات الإعلانية'), 'ads', function () use ($z, $apiE
         <?php if (!$campaigns): ?>
           <div class="p-8 text-center text-sm text-ink-500">
             <?= e(t('مفيش حملات بالفلاتر دي.')) ?>
-            <div class="mt-3"><a href="<?= e(url('ad_builder')) ?>" class="link"><?= e(t('اعمل أول حملة')) ?></a></div>
+            <div class="mt-3 flex flex-wrap items-center justify-center gap-3"><a href="<?= e($q(['st' => null, 'pf' => null, 'acc' => null, 'pg' => null])) ?>" class="link"><?= e(t('امسح الفلاتر')) ?></a><a href="<?= e(url('ad_builder')) ?>" class="link"><?= e(t('اعمل أول حملة')) ?></a></div>
           </div>
         <?php else: ?>
           <div class="overflow-x-auto">
@@ -537,7 +537,7 @@ render(t('الحملات الإعلانية'), 'ads', function () use ($z, $apiE
           'res' => t('النتايج: اللي الحملة اتعملت عشانه (تحويل أو تفاعل). إجمالي حملاتك: %s.'),
           'imp' => t('الظهور: عدد المرات اللي الإعلان ظهر فيها، حتى لو لنفس الشخص أكتر من مرة.')],
         'kSel' => t('اختيار الصف'), 'kQuick' => t('نظرة سريعة على الحملة')]], JSON_UNESCAPED_UNICODE) ?>;</script>
-    <script>window.ADX = <?= json_encode(['keysTitle' => t('اختصارات الكيبورد'), 'keys' => [['/', t('البحث في الحملات')], ['n', t('حملة جديدة')], ['a', t('حسابات الإعلانات')], ['?', t('الاختصارات')]], 'create' => url('ad_create'), 'best' => t('أعلى نسبة ضغط'), 'low' => t('نسبة ضغط ضعيفة')], JSON_UNESCAPED_UNICODE) ?>;</script>
+    <script>window.ADX = <?= json_encode(['keysTitle' => t('اختصارات الكيبورد'), 'keys' => [['/', t('البحث في الحملات')], ['n', t('حملة جديدة')], ['a', t('حسابات الإعلانات')], ['?', t('الاختصارات')]], 'create' => url('ad_builder'), 'best' => t('أعلى نسبة ضغط'), 'low' => t('نسبة ضغط ضعيفة')], JSON_UNESCAPED_UNICODE) ?>;</script>
     <script src="assets/ui-ads.js?v=<?= e(APP_VERSION) ?>"></script>
     <script src="assets/ui-ads2.js?v=<?= e(APP_VERSION) ?>"></script>
     <script src="assets/ui-ads3.js?v=<?= e(APP_VERSION) ?>"></script>
