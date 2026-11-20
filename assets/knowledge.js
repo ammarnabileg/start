@@ -118,9 +118,18 @@
     var card = document.createElement('div');
     card.className = 'kb-sug rounded-2xl border-2 border-brand-300 bg-brand-50/60 p-4 space-y-3';
     card.innerHTML = '<div class="flex items-start gap-2"><span class="w-7 h-7 rounded-lg bg-gradient-to-br from-brand-600 to-cyan-500 text-[#fff] flex items-center justify-center shrink-0"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg></span><div class="flex-1"><b class="text-sm text-ink-900">' + K.sugTitle + '</b><p class="text-xs text-ink-500 mt-0.5">' + (changes ? K.sugHint : K.noChange) + '</p></div></div>'
+      + '<div class="kb-selbar flex items-center gap-2 text-xs border-t border-brand-200/60 pt-2"><button type="button" class="kb-all link">' + esc(K.selAll) + '</button><span class="text-ink-300">·</span><button type="button" class="kb-none link">' + esc(K.selNone) + '</button><span class="kb-seln ms-auto text-ink-500 tabular-nums"></span></div>'
       + '<div class="space-y-2 max-h-[26rem] overflow-y-auto">' + body + '</div>'
       + '<div class="flex flex-wrap items-center gap-2"><button type="button" class="kb-apply btn-primary !py-1.5 !text-xs">' + K.apply + '</button><button type="button" class="kb-dismiss btn-ghost !py-1.5 !text-xs">' + K.dismiss + '</button><span class="ms-auto text-[10px] text-ink-400" dir="ltr">' + esc(meta || '') + '</span></div>';
     form.querySelector('.kb-saved').closest('.flex.items-start').after(card);
+    // تحديد الكل / إلغاء تحديد الكل (الافتراضي الكل محدد)
+    var picks = function () { return [].slice.call(card.querySelectorAll('.kb-pick, .kb-fpick')); };
+    var upN = function () { var all = picks(), on = all.filter(function (c) { return c.checked; }).length, s = card.querySelector('.kb-seln'); if (s) s.textContent = on + '/' + all.length; };
+    var selbar = card.querySelector('.kb-selbar'); if (selbar && picks().length < 2) selbar.remove(); else {
+      card.querySelector('.kb-all').onclick = function () { picks().forEach(function (c) { c.checked = true; }); upN(); };
+      card.querySelector('.kb-none').onclick = function () { picks().forEach(function (c) { c.checked = false; }); upN(); };
+      card.addEventListener('change', function (e) { if (e.target.matches && e.target.matches('.kb-pick,.kb-fpick')) upN(); }); upN();
+    }
     // تعبئة قيم الحقول القابلة للتعديل (نص الـ textarea مايتحطش في خاصية HTML) + ضبط الارتفاع تلقائيًا
     if (type !== 'rows') card.querySelectorAll('.kb-fld').forEach(function (fld) { var ta = fld.querySelector('.kb-fval'); if (!ta) return; ta.value = d[fld.dataset.k] == null ? '' : String(d[fld.dataset.k]); var g = function () { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 220) + 'px'; }; g(); ta.addEventListener('input', g); });
     card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -150,38 +159,57 @@
   // ملء قسم؛ ينفع يتوقف في أي لحظة (form.__ac)
   var STOP = '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
   function fill(form, mode) {
-    var btn = form.querySelector('.kb-fill'), lbl = btn.querySelector('span'), txt = lbl.textContent, ico = btn.innerHTML;
+    var btn = form.querySelector('.kb-fill'), ico = btn.innerHTML;
     var ac = window.AbortController ? new AbortController() : null; form.__ac = ac;
     btn.classList.add('kb-running', '!border-red-200', '!bg-red-50', '!text-red-700'); btn.innerHTML = STOP + '<span></span>'; btn.querySelector('span').textContent = K.filling + ' · ' + K.stop; btn.title = K.stop;
-    // الخدمات وتفاصيلها: ممكن تبقى +1000، فالسيرفر بيشتغل خطوة خطوة والمتصفح بيطلب اللي بعدها ويجمّع
-    var sec = form.dataset.section, stepped = sec === 'services' || sec === 'pos_offers', key = sec === 'pos_offers' ? 'offer' : 'name', acc = [], seen = {}, total = 0, failed = 0;
+    var sec = form.dataset.section, stepped = sec === 'services' || sec === 'pos_offers', key = sec === 'pos_offers' ? 'offer' : 'name', acc = [], seen = {}, total = 0, failed = 0, done = 0;
+    // شريط تقدّم ظاهر عشان المستخدم يشوف بيحصل إيه ومايفضلش متعلّق
+    var an = form.querySelector('.kb-saved'); an = an && an.closest ? an.closest('.flex.items-start') : null;
+    var prog = document.createElement('div'); prog.className = 'kb-prog mt-3';
+    prog.innerHTML = '<div class="flex items-center justify-between text-[11px] text-ink-500 mb-1"><span class="kb-prog-t"></span><span class="kb-prog-n font-medium"></span></div><div class="h-1.5 rounded-full bg-ink-100 overflow-hidden"><div class="kb-prog-bar h-full bg-gradient-to-r from-brand-600 to-cyan-500 transition-all duration-300" style="width:8%"></div></div>';
+    (an || form).appendChild ? (an ? an.after(prog) : form.appendChild(prog)) : form.appendChild(prog);
+    function setProg() { var pct = total > 1 ? Math.max(8, Math.round(done / total * 100)) : 30; var b = prog.querySelector('.kb-prog-bar'), t = prog.querySelector('.kb-prog-t'), n = prog.querySelector('.kb-prog-n'); if (b) b.style.width = pct + '%'; if (t) t.textContent = K.readingSrc + (total > 1 ? ' · ' + done + '/' + total : ''); if (n) n.textContent = acc.length ? K.foundN.replace('%s', acc.length) : ''; }
+    setProg();
+    function accDd(d) { ((d && d.data || {}).rows || []).forEach(function (r) { var k = String(r[key] || '').trim().toLowerCase(); if (k && !seen[k]) { seen[k] = 1; acc.push(r); } }); }
     // طلب خطوة واحدة مع إعادة محاولة واحدة لو انقطع الاتصال (مش لو المستخدم أوقف)
     function hit(step) {
       var fd = new FormData(); fd.append('action', 'kb_fill'); fd.append('section', sec); fd.append('mode', mode || 'update'); if (stepped) fd.append('step', step);
       var go = function () { return fetch('index.php?p=knowledge', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': csrf() }, signal: ac ? ac.signal : undefined }).then(function (r) { if (!r.ok) throw new Error('http ' + r.status); return r.json(); }); };
       return go().catch(function (e) { if (e && e.name === 'AbortError') throw e; return go(); });
     }
-    function ask(step) {
-      return hit(step).then(function (d) {
-        if (d.error) { // خطوة فيها خطأ: لو فيه خطوات بعدها، نكمّل بدل ما نفضّي القسم كله
-          if (stepped && total && step + 1 < total) { failed++; return ask(step + 1); }
-          if (acc.length) { suggest(form, { rows: acc }, d.meta); window.aiToast && aiToast(d.error); return true; }
-          window.aiToast ? aiToast(d.error) : alert(d.error); return false;
+    // الأجزاء الباقية بتشتغل بالتوازي (٤ في وقت واحد) بدل واحد ورا التاني = أسرع بكتير
+    function runParallel(meta0) {
+      var CC = Math.min(4, total - 1), nextStep = 1;
+      return new Promise(function (resolve) {
+        var running = 0, stopped = false;
+        function one(s) {
+          running++;
+          hit(s).then(function (d) { if (d && d.error) failed++; else accDd(d); })
+            .catch(function (e) { if (e && e.name === 'AbortError') stopped = true; else failed++; })
+            .then(function () { running--; done++; setProg(); if (stopped) return resolve('stopped'); if (nextStep < total) one(nextStep++); else if (running === 0) resolve('done'); });
         }
-        if (!d.total) { suggest(form, d.data || {}, d.meta); return true; }
-        total = d.total;
-        ((d.data || {}).rows || []).forEach(function (r) { var k = String(r[key] || '').trim().toLowerCase(); if (k && !seen[k]) { seen[k] = 1; acc.push(r); } });
-        var sp = btn.querySelector('span'); if (sp) sp.textContent = K.filling + ' ' + (d.step + 1) + '/' + d.total + ' · ' + acc.length + ' · ' + K.stop;
-        if (d.step + 1 < d.total) return ask(d.step + 1);
-        suggest(form, { rows: acc }, d.meta); if (failed && window.aiToast) aiToast(K.partsFail.replace('%s', failed), 'ok'); return true;
-      }).catch(function (e) {
-        if (e && e.name === 'AbortError') throw e; // إيقاف المستخدم: يتعامل معاه الـ catch الخارجي
-        if (stepped && total && step + 1 < total) { failed++; return ask(step + 1); } // جزء فشل: نكمّل الباقي
-        throw e; // أول خطوة فشلت ومافيش حاجة اتجمّعت
+        for (var i = 0; i < CC && nextStep < total; i++) one(nextStep++);
+        if (nextStep >= total && running === 0) resolve('done');
+      }).then(function (r) { if (r === 'stopped') throw { name: 'AbortError' }; suggest(form, { rows: acc }, meta0); if (failed && window.aiToast) aiToast(K.partsFail.replace('%s', failed), 'ok'); return true; });
+    }
+    function run() {
+      return hit(0).then(function (d0) {
+        if (d0.error) {
+          if (stepped && d0.total && d0.total > 1) { total = d0.total; failed++; done = 1; setProg(); return runParallel(d0.meta); }
+          if (acc.length) { suggest(form, { rows: acc }, d0.meta); window.aiToast && aiToast(d0.error); return true; }
+          window.aiToast ? aiToast(d0.error) : alert(d0.error); return false;
+        }
+        if (!d0.total) { suggest(form, d0.data || {}, d0.meta); return true; } // قسم حقول عادي: رد واحد
+        total = d0.total; accDd(d0); done = 1; setProg();
+        if (total <= 1) { suggest(form, { rows: acc }, d0.meta); return true; }
+        return runParallel(d0.meta);
       });
     }
-    return ask(0).catch(function (e) { if (e && e.name === 'AbortError') { if (acc.length) suggest(form, { rows: acc }, ''); window.aiToast && aiToast(K.stopped, 'ok'); return 'stopped'; } if (acc.length) { suggest(form, { rows: acc }, ''); window.aiToast && aiToast(K.err); return true; } window.aiToast ? aiToast(K.err) : alert(K.err); return false; })
-      .finally(function () { form.__ac = null; btn.classList.remove('kb-running', '!border-red-200', '!bg-red-50', '!text-red-700'); btn.innerHTML = ico; btn.title = ''; btn.querySelector('span').textContent = txt; });
+    return run().catch(function (e) {
+      if (e && e.name === 'AbortError') { if (acc.length) suggest(form, { rows: acc }, ''); window.aiToast && aiToast(K.stopped, 'ok'); return 'stopped'; }
+      if (acc.length) { suggest(form, { rows: acc }, ''); window.aiToast && aiToast(K.err); return true; }
+      window.aiToast ? aiToast(K.err) : alert(K.err); return false;
+    }).finally(function () { form.__ac = null; if (prog && prog.remove) prog.remove(); btn.classList.remove('kb-running', '!border-red-200', '!bg-red-50', '!text-red-700'); btn.innerHTML = ico; btn.title = ''; });
   }
   root.addEventListener('click', function (e) {
     var b = e.target.closest('.kb-fill'); if (b) { var fm = b.closest('form'); if (fm.__ac) { fm.__ac.abort(); return; } fill(fm, 'update'); return; }
