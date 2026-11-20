@@ -71,9 +71,10 @@ function ai_team_touch(int $wid, string $page): void
 function ai_team_mcp_tool_map(): array
 {
     return [
-        'list_content_bank' => 'content', 'list_content_plans' => 'content', 'create_content_plan' => 'content', 'delete_content_plan' => 'content', 'get_company_brief' => 'content',
-        'list_posts' => 'publishing', 'schedule_post' => 'publishing', 'publish_content_bank_item' => 'publishing', 'delete_post' => 'publishing', 'list_social_accounts' => 'publishing',
-        'launch_ad_campaign' => 'ads', 'list_ad_campaigns' => 'ads',
+        'list_content_bank' => 'content', 'list_content_plans' => 'content', 'create_content_plan' => 'content', 'delete_content_plan' => 'content', 'get_company_brief' => 'content', 'list_media' => 'content',
+        'list_posts' => 'publishing', 'schedule_post' => 'publishing', 'publish_content_bank_item' => 'publishing', 'delete_post' => 'publishing', 'list_social_accounts' => 'publishing', 'schedule_content_bank' => 'publishing',
+        'launch_ad_campaign' => 'ads', 'list_ad_campaigns' => 'ads', 'create_ad_campaign' => 'ads',
+        'analytics_summary' => 'analytics', 'ad_performance' => 'analytics',
     ];
 }
 

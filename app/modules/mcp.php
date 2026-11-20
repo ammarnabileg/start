@@ -121,13 +121,15 @@ function mcp_tools(): array
         ['name' => 'list_content_bank', 'description' => 'List the posts in the content bank. These are approved AI posts that are ready to schedule or publish.', 'inputSchema' => ['type' => 'object', 'properties' => ['limit' => ['type' => 'integer']]]],
         ['name' => 'get_company_brief', 'description' => 'Get the company summary the platform keeps up to date and uses for every AI post. It covers the services, the audience, and the brand voice.', 'inputSchema' => ['type' => 'object', 'properties' => new stdClass()]],
         ['name' => 'list_content_plans', 'description' => 'List the AI content plans in this workspace, with the status of each plan and how many of its posts are ready.', 'inputSchema' => ['type' => 'object', 'properties' => ['limit' => ['type' => 'integer']]]],
-        ['name' => 'create_content_plan', 'description' => 'Start a new AI content plan. The platform writes a full plan from the company knowledge base: topics, captions, and image and video prompts. It publishes nothing. The drafts go to the content bank for review.', 'inputSchema' => ['type' => 'object', 'required' => ['goal'], 'properties' => [
+        ['name' => 'create_content_plan', 'description' => 'Start a new AI content plan. The platform writes a full plan from the company knowledge base (KB): topics, captions, and image and video prompts, and generates the images (and videos when video=true) into the content bank for review. It publishes nothing. Tips: call get_company_brief first so you know the company; if the user wants a specific visual style, ASK them for a reference image, add it via the media library, and pass its id in reference_media_ids. Large counts cost real money and take time — suggest batches.', 'inputSchema' => ['type' => 'object', 'required' => ['goal'], 'properties' => [
             'goal' => ['type' => 'string', 'description' => 'What the campaign should achieve'],
             'count' => ['type' => 'integer', 'description' => 'Number of posts (default 12)'],
             'language' => ['type' => 'string', 'enum' => ['ar', 'en', 'ar_en', 'en_ar'], 'description' => 'Content language (default ar)'],
             'dialect' => ['type' => 'string', 'description' => 'Arabic dialect or tone, such as "saudi" or "egyptian", or free text'],
             'audience' => ['type' => 'string', 'description' => 'Target audience (optional)'],
             'tone' => ['type' => 'string', 'description' => 'Tone of voice (optional)'],
+            'video' => ['type' => 'boolean', 'description' => 'Also generate a video per post (slower, costs more)'],
+            'reference_media_ids' => ['type' => 'array', 'items' => ['type' => 'integer'], 'description' => 'Reference image ids (from list_media) to match the visual style'],
         ]]],
         ['name' => 'schedule_post', 'description' => 'Publish or schedule a post to the chosen accounts. This needs a token with publish permission. It runs right away with no approval step, and the platform records every post in its activity log.', 'inputSchema' => ['type' => 'object', 'required' => ['text', 'account_ids'], 'properties' => [
             'text' => ['type' => 'string', 'description' => 'Post text'],
@@ -145,6 +147,29 @@ function mcp_tools(): array
         ['name' => 'list_ad_campaigns', 'description' => 'List the ad campaigns saved in this workspace, with the id, name, platform, and state of each one.', 'inputSchema' => ['type' => 'object', 'properties' => new stdClass()]],
         ['name' => 'delete_post', 'description' => 'Permanently delete a scheduled or published post by its id. This cannot be undone. It needs an admin token.', 'inputSchema' => ['type' => 'object', 'required' => ['post_id'], 'properties' => ['post_id' => ['type' => 'string']]]],
         ['name' => 'delete_content_plan', 'description' => 'Permanently delete an AI content plan and its unsent drafts by its id. This cannot be undone. It needs an admin token.', 'inputSchema' => ['type' => 'object', 'required' => ['plan_id'], 'properties' => ['plan_id' => ['type' => 'integer']]]],
+        ['name' => 'list_media', 'description' => 'List images in the workspace media library, with id and name. Use this to get reference-image ids for create_content_plan. If the user wants a specific visual style, ASK them to add a reference image to the media library first, then pass its id.', 'inputSchema' => ['type' => 'object', 'properties' => ['limit' => ['type' => 'integer']]]],
+        ['name' => 'analytics_summary', 'description' => 'Review social (organic) performance for a period and get stats plus concrete suggestions on what to improve. Returns impressions, reach, engagement and rate, follower growth, posts published, a messages summary, top posts, and a suggestions list. Read-only.', 'inputSchema' => ['type' => 'object', 'properties' => [
+            'period' => ['type' => 'string', 'enum' => ['last_week', 'last_month', 'custom'], 'description' => 'Default last_week'],
+            'from' => ['type' => 'string', 'description' => 'For custom: YYYY-MM-DD'],
+            'to' => ['type' => 'string', 'description' => 'For custom: YYYY-MM-DD'],
+        ]]],
+        ['name' => 'ad_performance', 'description' => 'Review paid ad campaigns performance over a window and get what to improve. Returns per-campaign spend, impressions, clicks, CTR, results and state, totals per currency, and an actionable issues list (rejected, spend with no results, weak CTR, pending review). Read-only.', 'inputSchema' => ['type' => 'object', 'properties' => ['days' => ['type' => 'string', 'enum' => ['7', '30', '90'], 'description' => 'Window in days (default 7)']]]],
+        ['name' => 'schedule_content_bank', 'description' => 'Schedule many ready content-bank items across accounts in one call — turning a generated batch into a live campaign. Pick "queue" to drop them into each account\'s posting queue, or "schedule" to spread them over days (per_day) starting start_date. Needs a token with publish permission. Run create_content_plan first and wait until items are ready (list_content_bank).', 'inputSchema' => ['type' => 'object', 'required' => ['account_ids'], 'properties' => [
+            'account_ids' => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'Target account ids (from list_social_accounts)'],
+            'when' => ['type' => 'string', 'enum' => ['queue', 'schedule'], 'description' => 'queue (default) or schedule'],
+            'per_day' => ['type' => 'integer', 'description' => 'For schedule: posts per day (default 2)'],
+            'start_date' => ['type' => 'string', 'description' => 'For schedule: YYYY-MM-DD (default tomorrow)'],
+            'limit' => ['type' => 'integer', 'description' => 'Max items to schedule (default 50)'],
+        ]]],
+        ['name' => 'create_ad_campaign', 'description' => 'Build a full paid ad campaign DRAFT from a brief: the platform writes the strategy, ad sets with targeting, and ad copy, using the company knowledge base for context. It saves a draft only and spends nothing. Before calling, call get_company_brief to understand the company, and ASK the user for anything missing — the service/product, the daily budget, the target markets, and (if they want a specific look) a reference image. After it returns, the user reviews it in the panel and generates images/video; launching it (real spend) is a separate launch_ad_campaign call with an admin token.', 'inputSchema' => ['type' => 'object', 'required' => ['brief'], 'properties' => [
+            'brief' => ['type' => 'string', 'description' => 'What to advertise and the objective'],
+            'product' => ['type' => 'string', 'description' => 'The service or product name'],
+            'budget' => ['type' => 'string', 'description' => 'Daily budget amount (ask the user)'],
+            'markets' => ['type' => 'string', 'description' => 'Target countries/cities (ask the user)'],
+            'platform' => ['type' => 'string', 'description' => 'Preferred platform, e.g. meta or linkedin (optional; uses the first connected ad account otherwise)'],
+            'ad_sets' => ['type' => 'integer', 'description' => 'Number of ad sets (1-4, default 2)'],
+            'goal_type' => ['type' => 'string', 'description' => 'Campaign objective if known (e.g. traffic, leads)'],
+        ]]],
     ];
 }
 
@@ -180,7 +205,9 @@ function mcp_call(string $name, array $args, string $scopes, int $tokenId = 0): 
             if (!function_exists('cpl_create')) return $err('Content planning is not available.');
             $goal = trim((string)($args['goal'] ?? '')); if ($goal === '') return $err('goal is required.');
             $lang = in_array($args['language'] ?? '', ['ar', 'en', 'ar_en', 'en_ar'], true) ? $args['language'] : 'ar';
+            $refs = array_values(array_filter(array_map('intval', (array)($args['reference_media_ids'] ?? []))));
             $in = ['goal' => $goal, 'count' => (int)($args['count'] ?? 12), 'lang_li' => $lang, 'lang_x' => $lang, 'lang_img' => $lang, 'lang_vo' => $lang,
+                'video' => !empty($args['video']), 'refs' => $refs,
                 'audience' => (string)($args['audience'] ?? ''), 'tone' => (string)($args['tone'] ?? '')];
             if (!empty($args['dialect'])) { $in['dialect'] = (string)$args['dialect']; $in['dialect_k'] = in_array($args['dialect'], ['msa', 'saudi', 'gulf', 'emirati', 'kuwaiti', 'egyptian', 'levantine', 'maghrebi', 'white'], true) ? $args['dialect'] : 'other'; if ($in['dialect_k'] === 'other') $in['dialect_other'] = (string)$args['dialect']; }
             try { $pid = cpl_create($in); return $text('Content plan started (id ' . $pid . '). It generates in the background; drafts will appear in the content bank for review. Use list_content_plans to check progress.'); }
@@ -217,6 +244,127 @@ function mcp_call(string $name, array $args, string $scopes, int $tokenId = 0): 
             if (!mcp_scope_allows($scopes, 'admin')) return $err('Deleting content plans needs an "admin" token.');
             $dpl = (int)($args['plan_id'] ?? 0); if (!$dpl) return $err('plan_id is required.');
             return mcp_do_admin($tokenId, 'delete_plan', 'Delete content plan #' . $dpl, ['plan_id' => $dpl], $text, $err);
+
+        case 'list_media':
+            if (!function_exists('media_list')) return $text([]);
+            $n = max(1, min(50, (int)($args['limit'] ?? 20)));
+            $out = [];
+            foreach (media_list((int)ws('id'), []) as $m) {
+                if (function_exists('media_kind') && media_kind((string)($m['mime'] ?? '')) !== 'image') continue;
+                $out[] = ['id' => (int)$m['id'], 'name' => (string)($m['name'] ?? $m['original_name'] ?? ''), 'kind' => 'image'];
+                if (count($out) >= $n) break;
+            }
+            return $text($out);
+
+        case 'analytics_summary':
+            if (!function_exists('rp_build')) return $err('Analytics not available.');
+            $wid = (int)ws('id'); $tz = rp_tz($wid);
+            $kind = in_array($args['period'] ?? '', ['last_week', 'last_month', 'custom'], true) ? (string)$args['period'] : 'last_week';
+            $per = rp_period($kind, $tz, (string)($args['from'] ?? ''), (string)($args['to'] ?? ''));
+            try { $R = rp_build($wid, $per, ''); } catch (Throwable $ex) { return $err($ex->getMessage()); }
+            if (!empty($R['cur']['errors']['all'])) return $err('No publishing provider connected.');
+            $ct = $R['cur']['totals']; $pt = $R['prev']['totals'];
+            $chg = function ($c, $p) { if ($p <= 0) return $c > 0 ? 'new' : '0%'; return round(($c - $p) / $p * 100) . '%'; };
+            $top = [];
+            foreach (array_slice($R['cur']['top'] ?? [], 0, 5) as $pst) { $an = (array)($pst['analytics'] ?? []); $top[] = ['text' => mb_substr(preg_replace('/\s+/u', ' ', (string)($pst['content'] ?? '')), 0, 90), 'platform' => (string)($pst['platform'] ?? ''), 'impressions' => (int)($an['impressions'] ?? 0), 'engagement' => round(an_engagement($an))]; }
+            $sugg = [];
+            if (($ct['impressions'] ?? 0) < ($pt['impressions'] ?? 0) * 0.9) $sugg[] = 'الوصول نزل عن الفترة السابقة (' . $chg($ct['impressions'], $pt['impressions']) . ') — جرّب أوقات نشر مختلفة ومحتوى بصري أقوى.';
+            if (($ct['rate'] ?? 0) < 1) $sugg[] = 'معدل التفاعل منخفض (' . number_format((float)($ct['rate'] ?? 0), 2) . '%) — ركّز على هوك أول سطر ودعوة واضحة للتفاعل.';
+            if ((int)($ct['postCount'] ?? 0) < 8) $sugg[] = 'عدد المنشورات قليل (' . (int)($ct['postCount'] ?? 0) . ') — زوّد وتيرة النشر للثبات.';
+            if (($R['cur']['fol']['gain'] ?? 0) <= 0) $sugg[] = 'المتابعون مش بيزيدوا — جرّب محتوى قابل للمشاركة وتعاونات.';
+            if (!$sugg) $sugg[] = 'الأداء مستقر — واصل نفس الإيقاع وراقب أفضل المنشورات وكرّر نمطها.';
+            return $text([
+                'period' => ['from' => $per['from'], 'to' => $per['to']],
+                'impressions' => (int)($ct['impressions'] ?? 0), 'impressions_change' => $chg($ct['impressions'], $pt['impressions']),
+                'reach' => (int)($ct['reach'] ?? 0), 'reach_change' => $chg($ct['reach'], $pt['reach']),
+                'engagement' => round(($ct['engagement'] ?? 0)), 'engagement_rate' => round((float)($ct['rate'] ?? 0), 2),
+                'followers_gained' => round(($R['cur']['fol']['gain'] ?? 0)), 'posts_published' => (int)($ct['postCount'] ?? 0),
+                'messages' => ['received' => (int)($R['cur']['inbox']['received'] ?? 0), 'sent' => (int)($R['cur']['inbox']['sent'] ?? 0)],
+                'top_posts' => $top, 'suggestions' => $sugg,
+            ]);
+
+        case 'ad_performance':
+            if (!function_exists('ads_campaigns')) return $err('Ads module not available.');
+            $z = zernio_or_null($e); if (!$z) return $err('No publishing provider connected.');
+            $days = in_array((string)($args['days'] ?? '7'), ['7', '30', '90'], true) ? (string)$args['days'] : '7';
+            [$f, $t] = ads_date_range($days);
+            try { $camps = ads_campaigns($z, ['fromDate' => $f, 'toDate' => $t, 'limit' => 100])['campaigns'] ?? []; }
+            catch (Throwable $ex) { return $err($ex->getMessage()); }
+            if (!$camps) return $text(['window_days' => (int)$days, 'campaigns' => [], 'note' => 'مفيش حملات شغالة في الفترة دي.']);
+            $rows = []; $tot = []; $tI = 0; $tC = 0;
+            foreach ($camps as $c) { $m = (array)($c['metrics'] ?? []); $cur = (string)($c['currency'] ?? ''); $res = ads_results($m);
+                $rows[] = ['name' => (string)($c['campaignName'] ?? ''), 'platform' => (string)($c['platform'] ?? ''), 'state' => (string)($c['status'] ?? ''), 'currency' => $cur,
+                    'spend' => round((float)($m['spend'] ?? 0), 2), 'impressions' => (int)($m['impressions'] ?? 0), 'clicks' => (int)($m['clicks'] ?? 0), 'ctr' => round((float)($m['ctr'] ?? 0), 2), 'results' => round($res, 1)];
+                $tot[$cur]['spend'] = ($tot[$cur]['spend'] ?? 0) + (float)($m['spend'] ?? 0); $tot[$cur]['results'] = ($tot[$cur]['results'] ?? 0) + $res;
+                $tI += (int)($m['impressions'] ?? 0); $tC += (int)($m['clicks'] ?? 0); }
+            $avgCtr = $tI ? $tC / $tI * 100 : 0; $issues = [];
+            foreach ($camps as $c) { $m = (array)($c['metrics'] ?? []); $n = (string)($c['campaignName'] ?? ''); $st = (string)($c['status'] ?? '');
+                if ($st === 'rejected') $issues[] = "«$n» مرفوضة من المنصة — عدّل وأعد الإرسال.";
+                elseif ((float)($m['spend'] ?? 0) > 0 && !ads_results($m)) $issues[] = "«$n» صرفت من غير نتائج — راجع الاستهداف والعرض.";
+                elseif ((int)($m['impressions'] ?? 0) >= 1000 && $avgCtr && (float)($m['ctr'] ?? 0) < $avgCtr * 0.6) $issues[] = "«$n» نسبة ضغط ضعيفة (" . number_format((float)($m['ctr'] ?? 0), 2) . "%) — جرّب كرييتف/هوك جديد.";
+                elseif ($st === 'pending_review') $issues[] = "«$n» تحت المراجعة لسه."; }
+            if (!$issues) $issues[] = 'كل الحملات تمام — فكّر تزوّد ميزانية الأفضل أداءً.';
+            return $text(['window_days' => (int)$days, 'totals_by_currency' => $tot, 'avg_ctr' => round($avgCtr, 2), 'campaigns' => $rows, 'what_to_improve' => $issues]);
+
+        case 'schedule_content_bank':
+            if (!mcp_scope_allows($scopes, 'publish')) return $err('Scheduling needs a token with "publish" permission.');
+            if (!function_exists('cpl_items') || !function_exists('cpl_publish')) return $err('Content bank not available.');
+            $z = zernio_or_null($e); if (!$z) return $err('No publishing provider connected.');
+            $accs = array_values(array_filter(array_map('strval', (array)($args['account_ids'] ?? []))));
+            if (!$accs) return $err('account_ids are required (from list_social_accounts).');
+            $when = in_array($args['when'] ?? '', ['queue', 'schedule'], true) ? (string)$args['when'] : 'queue';
+            $ready = cpl_items(0, ['approved']);
+            $ids = array_values(array_map(function ($it) { return (int)$it['id']; }, $ready));
+            $ids = array_slice($ids, 0, max(1, min(100, (int)($args['limit'] ?? 50))));
+            if (!$ids) return $err('مفيش عناصر جاهزة في مخزن المحتوى. ابدأ خطة محتوى الأول بـ create_content_plan واستنى تجهز.');
+            $times = [];
+            if ($when === 'schedule') {
+                $perDay = max(1, min(6, (int)($args['per_day'] ?? 2)));
+                $start = preg_match('/^\d{4}-\d\d-\d\d$/', (string)($args['start_date'] ?? '')) ? (string)$args['start_date'] : gmdate('Y-m-d', time() + 86400);
+                $slots = [10, 14, 18, 20, 12, 16]; $day = 0; $k = 0;
+                foreach ($ids as $_) { $h = $slots[$k % $perDay] ?? 10; $times[] = gmdate('Y-m-d', strtotime($start) + $day * 86400) . sprintf('T%02d:00:00', $h); $k++; if ($k % $perDay === 0) $day++; }
+            }
+            return mcp_do_publish($tokenId, 'bank_publish', 'Bulk schedule ' . count($ids) . ' bank item(s) → ' . count($accs) . ' acct(s), ' . $when, ['item_ids' => $ids, 'accounts' => $accs, 'when' => $when, 'times' => $times], $text, $err);
+
+        case 'create_ad_campaign':
+            if (!mcp_scope_allows($scopes, 'write')) return $err('Building ad campaigns needs a token with "write" permission.');
+            if (!function_exists('ads_usable_accounts') || !function_exists('ab_default_data') || !function_exists('ai_chat')) return $err('Ad builder not available.');
+            $z = zernio_or_null($e); if (!$z) return $err('No publishing provider connected.');
+            $brief = trim((string)($args['brief'] ?? $args['goal'] ?? '')); if ($brief === '') return $err('brief is required: what to advertise and the objective. Ask the user for the service, budget, and markets if missing.');
+            try { $targets = ads_usable_accounts($z, ads_connections($z)); } catch (Throwable $x) { $targets = []; }
+            if (!$targets) return $err('مفيش حساب إعلانات مربوط. اربط حساب Meta/LinkedIn Ads من اللوحة أول، وبعدين اطلب مني أبني الحملة.');
+            $pref = strtolower((string)($args['platform'] ?? '')); $pick = $targets[0];
+            if ($pref !== '') foreach ($targets as $tt) { if (strpos(strtolower((string)($tt['conn']['platform'] ?? '')), $pref) !== false) { $pick = $tt; break; } }
+            $c = $pick['conn']; $a = $pick['acc'];
+            $platform = ab_platform_of((string)($c['platform'] ?? ''));
+            $data = ab_default_data($platform, (string)$c['_id'], (string)($a['id'] ?? ''), (string)($a['currency'] ?? ''), (string)($a['name'] ?? ''));
+            $goalIn = (string)($args['goal_type'] ?? ''); $caps = ab_caps($platform);
+            if (in_array($goalIn, $caps['goals'] ?? [], true)) $data['campaign']['goal'] = $goalIn;
+            $data['campaign']['budget']['amount'] = preg_replace('/[^0-9.]/', '', (string)($args['budget'] ?? ''));
+            $product = trim((string)($args['product'] ?? '')); $markets = trim((string)($args['markets'] ?? ''));
+            $data['campaign']['name'] = mb_substr($product !== '' ? $product : $brief, 0, 60) ?: ('حملة ' . date('d/m'));
+            $nSets = max(1, min(4, (int)($args['ad_sets'] ?? 2)));
+            $brand = function_exists('ab_brand_visual') ? ab_brand_visual() : '';
+            $cc = $data['adSets'][0]['targeting']['countries'][0] ?? 'EG';
+            $sys = 'أنت ميديا باير وكوبي رايتر وآرت دايركتور محترف. أخرج خطة حملة كـ JSON فقط بالشكل: {"adSets":[{"name":"اسم المجموعة","targeting":{"countries":["' . $cc . '"],"ageMin":25,"ageMax":45,"gender":"all","interests":[{"name":"اهتمام"}]},"ads":[{"headline":"عنوان قوي","body":"نص إعلاني بيّاع","cta":"LEARN_MORE","format":"image","art":"وصف بصري دقيق للصورة"}]}]}. اكتب ' . $nSets . ' مجموعات باستهداف مختلف، وإعلانين لكل مجموعة. لا تكتب أي شيء خارج JSON.';
+            $user = "الطلب: $brief\nالمنتج/الخدمة: $product\nالأسواق المطلوبة: $markets\nالميزانية اليومية: " . $data['campaign']['budget']['amount'] . ' ' . $data['currency'] . ($brand !== '' ? "\nهوية الشركة: $brand" : '');
+            try { $r = ai_chat([['role' => 'system', 'content' => $sys . ' ' . (function_exists('ai_country_note') ? ai_country_note() : '')], ['role' => 'user', 'content' => $user]], 2400, 'ads_builder'); $j = ab_json((string)$r['text']); }
+            catch (Throwable $x) { $j = null; }
+            $sets = [];
+            foreach ((array)($j['adSets'] ?? []) as $i => $asr) {
+                $set = ab_default_adset($cc, $i + 1);
+                $set['name'] = mb_substr((string)($asr['name'] ?? ('مجموعة ' . ($i + 1))), 0, 80);
+                if (!empty($asr['targeting']) && is_array($asr['targeting'])) { $tg = array_merge($set['targeting'], $asr['targeting']); $set['targeting'] = array_merge($set['targeting'], ab_normalize_targeting($tg)); }
+                $ads = [];
+                foreach ((array)($asr['ads'] ?? []) as $adr) { $ad = ab_default_ad(); $ad['headline'] = mb_substr((string)($adr['headline'] ?? ''), 0, 200); $ad['body'] = mb_substr((string)($adr['body'] ?? ''), 0, 600); $ad['cta'] = (string)($adr['cta'] ?? 'LEARN_MORE'); $ad['format'] = in_array($adr['format'] ?? '', ['image', 'video', 'carousel'], true) ? $adr['format'] : 'image'; if (!empty($adr['art'])) $ad['art'] = ['prompt' => mb_substr((string)$adr['art'], 0, 500)]; $ads[] = $ad; }
+                if ($ads) $set['ads'] = $ads;
+                $sets[] = $set;
+            }
+            if ($sets) $data['adSets'] = $sets;
+            try { $nid = ab_create((int)ws('id'), $data, $data['campaign']['name']); }
+            catch (Throwable $x) { return $err($x->getMessage()); }
+            log_activity('ads.builder_ai', 'mcp_create');
+            return $text('حملة مسودة اتعملت (id ' . $nid . ') على ' . $platform . ' / ' . (string)($a['name'] ?? '') . ' بـ ' . count($sets ?: $data['adSets']) . ' مجموعة. راجعها في اللوحة وولّد الصور/الفيديو لو حبيت، وبعدين أطلقها بـ launch_ad_campaign (محتاج توكن admin). لو عايز ستايل بصري معيّن للصور، اطلب من المستخدم ريفرانس.');
     }
     return $err('Unknown tool: ' . $name);
 }
