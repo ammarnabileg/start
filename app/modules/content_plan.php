@@ -125,9 +125,12 @@ function cpl_rules(array $p): string
 
 function cpl_brief(array $p): string
 {
-    $o = cpl_opts($p); $pal = function_exists('kb_logo_palette') ? kb_logo_palette((int)ws('id')) : [];
-    $cb = function_exists('cpl_company_brief') ? cpl_company_brief((int)ws('id')) : '';
+    $o = cpl_opts($p); $wid = (int)ws('id'); $pal = function_exists('kb_logo_palette') ? kb_logo_palette($wid) : [];
+    $cb = function_exists('cpl_company_brief') ? cpl_company_brief($wid) : '';
+    // الذكاء الموسّع: نضيف قاعدة المعرفة كاملة فوق الموجز؛ البسيط يكتفي بالموجز المثبّت
+    $full = (function_exists('ai_kb_mode') && ai_kb_mode($wid) === 'extended' && function_exists('kb_compile')) ? trim(kb_compile($wid, '', false)) : '';
     return ($cb !== '' ? "COMPANY BRIEF (think like this company; use ONLY facts/prices/claims found here or in the KB, never invent):\n" . $cb . "\n\n" : "")
+        . ($full !== '' ? "FULL KNOWLEDGE BASE (detailed source — use it for depth, specifics and exact prices):\n" . $full . "\n\n" : "")
         . "Campaign goal (build the strategy around it): " . $p['goal']
         . ($o['about'] !== '' ? "\nAbout the company (context): " . $o['about'] : '')
         . ($o['audience'] !== '' ? "\nTarget audience / decision-makers: " . $o['audience'] : '')

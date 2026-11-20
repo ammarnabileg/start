@@ -168,8 +168,23 @@ function kb_intent(string $q): array
 }
 
 /** $lean = نسخة مختصرة للرد على العملاء: من غير التموضع والهوية البصرية، وأنسب الأسئلة والخدمات بس */
+/** وضع قراءة قاعدة المعرفة للذكاء الاصطناعي: 'simple' = ملف معلومات الشركة المثبّت فقط، 'extended' = القاعدة كاملة. */
+function ai_kb_mode(int $wid): string
+{
+    return setting('ai_kb_mode_' . $wid, 'extended') === 'simple' ? 'simple' : 'extended';
+}
+
+/** نص ملف معلومات الشركة المثبّت (الموجز التلقائي) فقط. */
+function ai_kb_brief_text(int $wid): string
+{
+    try { $s = db()->prepare("SELECT content FROM kb_files WHERE workspace_id = ? AND method = 'auto_brief' AND enabled = 1 LIMIT 1"); $s->execute([$wid]); return trim((string)$s->fetchColumn()); } catch (Throwable $e) { return ''; }
+}
+
 function kb_compile(int $wid, string $query = '', bool $lean = false): string
 {
+    // الذكاء البسيط: نكتفي بملف معلومات الشركة المثبّت بدل مراجعة القاعدة كاملة (أخف وأوفر).
+    // يُطبَّق على القراءات الكاملة؛ الرد التلقائي (lean) يفضل يبحث بدقّة عشان الأسعار والمواعيد.
+    if (!$lean && ai_kb_mode($wid) === 'simple') { $b = ai_kb_brief_text($wid); if ($b !== '') return $b; }
     $k = kb_get($wid);
     $out = [];
     $sch = kb_schema();

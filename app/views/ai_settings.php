@@ -28,6 +28,12 @@ function ai_settings_post(string $action): void
         flash('success', t('تم حفظ إعدادات الرد التلقائي.'));
         return;
     }
+    if ($action === 'ai_kbmode') {
+        if (!is_ws_owner()) { flash('error', t('هذا الإعداد متاح لمالك الشركة فقط.')); redirect(url('assistant', ['tab' => 'usage'])); }
+        save_setting('ai_kb_mode_' . $wid, ($_POST['mode'] ?? '') === 'simple' ? 'simple' : 'extended');
+        flash('success', t('تم حفظ وضع قراءة قاعدة المعرفة.'));
+        redirect(url('assistant', ['tab' => 'usage']));
+    }
     if ($action === 'ai_pick') {
         header('Content-Type: application/json; charset=utf-8');
         if (!is_ws_owner()) { http_response_code(403); exit(json_encode(['error' => t('هذا الإعداد متاح لمالك الشركة فقط.')], JSON_UNESCAPED_UNICODE)); }
@@ -146,6 +152,23 @@ function ai_settings_render(string $tab): void
               <div class="flex-1"><b class="text-sm text-ink-900"><?= e(t('كتابة بشرية (Humanizer)')) ?></b> <span class="badge <?= $hum ? 'badge-green' : '' ?>"><?= e($hum ? t('مفعّل') : t('متوقف')) ?></span>
                 <p class="text-xs text-ink-500 mt-1"><?= e(t('قواعد تُضاف لكل ما يكتبه الذكاء الاصطناعي (المنشورات، والردود، والإعلانات، والتقارير، والتقييمات): بلا مبالغات، ولا عبارات قوالب مثل «في عالم اليوم» و«لا تتردد في التواصل»، ولا تضخيم، ولا معلومات غير موجودة في ملف الشركة.')) ?></p></div>
               <button class="btn-ghost" <?= $owner ? '' : 'disabled' ?>><?= e($hum ? t('إيقاف') : t('تفعيل')) ?></button>
+            </form>
+            <?php $kbMode = ai_kb_mode((int)ws('id')); ?>
+            <form method="post" class="mt-4 pt-4 border-t border-ink-100">
+              <?= csrf_field() ?><input type="hidden" name="action" value="ai_kbmode">
+              <b class="text-sm text-ink-900"><?= e(t('قراءة قاعدة المعرفة')) ?></b>
+              <p class="text-xs text-ink-500 mt-1 mb-2"><?= e(t('يتحكّم في كمية معلومات الشركة التي يقرأها الذكاء الاصطناعي في كل المنصة (المنشورات، الردود، التحليلات…).')) ?></p>
+              <div class="grid sm:grid-cols-2 gap-2">
+                <label class="flex items-start gap-2 rounded-xl border p-3 cursor-pointer <?= $kbMode === 'simple' ? 'border-brand-400 bg-brand-50' : 'border-ink-200' ?>">
+                  <input type="radio" name="mode" value="simple" class="mt-0.5" <?= $kbMode === 'simple' ? 'checked' : '' ?> <?= $owner ? '' : 'disabled' ?>>
+                  <span><b class="block text-sm text-ink-900"><?= e(t('ذكاء بسيط')) ?></b><span class="block text-xs text-ink-500"><?= e(t('يقرأ ملف معلومات الشركة المثبّت فقط — أسرع وأوفر في الاستهلاك.')) ?></span></span>
+                </label>
+                <label class="flex items-start gap-2 rounded-xl border p-3 cursor-pointer <?= $kbMode === 'extended' ? 'border-brand-400 bg-brand-50' : 'border-ink-200' ?>">
+                  <input type="radio" name="mode" value="extended" class="mt-0.5" <?= $kbMode === 'extended' ? 'checked' : '' ?> <?= $owner ? '' : 'disabled' ?>>
+                  <span><b class="block text-sm text-ink-900"><?= e(t('ذكاء موسّع')) ?></b><span class="block text-xs text-ink-500"><?= e(t('يراجع قاعدة المعرفة كاملة — أدقّ وأشمل، واستهلاك أعلى.')) ?></span></span>
+                </label>
+              </div>
+              <button class="btn-ghost mt-3" <?= $owner ? '' : 'disabled' ?>><?= e(t('حفظ الوضع')) ?></button>
             </form>
             <?php if ($byTask): ?>
             <div class="mt-4 pt-4 border-t border-ink-100 space-y-2">
