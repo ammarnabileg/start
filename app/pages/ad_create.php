@@ -435,9 +435,14 @@ render(t('منشئ الحملات'), 'ad_create', function () use ($z, $apiError
                   <option value="daily" <?= $v('budget_type', 'daily') === 'daily' ? 'selected' : '' ?>><?= e(t('يومية')) ?></option>
                   <option value="lifetime" <?= $v('budget_type') === 'lifetime' ? 'selected' : '' ?>><?= e(t('إجمالية للحملة كلها')) ?></option>
                 </select></div>
-              <div><label class="label"><?= e(t('تبدأ (اختياري)')) ?></label><input name="start" type="date" class="input" value="<?= e($v('start')) ?>"></div>
-              <div><label class="label"><?= e(t('تنتهي (اختياري للميزانية اليومية)')) ?></label><input name="end" type="date" class="input" value="<?= e($v('end')) ?>"></div>
             </div>
+            <details class="group rounded-xl border border-ink-200"<?= $v('start') || $v('end') ? ' open' : '' ?>>
+              <summary class="flex items-center gap-2 cursor-pointer select-none px-3 py-2 text-sm text-ink-600 hover:text-ink-900"><?= ui_icon('chevron-left', 'w-4 h-4 transition group-open:-rotate-90') ?><?= e(t('تواريخ البدء والانتهاء (اختياري)')) ?></summary>
+              <div class="grid sm:grid-cols-2 gap-3 px-3 pb-3">
+                <div><label class="label"><?= e(t('تبدأ')) ?></label><input name="start" type="date" class="input" value="<?= e($v('start')) ?>"></div>
+                <div><label class="label"><?= e(t('تنتهي (للميزانية اليومية)')) ?></label><input name="end" type="date" class="input" value="<?= e($v('end')) ?>"></div>
+              </div>
+            </details>
             <p class="text-xs text-ink-500"><?= e(t('العملة هي عملة حساب الإعلانات اللي اخترته.')) ?></p>
           </section>
 
@@ -455,13 +460,15 @@ render(t('منشئ الحملات'), 'ad_create', function () use ($z, $apiError
                   <?php foreach (['all' => t('الكل'), 'male' => t('رجالة'), 'female' => t('ستات')] as $k => $g): ?><option value="<?= e($k) ?>" <?= $v('gender', 'all') === $k ? 'selected' : '' ?>><?= e($g) ?></option><?php endforeach; ?>
                 </select></div>
             </div>
-            <div>
-              <label class="label"><?= e(t('الاهتمامات (اختياري)')) ?></label>
-              <input type="hidden" name="interests" id="adcInterests" value="<?= e($v('interests', '[]')) ?>">
-              <div id="adcChips" class="flex flex-wrap gap-2 mt-1.5"></div>
-              <input id="adcSearch" class="input" autocomplete="off" placeholder="<?= e(t('اكتب اهتمام وابحث، مثلاً: كرة القدم')) ?>">
-              <div id="adcResults" class="mt-1 rounded-xl border border-ink-200 divide-y divide-ink-100 hidden max-h-60 overflow-y-auto bg-white"></div>
-            </div>
+            <details class="group rounded-xl border border-ink-200"<?= $v('interests', '[]') !== '[]' ? ' open' : '' ?>>
+              <summary class="flex items-center gap-2 cursor-pointer select-none px-3 py-2 text-sm text-ink-600 hover:text-ink-900"><?= ui_icon('chevron-left', 'w-4 h-4 transition group-open:-rotate-90') ?><?= e(t('استهداف اهتمامات معيّنة (اختياري)')) ?></summary>
+              <div class="px-3 pb-3">
+                <input type="hidden" name="interests" id="adcInterests" value="<?= e($v('interests', '[]')) ?>">
+                <div id="adcChips" class="flex flex-wrap gap-2 mb-1.5"></div>
+                <input id="adcSearch" class="input" autocomplete="off" placeholder="<?= e(t('اكتب اهتمام وابحث، مثلاً: كرة القدم')) ?>">
+                <div id="adcResults" class="mt-1 rounded-xl border border-ink-200 divide-y divide-ink-100 hidden max-h-60 overflow-y-auto bg-white"></div>
+              </div>
+            </details>
           </section>
 
           <section class="card p-5 space-y-3">

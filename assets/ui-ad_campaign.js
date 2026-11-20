@@ -137,17 +137,19 @@
   /* ---------- تشغيل / إيقاف (بتأكيد) ---------- */
   var pop = $('acp-pop');
   pop.addEventListener('click', function (e) { if (e.target === pop || e.target.closest('[data-x]')) pop.close(); });
+  function applyStatus(ref, to, btn) { var d = { action: ref.kind, to: to }; Object.keys(ref.extra || {}).forEach(function (k) { d[k] = ref.extra[k]; }); if (to === 'active') d.confirm_spend = '1';
+    if (btn) btn.classList.add('busy');
+    return post(d).then(function (j) { if (btn) btn.classList.remove('busy'); if (!j.ok) { toast(j.msg || T.err, 'error'); return false; }
+      ref.status = to; toast(to === 'paused' ? (T.pausedMsg || j.msg || T.saved) : (j.msg || T.saved)); if (ref.kind === 'campaign_status') hero(); sets(); insights(); if ($('acp-prev').open && ref.kind === 'ad_status') preview(ref.id); return true; })
+      .catch(function () { if (btn) btn.classList.remove('busy'); toast(T.err, 'error'); return false; }); }
   function ask(ref, btn) { var st = ref.status, act = on(st);
     if (!act && st !== 'paused') return; if (!act && !A.spend) return toast(T.ownerOnly, 'error');
+    if (act) { applyStatus(ref, 'paused', btn); return; } // إيقاف فوري بدون نافذة (بيوقّف الصرف)
     var amt = A.cbo ? budgetText(A.budget) : ref.kind === 'adset_status' ? budgetText((A.sets.filter(function (s) { return s.id === ref.id; })[0] || {}).budget) : T.byAdsets;
-    pop.innerHTML = '<form method="dialog" class="p-5 space-y-3" data-ask><div class="flex items-center gap-3"><span class="acp-pi" style="--c:' + (act ? '#d97706' : '#16a34a') + '">' + ic(act ? 'pause' : 'play', 'w-5 h-5') + '</span><b class="text-ink-900" dir="auto">' + esc(f(act ? T.pauseQ : T.resumeQ, ref.name)) + '</b></div>' +
-      (act ? '<p class="text-sm text-ink-600">' + esc(T.pauseHint) + '</p>' : '<label class="acp-confirm"><input type="checkbox" name="ok" required><span>' + esc(f(T.spendOk, amt)) + '</span></label>') +
-      '<div class="flex gap-2"><button class="btn-primary flex-1' + (act ? ' !bg-amber-600' : '') + '"' + (act ? '' : ' disabled') + '>' + esc(act ? T.pause : T.resume) + '</button><button type="button" class="btn-ghost" data-x>' + esc(T.cancel) + '</button></div></form>';
-    var fm = pop.querySelector('[data-ask]'), go = fm.querySelector('.btn-primary'); if (!act) fm.ok.addEventListener('change', function () { go.disabled = !this.checked; });
-    fm.addEventListener('submit', function (e) { e.preventDefault(); go.disabled = true; go.textContent = T.loading; var to = act ? 'paused' : 'active', d = { action: ref.kind, to: to }; Object.keys(ref.extra || {}).forEach(function (k) { d[k] = ref.extra[k]; }); if (!act) d.confirm_spend = '1';
-      if (btn) btn.classList.add('busy');
-      post(d).then(function (j) { if (btn) btn.classList.remove('busy'); if (!j.ok) { go.disabled = false; go.textContent = act ? T.pause : T.resume; return toast(j.msg || T.err, 'error'); }
-        ref.status = to; pop.close(); toast(j.msg || T.saved); if (ref.kind === 'campaign_status') hero(); sets(); insights(); if ($('acp-prev').open && ref.kind === 'ad_status') preview(ref.id); }).catch(function () { if (btn) btn.classList.remove('busy'); go.disabled = false; toast(T.err, 'error'); }); });
+    pop.innerHTML = '<form method="dialog" class="p-5 space-y-4" data-ask><div class="flex items-start gap-3"><span class="acp-pi" style="--c:#16a34a">' + ic('play', 'w-5 h-5') + '</span><div class="min-w-0"><b class="text-ink-900 block" dir="auto">' + esc(f(T.resumeQ, ref.name)) + '</b><p class="text-sm text-ink-500 mt-1">' + esc(f(T.spendOk, amt)) + '</p></div></div>' +
+      '<div class="flex gap-2"><button class="btn-primary flex-1">' + esc(T.resume) + '</button><button type="button" class="btn-ghost" data-x>' + esc(T.cancel) + '</button></div></form>';
+    var fm = pop.querySelector('[data-ask]'), go = fm.querySelector('.btn-primary');
+    fm.addEventListener('submit', function (e) { e.preventDefault(); go.disabled = true; go.textContent = T.loading; applyStatus(ref, 'active', btn).then(function (ok) { if (ok) pop.close(); else { go.disabled = false; go.textContent = T.resume; } }); });
     pop.showModal(); }
   document.querySelector('.acp-sw.big').addEventListener('click', function () { ask(camp, this); });
 
@@ -156,11 +158,11 @@
     pop.innerHTML = '<form method="dialog" class="p-5 space-y-3 w-[min(420px,92vw)]" data-bf><b class="block text-ink-900">' + esc(T.budgetT) + (set ? ' · <span dir="auto">' + esc(set.name) + '</span>' : '') + '</b><p class="text-xs text-ink-500">' + esc(f(T.now, budgetText(b))) + '</p>' +
       '<div class="acp-step"><button type="button" data-st="-0.1">−</button><input name="amount" type="number" step="0.01" min="0.01" required value="' + esc(b.amount) + '" dir="ltr"><span>' + esc(A.cur) + '</span><button type="button" data-st="0.1">+</button></div>' +
       '<div class="flex flex-wrap gap-1.5">' + ['-20', '+10', '+20', '+50'].map(function (p) { return '<button type="button" class="acp-q" data-pc="' + p + '">' + p + '%</button>'; }).join('') + '<div class="acp-seg !p-0.5 ms-auto"><label><input type="radio" name="type" value="daily"' + (b.type !== 'lifetime' ? ' checked' : '') + '><span>' + esc(T.daily) + '</span></label><label><input type="radio" name="type" value="lifetime"' + (b.type === 'lifetime' ? ' checked' : '') + '><span>' + esc(T.lifetime) + '</span></label></div></div>' +
-      '<p class="acp-delta" data-dl></p><label class="acp-confirm"><input type="checkbox" name="ok" required><span>' + esc(T.budgetOk) + '</span></label><div class="flex gap-2"><button class="btn-primary flex-1" disabled>' + esc(T.save) + '</button><button type="button" class="btn-ghost" data-x>' + esc(T.cancel) + '</button></div></form>';
+      '<p class="acp-delta" data-dl></p><div class="flex gap-2"><button class="btn-primary flex-1" disabled>' + esc(T.save) + '</button><button type="button" class="btn-ghost" data-x>' + esc(T.cancel) + '</button></div></form>';
     var fm = pop.querySelector('[data-bf]'), go = fm.querySelector('.btn-primary');
     function upd() { var v = +fm.amount.value || 0, d = v - cur0, daily = fm.querySelector('[name=type]:checked').value === 'daily';
       fm.querySelector('[data-dl]').innerHTML = (cur0 && d ? '<b class="' + (d > 0 ? 'text-amber-700' : 'text-lime-700') + '">' + (d > 0 ? '+' : '') + esc(f(T.delta, money(d))) + '</b> · ' : '') + (daily && v ? esc(f(T.perMonth, money(v * 30))) : '');
-      go.disabled = !(fm.ok.checked && v > 0); }
+      go.disabled = !(v > 0); }
     fm.addEventListener('click', function (e) { var s = e.target.closest('[data-st]'), p = e.target.closest('[data-pc]'), v = +fm.amount.value || cur0 || 1;
       if (s) fm.amount.value = Math.max(0.01, v * (1 + +s.dataset.st)).toFixed(2); if (p) fm.amount.value = Math.max(0.01, (cur0 || v) * (1 + parseFloat(p.dataset.pc) / 100)).toFixed(2); if (s || p) upd(); });
     fm.addEventListener('input', upd); fm.addEventListener('change', upd); upd();
