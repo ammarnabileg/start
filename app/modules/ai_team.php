@@ -216,11 +216,17 @@ function ai_team_svg(string $wsName, array $states): string
         'tenders' => ['المناقصات', 'Tender Intel'], 'crm' => ['العملاء', 'CRM & Leads'],
         'automation' => ['الأتمتة', 'Automation'], 'communications' => ['التواصل', 'Communications'],
     ];
-    $roles = '';
-    foreach ($labels as $k => $lab) {
+    // مواضع رأس كل موظف فوق الرسمة (مراكز المحطات ÷ عرض الرسمة 2172)
+    $centers = [155, 413, 663, 916, 1149, 1412, 1661, 1911];
+    $order = array_keys($labels);
+    $live = $ar ? 'يعمل' : 'LIVE'; $ready = $ar ? 'جاهز' : 'READY';
+    $tags = '';
+    foreach ($order as $i => $k) {
+        $lab = $labels[$k];
         $on = !empty($states[$k]['active']);
-        $roles .= '<button class="role' . ($on ? ' on' : '') . '" data-role="' . $k . '" type="button" aria-pressed="' . ($on ? 'true' : 'false') . '" style="--accent:' . $colors[$k] . '">'
-            . '<span class="role-dot"></span><span><b>' . e($lab[0]) . '</b><small>' . e($lab[1]) . '</small></span><span class="role-light"></span></button>';
+        $left = round($centers[$i] / 2172 * 100, 3);
+        $tags .= '<button class="aw-tag' . ($on ? ' on' : '') . '" data-role="' . $k . '" type="button" aria-pressed="' . ($on ? 'true' : 'false') . '" style="--accent:' . $colors[$k] . ';left:' . $left . '%">'
+            . '<span class="aw-tdot"></span><b>' . e($lab[0]) . '</b><span class="aw-tst">' . e($on ? $live : $ready) . '</span></button>';
     }
     $liveLbl = $ar ? 'شبكة الوكلاء شغّالة' : 'SIGNAL FABRIC LIVE';
     $capTxt = $ar ? '٨ وظائف متصلة · الإشارات بتتحرّك لحظيًا مع كل شغل حقيقي على القسم' : '8 connected functions · signals move live with real activity';
@@ -237,6 +243,16 @@ html.dark #ai-workforce{--awp:#111D34;--awb:#283957;--awl:#12253D;--awm:#91A2C0;
 #ai-workforce .aw-ind{width:7px;height:7px;border-radius:50%;background:#48E7C6;box-shadow:0 0 14px #48E7C688}
 #ai-workforce .aw-ind.off{background:#F6B45C;box-shadow:0 0 14px #F6B45C66}
 #ai-workforce .aw-visual{position:relative;overflow:hidden;width:100%;padding:9px 0 0;border-radius:18px;background:radial-gradient(ellipse 72% 62% at 50% 44%,rgba(36,70,125,.10),transparent 72%)}
+#ai-workforce .aw-tags{position:absolute;inset:0;pointer-events:none;z-index:4}
+#ai-workforce .aw-tag{position:absolute;top:2.5%;transform:translateX(-50%);pointer-events:auto;cursor:pointer;display:flex;align-items:center;gap:5px;font-family:inherit;font-size:11.5px;font-weight:800;color:var(--awm);background:var(--awp);border:1px solid var(--awb);border-radius:999px;padding:4px 10px;white-space:nowrap;box-shadow:0 3px 12px rgba(15,23,42,.14);transition:border-color .25s,box-shadow .25s,color .25s,transform .15s}
+#ai-workforce .aw-tag:hover{transform:translateX(-50%) translateY(-1px)}
+#ai-workforce .aw-tag .aw-tdot{width:8px;height:8px;border-radius:50%;background:var(--accent);opacity:.45;flex:none;transition:opacity .25s,box-shadow .25s}
+#ai-workforce .aw-tag b{color:var(--awink);font-weight:800}
+#ai-workforce .aw-tag .aw-tst{font-size:9px;font-weight:850;letter-spacing:.4px;color:var(--awm)}
+#ai-workforce .aw-tag.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 6px 18px -6px var(--accent)}
+#ai-workforce .aw-tag.on .aw-tdot{opacity:1;box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 24%,transparent);animation:awBlink 1.4s infinite}
+#ai-workforce .aw-tag.on .aw-tst{color:var(--accent)}
+@media(max-width:780px){#ai-workforce .aw-tag{font-size:9px;padding:3px 6px;gap:3px}#ai-workforce .aw-tag .aw-tst{display:none}}
 html.dark #ai-workforce .aw-visual{background:radial-gradient(ellipse 72% 62% at 50% 44%,rgba(36,70,125,.34),transparent 74%)}
 #ai-workforce .aw-visual svg{width:100%;height:auto;display:block;overflow:visible;pointer-events:none}
 #ai-workforce .aw-visual svg .agentHotspot{pointer-events:all;cursor:pointer}
@@ -291,7 +307,8 @@ CSS;
   var svg=root.querySelector('#teamArt');
   var wireEls=[].slice.call(svg.querySelectorAll('.wire'));
   var layers=svg.querySelector('#movingSignals');
-  var roleBtns=[].slice.call(root.querySelectorAll('.role'));
+  var roleBtns=[].slice.call(root.querySelectorAll('.aw-tag'));
+  var LIVE_T='$live', READY_T='$ready';
   var ind=root.querySelector('#aw-ind'), cnt=root.querySelector('#aw-cnt');
   var active=new Set(); var INIT=$initJson;
   roleKeys.forEach(function(k){ if(INIT[k])active.add(k); });
@@ -317,7 +334,7 @@ CSS;
   }
   function wireIsActive(wire){var keys=wire.getAttribute('data-roles').split(' ');return keys[0]==='all'?active.size>0:keys.some(function(k){return active.has(k);});}
   function updateUI(){
-    roleBtns.forEach(function(b){var on=active.has(b.getAttribute('data-role'));b.classList.toggle('on',on);b.setAttribute('aria-pressed',on?'true':'false');});
+    roleBtns.forEach(function(b){var on=active.has(b.getAttribute('data-role'));b.classList.toggle('on',on);b.setAttribute('aria-pressed',on?'true':'false');var st=b.querySelector('.aw-tst');if(st)st.textContent=on?LIVE_T:READY_T;});
     wireEls.forEach(function(wire){wire.classList.toggle('on',wireIsActive(wire));});
     packets.forEach(function(p){p.g.classList.toggle('on',wireIsActive(p.wire));});
     if(cnt)cnt.textContent=active.size+' / 8';
@@ -356,10 +373,7 @@ CSS;
 JS;
 
     return '<div id="ai-workforce">' . $css
-        . '<div class="aw-rh"><b>' . e($rolesHead) . '</b><small>' . e($rolesSub) . '</small></div>'
-        . '<div class="roles" id="roles">' . $roles . '</div>'
-        . '<div class="aw-frame"><div class="aw-top"><span class="aw-ind" id="aw-ind"></span><span>' . e($liveLbl) . '</span><span>·</span><strong id="aw-cnt">' . $n0 . ' / 8</strong></div>'
-        . '<div class="aw-visual">' . $svg . '</div>'
+        . '<div class="aw-frame"><div class="aw-visual">' . $svg . '<div class="aw-tags">' . $tags . '</div></div>'
         . '<div class="aw-cap"><span>◉ ' . e($capTxt) . '</span><span class="mark">LIVE SIGNAL LAYER</span></div></div>'
         . $js . '</div>';
 }
