@@ -40,7 +40,7 @@
   var top = function () { return $$('main [data-w]').filter(function (w) { return !grid.contains(w); }); };
   var lay = null; try { lay = JSON.parse(store.get(KK) || 'null'); } catch (e) {}
   // الافتراضي أخف: الأرقام الأربعة (مكررة مع «اليوم») وتعليقات المنشورات مخفية، وتترجع من «تخصيص»
-  lay = lay || { order: [], hidden: ['kpis', 'comments'] };
+  lay = lay || { order: [], hidden: ['comments'] };
   function applyLayout() {
     if (grid && lay.order.length) lay.order.forEach(function (id) { var w = grid.querySelector(':scope > [data-w="' + id + '"]'); if (w) grid.appendChild(w); });
     $$('main [data-w]').forEach(function (w) { w.classList.toggle('dash-off', lay.hidden.indexOf(w.dataset.w) > -1); });

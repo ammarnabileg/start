@@ -188,7 +188,8 @@ $cats = ['social' => t('السوشيال ميديا'), 'ai' => t('الذكاء �
 render(t('التكاملات'), 'connectors', function () use ($registry, $details, $cats) {
     $all = [];
     foreach ($registry as $key => $def) $all[$key] = connections($key, null, true);
-    $connectedCount = count(array_filter($all));
+    // نعدّ المزودات اللي عندها اتصال فعّال (مش متوقف) فقط — بدل ما نعدّ أي اتصال حتى لو موقوف
+    $connectedCount = count(array_filter($all, function ($conns) { foreach ((array)$conns as $c) if (empty($c['settings']['disabled'])) return true; return false; }));
     $aiConns = ai_connections();
     $aiMode = ai_mode();
     $owner = is_ws_owner();
@@ -238,7 +239,7 @@ render(t('التكاملات'), 'connectors', function () use ($registry, $detai
 
       <!-- الكروت -->
       <div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-4" id="intg-grid">
-        <?php foreach ($registry as $key => $def): $conns = $all[$key]; $active = array_filter($conns, function ($c) { return empty($c['settings']['disabled']); }); $err = false; foreach ($active as $c) if (!empty($details[(int)$c['id']]['error'])) $err = true; $isPrimary = false; ?>
+        <?php foreach ($registry as $key => $def): $conns = $all[$key]; $active = array_filter($conns, function ($c) { return empty($c['settings']['disabled']); }); $err = false; foreach ($active as $c) if (!empty($details[(int)$c['id']]['error'])) $err = true; $isPrimary = $primaryId && in_array($primaryId, array_map(function ($c) { return (int)$c['id']; }, $conns), true); ?>
           <button type="button" data-open="<?= e($key) ?>" data-cat="<?= e($def['category'] ?? '') ?>" data-st="<?= $conns ? 'on' : 'off' ?>" data-q="<?= e(mb_strtolower($def['name'] . ' ' . $def['description'] . ' ' . ($cats[$def['category'] ?? ''] ?? ''))) ?>"
             class="intg-card group card p-5 text-start <?= $conns && !$active ? 'opacity-70' : '' ?> transition duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-ink-900/5 hover:border-brand-300 focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-500/20 relative">
             <div class="flex items-start gap-3.5">

@@ -69,12 +69,24 @@ render(t('الموافقات'), 'approvals', function () use ($rows, $mgr, $wid,
           <form method="post" class="space-y-2"><?= csrf_field() ?><input type="hidden" name="id" value="<?= (int)$r['id'] ?>">
             <textarea name="content" data-ai="improve,shorten,hashtags,cta,translate_en,translate_ar" rows="4" class="input text-sm" dir="auto"><?= e((string)($p['content'] ?? '')) ?></textarea>
             <?php if ($media): ?><div class="flex gap-2"><?php foreach (array_slice($media, 0, 4) as $mi): if (($mi['type'] ?? '') === 'image'): ?><img src="<?= e($mi['url'] ?? '') ?>" class="w-16 h-16 rounded-lg object-cover border border-ink-200" alt=""><?php endif; endforeach; ?></div><?php endif; ?>
-            <div class="flex flex-wrap items-center gap-2"><button name="action" value="approve" class="btn-primary !py-1.5 !text-sm">✓ <?= e(t('وافق وانشر')) ?></button>
-              <input name="note" class="input !py-1.5 text-sm !w-64 !mt-0" maxlength="300" placeholder="<?= e(t('ملاحظة لو هترفض (اختياري)')) ?>"><button name="action" value="reject" class="btn-ghost !py-1.5 !text-sm text-red-600">✕ <?= e(t('ارفض')) ?></button></div>
+            <div class="flex flex-wrap items-center gap-2"><button name="action" value="approve" data-confirm="<?= e(t('هيتنشر المنشور فورًا على الحسابات. تكمل؟')) ?>" class="btn-primary !py-1.5 !text-sm">✓ <?= e(t('وافق وانشر')) ?></button>
+              <input name="note" class="input !py-1.5 text-sm !w-64 !mt-0" maxlength="300" placeholder="<?= e(t('ملاحظة لو هترفض (اختياري)')) ?>"><button name="action" value="reject" data-confirm="<?= e(t('هيترفض المنشور ويتشال. تكمل؟')) ?>" class="btn-ghost !py-1.5 !text-sm text-red-600">✕ <?= e(t('ارفض')) ?></button></div>
           </form>
         <?php else: ?><p class="text-sm text-ink-800 whitespace-pre-line" dir="auto"><?= e(mb_substr((string)($p['content'] ?? ''), 0, 600)) ?></p><?php endif; ?>
       </div>
     <?php endforeach; ?>
     </div>
+    <script>
+    // تأكيد قبل النشر الفوري أو الرفض (إجراءات لا رجعة فيها)
+    document.addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-confirm]'); if (!b) return;
+      var f = b.form; if (!f || b.__ok) return;
+      e.preventDefault();
+      (window.fxAsk ? fxAsk(b.dataset.confirm) : Promise.resolve(confirm(b.dataset.confirm))).then(function (ok) {
+        if (!ok) return; b.__ok = 1;
+        if (f.requestSubmit) f.requestSubmit(b); else { var h = document.createElement('input'); h.type = 'hidden'; h.name = b.name; h.value = b.value; f.appendChild(h); f.submit(); }
+      });
+    });
+    </script>
     <?php
 });

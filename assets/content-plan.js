@@ -249,7 +249,7 @@
   function load() { return post({ action: 'items' }).then(function (j) { if (!j.ok) return; items = j.items; jobs = (j.jobs || {}).items || {}; if ((j.jobs || {}).pending) genLoop(); Object.keys(sel).forEach(function (k) { if (!items.some(function (i) { return i.id == k; })) delete sel[k]; }); paint(); }); }
   function setSt(ids, st) { return post({ action: 'set', ids: JSON.stringify(ids), status: st }).then(function (j) { if (!j.ok) return toast(j.error || T.err, 'error'); ids.forEach(function (id) { delete sel[id]; }); load(); }).catch(function () { toast(T.offline, 'error'); }); }
   $('#cp-f').addEventListener('change', function () { filter = this.value; paint(); });
-  $('#cp-all').addEventListener('change', function () { var on = this.checked; sel = {}; if (on) items.forEach(function (i) { if (i.linkedin != null && ['draft', 'approved', 'rejected'].indexOf(i.status) >= 0 && (!filter || i.status === filter)) sel[i.id] = 1; }); paint(); });
+  $('#cp-all').addEventListener('change', function () { var on = this.checked; sel = {}; if (on) items.forEach(function (i) { if (i.linkedin != null && ['draft', 'approved', 'rejected'].indexOf(i.status) >= 0 && (!filter || (filter === 'qc' ? (i.qc || []).length : i.status === filter))) sel[i.id] = 1; }); paint(); });
   fl.addEventListener('click', function (e) {
     var b = e.target.closest('[data-bulk]'), ids = Object.keys(sel).map(Number);
     if (b) { var st = b.dataset.bulk; return setSt(ids, st).then(function () { if (st === 'approved') toast(fmt(T.sent, ids.length)); }); }

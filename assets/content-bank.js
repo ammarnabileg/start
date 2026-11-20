@@ -73,7 +73,7 @@
   $$('[name=cbm]').forEach(function (r) { r.addEventListener('change', function () { $$('.cb-spread').forEach(function (x) { x.classList.toggle('hidden', r.value !== 'spread' || !r.checked); }); $('#cb-prev').textContent = ''; }); });
   function mode() { return ($$('[name=cbm]').find(function (r) { return r.checked; }) || {}).value; }
   function times() {
-    var s = $('#cb-start').value; if (!s) return Promise.reject(new Error(T.err));
+    var s = $('#cb-start').value; if (!s) { var el = $('#cb-start'); if (el) el.focus(); return Promise.reject(new Error(T.needStart || T.err)); }
     if (mode() === 'one') return Promise.resolve(ids().map(function () { return s.slice(0, 16) + ':00'; }));
     return post({ action: 'spread', ids: JSON.stringify(ids()), start: s, every: (+$('#cb-every').value || 1) * (+$('#cb-unit').value), from: $('#cb-from').value, to: $('#cb-to').value })
       .then(function (j) { if (!j.ok) throw new Error(j.error); return j.times; });

@@ -1089,9 +1089,15 @@ render($editId !== '' ? t('تعديل المنشور') : t('منشور جديد'
         }).join('');
       }
       function pick(it, which) {
-        var ta = document.getElementById('content'); ta.value = it[which] || it.linkedin || it.x || ''; ta.dispatchEvent(new Event('input', { bubbles: true }));
-        if (window.cpAddLib) (it.media || []).forEach(function (m) { window.cpAddLib(m); });
-        close(); toast('<?= e(t('تم سحب المنشور إلى المحرر.')) ?>');
+        var ta = document.getElementById('content');
+        var go = function () {
+          ta.value = it[which] || it.linkedin || it.x || ''; ta.dispatchEvent(new Event('input', { bubbles: true }));
+          if (window.cpAddLib) (it.media || []).forEach(function (m) { window.cpAddLib(m); });
+          close(); toast('<?= e(t('تم سحب المنشور إلى المحرر.')) ?>');
+        };
+        // لو فيه نص مكتوب بالفعل في المحرر، نستأذن قبل ما نستبدله
+        if (ta.value.trim()) { (window.fxAsk ? fxAsk('<?= e(t('هيتشال النص اللي كاتبه في المحرر. تكمل؟')) ?>') : Promise.resolve(confirm('<?= e(t('هيتشال النص اللي كاتبه في المحرر. تكمل؟')) ?>'))).then(function (ok) { if (ok) go(); }); }
+        else go();
       }
       btn.addEventListener('click', open);
       document.getElementById('cp-bank-x').addEventListener('click', close);

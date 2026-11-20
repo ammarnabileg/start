@@ -101,8 +101,8 @@ $__sec = function () use ($wid, $accounts, $accErr, $sched, $token, $canManage) 
         <?php else: ?>
           <div class="flex flex-wrap items-center gap-2">
             <button class="btn-primary"><?= e(t('إنشاء التقرير')) ?></button>
-            <button type="button" id="rp-save" class="btn-ghost"><?= e(t('احفظ الإعداد ده')) ?></button>
-            <span class="text-xs text-ink-500"><?= e(t('بيفتح في تبويب جديد.')) ?></span>
+            <button type="button" id="rp-save" class="btn-ghost" title="<?= e(t('محفوظ على هذا المتصفح فقط')) ?>"><?= e(t('احفظ الإعداد ده')) ?></button>
+            <span class="text-xs text-ink-500"><?= e(t('بيفتح في تبويب جديد.')) ?> · <?= e(t('الإعدادات المحفوظة على هذا المتصفح فقط.')) ?></span>
           </div>
           <div id="rp-saved" class="flex flex-wrap gap-1.5"></div>
         <?php endif; ?>

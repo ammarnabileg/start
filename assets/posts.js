@@ -30,6 +30,8 @@
     if (window.__cal) window.__cal();
   }
   if (q) q.addEventListener('input', apply);
+  // استرجاع البحث من الرابط بعد تغيير الترتيب (عشان مايضيعش)
+  if (q) { try { var _uq = new URL(location.href).searchParams.get('q'); if (_uq) { q.value = _uq; apply(); } } catch (e) {} }
   function chipPaint(sel, attr, val) { $$(sel).forEach(function (x) { var on = x.dataset[attr] === val; x.classList.toggle('ring-2', on); x.classList.toggle('ring-brand-400', on); }); }
   document.addEventListener('click', function (e) {
     var t = e.target.closest('#ps-af [data-tag]'); if (t) { ftag = ftag === t.dataset.tag ? null : t.dataset.tag; chipPaint('#ps-af [data-tag]', 'tag', ftag); apply(); return; }
@@ -575,7 +577,7 @@
       };
       // الترتيب بيتعمل على السيرفر لكل المنشورات: نغيّر الرابط ونرجع لأول صفحة
       var u0 = new URL(location.href); srt.value = u0.searchParams.get('sort') || '';
-      srt.addEventListener('change', function () { var u = new URL(location.href); if (srt.value) u.searchParams.set('sort', srt.value); else u.searchParams.delete('sort'); u.searchParams.delete('n'); location.href = u.toString(); });
+      srt.addEventListener('change', function () { var u = new URL(location.href); if (srt.value) u.searchParams.set('sort', srt.value); else u.searchParams.delete('sort'); u.searchParams.delete('n'); var qq = document.getElementById('ps-q'); if (qq && qq.value.trim()) u.searchParams.set('q', qq.value.trim()); else u.searchParams.delete('q'); location.href = u.toString(); });
       if (srt.value) $$('.ps-day', pg).forEach(function (h) { h.classList.add('hidden'); });
     }
     // جماعي

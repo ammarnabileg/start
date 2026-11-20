@@ -60,12 +60,13 @@ render(t('سجل النشر'), 'post_log', function () use ($rows, $users, $uf, 
     <select name="k" class="input !mt-0 !py-1.5 !w-auto text-sm"><option value=""><?= e(t('كل العمليات')) ?></option><option value="post" <?= $kf === 'post' ? 'selected' : '' ?>><?= e(t('المنشورات')) ?></option><option value="comment" <?= $kf === 'comment' ? 'selected' : '' ?>><?= e(t('التعليقات')) ?></option></select>
     <select name="m" class="input !mt-0 !py-1.5 !w-auto text-sm"><option value=""><?= e(t('كل الطرق')) ?></option><?php foreach ($modes as $mk => [$ml]): ?><option value="<?= $mk ?>" <?= $mf === $mk ? 'selected' : '' ?>><?= e($ml) ?></option><?php endforeach; ?></select>
     <select name="pl" class="input !mt-0 !py-1.5 !w-auto text-sm"><option value=""><?= e(t('كل المنصات')) ?></option><?php foreach (['facebook', 'instagram', 'linkedin', 'twitter', 'tiktok', 'youtube', 'threads', 'pinterest', 'googlebusiness'] as $pl): ?><option value="<?= $pl ?>" <?= $pf === $pl ? 'selected' : '' ?>><?= e(platform_label($pl)) ?></option><?php endforeach; ?></select>
+    <?php $anyF = $qf !== '' || ($df !== '' && $df !== '7') || $uf || $kf !== '' || $mf !== '' || $pf !== ''; if ($anyF): ?><a href="<?= e(url('post_log')) ?>" class="text-xs text-ink-500 underline hover:text-ink-800 whitespace-nowrap"><?= e(t('مسح الفلاتر')) ?></a><?php endif; ?>
     <?php if ($sum['by']): ?><div class="w-full flex flex-wrap gap-1.5 text-xs pt-1"><span class="text-ink-500"><?= e(t('آخر 7 أيام:')) ?></span><?php foreach (array_slice($sum['by'], 0, 8, true) as $n => $c): ?><span class="rounded-full bg-ink-100 px-2 py-0.5 text-ink-700"><?= e($n) ?> · <b><?= (int)$c ?></b></span><?php endforeach; ?></div><?php endif; ?>
   </form>
   <script>document.getElementById('pl-f').addEventListener('change', function (e) { if (e.target.tagName === 'SELECT') this.submit(); });</script>
 
   <div class="card overflow-hidden">
-    <?php if (!$rows): ?><p class="p-10 text-center text-sm text-ink-500"><?= e(t('لا توجد عمليات مطابقة.')) ?></p><?php endif; ?>
+    <?php if (!$rows): ?><p class="p-10 text-center text-sm text-ink-500"><?= e(t('لا توجد عمليات مطابقة.')) ?><?php if ($qf !== '' || ($df !== '' && $df !== '7') || $uf || $kf !== '' || $mf !== '' || $pf !== ''): ?> · <a href="<?= e(url('post_log')) ?>" class="underline hover:text-ink-800"><?= e(t('مسح الفلاتر')) ?></a><?php endif; ?></p><?php endif; ?>
     <?php $lastDay = ''; foreach ($rows as $r): $x = $parse((string)$r['details']); $day = fmt_date($r['created_at'], 'Y-m-d');
       if ($day !== $lastDay): $lastDay = $day; ?>
         <div class="px-4 pt-3 pb-1.5 text-[11px] font-semibold text-ink-500 bg-ink-50/60 border-t border-ink-100 first:border-t-0"><?= e($day === $today ? t('اليوم') : ($day === $yest ? t('أمس') : fmt_date($r['created_at'], 'l d/m/Y'))) ?></div>

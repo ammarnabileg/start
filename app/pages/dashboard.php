@@ -338,7 +338,7 @@ render(t('الرئيسية'), 'dashboard', function () use ($z, $d, $e, $activit
           $chips = [];
           if ($d['convs'] !== null) $chips[] = [$unreadTotal ? t('%s رسالة مستنية رد', $unreadTotal) : t('كل الرسائل مقروءة'), url('inbox'), $unreadTotal ? 'border-red-200 bg-red-50 text-red-700' : 'border-lime-200 bg-lime-50 text-lime-700', 'chat'];
           if ($d['scheduled'] !== null) $chips[] = [$todayN ? t('%s منشور النهارده', $todayN) : t('مفيش منشورات النهارده'), url('posts', ['view' => 'cal']), $todayN ? 'border-brand-200 bg-brand-50 text-brand-700' : 'border-amber-200 bg-amber-50 text-amber-800', 'calendar'];
-          if ($d['scheduled'] !== null && $emptyDays) $chips[] = [t('%s أيام فاضية الأسبوع ده', $emptyDays), '#dash-week', 'border-ink-200 bg-white text-ink-700', 'clock'];
+          if ($d['scheduled'] !== null && $emptyDays) $chips[] = [t('%s أيام فاضية الأسبوع ده', $emptyDays), url('posts', ['view' => 'cal']), 'border-ink-200 bg-white text-ink-700', 'clock'];
           if ($bad) $chips[] = [t('%s حساب محتاج إعادة ربط', count($bad)), url('accounts'), 'border-red-200 bg-red-50 text-red-700', 'alert'];
           foreach ($chips as [$cl, $ch, $cc, $ci]): ?>
             <a href="<?= e($ch) ?>" class="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition hover:-translate-y-0.5 hover:shadow-sm <?= $cc ?>"><?= ui_icon($ci, 'w-4 h-4') ?><?= e($cl) ?></a>
@@ -552,7 +552,7 @@ render(t('الرئيسية'), 'dashboard', function () use ($z, $d, $e, $activit
     </div>
     <script>window.DSX = <?= json_encode(['ws' => (int)ws('id'), 'tzOff' => (new DateTime('now', $tz))->getOffset(),
       'past' => t('من %s'), 'min' => t('%s دقيقة'), 'hr' => t('%s ساعة'), 'day' => t('%s يوم'), 'now' => t('دلوقتي'), 'chars' => t('حرف'),
-      'edit' => t('تخصيص'), 'done' => t('تم'), 'reset' => t('رجّع الترتيب الأصلي'), 'hint' => t('اسحب الأقسام لترتيبها، واضغط العين لإخفاء أو إظهار أي قسم.'),
+      'edit' => t('تخصيص'), 'done' => t('تم'), 'reset' => t('رجّع الترتيب الأصلي'), 'hint' => t('اضغط العين لإخفاء أو إظهار أي قسم، واسحب البطاقات السفلية لإعادة ترتيبها.'),
       'names' => ['brief' => t('النهارده'), 'kpis' => t('الأرقام'), 'inbox' => t('محادثات مستنية رد'), 'upcoming' => t('المنشورات القادمة'), 'comments' => t('منشورات عليها تعليقات'), 'accounts' => t('الحسابات المربوطة'), 'activity' => t('نشاط الفريق')], 'hidden' => t('مخفي')], JSON_UNESCAPED_UNICODE) ?>;</script>
     <script src="assets/dashboard.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
