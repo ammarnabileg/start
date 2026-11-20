@@ -45,6 +45,7 @@
         (last ? evRow(last) : '<p class="text-xs text-ink-400">' + esc(T.noCh) + '</p>') +
         (c.self ? '' : '<div class="mt-2 text-[11px] font-semibold text-brand-600 flex items-center gap-1">' + esc(T.drill) + ' <span aria-hidden="true">‹</span></div>') +
         '<div class="cx-acts" data-stop><button type="button" class="btn-ghost !py-1 !text-xs" data-check>' + ic('refresh') + '<span>' + esc(T.check) + '</span></button>' + c.links.map(function (l) { return '<a class="cx-lk" href="' + esc(l) + '" target="_blank" rel="noopener" title="' + esc(l) + '">' + ic('link') + '</a>'; }).join('') +
+        (c.self ? '' : '<button type="button" class="cx-lk" data-edit title="' + esc(T.edit) + '" aria-label="' + esc(T.edit) + '">' + ic('pencil') + '</button>') +
         '<button type="button" class="cx-del" data-del title="' + esc(T.del) + '">' + ic('trash') + '</button></div></article>'; }).join('') + '</section>';
     // السجل + المقارنة
     var evs = D.events.filter(function (e) { return (!flt.kind || e.kind === flt.kind) && (!flt.cid || e.cid === +flt.cid); }), used = {}; D.events.forEach(function (e) { used[e.kind] = (used[e.kind] || 0) + 1; });
@@ -354,6 +355,7 @@
     if (t.closest('[data-shx]')) { closeSheet(); return; }
     var card = t.closest('[data-cid]'); if (!card) return; var id = +card.dataset.cid;
     if ((b = t.closest('[data-check]'))) { b.disabled = true; b.classList.add('pd-busy'); b.querySelector('span').textContent = T.checking; post({ action: 'check', id: id }).then(after).catch(function () { toast(T.err, 'error'); paint(); }); return; }
+    if (t.closest('[data-edit]')) { var cc = D.comps.filter(function (x) { return x.id === id; })[0]; var pp = root.querySelector('[data-pop]'); if (!cc || !pp) return; pp.classList.remove('hidden'); var fm = pp.querySelector('[data-add]'); if (!fm) return; fm.dataset.editId = id; fm.name.value = cc.name || ''; fm.url.value = cc.url || ''; fm.links.value = (cc.links || []).join('\n'); fm.note.value = cc.note || ''; var sb = fm.querySelector('.btn-primary'); if (sb) sb.textContent = T.save || T.addGo; fm.name.focus(); pp.scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
     if ((b = t.closest('[data-del]'))) { var bb = b; (window.fxAsk ? fxAsk(T.delFull || T.delQ, { danger: true }) : Promise.resolve(confirm(T.delFull || T.delQ))).then(function (ok) { if (!ok) return; b = bb; // تأكيد بنافذة المنصة: الحذف بيمسح كل بيانات المتابعة
       card.classList.add('pd-out'); post({ action: 'del', id: id }).then(function (j) { if (j && j.ok === false) { card.classList.remove('pd-out'); toast(j.error || T.err, 'error'); return; } after(j); }).catch(function () { card.classList.remove('pd-out'); toast(T.err, 'error'); }); }); return; }
     if (t.closest('[data-stop]')) return; openSheet(id); });
@@ -368,7 +370,9 @@
       var nm = t.form.name; if (v && !nm.value) nm.placeholder = v.replace(/^www\./, '').split('.')[0]; } });
   root.addEventListener('submit', function (e) { var fm = e.target.closest('[data-add]'); if (!fm) return; e.preventDefault(); if (!fm.name.value.trim() && fm.name.placeholder) fm.name.value = fm.name.placeholder;
     var bt = fm.querySelector('.btn-primary'); bt.disabled = true; fm.querySelector('.cx-wait').classList.remove('hidden');
-    post({ action: 'add', name: fm.name.value, url: fm.url.value, links: fm.links.value, note: fm.note.value }).then(function (j) { after(j); if (j && j.focus) { var c = root.querySelector('[data-cid="' + String(j.focus).replace('c', '') + '"]'); if (c) { c.classList.add('cx-new'); c.scrollIntoView({ block: 'center', behavior: 'smooth' }); } } })
+    var editId = fm.dataset.editId || '';
+    var payload = editId ? { action: 'edit', id: editId, name: fm.name.value, url: fm.url.value, links: fm.links.value, note: fm.note.value } : { action: 'add', name: fm.name.value, url: fm.url.value, links: fm.links.value, note: fm.note.value };
+    post(payload).then(function (j) { if (editId) delete fm.dataset.editId; after(j); if (j && j.focus) { var c = root.querySelector('[data-cid="' + String(j.focus).replace('c', '') + '"]'); if (c) { c.classList.add('cx-new'); c.scrollIntoView({ block: 'center', behavior: 'smooth' }); } } })
       .catch(function () { bt.disabled = false; fm.querySelector('.cx-wait').classList.add('hidden'); toast(T.err, 'error'); }); });
   root.addEventListener('toggle', function (e) { if (e.target.matches && e.target.matches('[data-rules]')) ovOpen.rules = e.target.open; }, true);
   paint(); ovLoad();

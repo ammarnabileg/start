@@ -304,7 +304,7 @@ render(t('العملاء المحتملين'), 'leads', function () use ($stages
       <?php endif; ?>
     </div>
     <script>window.LDX = <?= json_encode(['csrf' => csrf_token(), 'url' => url('leads'), 'stages' => $stages, 'all' => t('الكل'), 'saved' => t('اتحفظ'), 'err' => t('ما اتحفظش، جرّب تاني'),
-      'wa' => t('واتساب'), 'call' => t('اتصال'), 'mail' => t('إيميل'), 'copy' => t('انسخ الرقم'), 'copied' => t('اتنسخ'), 'fresh' => t('جديد النهارده'), 'empty' => t('مفيش نتايج'),
+      'wa' => t('واتساب'), 'call' => t('اتصال'), 'mail' => t('إيميل'), 'copy' => t('انسخ الرقم'), 'copied' => t('اتنسخ'), 'fresh' => t('جديد النهارده'), 'empty' => t('مفيش نتايج'), 'campEmpty' => t('عملاء هذه الحملة خارج المعروض حاليًا. اضغط «أقدم ←» لتحميل المزيد، أو صدّر CSV لكل العملاء.'),
       'filterCamp' => t('بيعرض عملاء حملة واحدة'), 'clear' => t('إلغاء'), 'ago' => ['m' => t('من %s دقيقة'), 'h' => t('من %s ساعة'), 'd' => t('من %s يوم')]], JSON_UNESCAPED_UNICODE) ?>;</script>
     <script>window.__phoneLoad = 1;</script><script src="assets/vendor/libphonenumber-max.js?v=1.11.12"></script><script src="assets/phone.js?v=<?= e(APP_VERSION) ?>"></script>
     <script src="assets/ui-leads.js?v=<?= e(APP_VERSION) ?>"></script>

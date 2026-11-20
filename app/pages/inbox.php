@@ -596,7 +596,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
                 <button class="badge" title="<?= e(t('شيل التصنيف')) ?>"><?= e($l['name'] ?? '') ?> ×</button></form>
             <?php endforeach; ?>
             <div class="ms-auto flex items-center gap-1.5">
-              <button type="button" id="ibx-info" class="hidden lg:inline-flex 2xl:hidden tb w-9 h-9 !h-9 justify-center" title="<?= e(t('بيانات العميل')) ?>"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" viewBox="0 0 24 24"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM12 11v5M12 8h.01"/></svg></button>
+              <button type="button" id="ibx-info" class="inline-flex 2xl:hidden tb w-9 h-9 !h-9 justify-center" title="<?= e(t('بيانات العميل')) ?>"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" viewBox="0 0 24 24"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM12 11v5M12 8h.01"/></svg></button>
               <?php if (!$isRequest): ?>
                 <form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="<?= $archived ? 'unarchive' : 'archive' ?>">
                   <button class="tb w-9 h-9 !h-9 justify-center" title="<?= e($archived ? t('رجّعها للنشطة') : t('أرشفة')) ?> (E)" data-ibx-archive><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 5h18v4H3zM5 9v10h14V9M10 13h4"/></svg></button></form>

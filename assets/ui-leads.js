@@ -59,7 +59,7 @@
     var v = q ? q.value.trim().toLowerCase() : '', n = 0;
     rows.forEach(function (r) { var ok = (!stage || r.dataset.stage === stage) && (!camp || r.dataset.camp === camp) && (!v || r.dataset.q.indexOf(v) >= 0 || (r.dataset.phoneRaw || '').replace(/\D/g, '').indexOf(v.replace(/\D/g, '') || '§') >= 0); r.style.display = ok ? '' : 'none'; if (ok) n++; });
     var c = $('#ld-count'); if (c) c.textContent = n;
-    var e = $('#ld-empty'); if (!e && rows.length) { e = document.createElement('p'); e.id = 'ld-empty'; e.className = 'p-6 text-sm text-ink-500 text-center'; e.textContent = X.empty; rows[rows.length - 1].parentNode.appendChild(e); } if (e) e.hidden = n > 0;
+    var e = $('#ld-empty'); if (!e && rows.length) { e = document.createElement('p'); e.id = 'ld-empty'; e.className = 'p-6 text-sm text-ink-500 text-center'; rows[rows.length - 1].parentNode.appendChild(e); } if (e) { e.textContent = (n === 0 && camp && X.campEmpty) ? X.campEmpty : X.empty; e.hidden = n > 0; }
   }
   function drawChips() {
     if (!chips) return; var cnt = {}; rows.forEach(function (r) { cnt[r.dataset.stage] = (cnt[r.dataset.stage] || 0) + 1; });

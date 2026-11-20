@@ -58,6 +58,34 @@
     lastIdx = i;
   }, true);
 
+  // لوحة بيانات العميل: على الشاشات الصغيرة تظهر كلوحة منزلقة فوق المحتوى
+  function sideDrawer() {
+    return window.matchMedia && window.matchMedia('(max-width: 1535px)').matches;
+  }
+  function openSide() {
+    var sd = document.getElementById('ibx-side'); if (!sd) return;
+    sd.classList.remove('hidden'); sd.classList.add('flex');
+    if (sideDrawer()) {
+      sd.style.cssText = 'position:fixed;top:0;bottom:0;inset-inline-end:0;z-index:60;width:min(92vw,23rem);max-width:23rem;overflow-y:auto;box-shadow:-12px 0 40px -12px rgba(15,23,42,.35)';
+      if (!document.getElementById('ibx-side-bk')) {
+        var bk = document.createElement('div'); bk.id = 'ibx-side-bk';
+        bk.style.cssText = 'position:fixed;inset:0;z-index:55;background:rgba(15,23,42,.4)';
+        document.body.appendChild(bk);
+      }
+    }
+  }
+  function closeSide() {
+    var sd = document.getElementById('ibx-side'); if (!sd) return;
+    sd.classList.add('hidden'); sd.classList.remove('flex'); sd.style.cssText = '';
+    var bk = document.getElementById('ibx-side-bk'); if (bk) bk.remove();
+  }
+  function toggleSide() {
+    var sd = document.getElementById('ibx-side'); if (!sd) return;
+    (sd.classList.contains('hidden')) ? openSide() : closeSide();
+  }
+  window.addEventListener('resize', function () { if (!sideDrawer()) { var sd = document.getElementById('ibx-side'); if (sd) sd.style.cssText = ''; var bk = document.getElementById('ibx-side-bk'); if (bk) bk.remove(); } });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && document.getElementById('ibx-side-bk')) closeSide(); });
+
   document.addEventListener('click', function (e) {
     var f = e.target.closest('[data-ibx-filter]'); if (f) { filt[f.dataset.ibxFilter] = !filt[f.dataset.ibxFilter]; persist(); apply(); return; }
     if (e.target.closest('#ibx-clear')) { sel.clear(); persist(); apply(); return; }
@@ -65,7 +93,8 @@
     var one = e.target.closest('.ibx-one'); if (one) { bulk('classify', [one.dataset.key], one); return; }
     if (e.target.closest('#ibx-camp-open')) { openCamp(); return; }
     var co = e.target.closest('[data-ibx-camp-one]'); if (co) { sel.clear(); sel.add(co.dataset.ibxCampOne); persist(); apply(); openCamp(); return; }
-    if (e.target.closest('#ibx-info')) { var sd = document.getElementById('ibx-side'), g = document.getElementById('ibx'); sd.classList.toggle('hidden'); sd.classList.toggle('flex'); g.classList.toggle('lg:grid-cols-[23rem_1fr_19rem]'); return; }
+    if (e.target.closest('#ibx-info')) { toggleSide(); return; }
+    if (e.target.id === 'ibx-side-bk') { closeSide(); return; }
     var ch = e.target.closest('[data-cp-insight-chat]');
     if (ch) { // يفتح لوحة ✨ ويسأل عن المحادثة دي
       var panel = document.getElementById('cp'), inp = document.getElementById('cp-input'), pg = document.getElementById('cp-page');
