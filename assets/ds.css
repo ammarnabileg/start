@@ -168,6 +168,20 @@ html.dark .dz-ailang.on { background: rgb(var(--ink-200)); }
 .ca-ad:hover { border-color: rgb(var(--brand-300)) !important; box-shadow: 0 6px 18px -12px rgba(13,22,48,.25); }
 .cx-feed { max-height: 72vh !important; }
 @media (max-width: 680px) { .ca-grid { grid-template-columns: 1fr; } }
+/* تنقّل بين المنافسين في رأس اللوحة */
+.cx-nav { display: inline-flex; gap: .25rem; margin-inline-end: .25rem; }
+.cx-navb { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; color: rgb(var(--ink-500)); border: 1px solid rgb(var(--ink-200)); transition: background .12s, color .12s; }
+.cx-navb:hover { background: rgb(var(--brand-50)); color: rgb(var(--brand-700)); border-color: rgb(var(--brand-200)); }
+/* تبويب نظرة عامة: بطاقات مؤشرات */
+.cx-sumk { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: .55rem; margin-bottom: 1.1rem; }
+.cx-sumk > div { border: 1px solid rgb(var(--ink-200)); border-radius: 14px; padding: .7rem .8rem; background: rgb(var(--surface)); }
+.cx-sumk b { display: block; font-size: 1.5rem; font-weight: 800; line-height: 1.1; color: var(--c, rgb(var(--ink-900))); }
+.cx-sumk small { font-size: .72rem; color: rgb(var(--ink-500)); }
+.cx-sumh { font-size: .82rem; font-weight: 700; color: rgb(var(--ink-900)); margin: .2rem 0 .5rem; }
+.cx-sumj { display: grid; gap: .4rem; }
+.cx-jbtn { display: flex; align-items: center; gap: .55rem; width: 100%; padding: .65rem .8rem; border-radius: 12px; border: 1px solid rgb(var(--ink-200)); color: rgb(var(--ink-700)); font-size: .85rem; font-weight: 600; transition: background .12s, border-color .12s; }
+.cx-jbtn:hover { background: rgb(var(--brand-50)); border-color: rgb(var(--brand-200)); color: rgb(var(--brand-800)); }
+.cx-skel { display: grid; gap: .6rem; }
 
 /* نافذة التعديل المنبثقة */
 .cb-dlg::backdrop { background: rgba(13,22,48,.45); backdrop-filter: blur(2px); }

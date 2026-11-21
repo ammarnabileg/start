@@ -73,20 +73,34 @@
   /* لوحة المنافس */
   var openId = null, sTab = 'ch', sq = '';
   function sheetHtml() { return '<div class="cx-sh' + (openId ? ' open' : '') + '" data-sh><div class="cx-shb" data-shx></div><aside>' + (openId ? sheetBody() : '') + '</aside></div>'; }
+  function skel(n) { var s = ''; for (var i = 0; i < (n || 3); i++) s += '<div class="ds-skel ds-skel-card" style="height:84px"></div>'; return '<div class="cx-skel">' + s + '</div>'; }
+  function sumBody(c, ev, st) {
+    var kp = [[ev.length, T.sumKh, '#7c3aed'], [c.ads || 0, T.sumAds, '#7c3aed'], [c.services.length, T.sumSvc, '#0891b2'], [c.offers.length, T.sumOff, '#2563eb']];
+    if (c.rate) kp.push(['★ ' + c.rate.avg, T.sumRate, '#ca8a04']);
+    if (c.soc && c.soc.followers) kp.push([kfmt(c.soc.followers), T.sumFol, '#db2777']);
+    var tiles = '<div class="cx-sumk">' + kp.map(function (x) { return '<div style="--c:' + x[2] + '"><b>' + (typeof x[0] === 'number' ? num(x[0]) : esc(x[0])) + '</b><small>' + esc(x[1]) + '</small></div>'; }).join('') + '</div>';
+    var stand2 = (st.ch || st.ex) ? '<div class="cx-mini mb-3">' + (st.ch ? '<span class="cheap">' + esc(f(T.cheaperIn, st.ch)) + '</span>' : '') + (st.ex ? '<span class="exp">' + esc(f(T.pricierIn, st.ex)) + '</span>' : '') + '</div>' : '';
+    var recent = '<h4 class="cx-sumh">' + esc(T.sumRecent) + '</h4>' + (ev.length ? ev.slice(0, 6).map(function (e) { return evRow(e); }).join('') : '<p class="text-sm text-ink-400">' + esc(T.sumNoData) + '</p>');
+    var jumps = [['ads', T.tAds, 'megaphone'], ['soc', T.tSoc, 'users'], ['rev', T.tRev, 'star'], ['site', T.tSite, 'globe']];
+    var explore = '<h4 class="cx-sumh mt-4">' + esc(T.sumExplore) + '</h4><div class="cx-sumj">' + jumps.map(function (x) { return '<button type="button" data-st="' + x[0] + '" class="cx-jbtn">' + ic(x[2], 'w-4 h-4') + '<span>' + esc(x[1]) + '</span>' + ic('chevron-left', 'w-4 h-4 ms-auto opacity-50') + '</button>'; }).join('') + '</div>';
+    return tiles + stand2 + recent + explore;
+  }
   function sheetBody() { var c = D.comps.filter(function (x) { return x.id === openId; })[0]; if (!c) return ''; var ev = D.events.filter(function (e) { return e.cid === c.id; }), st = stand(c.id);
-    var head = '<header><span class="cx-av" style="background:' + grad(c.name) + '">' + esc(c.name.charAt(0)) + '</span><div class="min-w-0 flex-1"><b class="block text-lg text-ink-900 truncate">' + esc(c.name) + '</b><a class="text-xs link" dir="ltr" href="' + esc(c.url) + '" target="_blank" rel="noopener">' + esc(c.host) + ' ↗</a>' + (c.note ? '<p class="text-xs text-ink-500 mt-1">' + esc(c.note) + '</p>' : '') + '</div><button type="button" class="cx-x" data-shx>' + ic('x', 'w-5 h-5') + '</button></header>' +
-      '<div class="cx-mini px-5">' + (st.ch ? '<span class="cheap">' + esc(f(T.cheaperIn, st.ch)) + '</span>' : '') + (st.ex ? '<span class="exp">' + esc(f(T.pricierIn, st.ex)) + '</span>' : '') + '<span>' + esc(c.checked) + '</span></div>' +
-      '<nav class="cx-tabs">' + [['ch', T.tCh, ev.length], ['svc', T.tSvc, c.services.length], ['off', T.tOff, c.offers.length], ['soc', T.tSoc, c.soc ? c.soc.n : 0], ['ads', T.tAds, c.ads || 0], ['rev', T.tRev, c.rate ? '★' + c.rate.avg : ''], ['site', T.tSite, '']].map(function (x) { return '<button type="button" data-st="' + x[0] + '"' + (sTab === x[0] ? ' class="on"' : '') + '>' + esc(x[1]) + ' <i>' + x[2] + '</i></button>'; }).join('') + '</nav>';
+    var multi = navList().length > 1;
+    var nav = multi ? '<div class="cx-nav"><button type="button" class="cx-navb" data-shnav="-1" title="' + esc(T.navPrev) + '" aria-label="' + esc(T.navPrev) + '">' + ic('chevron-right', 'w-4 h-4') + '</button><button type="button" class="cx-navb" data-shnav="1" title="' + esc(T.navNext) + '" aria-label="' + esc(T.navNext) + '">' + ic('chevron-left', 'w-4 h-4') + '</button></div>' : '';
+    var head = '<header><span class="cx-av" style="background:' + grad(c.name) + '">' + esc(c.name.charAt(0)) + '</span><div class="min-w-0 flex-1"><b class="block text-lg text-ink-900 truncate">' + esc(c.name) + '</b><a class="text-xs link" dir="ltr" href="' + esc(c.url) + '" target="_blank" rel="noopener">' + esc(c.host) + ' ↗</a>' + (c.note ? '<p class="text-xs text-ink-500 mt-1">' + esc(c.note) + '</p>' : '') + '</div>' + nav + '<button type="button" class="cx-x" data-shx>' + ic('x', 'w-5 h-5') + '</button></header>' +
+      '<nav class="cx-tabs">' + [['sum', T.tSum, ''], ['ch', T.tCh, ev.length], ['ads', T.tAds, c.ads || 0], ['soc', T.tSoc, c.soc ? c.soc.n : 0], ['off', T.tOff, c.offers.length], ['svc', T.tSvc, c.services.length], ['rev', T.tRev, c.rate ? '★' + c.rate.avg : ''], ['site', T.tSite, '']].map(function (x) { return '<button type="button" data-st="' + x[0] + '"' + (sTab === x[0] ? ' class="on"' : '') + '>' + esc(x[1]) + (x[2] !== '' ? ' <i>' + x[2] + '</i>' : '') + '</button>'; }).join('') + '</nav>';
     var body = '';
+    if (sTab === 'sum') body = sumBody(c, ev, st);
     if (sTab === 'ch') body = ev.length ? ev.map(function (e) { return evRow(e); }).join('') : '<p class="text-sm text-ink-400">' + esc(T.noCh) + '</p>';
     if (sTab === 'svc') { var mine = {}; D.prices.forEach(function (r) { var x = r.them[c.id]; if (x) mine[x.price + '|' + r.name] = r; });
       var list = c.services.filter(function (s) { return !sq || s.name.toLowerCase().indexOf(sq) >= 0; });
       body = '<label class="mk-search !w-full !h-9 mb-3"><input type="search" data-sq value="' + esc(sq) + '" placeholder="' + esc(T.find) + '"></label>' + (c.services.length ? '<div class="cx-svcs">' + list.map(function (s) { var r = D.prices.filter(function (p) { var x = p.them[c.id]; return x && x.price === s.price && p.name === s.name && x.n != null; })[0], x = r ? r.them[c.id] : null;
         return '<div class="cx-svc"><span dir="auto">' + esc(s.name) + '</span><b dir="auto">' + esc(s.price) + '</b>' + (x && x.d ? '<em class="' + (x.d < 0 ? 'ch' : 'ex') + '" title="' + esc(T.vs + ' ' + r.mine) + '">' + (x.d > 0 ? '+' : '') + x.d + '%</em>' : '<em></em>') + '</div>'; }).join('') + '</div>' : '<p class="text-sm text-ink-400">' + esc(T.noSvc) + '</p>'); }
-    if (sTab === 'soc') body = '<div data-soc>' + (SOC[c.id] ? socBody(c, SOC[c.id]) : '<p class="text-sm text-ink-400"><span class="ai-spin"></span> ' + esc(T.sLoading) + '</p>') + '</div>';
-    if (sTab === 'ads') body = '<div data-ads>' + (ADS[c.id] ? adsBody(c, ADS[c.id]) : '<p class="text-sm text-ink-400"><span class="ai-spin"></span> ' + esc(T.aLoading) + '</p>') + '</div>';
-    if (sTab === 'rev') body = '<div data-rev>' + (REV[c.id] ? revBody(c, REV[c.id]) : '<p class="text-sm text-ink-400"><span class="ai-spin"></span> ' + esc(T.gLoading) + '</p>') + '</div>';
-    if (sTab === 'site') body = '<div data-site>' + (SITE[c.id] ? siteBody(c, SITE[c.id]) : '<p class="text-sm text-ink-400"><span class="ai-spin"></span> ' + esc(T.wLoading) + '</p>') + '</div>';
+    if (sTab === 'soc') body = '<div data-soc>' + (SOC[c.id] ? socBody(c, SOC[c.id]) : skel()) + '</div>';
+    if (sTab === 'ads') body = '<div data-ads>' + (ADS[c.id] ? adsBody(c, ADS[c.id]) : skel()) + '</div>';
+    if (sTab === 'rev') body = '<div data-rev>' + (REV[c.id] ? revBody(c, REV[c.id]) : skel()) + '</div>';
+    if (sTab === 'site') body = '<div data-site>' + (SITE[c.id] ? siteBody(c, SITE[c.id]) : skel()) + '</div>';
     if (sTab === 'off') body = c.offers.length ? c.offers.map(function (o) { return '<div class="cx-off">' + ic('star') + '<span dir="auto">' + esc(o) + '</span></div>'; }).join('') : '<p class="text-sm text-ink-400">' + esc(T.noOff) + '</p>';
     return head + '<div class="cx-shc">' + body + '</div>'; }
 
@@ -328,7 +342,10 @@
     return h; }
   function ovPaint() { var a = root.querySelector('[data-ov]'); if (a && OV) a.innerHTML = ovHtml(OV); }
   function ovLoad(action, extra) { return post(Object.assign({ action: action || 'overview' }, extra || {})).then(function (j) { if (!j || !j.ok) { toast((j && j.error) || T.err, 'error'); ovPaint(); return j; } if (j.o) OV = j.o; ovPaint(); clearTimeout(dsT); if (OV && OV.disc.pending) dsT = setTimeout(function () { ovLoad('disc_poll'); }, 10000); return j; }); }
-  function openSheet(id) { openId = id; sTab = 'ch'; sq = ''; var sh = root.querySelector('[data-sh]'); sh.querySelector('aside').innerHTML = sheetBody(); sh.classList.add('open'); document.documentElement.classList.add('hub-lock'); }
+  function openSheet(id) { openId = id; sTab = 'sum'; sq = ''; var sh = root.querySelector('[data-sh]'); sh.querySelector('aside').innerHTML = sheetBody(); sh.classList.add('open'); document.documentElement.classList.add('hub-lock'); }
+  /* تنقّل بين المنافسين داخل اللوحة بدون إغلاق */
+  function navList() { return D.comps.filter(function (x) { return !x.self; }); }
+  function navSheet(dir) { var l = navList(), i = -1; l.forEach(function (c, k) { if (c.id === openId) i = k; }); if (i < 0 || l.length < 2) return; var n = (i + dir + l.length) % l.length; openSheet(l[n].id); }
   function closeSheet() { clearTimeout(pollT); clearTimeout(adT); clearTimeout(rkT); clearTimeout(rvT); openId = null; var sh = root.querySelector('[data-sh]'); if (sh) sh.classList.remove('open'); document.documentElement.classList.remove('hub-lock'); }
 
   root.addEventListener('click', function (e) { var t = e.target, b;
@@ -352,6 +369,7 @@
     if ((b = t.closest('[data-srefresh]'))) { b.disabled = true; b.querySelector('span').textContent = T.sReading; socLoad(openId, 'social_refresh').then(function (j) { if (j && j.ok) toast(j.started ? f(T.sStarted, j.started) : T.sNoAcc); }); return; }
     if ((b = t.closest('[data-slsave]'))) { var ta = root.querySelector('[data-slinks]'); b.disabled = true; socLoad(openId, 'links', { links: ta.value }).then(function (j) { b.disabled = false; if (j && j.ok) toast(j.started ? f(T.sStarted, j.started) : T.sSaved); }); return; }
     if (t.closest('[data-smore]')) { socF.more += 30; socPaint(); return; }
+    if ((b = t.closest('[data-shnav]'))) { navSheet(+b.dataset.shnav); return; }
     if (t.closest('[data-shx]')) { closeSheet(); return; }
     var card = t.closest('[data-cid]'); if (!card) return; var id = +card.dataset.cid;
     if ((b = t.closest('[data-check]'))) { b.disabled = true; b.classList.add('pd-busy'); b.querySelector('span').textContent = T.checking; post({ action: 'check', id: id }).then(after).catch(function () { toast(T.err, 'error'); paint(); }); return; }
