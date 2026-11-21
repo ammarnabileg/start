@@ -345,7 +345,7 @@ render(t('منشئ الحملات'), 'ad_builder', function () use ($z, $apiErro
       </section>
       <section>
         <div class="flex items-center gap-2 mb-3"><h2 class="text-lg font-bold text-ink-900"><?= e(t('مشاريعك')) ?></h2><span class="text-xs text-ink-400"><?= count($list) ?></span></div>
-        <?php if (!$list): ?><div class="card p-8 text-center text-sm text-ink-500"><?= e(t('مفيش مشاريع لسه.')) ?></div><?php else: ?>
+        <?php if (!$list): ?><div class="card"><div class="ds-empty"><div class="ds-empty-ico"><?= ui_icon('megaphone', 'w-6 h-6') ?></div><?= e(t('مفيش مشاريع لسه.')) ?></div></div><?php else: ?>
         <div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
           <?php $stl = ['draft' => [t('مسودة'), 'bg-ink-100 text-ink-700'], 'launching' => [t('بيتطلق'), 'bg-amber-50 text-amber-800'], 'failed' => [t('اتطلق جزئيًا'), 'bg-red-50 text-red-700'], 'launched' => [t('اتطلقت'), 'bg-lime-100 text-lime-800']];
           foreach ($list as $r): $s = $stl[$r['state']] ?? [$r['state'], 'bg-ink-100']; ?>

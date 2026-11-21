@@ -228,15 +228,15 @@ render(t('الجماهير'), 'ad_audiences', function () use ($z, $apiError, $t
           <?php endif; ?>
         </div>
         <?php if (!$audiences): ?>
-          <p class="p-6 text-sm text-ink-500 text-center"><?= e(t('مفيش جماهير على الحساب ده لسه.')) ?></p>
+          <div class="ds-empty"><div class="ds-empty-ico"><?= ui_icon('users', 'w-6 h-6') ?></div><?= e(t('مفيش جماهير على الحساب ده لسه.')) ?></div>
         <?php else: ?>
           <div class="divide-y divide-ink-100">
             <?php $maxSize = max(array_map(function ($a) { return (float)($a['size'] ?? 0); }, $audiences ?: [['size' => 0]])) ?: 1; foreach ($audiences as $a): $ty = (string)($a['type'] ?? ''); $stt = (string)($a['status'] ?? ''); ?>
               <div class="aud-row p-4 flex flex-wrap items-center gap-3" data-type="<?= e($ty) ?>" data-tl="<?= e($types[$ty] ?? $ty) ?>" data-q="<?= e(mb_strtolower(($a['name'] ?? '') . ' ' . ($types[$ty] ?? $ty))) ?>">
                 <div class="flex-1 min-w-0">
                   <div class="font-medium text-ink-900 flex flex-wrap items-center gap-2"><?= e($a['name'] ?? '') ?>
-                    <?php if ($stt !== ''): $sc = ['ready' => 'bg-lime-100 text-lime-800', 'populating' => 'bg-amber-50 text-amber-800', 'too_small' => 'bg-red-50 text-red-700'][$stt] ?? 'bg-ink-100 text-ink-700'; ?>
-                      <span class="text-[11px] rounded px-1.5 py-0.5 <?= $sc ?>"><?= e(['ready' => t('جاهز'), 'populating' => t('بيتجهّز'), 'too_small' => t('صغير جدًا للإعلان')][$stt] ?? $stt) ?></span>
+                    <?php if ($stt !== ''): $sc = ['ready' => 'st-active', 'populating' => 'st-pending', 'too_small' => 'st-failed'][$stt] ?? 'st-muted'; ?>
+                      <span class="st <?= $sc ?>"><?= e(['ready' => t('جاهز'), 'populating' => t('بيتجهّز'), 'too_small' => t('صغير جدًا للإعلان')][$stt] ?? $stt) ?></span>
                     <?php endif; ?></div>
                   <?php if (isset($a['size'])): ?><div class="mt-2 h-1.5 rounded-full bg-ink-100 overflow-hidden max-w-xs" title="<?= e(t('حوالي %s شخص', ads_num($a['size']))) ?>"><div class="aud-bar h-full bg-brand-500 rounded-full" style="width:0" data-w="<?= e(max(2, round(log10(max(1, $a['size'])) / log10(max(10, $maxSize)) * 100))) ?>"></div></div><?php endif; ?>
                   <div class="text-xs text-ink-500 mt-0.5"><?= e($types[$a['type'] ?? ''] ?? ($a['type'] ?? '')) ?>
@@ -251,7 +251,7 @@ render(t('الجماهير'), 'ad_audiences', function () use ($z, $apiError, $t
                 <?php endif; ?>
               </div>
             <?php endforeach; ?>
-            <p id="aud-empty" class="p-6 text-sm text-ink-500 text-center" hidden><?= e(t('مفيش جماهير مطابقة')) ?></p>
+            <p id="aud-empty" class="ds-empty" hidden><?= e(t('مفيش جماهير مطابقة')) ?></p>
           </div>
         <?php endif; ?>
       </section>

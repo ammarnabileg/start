@@ -475,7 +475,7 @@ render(t('الحملات الإعلانية'), 'ads', function () use ($z, $apiE
               </tbody>
             </table>
           </div>
-          <div id="ads-empty" class="hidden p-8 text-center text-sm text-ink-500"><?= e(t('مفيش نتائج.')) ?></div>
+          <div id="ads-empty" class="hidden ds-empty"><?= e(t('مفيش نتائج.')) ?></div>
           <?php if (($pagination['pages'] ?? 1) > 1): ?>
             <div class="p-3 flex justify-between text-sm border-t border-ink-200">
               <?php if ($pg > 1): ?><a class="link" href="<?= e($q(['pg' => $pg - 1])) ?>"><?= e(t('السابق')) ?></a><?php else: ?><span></span><?php endif; ?>

@@ -302,6 +302,7 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
       </div>
       <?php endforeach; ?>
     </div>
+    <?php $cfg['media'] = url('media'); ?><script>window.CP = <?= json_encode($cfg, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;</script>
     <script>(function(){
       var box=document.querySelector('.card.divide-y'); if(!box||!window.CP)return; var C=window.CP;
       function post(d){var fd=new FormData();Object.keys(d).forEach(function(k){fd.append(k,d[k]);});fd.append('_csrf',C.csrf);fd.append('_ws',C.wid);return fetch(C.url,{method:'POST',body:fd,headers:{'X-WS-Id':C.wid}}).then(function(r){return r.json();});}

@@ -274,17 +274,18 @@ function ads_num($v): string
 /** شارة حالة الحملة/الإعلان */
 function ads_status_badge(string $s): string
 {
+    // شارات الحالة الموحّدة (ds.css .st-*): أخضر=شغّال · كهرماني=متوقف · أزرق=مراجعة · أحمر=مشكلة · رمادي=منتهية
     $map = [
-        'active' => [t('شغالة'), 'bg-lime-100 text-lime-700'],
-        'paused' => [t('متوقفة'), 'bg-amber-100 text-amber-800'],
-        'pending_review' => [t('تحت المراجعة'), 'bg-brand-100 text-brand-700'],
-        'rejected' => [t('مرفوضة'), 'bg-red-100 text-red-700'],
-        'completed' => [t('خلصت'), 'bg-ink-100 text-ink-600'],
-        'cancelled' => [t('ملغية'), 'bg-ink-100 text-ink-600'],
-        'error' => [t('فيها مشكلة'), 'bg-red-100 text-red-700'],
+        'active' => [t('شغالة'), 'st-active'],
+        'paused' => [t('متوقفة'), 'st-pending'],
+        'pending_review' => [t('تحت المراجعة'), 'st-done'],
+        'rejected' => [t('مرفوضة'), 'st-failed'],
+        'completed' => [t('خلصت'), 'st-muted'],
+        'cancelled' => [t('ملغية'), 'st-muted'],
+        'error' => [t('فيها مشكلة'), 'st-failed'],
     ];
-    $m = $map[strtolower($s)] ?? [$s ?: '—', 'bg-ink-100 text-ink-600'];
-    return '<span class="inline-flex items-center rounded-lg px-2 py-0.5 text-xs font-medium ' . $m[1] . '">' . e($m[0]) . '</span>';
+    $m = $map[strtolower($s)] ?? [$s ?: '—', 'st-muted'];
+    return '<span class="st ' . $m[1] . '">' . e($m[0]) . '</span>';
 }
 
 /** "النتايج": التحويلات لو موجودة، وإلا التفاعل */
