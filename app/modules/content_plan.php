@@ -278,7 +278,9 @@ function cpl_do_posts(array $p): void
         . "\nReturn ONLY JSON: {\"posts\":[{\"n\":1,\"linkedin\":\"130-220 words\",\"x\":\"max 280 characters incl. hashtags\",\"headline\":\"2-6 word poster headline\",\"image_prompt\":\"120-200 words English, covering concept, subject, art direction, composition, camera, lighting, brand identity, realism, the headline with its exact placement, output 4:5 1080x1350, and the avoid list\",\"video_prompt\":\"universal production-ready video prompt\",\"carousel\":[{\"role\":\"Hook|Problem|Insight|Solution|CTA\",\"title\":\"on-slide headline\",\"body\":\"on-slide supporting copy\",\"visual\":\"visual concept and composition\",\"layout\":\"layout instructions\"}]}]} one object per topic with the same n; carousel has exactly 5 slides in the order Hook, Problem, Insight, Solution, CTA."
         . ($used ? "\nHeadlines and visual concepts already used in this plan (do not repeat them): " . implode(' | ', array_slice($used, -40)) : '');
     $seqs = array_column($list, 'n'); cpl_log((int)$p['id'], t('كتابة المنشور %s بالأقسام الستة…', implode(' و', $seqs))); $tw = microtime(true);
-    $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => cpl_brief($p) . "\n\nTopics:\n" . json_encode($list, JSON_UNESCAPED_UNICODE)]], 3200 * count($rows), 'compose');
+    // ميزانية توكنز سخية: موديلات التفكير بتستهلك جزء كبير على التفكير قبل إخراج الـ JSON،
+    // فلو الحد ضيّق الرد بيطلع مقطوع/فاضي ("رد ناقص"). بندفع على المُستخدَم فعليًا بس، فالحد العالي آمن.
+    $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => cpl_brief($p) . "\n\nTopics:\n" . json_encode($list, JSON_UNESCAPED_UNICODE)]], 6000 * count($rows), 'compose');
     $j = kb_parse_json((string)($r['text'] ?? '')); $by = [];
     foreach ((array)($j['posts'] ?? []) as $x) if (is_array($x) && isset($x['n'])) $by[(int)$x['n']] = $x;
     $up = db()->prepare('UPDATE cp_items SET linkedin = ?, x = ?, headline = ?, image_prompt = ?, video_prompt = ?, carousel = ?, status = "draft", humanized = ' . (cpl_opts($p)['humanize'] ? 1 : 0) . ', fix_tries = 0 WHERE id = ?');
@@ -289,7 +291,9 @@ function cpl_do_posts(array $p): void
         $up->execute([mb_substr(ai_strip_dashes(trim((string)$x['linkedin'])), 0, 6000), mb_substr(ai_strip_dashes(trim((string)($x['x'] ?? ''))), 0, 600), mb_substr(ai_strip_dashes(trim((string)($x['headline'] ?? ''))), 0, 120), mb_substr(trim((string)($x['image_prompt'] ?? '')), 0, 6000), mb_substr(trim((string)($x['video_prompt'] ?? '')), 0, 8000), json_encode(array_slice($car, 0, 5), JSON_UNESCAPED_UNICODE), (int)$row['id']]);
         $done++;
     }
-    if (!$done) throw new RuntimeException(t('رد الذكاء الاصطناعي ناقص. سنكمل من المنشور نفسه.'));
+    if (!$done) throw new RuntimeException(($r['finish'] ?? '') === 'length'
+        ? t('رد الذكاء الاصطناعي اتقطع قبل ما يكمل (الموديل بيفكّر كتير). جرّب موديل أسرع للكتابة من صفحة التكاملات، أو أعد المحاولة.')
+        : t('رد الذكاء الاصطناعي ناقص. سنكمل من المنشور نفسه.'));
     cpl_log((int)$p['id'], t('كُتب %s منشور في %s ثانية (%s).', $done, round(microtime(true) - $tw), implode('، ', $seqs)), 'ok');
 }
 
@@ -303,7 +307,7 @@ function cpl_do_fix(array $p, array $it): void
     $sys = "CONTENT_FIX_JSON\n" . cpl_rules($p) . "\n\nQUALITY FIX: the post below failed these measurable checks: " . implode('; ', $it['qc'])
         . ".\nRewrite ONLY the sections needed so every check passes (LinkedIn 130-220 words with hashtags, X max 280 characters with hashtags, headline 2-6 words, image prompt 120-200 words, video prompt complete, carousel exactly 5 slides Hook/Problem/Insight/Solution/CTA, no placeholders; for a duplicate topic or headline, choose a clearly different angle, headline and visual concept). Keep everything that already passes, keep the facts, never invent new ones."
         . "\nReturn ONLY JSON with the corrected fields among: {\"linkedin\",\"x\",\"headline\",\"image_prompt\",\"video_prompt\",\"carousel\":[{\"role\",\"title\",\"body\",\"visual\",\"layout\"}],\"title\",\"angle\"}.";
-    $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => cpl_brief($p) . "\n\nPost to fix:\n" . json_encode($cur, JSON_UNESCAPED_UNICODE)]], 4000, 'compose');
+    $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => cpl_brief($p) . "\n\nPost to fix:\n" . json_encode($cur, JSON_UNESCAPED_UNICODE)]], 6000, 'compose');
     $j = kb_parse_json((string)($r['text'] ?? '')); if (!$j) throw new RuntimeException(t('رد التصحيح غير صالح. سنعيد المحاولة.'));
     $f = []; foreach (['linkedin' => 6000, 'x' => 600, 'headline' => 120, 'image_prompt' => 6000, 'video_prompt' => 8000] as $k => $mx) if (trim((string)($j[$k] ?? '')) !== '') $f[$k] = mb_substr(in_array($k, ['linkedin', 'x', 'headline'], true) ? ai_strip_dashes(trim((string)$j[$k])) : trim((string)$j[$k]), 0, $mx);
     if ($f) { $set = []; $a = []; foreach ($f as $k => $v) { $set[] = "$k = ?"; $a[] = $v; } $a[] = $it['id']; db()->prepare('UPDATE cp_items SET ' . implode(', ', $set) . ' WHERE id = ?')->execute($a); }
