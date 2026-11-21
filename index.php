@@ -73,7 +73,7 @@ if (!in_array($page, $public, true) && !current_user()) {
 }
 
 // لوحة إدارة النظام لمدير النظام بس
-$adminPages = ['system', 'admin', 'admin_workspaces', 'admin_users', 'admin_activity', 'admin_compare'];
+$adminPages = ['system', 'admin', 'admin_workspaces', 'admin_users', 'admin_activity', 'admin_compare', 'styleguide'];
 if (in_array($page, $adminPages, true) && !is_admin()) {
     redirect(url('dashboard'));
 }

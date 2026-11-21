@@ -82,6 +82,7 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
 <?php page_head($title . ' · ' . $siteName); ?>
 </head>
 <body class="min-h-screen">
+<a href="#main" class="ds-skip"><?= e(t('تخطَّ إلى المحتوى')) ?></a>
 <script>window.UIC = <?= json_encode(ui_icon_paths()) ?>; window.uic = function (n, c) { return '<svg class="' + (c || 'w-4 h-4') + ' shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="' + (window.UIC[n] || window.UIC.chart) + '"/></svg>'; };</script>
 
 <!-- الشريط العلوي -->
@@ -181,7 +182,7 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
 <div id="backdrop" class="fixed inset-0 top-16 bg-black/60 z-20 hidden lg:hidden"></div>
 
 <?php $cpOn = function_exists('ai_connection') && current_workspace() && can('ai.use') && ai_connection() && (ai_feature_on('assistant') || ai_page_insights((string)($GLOBALS['page'] ?? $active))); ?>
-<main class="pt-16 lg:ps-64 min-h-screen transition-[padding] duration-300 <?= $cpOn ? 'lg:pe-14' : '' ?>" id="main">
+<main class="pt-16 lg:ps-64 min-h-screen transition-[padding] duration-300 <?= $cpOn ? 'lg:pe-14' : '' ?>" id="main" tabindex="-1" style="outline:none">
   <div class="<?= !empty($fullWidth) ? 'max-w-[1800px] px-4 sm:px-6 py-6' : 'max-w-6xl px-4 sm:px-8 py-8 lg:py-10' ?> mx-auto">
     <?php // الصفحات مترابطة: كل صفحة بتوديك للخطوة اللي قبلها واللي بعدها في الرحلة
       $crmOn2 = $curWs && module_enabled('crm') && can('crm.view'); $R = [];
