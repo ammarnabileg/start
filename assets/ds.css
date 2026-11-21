@@ -151,6 +151,24 @@ html.dark .dz-ailang.on { background: rgb(var(--ink-200)); }
 .cb-acc-lbl { cursor: pointer; transition: background .12s, border-color .12s, color .12s; }
 .cb-acc-lbl:hover { background: rgb(var(--ink-50)); }
 .cb-acc-lbl:has(input:checked) { background: rgb(var(--brand-50)); border-color: rgb(var(--brand-300)); color: rgb(var(--brand-800)); font-weight: 600; }
+/* ---------- 6g) تطوير لوحة المنافس (slide-over) — توسعة وتخطيط أفضل ---------- */
+/* كانت مزنوقة على 560px؛ نوسّعها ونخلّي المحتوى يتنفّس */
+.cx-sh aside { width: min(960px, 96vw) !important; }
+.cx-sh header { padding: 1.25rem 1.5rem .7rem !important; }
+.cx-shc { padding: 1.25rem 1.5rem !important; }
+/* التابات: تمرير أفقي بدل ما تتزنق */
+.cx-tabs { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; padding-inline: 1.5rem !important; }
+.cx-tabs::-webkit-scrollbar { display: none; }
+.cx-tabs button { white-space: nowrap; flex: none; }
+/* كروت الإعلانات/المنشورات في شبكة عمودين على الشاشات الواسعة */
+.ca-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: .6rem; }
+.ca-grid .ca-ad, .ca-grid .cs-post { margin-bottom: 0 !important; }
+.ca-ad { padding: .75rem !important; border-radius: 14px !important; }
+.ca-ad img, .ca-noimg { width: 76px !important; height: 76px !important; border-radius: 12px !important; }
+.ca-ad:hover { border-color: rgb(var(--brand-300)) !important; box-shadow: 0 6px 18px -12px rgba(13,22,48,.25); }
+.cx-feed { max-height: 72vh !important; }
+@media (max-width: 680px) { .ca-grid { grid-template-columns: 1fr; } }
+
 /* نافذة التعديل المنبثقة */
 .cb-dlg::backdrop { background: rgba(13,22,48,.45); backdrop-filter: blur(2px); }
 html.dark .cb-dlg { background: rgb(var(--surface)); border-color: rgb(var(--ink-200)); }
