@@ -260,10 +260,15 @@
     if (ctl) document.addEventListener('click', function (e) {
       var b = e.target.closest('#cal-tools [data-ct], #ps-more [data-ct]'); if (!b) return; ctl.open = false; var k = b.dataset.ct;
       if (k === 'pause') {
-        var f = prompt(X.q.pFrom, siteDT(new Date()).slice(0, 10)); if (!f) return; var t = prompt(X.q.pTo, f); if (!t) return; var n = parseInt(prompt(X.q.pDays, '1'), 10); if (!n) return;
-        var ids = sched().filter(function (p) { var d = siteDT(new Date(p.at)).slice(0, 10); return d >= f && d <= t; }).map(function (p) { return p.id; });
-        if (!ids.length) return toast(X.q.pNone);
-        return runSeq(ids, 'shift', function () { return { n: n, unit: 'd' }; }, X.q.pDone);
+        var ask = function (m, v) { return window.fxAsk ? fxAsk(m, { input: v }) : Promise.resolve(prompt(m, v)); };
+        ask(X.q.pFrom, siteDT(new Date()).slice(0, 10)).then(function (f) { f = (f || '').trim(); if (!f) return;
+          ask(X.q.pTo, f).then(function (t) { t = (t || '').trim(); if (!t) return;
+            ask(X.q.pDays, '1').then(function (nv) { var n = parseInt(nv, 10); if (!n) return;
+              var ids = sched().filter(function (p) { var d = siteDT(new Date(p.at)).slice(0, 10); return d >= f && d <= t; }).map(function (p) { return p.id; });
+              if (!ids.length) return toast(X.q.pNone);
+              runSeq(ids, 'shift', function () { return { n: n, unit: 'd' }; }, X.q.pDone);
+            }); }); });
+        return;
       }
       if (k === 'copyw') {
         var ws0 = calV === 'week' ? new Date(wk) : (function () { var d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - d.getDay()); return d; })(), we = new Date(ws0); we.setDate(we.getDate() + 7);
