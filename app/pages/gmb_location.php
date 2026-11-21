@@ -189,7 +189,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $loc) {
     } catch (ZernioException $ex) {
         flash('error', $ex->getMessage());
     }
-    redirect(url('gmb_location', ['loc' => $loc['key']]) . '#' . preg_replace('/[^a-z_]/', '', $action));
+    $anchor = preg_replace('/[^a-z_]/', '', $action);
+    if (strpos($anchor, 'action_') === 0) $anchor = 'action_add';
+    redirect(url('gmb_location', ['loc' => $loc['key']]) . '#' . $anchor);
 }
 
 $d = null;

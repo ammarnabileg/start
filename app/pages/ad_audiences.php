@@ -339,7 +339,7 @@ render(t('الجماهير'), 'ad_audiences', function () use ($z, $apiError, $t
     var nb = e.target.closest('[data-px-new]'); if (nb && !nb.closest('#px-card')) document.getElementById('px-card').scrollIntoView({ behavior: 'smooth' });
     if (nb) { var nf = document.getElementById('px-newform'); if (nf) { nf.classList.toggle('hidden'); var i = nf.querySelector('input[name=pixel_name]'); if (i) i.focus(); } return; }
     var cp = e.target.closest('#px-copy');
-    if (cp) { var t0 = document.getElementById('px-code'); t0.select(); try { navigator.clipboard.writeText(t0.value); } catch (x) { document.execCommand('copy'); } cp.textContent = '✓'; return; }
+    if (cp) { var t0 = document.getElementById('px-code'); t0.select(); try { navigator.clipboard.writeText(t0.value); } catch (x) { document.execCommand('copy'); } if (!cp.dataset.orig) cp.dataset.orig = cp.textContent; cp.textContent = '✓'; clearTimeout(cp._t); cp._t = setTimeout(function () { cp.textContent = cp.dataset.orig; }, 1500); return; }
     var b = e.target.closest('#px-card [data-px-code]'); if (!b) return;
     var fd = new FormData(); fd.append('action', 'pixel_code'); fd.append('tag', b.dataset.pxCode);
     var tsel = document.querySelector('select[name=t]'); fd.append('t', tsel ? tsel.value : '');

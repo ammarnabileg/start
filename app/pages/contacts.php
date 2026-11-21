@@ -192,7 +192,7 @@ Ahmed Ali,<?= e(cx_phone(false)) ?>,ahmed@example.com,ACME,vip;<?= e(preg_replac
     <?php if ($showForm && can('whatsapp.manage')): $c = $edit ?: []; ?>
     <form method="post" class="card p-5 mb-4 space-y-3">
       <?= csrf_field() ?><input type="hidden" name="action" value="save"><input type="hidden" name="id" value="<?= e($c['id'] ?? '') ?>"><input type="hidden" name="wa" value="<?= e((string)$acc) ?>">
-      <div class="flex justify-between"><h2 class="font-semibold"><?= e($edit ? t('تعديل جهة اتصال') : t('جهة اتصال جديدة')) ?></h2><a href="<?= e(url('contacts')) ?>" class="text-sm text-ink-500"><?= e(t('إلغاء')) ?></a></div>
+      <div class="flex justify-between"><h2 class="font-semibold"><?= e($edit ? t('تعديل جهة اتصال') : t('جهة اتصال جديدة')) ?></h2><a href="<?= e(url('contacts', array_filter(['q' => $q, 'tag' => $tag, 'sub' => $sub, 'skip' => $skip ?: null]))) ?>" class="text-sm text-ink-500"><?= e(t('إلغاء')) ?></a></div>
       <div class="grid sm:grid-cols-2 gap-3">
         <label class="block"><span class="label"><?= e(t('الاسم')) ?></span><input name="name" required class="input" value="<?= e($c['name'] ?? '') ?>"></label>
         <?php if (!$edit): ?>
@@ -226,7 +226,7 @@ Ahmed Ali,<?= e(cx_phone(false)) ?>,ahmed@example.com,ACME,vip;<?= e(preg_replac
             <td class="p-3"><?php if (!empty($c['isBlocked'])): ?><span class="badge badge-red"><?= e(t('محظور')) ?></span><?php elseif (!empty($c['isSubscribed'])): ?><span class="badge badge-green"><?= e(t('مشترك')) ?></span><?php else: ?><span class="badge"><?= e(t('غير مشترك')) ?></span><?php endif; ?></td>
             <td class="p-3 text-xs text-ink-500 whitespace-nowrap"><?= $last ? e(fmt_date($last, 'd/m h:i A')) : '—' ?></td>
             <td class="p-3 text-end whitespace-nowrap">
-              <a class="link text-xs" href="<?= e(url('contacts', ['edit' => $c['id'], 'q' => $q, 'tag' => $tag])) ?>"><?= e(t('تعديل')) ?></a>
+              <a class="link text-xs" href="<?= e(url('contacts', array_filter(['edit' => $c['id'], 'q' => $q, 'tag' => $tag, 'sub' => $sub, 'skip' => $skip ?: null]))) ?>"><?= e(t('تعديل')) ?></a>
               <?php if (can('whatsapp.manage')): ?>
               <form method="post" class="inline ms-2" data-confirm="<?= e(t('حذف جهة الاتصال دي نهائياً؟')) ?>"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= e($c['id']) ?>"><button class="btn-danger-ghost !py-1 !px-2.5 !text-xs"><?= e(t('حذف')) ?></button></form>
               <?php endif; ?>

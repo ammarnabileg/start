@@ -214,7 +214,7 @@ render(t('السلاسل التلقائية'), 'sequences', function () use ($z,
             <?php endforeach; ?>
             </div>
           </div>
-          <form method="post" class="card overflow-hidden" id="enroll">
+          <form method="post" class="card overflow-hidden" id="enroll"<?= $st === 'active' ? ' data-confirm="' . e(t('السلسلة شغّالة: تسجيل الجهات دلوقتي هيبدأ إرسال رسايل واتساب مدفوعة فورًا. نكمل؟')) . '" data-confirm-danger' : '' ?>>
             <?= csrf_field() ?><input type="hidden" name="action" value="enroll"><input type="hidden" name="id" value="<?= e($id) ?>">
             <div class="p-4 border-b border-ink-100 space-y-2">
               <div class="flex items-center gap-2"><span class="font-semibold text-ink-900 me-auto"><?= e(t('سجّل جهات اتصال')) ?></span><span id="enr-n" class="text-xs text-ink-500"></span></div>

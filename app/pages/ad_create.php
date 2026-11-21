@@ -331,7 +331,8 @@ render(t('منشئ الحملات'), 'ad_create', function () use ($z, $apiError
           <div class="rounded-xl bg-brand-50 border border-brand-200 p-4">
             <div class="text-sm text-ink-600"><?= e(t('الميزانية')) ?></div>
             <div class="text-2xl font-bold text-ink-900"><?= e($f['budget_type'] === 'lifetime' ? t('%s إجمالي', $money) : t('%s يومياً', $money)) ?></div>
-            <?php if ($f['budget_type'] === 'daily'): ?><div class="text-xs text-ink-600 mt-1"><?= e(t('يعني تقريباً %s في 30 يوم لو فضلت شغالة.', ads_money($f['budget'] * 30, $cur ?: null))) ?></div><?php endif; ?>
+            <?php if ($f['budget_type'] === 'daily'): $days = (!empty($f['end']) && !empty($f['start']) && strtotime($f['end']) > strtotime($f['start'])) ? max(1, (int)round((strtotime($f['end']) - strtotime($f['start'])) / 86400)) : 0; ?>
+            <div class="text-xs text-ink-600 mt-1"><?= $days ? e(t('يعني تقريباً %s على مدى %s يوم.', ads_money($f['budget'] * $days, $cur ?: null), $days)) : e(t('يعني تقريباً %s في 30 يوم لو فضلت شغالة.', ads_money($f['budget'] * 30, $cur ?: null))) ?></div><?php endif; ?>
           </div>
           <dl class="grid sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
             <div><dt class="text-ink-500"><?= e(t('اسم الحملة')) ?></dt><dd class="font-medium text-ink-900"><?= e($f['name']) ?></dd></div>

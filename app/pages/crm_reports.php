@@ -145,7 +145,7 @@ render(t('تقارير المبيعات'), 'crm_reports', function () use ($rows
 
     <div class="card overflow-x-auto mb-5">
       <table class="w-full text-sm min-w-[860px]">
-        <thead><tr class="text-xs text-ink-500 border-b border-ink-100"><th class="text-start p-3"><?= e(t('الموظف')) ?></th><th><?= e(t('عملاء جداله')) ?></th><th><?= e(t('تواصل')) ?></th><th><?= e(t('مكالمات (ردّت)')) ?></th><th><?= e(t('بقوا عملاء')) ?></th><th><?= e(t('القيمة')) ?></th><th title="<?= e(t('الوسيط: نص العملاء اتكلّموا أسرع من كده')) ?>"><?= e(t('سرعة أول رد')) ?></th><th><?= e(t('متأخرة')) ?></th><th title="<?= e(t('كشف وتكميل من Apollo')) ?>"><?= e(t('كريديت Apollo')) ?></th></tr></thead>
+        <thead><tr class="text-xs text-ink-500 border-b border-ink-100"><th class="text-start p-3"><?= e(t('الموظف')) ?></th><th><?= e(t('عملاء جداد')) ?></th><th><?= e(t('تواصل')) ?></th><th><?= e(t('مكالمات (ردّت)')) ?></th><th><?= e(t('بقوا عملاء')) ?></th><th><?= e(t('القيمة')) ?></th><th title="<?= e(t('الوسيط: نص العملاء اتكلّموا أسرع من كده')) ?>"><?= e(t('سرعة أول رد')) ?></th><th><?= e(t('متأخرة')) ?></th><th title="<?= e(t('كشف وتكميل من Apollo')) ?>"><?= e(t('كريديت Apollo')) ?></th></tr></thead>
         <tbody>
         <?php foreach ($rows as $r): $ug = $goals['users'][$r['id']] ?? []; $conv = $r['leads'] ? round($r['won'] / $r['leads'] * 100) : null; ?>
           <tr class="border-b border-ink-50 align-top">
