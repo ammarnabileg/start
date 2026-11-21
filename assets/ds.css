@@ -196,6 +196,17 @@ html.dark .hub2-nav .hub2-i.on { background: rgb(var(--ink-200)) !important; col
 /* أول عنصر (نظرة عامة) من غير فاصل قبله */
 .hub2-nav > .hub2-gt:first-child { border-inline-start: 0; margin-inline-start: 0; }
 
+/* شبكة حالة قنوات جمع العملاء في نظرة عامة crm_capture */
+.cap-chs { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: .5rem; }
+.cap-ch { display: flex; align-items: center; gap: .6rem; padding: .7rem .8rem; border-radius: 14px;
+  border: 1px solid rgb(var(--ink-200)); background: rgb(var(--surface)); text-align: start; transition: border-color .12s, background .12s; }
+.cap-ch:hover { border-color: rgb(var(--brand-300)); background: rgb(var(--brand-50)); }
+.cap-ch-i { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; flex-shrink: 0;
+  color: var(--c); background: color-mix(in srgb, var(--c) 12%, transparent); }
+.cap-ch-t { min-width: 0; flex: 1; }
+.cap-ch-t b { display: block; font-size: .85rem; color: rgb(var(--ink-900)); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cap-ch-t small { display: block; font-size: .7rem; color: rgb(var(--ink-500)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
 /* نافذة التعديل المنبثقة */
 .cb-dlg::backdrop { background: rgba(13,22,48,.45); backdrop-filter: blur(2px); }
 html.dark .cb-dlg { background: rgb(var(--surface)); border-color: rgb(var(--ink-200)); }

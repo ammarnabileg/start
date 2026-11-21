@@ -19,8 +19,19 @@
       '<div class="mt-4"><div class="flex items-center gap-2 mb-2"><b class="text-sm text-ink-900">' + esc(T.title) + '</b>' + (src[0] && src[0].a ? '<span class="text-xs text-ink-500">· ' + esc(f(T.best, src[0].l)) + '</span>' : '') + '<a class="link text-xs ms-auto" href="' + esc(U.prospects) + '">' + esc(T.open) + '</a></div>' +
       (A || B ? '<div class="space-y-1.5">' + src.filter(function (x) { return x.a || x.b; }).map(function (x) { var dd = x.b ? Math.round((x.a - x.b) / x.b * 100) : null;
         return '<div class="cap-src"><span class="truncate">' + esc(x.l) + '</span><span class="cap-bar"><i style="--w:' + (x.a / mx * 100) + '%;--c:' + (COL[x.k] || '#64748b') + '"></i></span><b>' + num(x.a) + '</b><em class="' + (dd == null ? '' : dd >= 0 ? 'up' : 'down') + '">' + (dd == null ? (x.a && B ? esc(T.fresh) : '') : (dd >= 0 ? '▲' : '▼') + Math.abs(dd) + '%') + '</em></div>'; }).join('') + '</div>'
-        : '<p class="text-sm text-ink-500">' + esc(T.none) + '</p>') + '</div></section>';
-    requestAnimationFrame(function () { requestAnimationFrame(function () { ov.querySelectorAll('.cap-bar i').forEach(function (i) { i.classList.add('go'); }); }); }); }
+        : '<p class="text-sm text-ink-500">' + esc(T.none) + '</p>') + '</div>' +
+      /* حالة قنوات جمع العملاء: كل أداة وحالتها + رابط مباشر لإعدادها (استغلال المساحة بإجراءات مفيدة) */
+      (function () { var H = window.HUB; if (!H || !H.tiles) return '';
+        var caps = H.tiles.filter(function (t) { return t.g === 'cap' || t.g === 'ads'; });
+        var onRe = /شغال|شغّال|متوصل|مفعّل|مفعل|active|connected|on\b/i, offRe = /مقفول|مش متوصل|مش مفعّل|مغلق|غير متصل|^0\b|^٠/;
+        var ch = caps.map(function (t) { var m = (t.m || '').toString(); var isOn = onRe.test(m); var isOff = offRe.test(m) || /^0\s|^٠/.test(m) || m === '';
+          var dot = isOn ? 'ds-dot--ok' : isOff ? 'ds-dot--muted' : 'ds-dot--info';
+          return '<button type="button" class="cap-ch" data-ch="' + esc(t.id) + '" style="--c:' + t.c + '"><span class="cap-ch-i">' + ic(t.i, 'w-4 h-4') + '</span><span class="cap-ch-t"><b>' + esc(t.n) + '</b>' + (m ? '<small>' + esc(m) + '</small>' : '') + '</span><span class="ds-dot ' + dot + '"></span></button>'; }).join('');
+        return '<div class="mt-5"><b class="text-sm text-ink-900 block mb-2">' + esc(T.channels || 'قنوات جمع العملاء') + '</b><div class="cap-chs">' + ch + '</div></div>'; })() +
+      '</section>';
+    requestAnimationFrame(function () { requestAnimationFrame(function () { ov.querySelectorAll('.cap-bar i').forEach(function (i) { i.classList.add('go'); }); }); });
+    // الضغط على قناة → يفتح تابها (نفس آلية الهاش في hub.js)
+    ov.addEventListener('click', function (e) { var b = e.target.closest('[data-ch]'); if (!b) return; try { location.hash = '#' + b.dataset.ch; } catch (x) {} }); }
 
   /* ---------- شريط الأقسام ---------- */
   var nav = document.getElementById('cap-nav');
