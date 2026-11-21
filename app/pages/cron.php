@@ -23,7 +23,7 @@ try {
     // كل الشركات النشطة: شغل الـ CRM (المتابعات، سرعة الرد، الاجتماعات، الإيميلات) مالوش علاقة بـ Zernio
     // والخطوات اللي محتاجة Zernio (تنبيهات الأداء، الرد الآلي، الحملات، تقارير التحليلات) بتتعدى للي مش رابطه
     $rows = db()->query("SELECT w.id, w.name, EXISTS (SELECT 1 FROM connectors c WHERE c.workspace_id = w.id AND c.provider = 'zernio') has_z
-        FROM workspaces w WHERE COALESCE(w.status, 'active') = 'active' ORDER BY w.id")->fetchAll();
+        FROM workspaces w WHERE " . ws_access_where('w') . " ORDER BY w.id")->fetchAll();
     foreach ($rows as $w) {
         $wid = (int)$w['id']; $hasZ = (bool)$w['has_z'];
         $line = 'ws ' . $wid . ($hasZ ? '' : ' (no zernio)') . ':';
@@ -195,14 +195,14 @@ try {
     try { $ap = function_exists('tnd_apify_tick') ? tnd_apify_tick() : ''; if ($ap !== '') $out[] = 'tenders_apify: ' . $ap; } catch (Throwable $t) {}
     // المنافسات والمناقصات: تنبيه بالجديد المطابق لكل شركة عندها معرفة (الكلمات بتيجي من معرفتها)
     try {
-        foreach (db()->query("SELECT DISTINCT k.workspace_id FROM kb_sections k JOIN workspaces w ON w.id = k.workspace_id WHERE COALESCE(w.status, 'active') = 'active' AND k.section IN ('company', 'services', 'frame_ref')")->fetchAll(PDO::FETCH_COLUMN) as $tw) {
+        foreach (db()->query("SELECT DISTINCT k.workspace_id FROM kb_sections k JOIN workspaces w ON w.id = k.workspace_id WHERE " . ws_access_where('w') . " AND k.section IN ('company', 'services', 'frame_ref')")->fetchAll(PDO::FETCH_COLUMN) as $tw) {
             try { $n = (int)ai_as_workspace((int)$tw, function () { return function_exists('tnd_tick') ? tnd_tick() : 0; }); if ($n) $out[] = 'ws ' . (int)$tw . ': tenders+' . $n; }
             catch (Throwable $t) { $out[] = 'ws ' . (int)$tw . ': tenders=error'; }
         }
     } catch (Throwable $t) {}
     // متابعة المنافسين: لكل الشركات (حتى اللي مش مربوطة بالنشر)، كل منافس مرة في اليوم
     try {
-        foreach (db()->query("SELECT DISTINCT c.workspace_id FROM competitors c JOIN workspaces w ON w.id = c.workspace_id WHERE COALESCE(w.status, 'active') = 'active'")->fetchAll(PDO::FETCH_COLUMN) as $cw) {
+        foreach (db()->query("SELECT DISTINCT c.workspace_id FROM competitors c JOIN workspaces w ON w.id = c.workspace_id WHERE " . ws_access_where('w') . "")->fetchAll(PDO::FETCH_COLUMN) as $cw) {
             try { $n = (int)ai_as_workspace((int)$cw, function () { $k = function_exists('comp_tick') ? comp_tick(10) : 0; if (function_exists('cs_tick')) { try { $k += cs_tick(4); } catch (Throwable $e) {} } if (function_exists('ca_tick')) { try { $k += ca_tick(3); } catch (Throwable $e) {} } if (function_exists('cw_rank_tick')) { try { cw_rank_tick(); } catch (Throwable $e) {} } if (function_exists('cg_tick')) { try { $k += cg_tick(3); } catch (Throwable $e) {} } if (function_exists('cmp_alert_tick')) { try { if (cmp_disc_pending()) cmp_disc_collect(); cmp_alert_tick(); cmp_digest_tick(); } catch (Throwable $e) {} } return $k; }); if ($n) $out[] = 'ws ' . (int)$cw . ': competitors+' . $n; }
             catch (Throwable $t) { $out[] = 'ws ' . (int)$cw . ': competitors=error'; }
         }

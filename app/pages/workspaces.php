@@ -15,15 +15,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         // التوقيت من متصفح المستخدم (شركة في الرياض تاخد توقيت الرياض، مش القاهرة الافتراضي) — المنشورات المجدولة بتعتمد عليه
         $tz = (string)($_POST['tz'] ?? ''); if (!in_array($tz, timezone_identifiers_list(), true)) $tz = 'Africa/Cairo';
-        $pdo->prepare("INSERT INTO workspaces (name, created_by, timezone) VALUES (?, ?, ?)")
-            ->execute([mb_substr($name, 0, 120), $me['id'], $tz]);
-        $wid = (int)$pdo->lastInsertId();
-        $pdo->prepare("INSERT INTO workspace_users (workspace_id, user_id, role, status) VALUES (?, ?, 'owner', 'active')")
-            ->execute([$wid, $me['id']]);
-        $_SESSION['ws'] = $wid; user_workspaces(true); // القائمة كانت متخزنة قبل الإضافة
+        $cc = strtoupper(preg_replace('/[^A-Za-z]/', '', (string)($_POST['country'] ?? '')));
+        $meta = [
+            'admin_name' => mb_substr(trim((string)($_POST['admin_name'] ?? $me['name'])), 0, 120),
+            'email' => mb_substr(trim((string)($_POST['email'] ?? $me['email'])), 0, 160),
+            'contact' => mb_substr(trim((string)($_POST['contact'] ?? '')), 0, 120),
+            'country' => $cc,
+            'timezone' => $tz,
+            'biz_type' => mb_substr(trim((string)($_POST['biz_type'] ?? '')), 0, 120),
+            'plan' => mb_substr(trim((string)($_POST['plan'] ?? '')), 0, 40),
+            'submitted_at' => gmdate('Y-m-d H:i:s'),
+        ];
+        // مدير المنصة لو أنشأ شركة بنفسه: تتعتمد ضمن إجراء إداري صريح ومسجّل (مش قيد المراجعة)
+        $adminCreate = is_admin();
+        // الإنشاء كله في معاملة واحدة عشان ميحصلش صف شركة بدون مالك عند أي خطأ
+        $pdo->beginTransaction();
+        try {
+            $pdo->prepare("INSERT INTO workspaces (name, created_by, timezone, approval_status, sub_status, plan, legacy, reviewed_by, reviewed_at, request_meta)
+                VALUES (?, ?, ?, ?, ?, ?, 0, ?, " . ($adminCreate ? 'NOW()' : 'NULL') . ", ?)")
+                ->execute([mb_substr($name, 0, 120), $me['id'], $tz,
+                    $adminCreate ? 'approved' : 'pending_review',
+                    $adminCreate ? 'active' : 'pending_payment',
+                    $meta['plan'], $adminCreate ? $me['id'] : null,
+                    json_encode($meta, JSON_UNESCAPED_UNICODE)]);
+            $wid = (int)$pdo->lastInsertId();
+            $pdo->prepare("INSERT INTO workspace_users (workspace_id, user_id, role, status) VALUES (?, ?, 'owner', 'active')")
+                ->execute([$wid, $me['id']]);
+            if ($cc !== '') save_setting('country_' . $wid, $cc, $pdo);
+            $pdo->prepare("INSERT INTO ws_approvals (workspace_id, admin_id, action, old_state, new_state) VALUES (?, ?, ?, ?, ?)")
+                ->execute([$wid, $me['id'], $adminCreate ? 'admin_create' : 'request', null, $adminCreate ? 'approved' : 'pending_review']);
+            $pdo->commit();
+        } catch (Throwable $ex) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            flash('error', t('حصلت مشكلة أثناء إنشاء الطلب. حاول تاني.'));
+            redirect(url('workspaces'));
+        }
+        user_workspaces(true);
         log_activity('workspace.add', $name);
-        flash('success', t('اتعملت شركة "%s" وانت صاحبها. اربطها من صفحة التكاملات عشان تبدأ.', $name));
-        redirect(url('connectors'));
+        if ($adminCreate) {
+            $_SESSION['ws'] = $wid;
+            flash('success', t('اتعملت شركة "%s" ومعتمدة (إجراء إداري). اربطها من صفحة التكاملات عشان تبدأ.', $name));
+            redirect(url('connectors'));
+        }
+        $_SESSION['ws'] = $wid; // عشان صفحة الحالة تفتح على الطلب الجديد
+        flash('success', t('تم استلام طلب شركة "%s" وهو قيد المراجعة.', $name));
+        redirect(url('ws_status', ['id' => $wid]));
+    }
+
+    if ($action === 'cancel_request') {
+        // المستخدم يقدر يلغي طلبه طول ما هو قيد المراجعة (بيحذف الشركة والعضوية نهائيًا)
+        $st = $pdo->prepare("SELECT w.name, w.approval_status FROM workspaces w
+            JOIN workspace_users wu ON wu.workspace_id = w.id
+            WHERE w.id = ? AND wu.user_id = ? AND wu.role = 'owner' AND wu.status = 'active'");
+        $st->execute([$id, $me['id']]);
+        $row = $st->fetch();
+        if (!$row) { flash('error', t('الطلب ده مش موجود.')); redirect(url('workspaces')); }
+        if (($row['approval_status'] ?? '') !== 'pending_review') { flash('error', t('مينفعش تلغي الطلب في حالته الحالية.')); redirect(url('ws_status', ['id' => $id])); }
+        require_once ROOT_DIR . '/app/ws_purge.php'; ws_purge((int)$id);
+        log_activity('workspace.cancel_request', (string)$row['name']);
+        user_workspaces(true);
+        flash('success', t('تم إلغاء الطلب.'));
+        redirect(url('workspaces'));
     }
 
     if ($action === 'accept' || $action === 'decline') {
@@ -121,15 +173,18 @@ render(t('شركاتي'), 'workspaces', function () use ($list, $invites, $cur, 
         <div class="grid sm:grid-cols-2 gap-4" id="ws-list">
         <?php foreach ($list as $w): $wid = (int)$w['id']; $isCur = $cur && (int)$cur['id'] === $wid; $owner = $w['my_role'] === 'owner';
             $cc = strtoupper((string)setting('country_' . $wid, '')); $flag = isset($cs[$cc]) ? $cs[$cc]['flag'] : '';
-            $linked = (bool)connector('zernio', $wid); $n = $members[$wid] ?? 1; ?>
-          <div class="ws card p-5 flex flex-col <?= $isCur ? 'ring-2 ring-brand-500' : '' ?>" data-q="<?= e(mb_strtolower($w['name'])) ?>">
+            $linked = (bool)connector('zernio', $wid); $n = $members[$wid] ?? 1;
+            $gate = ws_access_state($w); $gated = !$gate['ok'];
+            $stChip = ['pending_review' => ['bg-amber-100 text-amber-800', t('قيد المراجعة')], 'rejected' => ['bg-red-100 text-red-700', t('مرفوضة')], 'suspended' => ['bg-red-100 text-red-700', t('موقوفة')], 'expired' => ['bg-orange-100 text-orange-800', t('اشتراك منتهي')], 'pending_payment' => ['bg-indigo-100 text-indigo-800', t('بانتظار الدفع')]][$gate['reason']] ?? null; ?>
+          <div class="ws card p-5 flex flex-col <?= $isCur ? 'ring-2 ring-brand-500' : '' ?> <?= $gated ? 'opacity-90' : '' ?>" data-q="<?= e(mb_strtolower($w['name'])) ?>">
             <div class="flex items-start gap-3">
-              <span class="relative w-12 h-12 shrink-0 rounded-2xl bg-gradient-to-br from-brand-500 to-cyan-500 text-white text-lg font-bold flex items-center justify-center"><?= e(mb_strtoupper(mb_substr($w['name'], 0, 1))) ?>
+              <span class="relative w-12 h-12 shrink-0 rounded-2xl bg-gradient-to-br <?= $gated ? 'from-ink-300 to-ink-400' : 'from-brand-500 to-cyan-500' ?> text-white text-lg font-bold flex items-center justify-center"><?= e(mb_strtoupper(mb_substr($w['name'], 0, 1))) ?>
                 <?php if ($flag): ?><span class="absolute -bottom-1 -end-1 text-base leading-none"><?= $flag ?></span><?php endif; ?></span>
               <div class="min-w-0 flex-1">
                 <div class="font-bold text-ink-900 truncate"><?= e($w['name']) ?></div>
                 <div class="flex flex-wrap gap-1 mt-1 text-[11px]">
-                  <?php if ($isCur): ?><span class="rounded-full bg-brand-600 text-white px-2 py-0.5"><?= e(t('مفتوحة دلوقتي')) ?></span><?php endif; ?>
+                  <?php if ($stChip): ?><span class="rounded-full <?= $stChip[0] ?> px-2 py-0.5"><?= e($stChip[1]) ?></span>
+                  <?php elseif ($isCur): ?><span class="rounded-full bg-brand-600 text-white px-2 py-0.5"><?= e(t('مفتوحة دلوقتي')) ?></span><?php endif; ?>
                   <span class="rounded-full <?= $owner ? 'bg-amber-50 text-amber-700' : 'bg-ink-100 text-ink-700' ?> px-2 py-0.5"><?= e(role_label($w['my_role'])) ?></span>
                 </div>
               </div>
@@ -139,7 +194,9 @@ render(t('شركاتي'), 'workspaces', function () use ($list, $invites, $cur, 
               <div class="rounded-xl px-3 py-2 <?= $linked ? 'bg-lime-50' : 'bg-red-50' ?>"><div class="text-ink-500"><?= e(t('خدمة النشر')) ?></div><div class="font-bold <?= $linked ? 'text-lime-700' : 'text-red-700' ?>"><?= e($linked ? t('مربوطة') : t('مش مربوطة')) ?></div></div>
             </div>
             <div class="flex items-center gap-2 mt-4 pt-4 border-t border-ink-100">
-              <?php if (!$isCur): ?>
+              <?php if ($gated): ?>
+                <a class="btn-ghost !py-1.5" href="<?= e(url('ws_status', ['id' => $wid])) ?>"><?= e(t('متابعة الحالة')) ?></a>
+              <?php elseif (!$isCur): ?>
                 <form method="post" action="<?= e(url('switch')) ?>"><?= csrf_field() ?><input type="hidden" name="id" value="<?= $wid ?>">
                   <button class="btn-primary !py-1.5"><?= e(t('افتح')) ?></button></form>
               <?php else: ?>
@@ -165,17 +222,24 @@ render(t('شركاتي'), 'workspaces', function () use ($list, $invites, $cur, 
         </div>
       </div>
 
+      <?php $meU = current_user(); $isAdmin = is_admin(); ?>
       <form method="post" class="card p-5 space-y-3 lg:sticky lg:top-4">
         <?= csrf_field() ?><input type="hidden" name="action" value="add"><input type="hidden" name="tz" data-tz><script>document.querySelectorAll('[data-tz]').forEach(function (i) { try { i.value = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) {} });</script>
-        <h2 class="font-bold text-ink-900"><?= e(t('شركة جديدة')) ?></h2>
-        <input name="name" placeholder="<?= e(t('اسم الشركة')) ?>" required maxlength="120" class="input">
-        <ol class="text-xs text-ink-600 space-y-1 list-decimal ps-4">
-          <li><?= e(t('اعمل الشركة')) ?></li>
-          <li><?= e(t('اربطها بمفتاح الـ API من صفحة التكاملات')) ?></li>
-          <li><?= e(t('اختار دولتها من الإعدادات وادعي فريقها')) ?></li>
-        </ol>
-        <p class="text-xs text-ink-500"><?= e(t('كل شركة ليها مفاتيحها وفريقها لوحدها.')) ?></p>
-        <button class="btn-primary w-full"><?= e(t('إنشاء')) ?></button>
+        <h2 class="font-bold text-ink-900"><?= e($isAdmin ? t('شركة جديدة') : t('طلب شركة جديدة')) ?></h2>
+        <?php if (!$isAdmin): ?><p class="text-xs text-ink-500"><?= e(t('الطلب بيتراجع من إدارة المنصة قبل التفعيل. بنجمع أقل بيانات ممكنة.')) ?></p><?php endif; ?>
+        <label class="block"><span class="label"><?= e(t('اسم الشركة')) ?></span><input name="name" placeholder="<?= e(t('اسم الشركة')) ?>" required maxlength="120" class="input !mt-0"></label>
+        <?php if (!$isAdmin): ?>
+        <label class="block"><span class="label"><?= e(t('اسم المسؤول')) ?></span><input name="admin_name" value="<?= e($meU['name'] ?? '') ?>" maxlength="120" class="input !mt-0"></label>
+        <label class="block"><span class="label"><?= e(t('بريد التواصل')) ?></span><input name="email" type="email" value="<?= e($meU['email'] ?? '') ?>" maxlength="160" class="input !mt-0" dir="ltr"></label>
+        <label class="block"><span class="label"><?= e(t('وسيلة تواصل (واتساب/هاتف)')) ?></span><input name="contact" maxlength="120" class="input !mt-0" dir="ltr" placeholder="+20…"></label>
+        <label class="block"><span class="label"><?= e(t('الدولة')) ?></span>
+          <select name="country" class="input !mt-0">
+            <option value=""><?= e(t('اختر الدولة')) ?></option>
+            <?php foreach ($cs as $code => $cData): ?><option value="<?= e($code) ?>"><?= e($cData[2] . ' ' . (lang() === 'en' ? $cData[1] : $cData[0])) ?></option><?php endforeach; ?>
+          </select></label>
+        <label class="block"><span class="label"><?= e(t('نوع النشاط')) ?></span><input name="biz_type" maxlength="120" class="input !mt-0" placeholder="<?= e(t('مثال: تجارة تجزئة، عقارات، خدمات…')) ?>"></label>
+        <?php endif; ?>
+        <button class="btn-primary w-full"><?= e($isAdmin ? t('إنشاء') : t('إرسال الطلب')) ?></button>
       </form>
     </div>
     <script>

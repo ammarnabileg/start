@@ -258,9 +258,11 @@ function user_workspaces(bool $fresh = false): array
         if (!$u) {
             return $list = [];
         }
+        // بنرجّع كل شركات المستخدم (حتى الموقوفة/المنتظرة) ما عدا المحذوفة، والبوابة في الراوتر
+        // هي اللي بتقرر الوصول الفعلي عبر ws_access_state — عشان المستخدم يشوف صفحة حالة واضحة بدل اختفاء الشركة.
         $st = db()->prepare("SELECT w.*, wu.role AS my_role FROM workspaces w
             JOIN workspace_users wu ON wu.workspace_id = w.id
-            WHERE wu.user_id = ? AND wu.status = 'active'" . (is_admin() ? '' : " AND COALESCE(w.status, 'active') = 'active'") . " ORDER BY w.name");
+            WHERE wu.user_id = ? AND wu.status = 'active' AND COALESCE(w.status, 'active') <> 'deleted' ORDER BY w.name");
         $st->execute([$u['id']]);
         $list = $st->fetchAll();
     }
@@ -282,8 +284,63 @@ function current_workspace(): ?array
             return $w;
         }
     }
+    // دخول مدير المنصة لشركة للدعم: وصول مؤقت من الجلسة، من غير ما يتحوّل لملكية دائمة في قاعدة البيانات
+    if ($id && is_admin() && !empty($_SESSION['admin_enter'][$id])) {
+        $st = db()->prepare("SELECT * FROM workspaces WHERE id = ? AND COALESCE(status,'active') <> 'deleted'");
+        $st->execute([$id]);
+        $w = $st->fetch();
+        if ($w) { $w['my_role'] = 'owner'; $w['__admin_enter'] = true; return $w; }
+        unset($_SESSION['admin_enter'][$id]);
+    }
+    if (!$list) return null;
     $_SESSION['ws'] = (int)$list[0]['id'];
     return $list[0];
+}
+
+/**
+ * القرار الموثوق لوصول الشركة: الموافقة الإدارية + حالة الاشتراك + الإيقاف.
+ * بيرجع ['ok'=>bool, 'reason'=>code, 'label'=>نص]. ده المصدر الوحيد للحقيقة ويتفرض في السيرفر.
+ */
+function ws_access_state(array $w): array
+{
+    $status = (string)($w['status'] ?? 'active');
+    $approval = (string)($w['approval_status'] ?? 'approved');
+    $sub = (string)($w['sub_status'] ?? 'active');
+    $override = !empty($w['admin_override']);
+    $end = (string)($w['sub_end'] ?? '');
+    $mk = function ($reason, $label) { return ['ok' => false, 'reason' => $reason, 'label' => $label]; };
+
+    if ($status === 'deleted') return $mk('deleted', t('الشركة محذوفة.'));
+    if ($status === 'suspended') return $mk('suspended', t('الشركة موقوفة من إدارة المنصة.'));
+    if ($approval === 'pending_review') return $mk('pending_review', t('طلب شركتك قيد المراجعة من إدارة المنصة.'));
+    if ($approval === 'rejected') return $mk('rejected', t('تم رفض طلب هذه الشركة.'));
+    if ($approval !== 'approved') return $mk('pending_review', t('طلب شركتك قيد المراجعة.'));
+
+    // الاعتماد الإداري وحده لا يكفي: لازم شروط الاشتراك كمان، إلا باستثناء إداري صريح مسجّل
+    if (!$override) {
+        if ($end !== '' && $end < date('Y-m-d')) return $mk('expired', t('انتهى اشتراك الشركة. جدّد الاشتراك للمتابعة.'));
+        if (in_array($sub, ['canceled', 'expired'], true)) return $mk('expired', t('انتهى اشتراك الشركة. جدّد الاشتراك للمتابعة.'));
+        if ($sub === 'pending_payment') return $mk('pending_payment', t('طلب شركتك معتمد — في انتظار تأكيد الدفع لتفعيل الخدمات.'));
+        // past_due = مهلة سماح: الوصول متاح مع تنبيه (مش حجب)
+    }
+    return ['ok' => true, 'reason' => 'active', 'label' => ''];
+}
+
+/** شرط SQL لتصفية الشركات المتاح الوصول إليها فعليًا (للـ cron والاستعلامات المجمّعة). */
+function ws_access_where(string $a = 'w'): string
+{
+    return "COALESCE($a.status,'active')='active'"
+        . " AND COALESCE($a.approval_status,'approved')='approved'"
+        . " AND ($a.admin_override=1 OR ("
+        . "COALESCE($a.sub_status,'active') NOT IN ('canceled','expired','pending_payment')"
+        . " AND ($a.sub_end IS NULL OR $a.sub_end >= CURDATE())))";
+}
+
+/** رقم طلب الشركة المعروض للمستخدم ومالك المنصة. */
+function ws_request_no($w): string
+{
+    $id = is_array($w) ? (int)($w['id'] ?? 0) : (int)$w;
+    return 'REQ-' . str_pad((string)$id, 5, '0', STR_PAD_LEFT);
 }
 
 function is_ws_owner(): bool

@@ -5,6 +5,38 @@
  * صفحة setup تشغّل أي رقم لم يُشغَّل من قبل.
  */
 return [
+    '080_ws_approval' => [
+        // نظام موافقة المنصة على الشركات + الاشتراك. الأعمدة ليها قيم افتراضية آمنة:
+        // الشركات الموجودة وقت التحديث تاخد approved/active تلقائيًا فمتتوقفش، وبعدين نعلّمها legacy=1.
+        "ALTER TABLE workspaces
+            ADD COLUMN approval_status VARCHAR(20) NOT NULL DEFAULT 'approved',
+            ADD COLUMN sub_status VARCHAR(20) NOT NULL DEFAULT 'active',
+            ADD COLUMN plan VARCHAR(40) NOT NULL DEFAULT '',
+            ADD COLUMN legacy TINYINT(1) NOT NULL DEFAULT 0,
+            ADD COLUMN reviewed_by INT UNSIGNED NULL,
+            ADD COLUMN reviewed_at DATETIME NULL,
+            ADD COLUMN reject_reason VARCHAR(400) NULL,
+            ADD COLUMN sub_start DATE NULL,
+            ADD COLUMN sub_end DATE NULL,
+            ADD COLUMN payment_verified TINYINT(1) NOT NULL DEFAULT 0,
+            ADD COLUMN admin_override TINYINT(1) NOT NULL DEFAULT 0,
+            ADD COLUMN request_meta TEXT NULL",
+        // كل الشركات القائمة = قديمة معتمدة (grandfathered)، تحتفظ بوصولها الحالي
+        "UPDATE workspaces SET legacy = 1 WHERE approval_status = 'approved'",
+        "ALTER TABLE workspaces ADD INDEX idx_approval (approval_status), ADD INDEX idx_sub (sub_status)",
+        // سجل كامل لقرارات مالك المنصة على الشركات (اعتماد/رفض/إيقاف/اشتراك)
+        "CREATE TABLE IF NOT EXISTS ws_approvals (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            admin_id INT UNSIGNED NULL,
+            action VARCHAR(40) NOT NULL,
+            old_state VARCHAR(60) NULL,
+            new_state VARCHAR(60) NULL,
+            reason VARCHAR(400) NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            KEY ws (workspace_id, created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+    ],
     '079_mcp_actions' => [
         "CREATE TABLE IF NOT EXISTS mcp_actions (
             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

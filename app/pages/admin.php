@@ -18,6 +18,7 @@ $stats = [
     'connections' => $n("SELECT COUNT(*) FROM connectors"),
     'actions24' => $n("SELECT COUNT(*) FROM activity_log WHERE created_at > NOW() - INTERVAL 1 DAY"),
     'invites' => $n("SELECT COUNT(*) FROM workspace_users WHERE status = 'pending'") + $n("SELECT COUNT(*) FROM workspace_invites WHERE expires_at > NOW()"),
+    'ws_pending' => $n("SELECT COUNT(*) FROM workspaces WHERE approval_status = 'pending_review' AND COALESCE(status,'active') <> 'deleted'"),
 ];
 
 // نشاط آخر 30 يوم: عمليات في اليوم + تسجيلات دخول
@@ -65,6 +66,16 @@ if ($free !== false) $health[] = [t('مساحة فاضية على السيرفر
 $health[] = ['cURL', function_exists('curl_init') ? t('موجود') : t('ناقص'), function_exists('curl_init')];
 
 render(t('نظرة عامة'), 'admin', function () use ($stats, $days, $topWs, $recent, $health) {
+    if (!empty($stats['ws_pending'])): ?>
+      <a href="<?= e(url('admin_workspaces', ['tab' => 'requests'])) ?>" class="flex items-center gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 mb-6 hover:bg-amber-100 transition">
+        <span class="w-11 h-11 rounded-xl bg-amber-500 text-white text-lg font-bold flex items-center justify-center shrink-0"><?= (int)$stats['ws_pending'] ?></span>
+        <div class="min-w-0 flex-1">
+          <div class="font-bold text-amber-900"><?= e($stats['ws_pending'] === 1 ? t('طلب شركة جديد في انتظار المراجعة') : t('%s طلبات شركات في انتظار المراجعة', $stats['ws_pending'])) ?></div>
+          <div class="text-xs text-amber-700"><?= e(t('راجع الطلبات واعتمدها أو ارفضها من إدارة الشركات.')) ?></div>
+        </div>
+        <span class="text-amber-700 text-sm font-medium shrink-0"><?= e(t('مراجعة ←')) ?></span>
+      </a>
+    <?php endif;
     $cards = [
         [t('المستخدمين'), $stats['users'], t('%s نشطين آخر 7 أيام · %s موقوفين', $stats['active7'], $stats['users_suspended']), url('admin_users')],
         [t('الشركات'), $stats['workspaces'], t('%s مش مربوطة · %s موقوفة', $stats['ws_unconnected'], $stats['ws_suspended']), url('admin_workspaces')],

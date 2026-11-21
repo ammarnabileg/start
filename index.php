@@ -100,9 +100,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $page !== 'smsgate_hook' && $page !
 }
 
 // كل الصفحات بتشتغل جوه شركة. لو مالوش شركات، يروح صفحة الشركات (ينشئ واحدة أو يوافق على دعوة)
-$noWorkspacePages = ['home', 'login', 'forgot', 'reset', 'register', 'invite', 'pref', 'cron', 'share', 'smsgate_hook', 'zernio_hook', 'crm_hook', 'lead_form', 'crm_t', 'crm_book', 'crm_go', 'crm_v', 'crm_js', 'go', 'lp', 'manifest', 'appicon', 'mcp', 'logout', 'workspaces', 'switch', 'account', 'system', 'admin', 'admin_workspaces', 'admin_users', 'admin_activity', 'admin_compare', 'impersonate_stop'];
+$noWorkspacePages = ['home', 'login', 'forgot', 'reset', 'register', 'invite', 'pref', 'cron', 'share', 'smsgate_hook', 'zernio_hook', 'crm_hook', 'lead_form', 'crm_t', 'crm_book', 'crm_go', 'crm_v', 'crm_js', 'go', 'lp', 'manifest', 'appicon', 'mcp', 'logout', 'workspaces', 'switch', 'account', 'ws_status', 'system', 'admin', 'admin_workspaces', 'admin_users', 'admin_activity', 'admin_compare', 'impersonate_stop'];
 if (!in_array($page, $noWorkspacePages, true) && !current_workspace()) {
     redirect(url('workspaces'));
+}
+
+// بوابة الوصول (deny-by-default): أي صفحة تشغيلية لازم شركتها تكون معتمدة + اشتراكها سليم + مش موقوفة.
+// الفرض في السيرفر مش بإخفاء الواجهة بس — بيغطي الروابط المباشرة و AJAX. استثناء المدير وقت دخوله المؤقت (مسجّل).
+if (!in_array($page, $noWorkspacePages, true) && ($cwGate = current_workspace())) {
+    $adminEnter = is_admin() && !empty($_SESSION['admin_enter'][(int)$cwGate['id']]);
+    if (!$adminEnter) {
+        $gate = ws_access_state($cwGate);
+        if (!$gate['ok']) {
+            $wantsJson = stripos((string)($_SERVER['HTTP_ACCEPT'] ?? ''), 'json') !== false
+                || !empty($_SERVER['HTTP_X_REQUESTED_WITH']) || !empty($_SERVER['HTTP_X_WS_ID'])
+                || isset($_POST['ajax']) || isset($_GET['ajax']);
+            if ($wantsJson) { http_response_code(403); header('Content-Type: application/json; charset=utf-8'); exit(json_encode(['ok' => false, 'error' => $gate['label'], 'ws_blocked' => $gate['reason']], JSON_UNESCAPED_UNICODE)); }
+            flash('info', $gate['label']);
+            redirect(url('ws_status', ['id' => (int)$cwGate['id']]));
+        }
+    }
 }
 
 // تبويبين على شركتين: الصفحة بتبعت رقم الشركة اللي اتفتحت عليها (X-WS-Id أو _ws)، ولو الشركة اتغيرت من تبويب تاني بنرفض بدل ما نحفظ في الشركة الغلط

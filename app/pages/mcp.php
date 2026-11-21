@@ -20,6 +20,11 @@ $tok = $token !== '' ? mcp_token_resolve($token) : null;
 if (!$tok) { header('WWW-Authenticate: Bearer'); $rpcErr(null, -32001, 'Unauthorized: provide a valid Bearer token from the panel (المساعد الخارجي).', 401); }
 $wid = (int)$tok['workspace_id']; $scopes = (string)$tok['scopes'];
 
+// بوابة الوصول: الشركة لازم تكون معتمدة + اشتراكها سليم + مش موقوفة، وإلا نرفض كل استدعاءات الـ API
+$wsRow = db()->prepare("SELECT * FROM workspaces WHERE id = ?"); $wsRow->execute([$wid]); $wsRow = $wsRow->fetch() ?: [];
+$wsGate = $wsRow ? ws_access_state($wsRow) : ['ok' => false, 'label' => 'Workspace not found'];
+if (!$wsGate['ok']) { $rpcErr(null, -32003, 'Workspace not active: ' . $wsGate['label'], 403); }
+
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') { http_response_code(200); echo json_encode(['ok' => true, 'server' => 'watad-mcp']); exit; }
 
 $body = json_decode((string)file_get_contents('php://input'), true);
