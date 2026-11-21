@@ -225,7 +225,7 @@ html.dark #ai-workforce .aw-visual{background:radial-gradient(ellipse 72% 62% at
 @keyframes awBlink{0%,100%{opacity:1}50%{opacity:.35}}
 #ai-workforce .aw-cap{display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--awm);font-size:11px;padding:6px 11px 12px;flex-wrap:wrap}
 #ai-workforce .aw-cap .mark{color:#52C5D0;font-weight:750}
-@media(max-width:780px){#ai-workforce .aw-frame{padding:10px 5px}#ai-workforce .aw-visual{overflow:auto}#ai-workforce .aw-visual svg{min-width:900px}#ai-workforce .aw-tag{font-size:9px;padding:3px 6px;gap:3px}#ai-workforce .aw-tag .aw-tst{display:none}}
+@media(max-width:780px){#ai-workforce .aw-frame{padding:10px 8px}#ai-workforce .aw-visual{overflow:visible}#ai-workforce .aw-visual svg{min-width:0}#ai-workforce .aw-tags{position:static;display:flex;flex-wrap:wrap;justify-content:center;align-content:flex-start;gap:6px;margin-top:9px}#ai-workforce .aw-tag{position:static!important;left:auto!important;top:auto!important;transform:none!important;font-size:11px;padding:5px 11px;gap:5px;box-shadow:0 2px 8px rgba(15,23,42,.12)}#ai-workforce .aw-tag:hover{transform:translateY(-1px)!important}#ai-workforce .aw-tag .aw-tst{display:none}}
 </style>
 CSS;
 
