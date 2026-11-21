@@ -200,7 +200,7 @@
   function card(it) {
     var t = it.topic || {}, st = it.status, ready = it.linkedin != null;
     var badge = st === 'rejected' ? 'badge-red' : st === 'pending' ? 'badge-amber' : st === 'draft' ? '' : 'badge-green';
-    var h = '<article class="card p-4" data-id="' + it.id + '"><header class="flex flex-wrap items-start gap-2 mb-3">'
+    var h = '<article class="cb-card card p-4" data-id="' + it.id + '"><header class="flex flex-wrap items-start gap-2 mb-3">'
       + (ready && ['draft', 'approved', 'rejected'].indexOf(st) >= 0 ? '<input type="checkbox" class="cp-sel mt-1.5"' + (sel[it.id] ? ' checked' : '') + '>' : '')
       + '<div class="min-w-0 flex-1"><b class="text-ink-900">' + it.seq + '. ' + esc(t.title || '') + '</b><div class="text-xs text-ink-500">' + esc([t.angle, t.service, t.audience, (T.cats || {})[t.category] || t.category, t.objective].filter(Boolean).join(' · ')) + '</div></div>'
       + (+it.humanized ? '<span class="text-[11px] text-ink-400" title="Humanizer">✓ ' + esc(T.human) + '</span>' : '') + '<span class="badge ' + badge + '">' + esc(T['s_' + st] || st) + '</span></header>';
@@ -240,7 +240,7 @@
       .catch(function () { setTimeout(function () { genLoop.on = false; genLoop(); }, 8000); }); })(); }
   function paint() {
     var vis = items.filter(function (i) { return !filter || (filter === 'qc' ? (i.qc || []).length : i.status === filter); });
-    list.innerHTML = vis.map(card).join('');
+    list.innerHTML = vis.length ? vis.map(card).join('') : (items.length ? '<div class="card"><div class="ds-empty"><div class="ds-empty-ico">' + (window.uic ? uic('inbox', 'w-6 h-6') : '') + '</div>' + esc(T.emptyHere || '') + '</div></div>' : '');
     var ready = items.filter(function (i) { return i.linkedin != null; }).length; bar.classList.toggle('hidden', !ready);
     var n = Object.keys(sel).length, ap = items.filter(function (i) { return ['approved', 'scheduled', 'queued', 'published'].indexOf(i.status) >= 0; }).length;
     fl.classList.toggle('hidden', !n); $('#cp-fn').textContent = fmt(T.fSel, n);
