@@ -59,14 +59,15 @@ render(t('حسابي'), 'account', function () use ($me, $recent, $wsCount) {
               <div class="text-xs text-ink-400 mt-0.5"><?= e((int)$wsCount === 1 ? t('عضو في شركة واحدة') : t('عضو في %s شركة', $wsCount)) ?></div></div>
           </div>
           <label class="block"><span class="label"><?= e(t('الاسم')) ?></span><input name="name" id="ac-name" value="<?= e($me['name']) ?>" required maxlength="120" class="input"></label>
-          <div>
-            <span class="label"><?= e(t('لغة الواجهة')) ?></span>
-            <div class="flex gap-2">
-              <?php foreach (['ar' => t('العربية'), 'en' => 'English'] as $k => $l): ?><a href="<?= e(url('pref', ['lang' => $k])) ?>" class="flex-1 text-center rounded-xl border px-3 py-2 text-sm <?= lang() === $k ? 'border-brand-600 bg-brand-50 text-brand-800 font-medium' : 'border-ink-200 hover:bg-ink-50' ?>"><?= $l ?></a><?php endforeach; ?>
-            </div>
-          </div>
           <div class="flex justify-end"><button class="btn-primary"><?= e(t('حفظ')) ?></button></div>
         </form>
+
+        <div class="card p-6 space-y-3">
+          <span class="label"><?= e(t('لغة الواجهة')) ?></span>
+          <div class="flex gap-2">
+            <?php foreach (['ar' => t('العربية'), 'en' => 'English'] as $k => $l): ?><a href="<?= e(url('pref', ['lang' => $k])) ?>" class="flex-1 text-center rounded-xl border px-3 py-2 text-sm <?= lang() === $k ? 'border-brand-600 bg-brand-50 text-brand-800 font-medium' : 'border-ink-200 hover:bg-ink-50' ?>"><?= $l ?></a><?php endforeach; ?>
+          </div>
+        </div>
 
         <form method="post" class="card p-6 space-y-4" id="ac-pw">
           <?= csrf_field() ?><input type="hidden" name="action" value="password">

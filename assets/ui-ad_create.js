@@ -130,6 +130,12 @@
   };
   document.getElementById('adcAiAud').onclick = function () {
     var b = this, o = el.target.selectedOptions[0]; if (!o) { toast(A.needAcc); return; }
+    var hiddenInt = document.getElementById('adcInterests'), hasInt = false;
+    try { hasInt = !!(hiddenInt && (JSON.parse(hiddenInt.value || '[]') || []).length); } catch (e) { hasInt = false; }
+    var dirty = (el.countries && el.countries.value.trim() !== '') || hasInt;
+    if (dirty && window.fxOk) { fxOk(A.overwriteQ, runAud, { danger: false }); return; }
+    runAud();
+    function runAud() {
     b.disabled = true; out.classList.remove('hidden'); out.innerHTML = '<div class="text-sm text-ink-500">' + esc(A.waitAud) + '</div>';
     ai('ai_audience', { focus: document.getElementById('adcFocus').value }).then(function (j) {
       b.disabled = false;
@@ -147,6 +153,7 @@
       });
       form.dispatchEvent(new Event('input', { bubbles: true }));
     }).catch(function () { b.disabled = false; out.innerHTML = '<div class="text-sm text-red-700">' + esc(A.err) + '</div>'; });
+    }
   };
 
   // فحص قبل المراجعة
