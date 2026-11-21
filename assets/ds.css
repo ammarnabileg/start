@@ -183,6 +183,19 @@ html.dark .dz-ailang.on { background: rgb(var(--ink-200)); }
 .cx-jbtn:hover { background: rgb(var(--brand-50)); border-color: rgb(var(--brand-200)); color: rgb(var(--brand-800)); }
 .cx-skel { display: grid; gap: .6rem; }
 
+/* ---------- 6h) crm_capture: تحويل السايدبار العمودي الداخلي لتابات أفقية + محتوى بعرض كامل ---------- */
+.hub2 { display: block !important; }
+.hub2-nav { position: static !important; flex-direction: row !important; flex-wrap: wrap; align-items: center; gap: .35rem !important;
+  max-height: none !important; margin-bottom: 1rem; padding: .5rem !important; overflow-x: auto; }
+.hub2-nav::-webkit-scrollbar { display: none; }
+.hub2-gt { display: inline-flex !important; align-items: center; align-self: center; padding: 0 .5rem 0 .25rem !important;
+  white-space: nowrap; border-inline-start: 1px solid rgb(var(--ink-200)); margin-inline-start: .25rem; }
+.hub2-nav .hub2-i { width: auto !important; flex: none; }
+.hub2-nav .hub2-i.on { box-shadow: none !important; background: rgb(var(--brand-50)) !important; color: rgb(var(--brand-700)) !important; }
+html.dark .hub2-nav .hub2-i.on { background: rgb(var(--ink-200)) !important; color: rgb(var(--brand-700)) !important; }
+/* أول عنصر (نظرة عامة) من غير فاصل قبله */
+.hub2-nav > .hub2-gt:first-child { border-inline-start: 0; margin-inline-start: 0; }
+
 /* نافذة التعديل المنبثقة */
 .cb-dlg::backdrop { background: rgba(13,22,48,.45); backdrop-filter: blur(2px); }
 html.dark .cb-dlg { background: rgb(var(--surface)); border-color: rgb(var(--ink-200)); }
