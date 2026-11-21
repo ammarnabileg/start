@@ -131,6 +131,23 @@ summary:focus-visible,
 .dz-ailang.on { background: #fff; color: rgb(var(--brand-700)); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
 html.dark .dz-ailang.on { background: rgb(var(--ink-200)); }
 
+/* ---------- 6f) كروت مخزون المحتوى: تفاعل وشكل أوضح ---------- */
+.cb-card { transition: box-shadow .16s ease, border-color .16s ease, transform .08s ease; }
+.cb-card:hover { box-shadow: 0 8px 24px -10px rgba(13,22,48,.22); border-color: rgb(var(--brand-300)); }
+.cb-card.is-open { border-color: rgb(var(--brand-300)); box-shadow: 0 8px 24px -12px rgba(37,87,224,.25); }
+/* منطقة الفتح: مؤشّر واضح + hover */
+.cb-exp { cursor: pointer; border-radius: 10px; transition: background .12s; }
+.cb-exp:hover { background: rgb(var(--ink-50)); }
+.cb-thumb { transition: transform .18s ease; }
+.cb-thumb:hover { transform: scale(1.04); }
+/* أزرار النسخ كـ chips بفيدباك على الزرار نفسه */
+.cb-chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px;
+  font-size: .75rem; font-weight: 600; color: rgb(var(--ink-600)); background: rgb(var(--ink-50));
+  border: 1px solid rgb(var(--ink-200)); cursor: pointer; transition: background .12s, color .12s, border-color .12s; }
+.cb-chip:hover { background: rgb(var(--brand-50)); color: rgb(var(--brand-700)); border-color: rgb(var(--brand-200)); }
+.cb-chip.copied { background: rgb(var(--lime-50)); color: rgb(var(--lime-700)); border-color: rgb(var(--lime-200)); }
+.cb-chip svg { width: 13px; height: 13px; }
+
 /* ---------- 7) شريط تحميل خطّي رفيع أعلى عنصر ---------- */
 .ds-bar { position: relative; height: 3px; border-radius: 999px; overflow: hidden; background: rgb(var(--ink-100)); }
 .ds-bar::after { content: ""; position: absolute; inset-block: 0; inline-size: 40%; border-radius: 999px;

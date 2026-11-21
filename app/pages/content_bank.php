@@ -18,6 +18,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             cpl_save_item($it['id'], ['media_ids' => $ms]);
             $J(['ok' => true, 'media' => cb_thumbs($ms)]);
         }
+        if ($a === 'edit') { // تعديل نصوص المنشور inline من الكارت
+            $it = cpl_item((int)($_POST['id'] ?? 0)); if (!$it) $J(['ok' => false, 'error' => t('طلب غير صحيح.')], 404);
+            if (($it['status'] ?? '') !== 'approved') $J(['ok' => false, 'error' => t('مينفعش تعدّل منشور اتنشر أو اتجدول.')], 403);
+            $f = []; foreach (['linkedin', 'x', 'headline', 'image_prompt', 'video_prompt'] as $k) if (array_key_exists($k, $_POST)) $f[$k] = (string)$_POST[$k];
+            if ($f) cpl_save_item((int)$it['id'], $f);
+            $J(['ok' => true]);
+        }
         if ($a === 'back') { $J(['ok' => true, 'n' => cpl_set_status($ids, 'draft')]); }
         if ($a === 'spread') { $J(['ok' => true, 'times' => cpl_spread((string)($_POST['start'] ?? ''), (int)($_POST['every'] ?? 24), count($ids), (int)($_POST['from'] ?? 9), (int)($_POST['to'] ?? 21))]); }
         if ($a === 'publish') {
@@ -47,6 +54,7 @@ render(t('مخزون المحتوى'), 'content_bank', function () use ($items, 
     $T = [
         'all' => t('تحديد الكل'), 'sel' => t('%s محدد'), 'now' => t('انشر الآن'), 'queue' => t('أضف للطابور'), 'sched' => t('جدولة'), 'back' => t('إرجاع للمراجعة'), 'attach' => t('أرفق صورة/فيديو'), 'more' => t('+ ملف'), 'bulkAttach' => t('أرفق صورًا للمحدد بالترتيب'), 'bulkDone' => t('تم إرفاق %s ملف.'), 'bulkNone' => t('حدد العناصر الأول اللي عايز ترفعلها.'), 'bulkExtra' => t('اخترت %s ملف بس المحدد %s عنصر. الملفات الزيادة مش هتترفع. تكمل؟'), 'carNote' => t('للكاروسيل: أرفق الصور الخمس بالترتيب.'), 'change' => t('غيّر'), 'remove' => t('إزالة'),
         'copy' => t('نسخ'), 'copied' => t('تم النسخ'), 'img' => t('برومبت الصورة'), 'vid' => t('برومبت الفيديو'), 'car' => t('الكاروسيل'), 'li' => 'LinkedIn', 'x' => 'X',
+        'hl' => t('العنوان'), 'saved' => t('تم الحفظ ✓'), 'expand' => t('افتح للتعديل'), 'collapse' => t('إغلاق'), 'editHint' => t('عدّل النص مباشرة؛ بيتحفظ لما تسيب الخانة.'),
         's_approved' => t('جاهز'), 's_scheduled' => t('مجدول %s'), 's_queued' => t('في الطابور'), 's_published' => t('تم النشر'),
         'accounts' => t('الحسابات'), 'noAcc' => t('اختر حسابًا واحدًا على الأقل.'), 'askNow' => t('نشر %s منشور الآن على %s حساب؟'), 'done' => t('تم: %s، فشل: %s'), 'err' => t('حصلت مشكلة. حاول مرة أخرى.'),
         'mOne' => t('موعد واحد لكل المحدد'), 'mSpread' => t('وزّع على مواعيد'), 'start' => t('البداية'), 'needStart' => t('اختر موعد البداية الأول.'), 'every' => t('كل'), 'hours' => t('ساعة'), 'days' => t('يوم'), 'window' => t('بين الساعة'), 'and' => t('و'), 'preview' => t('المواعيد المقترحة'), 'confirm' => t('جدول %s منشور'),
