@@ -126,8 +126,15 @@ function kb_import_site(string $url, ?array $given = null): array
             // سعر: "اسم ... 250 ريال" أو "Name - SAR 250"
             // سطر فيه خصم أو عرض مش خدمة بسعر (زي "خصم 10% على الطلبات فوق 200 ريال")
             $isOffer = (bool)preg_match('/(خصم|تخفيض|عرض خاص|مجان|هدية|كوبون|\d+\s?%|٪|\boff\b|discount|\bfree\b|promo)/iu', $ln);
-            if (!$isOffer && mb_strlen($ln) <= 120 && preg_match('/^(.{2,70}?)[\s:\-–|•]+((?:SAR|EGP|AED|USD|KWD|QAR|\$|ر\.?\s?س|ريال|جنيه|درهم|دينار)?\s?[\d٠-٩][\d٠-٩,.٬]*\s?(?:SAR|EGP|AED|USD|KWD|QAR|ر\.?\s?س|ريال|جنيه|ج\.?م|درهم|دينار|\$)?)\s*$/u', $ln, $pm2) && preg_match('/(SAR|EGP|AED|USD|KWD|QAR|\$|ر\.?\s?س|ريال|جنيه|ج\.?م|درهم|دينار)/u', $pm2[2])) {
+            if (!$isOffer && mb_strlen($ln) <= 120 && preg_match('/^(.{2,70}?)[\s:\-–|•]+((?:SAR|EGP|AED|USD|KWD|QAR|LE|L\.E|\$|ر\.?\s?س|ريال|جنيه|ج\.?م|درهم|دينار)?\s?[\d٠-٩][\d٠-٩,.٬]*\s?(?:SAR|EGP|AED|USD|KWD|QAR|LE|L\.E|ر\.?\s?س|ريال|جنيه|ج\.?م|درهم|دينار|\$)?)\s*$/u', $ln, $pm2) && preg_match('/(SAR|EGP|AED|USD|KWD|QAR|\bLE\b|L\.E|\$|ر\.?\s?س|ريال|جنيه|ج\.?م|درهم|دينار)/u', $pm2[2])) {
                 $nm = trim($pm2[1], " \t-:|•"); if (mb_strlen($nm) >= 2 && !preg_match('/^(total|المجموع|الإجمالي|vat|ضريبة)/iu', $nm)) $svc[mb_strtolower($nm)] = $svc[mb_strtolower($nm)] ?? ['name' => $nm, 'price' => trim($pm2[2]), 'details' => ''];
+            }
+            // بطاقات أسعار: السعر في سطر لوحده (زي "3,900 LE")، واسم الباقة في سطر فيه كلمة باقة/خطة/Plan قبله بشوية
+            elseif (!$isOffer && mb_strlen($ln) <= 40 && preg_match('/^\s*(?:(?:SAR|EGP|AED|USD|KWD|QAR|LE|L\.E|ر\.?\s?س|ريال|جنيه|ج\.?م|درهم|دينار|\$)\s?)?[\d٠-٩][\d٠-٩,.٬]{1,}\s?(?:SAR|EGP|AED|USD|KWD|QAR|\bLE\b|L\.E|ر\.?\s?س|ريال|جنيه|ج\.?م|درهم|دينار|\$)\s*$/u', $ln)) {
+                for ($jj = $i - 1; $jj >= max(0, $i - 10); $jj--) { $cand = trim($lines[$jj]);
+                    if (mb_strlen($cand) >= 3 && mb_strlen($cand) <= 70 && preg_match('/\b(plan|package|tier|membership|subscription|bundle)\b|باقة|الباقة|خطة|الخطة|اشتراك|عضوية|باكدج|باكج/iu', $cand) && !preg_match('/[\d٠-٩]{2,}\s?(?:SAR|EGP|AED|USD|LE|ريال|جنيه|\$)/u', $cand)) {
+                        $key = mb_strtolower($cand); if (!isset($svc[$key])) $svc[$key] = ['name' => $cand, 'price' => trim($ln), 'details' => '']; break;
+                    } }
             }
             // عروض وخصومات (لمتابعة المنافسين)
             if (mb_strlen($ln) >= 8 && mb_strlen($ln) <= 160 && preg_match('/(خصم|تخفيض|عرض خاص|عروض|مجان|هدية|كوبون|\d+\s?%|٪|\boff\b|\bsale\b|discount|\bfree\b|promo|offer)/iu', $ln)) $offers[mb_strtolower($ln)] = $ln;
