@@ -101,9 +101,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
             redirect($auth);
         }
         if ($action === 'disconnect' && can('accounts.manage')) {
-            $z->disconnect((string)$_POST['id']);
+            try {
+                $z->disconnect((string)$_POST['id']);
+            } catch (ZernioException $ex) {
+                // 404 = الحساب مش موجود في خدمة النشر أصلاً، يبقى اتفصل خلاص — نكمل بدل ما نطلّع خطأ
+                if ((int)$ex->status !== 404) throw $ex;
+            }
             log_activity('account.disconnect', (string)$_POST['id']);
             flash('success', t('تم فصل الحساب.'));
+            // نبطّل كاش قايمة الحسابات عشان الكارت يختفي فورًا (مسار 404 مابيعملش bump لوحده)
+            redirect(url('accounts', ['refresh' => 1]));
         }
     } catch (ZernioException $ex) {
         flash('error', $ex->getMessage());

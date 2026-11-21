@@ -163,12 +163,12 @@
         if (n < 80) setTimeout(function () { poll(n + 1); }, 3000); else st.textContent = L.err || '✗'; }).catch(function () { if (n < 80) setTimeout(function () { poll(n + 1); }, 5000); else st.textContent = L.err || '✗'; }); })(0); }).catch(function () { st.textContent = L.err || '✗'; }); }
   var MORE = {
     ailayout: function () { var b = document.querySelector('[data-cmd="ailayout"]'); busy(b, true, L.aiBusy);
-      post({ action: 'ai', mode: 'layout', topic: $('dz-ai-brief').value }).then(function (d) { busy(b, false); if (!d.ok) return X.toast(d.error || L.err, 'error');
+      post({ action: 'ai', mode: 'layout', topic: $('dz-ai-brief').value, lang: window.dzAiLang ? dzAiLang() : '' }).then(function (d) { busy(b, false); if (!d.ok) return X.toast(d.error || L.err, 'error');
         paint(layout(d)); X.snap(); X.toast(L.aiDone);
         if (d.image_prompt && C.hf && $('dz-ai-withimg').checked && cv.getObjects().some(function (o) { return o.dzRole === 'ph'; })) genInto(d.image_prompt, X.W === X.H ? '1:1' : X.H > X.W * 1.5 ? '9:16' : X.H > X.W ? '4:5' : '16:9');
       }).catch(function () { busy(b, false); X.toast(L.err, 'error'); }); },
     aicarousel: function (ok) { if (ok !== true && X.cv.getObjects().length) return window.dzAsk(L.carQ || L.newQ, { title: L.newT, ok: L.newOk, icon: '▦' }).then(function (y) { if (y) MORE.aicarousel(true); }); var b = document.querySelector('[data-cmd="aicarousel"]'); busy(b, true, L.carBusy);
-      post({ action: 'ai', mode: 'carousel', topic: $('dz-ai-car').value }).then(function (d) { busy(b, false); if (!d.ok) return X.toast(d.error || L.err, 'error');
+      post({ action: 'ai', mode: 'carousel', topic: $('dz-ai-car').value, lang: window.dzAiLang ? dzAiLang() : '' }).then(function (d) { busy(b, false); if (!d.ok) return X.toast(d.error || L.err, 'error');
         if (X.W !== 1080 || X.H !== 1350) X.setSize('1080x1350'); var W = X.W, H = X.H, n = d.slides.length, out = [];
         d.slides.forEach(function (s, i) { var first = i === 0, last = i === n - 1, objs = [];
           if (first) objs.push(X.circ(W * 0.9, H * 0.08, W * 0.4, A, { opacity: 0.35 }), X.T(s.title, { top: H * 0.28, fontSize: W * 0.1, fill: '#fff', fontWeight: 900, lineHeight: 1.1 }), X.T(s.body, { top: H * 0.62, fontSize: W * 0.04, fill: 'rgba(255,255,255,.85)' }), X.T(L.swipeSide + '  ←', { top: H * 0.85, fontSize: W * 0.04, fill: A, fontWeight: 700 }));

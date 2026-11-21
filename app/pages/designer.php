@@ -111,7 +111,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!can('ai.use') || !ai_connection()) $J(['error' => t('اربط مزود ذكاء اصطناعي الأول من التكاملات.')], 422);
         $mode = in_array($_POST['mode'] ?? '', ['design', 'layout', 'carousel'], true) ? $_POST['mode'] : 'headline';
         $topic = mb_substr(trim((string)($_POST['topic'] ?? '')), 0, 300); $cur = mb_substr(trim((string)($_POST['current'] ?? '')), 0, 300);
-        $facts = "Use only facts from the company knowledge base (names, prices, offers, contact). Same language/dialect as the knowledge base. Never invent prices or claims.\n";
+        // لغة المخرجات: المستخدم بيختارها من المصمم (أغلب العملاء عايزين إنجليزي). فاضي = نفس لغة قاعدة المعرفة.
+        $lang = in_array($_POST['lang'] ?? '', ['ar', 'en'], true) ? (string)$_POST['lang'] : '';
+        $langDir = $lang === 'en' ? "Write ALL the text in clear, professional English."
+            : ($lang === 'ar' ? "Write ALL the text in Arabic." : "Write in the SAME language/dialect as the company knowledge base.");
+        $facts = "Use only facts from the company knowledge base (names, prices, offers, contact). " . $langDir . " Never invent prices or claims.\n";
         $sys = [
             'design' => "You write the text for one social media graphic. DESIGN_JSON\n" . $facts . "Very short, punchy.\n"
                 . 'Return ONLY JSON: {"title":"max 5 words","sub":"max 12 words","cta":"max 3 words","kind":"offer|product|quote|edu|event|story"}',
@@ -216,6 +220,14 @@ render(t('المصمم'), 'designer', function () use ($brand, $co, $img, $kbd, 
           <section data-pane="mine" hidden><div class="flex items-center justify-between mb-2"><h3 class="!mb-0"><?= e(t('مشاريعي')) ?> <span id="dz-mine-n" class="ms-1 rounded-full bg-ink-100 px-1.5 text-[10px] text-ink-600"></span></h3><button type="button" class="text-[11px] font-semibold text-brand-700 hover:underline" data-cmd="new">+ <?= e(t('مشروع جديد')) ?></button></div><input id="dz-mine-q" type="search" class="dz-sel w-full mb-3" placeholder="<?= e(t('ابحث في مشاريعك…')) ?>"><div id="dz-mine" class="grid grid-cols-2 gap-2"></div></section>
           <section data-pane="ai" hidden>
             <h3><?= e(t('أدوات الذكاء الاصطناعي')) ?></h3>
+            <div class="flex items-center gap-2 mb-3 text-xs">
+              <span class="text-ink-500 shrink-0"><?= e(t('لغة النص')) ?>:</span>
+              <div class="inline-flex rounded-xl bg-ink-50 p-0.5" role="radiogroup" aria-label="<?= e(t('لغة النص المولّد')) ?>" id="dz-ai-lang">
+                <button type="button" class="dz-ailang px-2.5 py-1 rounded-lg font-semibold" data-lang=""><?= e(t('تلقائي')) ?></button>
+                <button type="button" class="dz-ailang px-2.5 py-1 rounded-lg font-semibold" data-lang="ar"><?= e(t('عربي')) ?></button>
+                <button type="button" class="dz-ailang px-2.5 py-1 rounded-lg font-semibold" data-lang="en">English</button>
+              </div>
+            </div>
             <div class="grid grid-cols-2 gap-2 mb-3" id="dz-ai-tabs">
               <?php foreach (['layout' => ['spark', t('صمّم من جملة'), t('اكتب فكرتك ويصمّمها')], 'design' => ['layers', t('تصميم تلقائي'), t('من خدماتك وقاعدة المعرفة')], 'car' => ['copy', t('كاروسيل كامل'), t('عدة شرائح من موضوع واحد')], 'img' => ['image', t('ولّد صورة'), t('صورة من وصف نصي')], 'head' => ['type', t('عناوين جذابة'), t('للنص المحدد على اللوحة')], 'sizes' => ['grid', t('كل المقاسات'), t('بوست وستوري وطولي وعرضي')]] as $k => [$ic, $ti, $ds]): ?>
               <button type="button" class="dz-aitile" data-aitool="<?= $k ?>"><span class="dz-aitile-i"><?= ui_icon($ic, 'w-4 h-4') ?></span><b><?= e($ti) ?></b><small><?= e($ds) ?></small></button>
@@ -374,6 +386,16 @@ render(t('المصمم'), 'designer', function () use ($brand, $co, $img, $kbd, 
       'cAll' => t('الكل'), 'cOffer' => t('عروض'), 'cProduct' => t('منتجات'), 'cQuote' => t('الشركة'), 'cEdu' => t('معلومات'), 'cEvent' => t('فعاليات'), 'cStory' => t('ستوري'), 'cCarousel' => t('كاروسيل'), 'cSeason' => t('مناسبات')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
 <?php // كل سكربتات المصمم defer: بتتحمّل بالتوازي من غير ما تعطّل رسم الصفحة، وبتتنفّذ بالترتيب
        // (fabric قبل designer.js قبل الإضافات) لأن defer بيحافظ على ترتيب المستند. window.DZ متعرّف قبلها. ?>
+  <script>/* مبدّل لغة ذكاء المصمم: بيفتكر اختيار المستخدم، وبيوفّر window.dzAiLang لكل أدوات الذكاء */
+  (function(){ var KEY='dz_ailang'; var cur=''; try{ cur=localStorage.getItem(KEY)||''; }catch(e){}
+    if(!['','ar','en'].includes(cur)) cur='';
+    window.dzAiLang=function(){ return cur; };
+    var wrap=document.getElementById('dz-ai-lang'); if(!wrap) return;
+    var btns=wrap.querySelectorAll('.dz-ailang');
+    function paint(){ btns.forEach(function(b){ b.classList.toggle('on', (b.getAttribute('data-lang')||'')===cur); }); }
+    wrap.addEventListener('click', function(e){ var b=e.target.closest('.dz-ailang'); if(!b) return; cur=b.getAttribute('data-lang')||''; try{ localStorage.setItem(KEY,cur); }catch(e2){} paint(); });
+    paint();
+  })();</script>
   <script src="assets/vendor/fabric-5.3.0.min.js" defer></script>
   <script src="assets/designer.js?v=<?= e(APP_VERSION) ?>" defer></script>
   <script src="assets/vendor/jspdf-4.2.1.umd.min.js" defer></script>

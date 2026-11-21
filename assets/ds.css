@@ -126,6 +126,11 @@ summary:focus-visible,
 .ds-empty-ico { width: 44px; height: 44px; margin: 0 auto 10px; border-radius: 14px;
   display: grid; place-items: center; background: rgb(var(--ink-50)); color: rgb(var(--ink-400)); }
 
+/* ---------- 6e) مبدّل لغة ذكاء المصمم ---------- */
+.dz-ailang { color: rgb(var(--ink-500)); transition: background .12s, color .12s; }
+.dz-ailang.on { background: #fff; color: rgb(var(--brand-700)); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+html.dark .dz-ailang.on { background: rgb(var(--ink-200)); }
+
 /* ---------- 7) شريط تحميل خطّي رفيع أعلى عنصر ---------- */
 .ds-bar { position: relative; height: 3px; border-radius: 999px; overflow: hidden; background: rgb(var(--ink-100)); }
 .ds-bar::after { content: ""; position: absolute; inset-block: 0; inline-size: 40%; border-radius: 999px;

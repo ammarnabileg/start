@@ -173,13 +173,13 @@
   /* ---------- 10) الذكاء الاصطناعي جوه المصمم ---------- */
   function btnBusy(b, on) { b.disabled = on; b.classList.toggle('animate-pulse', on); }
   MORE.aidesign = function () { var b = document.querySelector('[data-cmd="aidesign"]'); btnBusy(b, true);
-    post({ action: 'ai', mode: 'design', topic: $('dz-ai-topic').value }).then(function (j) { btnBusy(b, false); if (!j.ok) return X.toast(j.error || L.err, 'error');
+    post({ action: 'ai', mode: 'design', topic: $('dz-ai-topic').value, lang: window.dzAiLang ? dzAiLang() : '' }).then(function (j) { btnBusy(b, false); if (!j.ok) return X.toast(j.error || L.err, 'error');
       var map = { offer: 0, product: 1, quote: 4, edu: 6, event: 8, story: 10 }, i = map[j.kind] != null ? map[j.kind] : 0; C.title = j.title; C.text = j.sub;
       X.useTplNow(i); C.title = ''; C.text = '';
       if (j.cta) cv.getObjects().forEach(function (o) { if (o.type === 'group') o.getObjects().forEach(function (t) { if (t.type === 'textbox' && (t.text === L.cta || t.text === L.orderWa)) { t.set('text', j.cta); } }); });
       cv.requestRenderAll(); X.snap(); X.toast(L.aiDone); }).catch(function () { btnBusy(b, false); X.toast(L.err, 'error'); }); };
   MORE.aihead = function () { var o = cv.getActiveObject(), b = document.querySelector('[data-cmd="aihead"]'); if (!o || o.type !== 'textbox') return X.toast(L.pickText, 'error'); btnBusy(b, true);
-    post({ action: 'ai', mode: 'headline', topic: $('dz-ai-topic').value, current: o.text }).then(function (j) { btnBusy(b, false); if (!j.ok) return X.toast(j.error || L.err, 'error');
+    post({ action: 'ai', mode: 'headline', topic: $('dz-ai-topic').value, current: o.text, lang: window.dzAiLang ? dzAiLang() : '' }).then(function (j) { btnBusy(b, false); if (!j.ok) return X.toast(j.error || L.err, 'error');
       $('dz-heads').innerHTML = j.items.map(function (h) { return '<button type="button" class="dz-add !mb-0 text-sm" data-head="' + esc(h) + '" dir="auto">' + esc(h) + '</button>'; }).join(''); }).catch(function () { btnBusy(b, false); }); };
   $('dz-heads').addEventListener('click', function (e) { var b = e.target.closest('[data-head]'), o = cv.getActiveObject(); if (!b || !o || o.type !== 'textbox') return; o.set('text', b.dataset.head); o.initDimensions(); cv.requestRenderAll(); X.snap(); });
   MORE.aiimg = function () { var pr = $('dz-ai-img').value.trim(), b = document.querySelector('[data-cmd="aiimg"]'), st = $('dz-ai-st'); if (!pr) return $('dz-ai-img').focus();
