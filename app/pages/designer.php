@@ -372,12 +372,14 @@ render(t('المصمم'), 'designer', function () use ($brand, $co, $img, $kbd, 
       'stockConnect' => t('اربط Pexels من التكاملات عشان تدوّر في صور مجانية.'), 'stockOpen' => t('فتح التكاملات'), 'stockAdding' => t('بنحفظ الصورة في المكتبة…'), 'by' => t('تصوير'), 'addColor' => t('لون'),
       't1' => t('عرض'), 't2' => t('منتج'), 't3' => t('عن الشركة'), 't4' => t('ليه تختارنا'), 't5' => t('أسئلة شائعة'), 't6' => t('المواعيد والتواصل'), 't7' => t('قبل وبعد'), 't8' => t('فعالية'), 't9' => t('توظيف'), 't10' => t('جديد عندنا'), 't11' => t('خبر'), 't12' => t('ستوري عرض'), 't13' => t('ستوري تصويت'), 't14' => t('غلاف كاروسيل'), 't15' => t('تهنئة'), 't16' => t('قائمة الأسعار'),
       'cAll' => t('الكل'), 'cOffer' => t('عروض'), 'cProduct' => t('منتجات'), 'cQuote' => t('الشركة'), 'cEdu' => t('معلومات'), 'cEvent' => t('فعاليات'), 'cStory' => t('ستوري'), 'cCarousel' => t('كاروسيل'), 'cSeason' => t('مناسبات')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
-  <script src="assets/vendor/fabric-5.3.0.min.js"></script>
-  <script src="assets/designer.js?v=<?= e(APP_VERSION) ?>"></script>
+<?php // كل سكربتات المصمم defer: بتتحمّل بالتوازي من غير ما تعطّل رسم الصفحة، وبتتنفّذ بالترتيب
+       // (fabric قبل designer.js قبل الإضافات) لأن defer بيحافظ على ترتيب المستند. window.DZ متعرّف قبلها. ?>
+  <script src="assets/vendor/fabric-5.3.0.min.js" defer></script>
+  <script src="assets/designer.js?v=<?= e(APP_VERSION) ?>" defer></script>
   <script src="assets/vendor/jspdf-4.2.1.umd.min.js" defer></script>
-  <script src="assets/designer-pro.js?v=<?= e(APP_VERSION) ?>"></script>
-  <script src="assets/designer-plus.js?v=<?= e(APP_VERSION) ?>"></script>
-  <script src="assets/designer-tpl.js?v=<?= e(APP_VERSION) ?>"></script>
-  <script src="assets/designer-tools.js?v=<?= e(APP_VERSION) ?>"></script>
-  <script src="assets/designer-kit.js?v=<?= e(APP_VERSION) ?>"></script>
+  <script src="assets/designer-pro.js?v=<?= e(APP_VERSION) ?>" defer></script>
+  <script src="assets/designer-plus.js?v=<?= e(APP_VERSION) ?>" defer></script>
+  <script src="assets/designer-tpl.js?v=<?= e(APP_VERSION) ?>" defer></script>
+  <script src="assets/designer-tools.js?v=<?= e(APP_VERSION) ?>" defer></script>
+  <script src="assets/designer-kit.js?v=<?= e(APP_VERSION) ?>" defer></script>
 <?php }, ['full' => true]);
