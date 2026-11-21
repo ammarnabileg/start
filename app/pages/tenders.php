@@ -10,7 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($a === 'kw_ai') { // كلمات بلغة اعتماد من الذكاء الاصطناعي
         if (!$mgr) $J(['ok' => false, 'error' => t('مالكش صلاحية.')], 403);
         try { $r = tnd_ai_words(true); } catch (Throwable $e) { $J(['ok' => false, 'error' => $e->getMessage()], 502); }
-        if (!$r || (!$r['activities'] && !$r['keywords'])) $J(['ok' => false, 'error' => t('اربط مزود ذكاء اصطناعي من التكاملات، وكمّل معرفة الشركة.')], 422);
+        if (!$r || (!$r['activities'] && !$r['keywords'])) $J(['ok' => false, 'error' => t('اربط مزود ذكاء اصطناعي من التكاملات، وكمّل معرفة الشركة.')]);
         $J(['ok' => true, 'n' => count($r['activities']) + count($r['keywords']), 'why' => $r['why']]);
     }
     if (in_array($a, ['kw_add', 'kw_off', 'kw_on', 'kw_del', 'cfg'], true)) {
