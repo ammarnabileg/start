@@ -102,6 +102,30 @@ summary:focus-visible,
 .ds-status--danger { background: rgb(var(--red-50)); color: rgb(var(--red-700)); }
 .ds-status--info { background: rgb(var(--brand-50)); color: rgb(var(--brand-700)); }
 
+/* ---------- 6b) أزرار مدمجة + أزرار مقسّمة (segmented / filter pills) ---------- */
+/* حجم صغير للأزرار المشتركة بدل إعادة تعريف الستايل يدويًا */
+.btn-xs { padding: 4px 10px !important; font-size: .75rem !important; line-height: 1.1rem !important; }
+/* زرار تصفية/تقسيم موحّد: .seg للعنصر و.seg-on للمفعّل */
+.ds-seg { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px;
+  font-size: .8125rem; font-weight: 600; color: rgb(var(--ink-600)); background: rgb(var(--ink-50));
+  border: 1px solid transparent; cursor: pointer; transition: background .12s, color .12s; }
+.ds-seg:hover { background: rgb(var(--ink-100)); color: rgb(var(--ink-800)); }
+.ds-seg.ds-seg-on { background: rgb(var(--brand-600)); color: #fff; }
+
+/* ---------- 6c) شارات حالة موحّدة بالمفهوم (routed على الألوان الدلالية) ---------- */
+.st { display: inline-flex; align-items: center; gap: 5px; font-size: .75rem; font-weight: 600;
+  padding: 2px 10px; border-radius: 999px; white-space: nowrap; }
+.st-active { background: rgb(var(--lime-50)); color: rgb(var(--lime-700)); }
+.st-pending { background: rgb(var(--amber-50)); color: rgb(var(--amber-800)); }
+.st-failed { background: rgb(var(--red-50)); color: rgb(var(--red-700)); }
+.st-done { background: rgb(var(--brand-50)); color: rgb(var(--brand-700)); }
+.st-muted { background: rgb(var(--ink-100)); color: rgb(var(--ink-600)); }
+
+/* ---------- 6d) حالة فراغ موحّدة خفيفة (للجداول والقوائم) ---------- */
+.ds-empty { padding: 32px 20px; text-align: center; color: rgb(var(--ink-500)); font-size: .875rem; }
+.ds-empty-ico { width: 44px; height: 44px; margin: 0 auto 10px; border-radius: 14px;
+  display: grid; place-items: center; background: rgb(var(--ink-50)); color: rgb(var(--ink-400)); }
+
 /* ---------- 7) شريط تحميل خطّي رفيع أعلى عنصر ---------- */
 .ds-bar { position: relative; height: 3px; border-radius: 999px; overflow: hidden; background: rgb(var(--ink-100)); }
 .ds-bar::after { content: ""; position: absolute; inset-block: 0; inline-size: 40%; border-radius: 999px;

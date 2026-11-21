@@ -111,7 +111,7 @@ render(t('المستخدمين'), 'admin_users', function () use ($list, $worksp
     <div class="flex flex-wrap items-center gap-3 mb-5">
       <form method="get" class="flex gap-2 flex-1 min-w-[16rem]">
         <input type="hidden" name="p" value="admin_users"><?php if ($f): ?><input type="hidden" name="f" value="<?= e($f) ?>"><?php endif; ?>
-        <input type="search" name="q" value="<?= e($q) ?>" class="input !mt-0 flex-1" placeholder="<?= e(t('دور بالاسم أو الإيميل...')) ?>">
+        <input type="search" name="q" value="<?= e($q) ?>" class="input !mt-0 flex-1" placeholder="<?= e(t('دور بالاسم أو الإيميل...')) ?>" aria-label="<?= e(t('بحث عن مستخدم')) ?>">
         <button class="btn-ghost"><?= e(t('بحث')) ?></button>
       </form>
       <div class="seg">

@@ -116,7 +116,7 @@ render(t('ابحث عن أشخاص'), 'crm_find', function () use ($icp, $senior
           <button type="button" id="fd-reveal" class="btn-primary" disabled></button><?php endif; ?>
         </div>
         <div id="fd-list" class="card divide-y divide-ink-100 overflow-hidden"><div class="p-12 text-center"><div class="text-4xl mb-2"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 18a7 7 0 100-14 7 7 0 000 14zM20 20l-4-4"/></svg></div><div class="text-sm text-ink-600"><?= e(t('اختار الفلاتر ودوس ابحث.')) ?></div><div class="text-[11px] text-ink-400 mt-1"><?= e(t('أو جرّب "هاتلي ناس شبه أحسن عملائي"')) ?></div></div></div>
-        <div class="flex justify-center gap-2 mt-3"><button type="button" id="fd-prev" class="btn-ghost hidden">‹</button><span id="fd-page" class="text-sm text-ink-500 self-center"></span><button type="button" id="fd-next" class="btn-ghost hidden">›</button></div>
+        <div class="flex justify-center gap-2 mt-3"><button type="button" id="fd-prev" class="btn-ghost hidden" aria-label="<?= e(t('السابق')) ?>">‹</button><span id="fd-page" class="text-sm text-ink-500 self-center"></span><button type="button" id="fd-next" class="btn-ghost hidden" aria-label="<?= e(t('التالي')) ?>">›</button></div>
       </div>
     </div>
     <script>window.FD = <?= json_encode(['searches' => crm_searches(), 'url' => url('crm_find'), 'csrf' => csrf_token(), 'leads' => url('crm_leads'), 'canReveal' => $canReveal,

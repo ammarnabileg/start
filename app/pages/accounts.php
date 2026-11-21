@@ -288,8 +288,8 @@ render(t('الحسابات المربوطة'), 'accounts', function () use ($z, 
                   <details class="rounded-xl border border-ink-200 hover:shadow-md transition">
                     <summary class="flex flex-col items-center gap-2 py-4 text-sm text-ink-700 cursor-pointer"><?= platform_icon($p, 'w-8 h-8') ?><span><?= e(platform_label($p)) ?></span></summary>
                     <div class="px-3 pb-3 space-y-2">
-                      <?php if (($it['field'] ?? '') === 'shop'): ?><input name="shop" class="input !mt-0 text-xs" dir="ltr" placeholder="mystore.myshopify.com" required>
-                      <?php else: ?><input name="api_key" type="password" class="input !mt-0 text-xs" dir="ltr" placeholder="API Key" required><?php endif; ?>
+                      <?php if (($it['field'] ?? '') === 'shop'): ?><input name="shop" class="input !mt-0 text-xs" dir="ltr" placeholder="mystore.myshopify.com" required aria-label="<?= e(t('رابط المتجر')) ?>">
+                      <?php else: ?><input name="api_key" type="password" class="input !mt-0 text-xs" dir="ltr" placeholder="API Key" required aria-label="API Key"><?php endif; ?>
                       <button class="btn-primary w-full !py-1.5 text-xs"><?= e(t('ربط')) ?></button>
                     </div>
                   </details>

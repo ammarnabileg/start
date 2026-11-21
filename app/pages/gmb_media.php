@@ -205,9 +205,9 @@ render(t('صور جوجل بيزنس'), 'gmb_media', function () use ($z, $accou
         <button type="button" id="gm-lb-x" class="w-9 h-9 rounded-full hover:bg-white/15 text-xl" aria-label="<?= e(t('قفل')) ?>">✕</button>
       </div>
       <div class="flex-1 min-h-0 relative flex items-center justify-center px-14">
-        <button type="button" id="gm-lb-prev" class="absolute start-3 w-11 h-11 rounded-full bg-white/10 hover:bg-white/25 text-white text-2xl">‹</button>
+        <button type="button" id="gm-lb-prev" class="absolute start-3 w-11 h-11 rounded-full bg-white/10 hover:bg-white/25 text-white text-2xl" aria-label="<?= e(t('السابق')) ?>">‹</button>
         <img id="gm-lb-img" class="max-h-full max-w-full object-contain rounded-lg" alt="" referrerpolicy="no-referrer">
-        <button type="button" id="gm-lb-next" class="absolute end-3 w-11 h-11 rounded-full bg-white/10 hover:bg-white/25 text-white text-2xl">›</button>
+        <button type="button" id="gm-lb-next" class="absolute end-3 w-11 h-11 rounded-full bg-white/10 hover:bg-white/25 text-white text-2xl" aria-label="<?= e(t('التالي')) ?>">›</button>
       </div>
       <div id="gm-lb-meta" class="px-4 py-3 text-center text-sm text-white/80"></div>
     </div>

@@ -193,7 +193,7 @@ render(t('الشركات والطلبات'), 'admin_workspaces', function () use
       <div class="ms-auto flex items-center gap-2 py-1.5">
         <form method="get" class="flex gap-2">
           <input type="hidden" name="p" value="admin_workspaces"><input type="hidden" name="tab" value="<?= e($tab) ?>">
-          <input type="search" name="q" value="<?= e($q) ?>" class="input !mt-0 !py-1.5 text-sm w-48" placeholder="<?= e(t('دور على شركة...')) ?>">
+          <input type="search" name="q" value="<?= e($q) ?>" class="input !mt-0 !py-1.5 text-sm w-48" placeholder="<?= e(t('دور على شركة...')) ?>" aria-label="<?= e(t('بحث عن شركة')) ?>">
         </form>
         <details class="relative" data-dropdown>
           <summary class="btn-primary !py-1.5 cursor-pointer"><?= e(t('+ شركة')) ?></summary>
@@ -318,7 +318,7 @@ render(t('الشركات والطلبات'), 'admin_workspaces', function () use
                 </div>
               <?php endif; ?>
               <form method="post" class="border-t border-ink-100 pt-3 space-y-2" data-confirm-danger><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= $wid ?>">
-                <input name="confirm" class="input !mt-0 text-xs" placeholder="<?= e(t('اكتب: %s', $w['name'])) ?>">
+                <input name="confirm" class="input !mt-0 text-xs" placeholder="<?= e(t('اكتب: %s', $w['name'])) ?>" aria-label="<?= e(t('تأكيد اسم الشركة للحذف')) ?>">
                 <button class="btn-danger-ghost !py-1 !px-2.5 !text-xs"><?= e(t('حذف نهائي')) ?></button></form>
             </div>
           </details>

@@ -170,7 +170,7 @@ render(t('طوابير النشر'), 'queue', function () use ($z, $fx, $apiErro
         function paint() {
           grid.querySelectorAll('.qs-c').forEach(function (c) { var on = hourHas(+c.dataset.d, +c.dataset.h); c.className = 'qs-c flex-1 h-7 rounded-md transition ' + (on ? 'bg-brand-600 hover:bg-brand-700' : 'bg-ink-100 hover:bg-brand-200'); });
           var keys = Object.keys(set).sort(function (a, b) { var x = a.split('|'), y = b.split('|'); return x[0] - y[0] || (x[1] > y[1] ? 1 : -1); });
-          list.innerHTML = keys.map(function (k) { var p = k.split('|'); return '<span class="inline-flex items-center gap-1 rounded-full bg-ink-50 ps-2.5 pe-1 py-0.5 text-xs">' + DAYS[p[0]] + ' · <b dir="ltr">' + p[1] + '</b><button type="button" data-k="' + k + '" class="w-5 h-5 rounded-full hover:bg-red-50 hover:text-red-600">×</button></span>'; }).join('');
+          list.innerHTML = keys.map(function (k) { var p = k.split('|'); return '<span class="inline-flex items-center gap-1 rounded-full bg-ink-50 ps-2.5 pe-1 py-0.5 text-xs">' + DAYS[p[0]] + ' · <b dir="ltr">' + p[1] + '</b><button type="button" data-k="' + k + '" class="w-5 h-5 rounded-full hover:bg-red-50 hover:text-red-600" aria-label="<?= e(t('حذف الموعد')) ?>">×</button></span>'; }).join('');
           inputs.innerHTML = keys.map(function (k) { var p = k.split('|'); return '<input type="hidden" name="slot_day[]" value="' + p[0] + '"><input type="hidden" name="slot_time[]" value="' + p[1] + '">'; }).join('');
           document.getElementById('qs-n').textContent = N.replace('%s', keys.length);
         }

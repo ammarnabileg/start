@@ -332,7 +332,7 @@ render(t('منشئ الحملات'), 'ad_builder', function () use ($z, $apiErro
                 <span class="flex items-center gap-2 text-sm font-semibold"><?= ui_icon($goalIc[$k] ?? 'target', 'w-4 h-4') ?><?= e($l) ?></span><span class="text-[11px] font-normal text-ink-500"><?= e($sub) ?></span></label>
             <?php endforeach; ?></div></div>
           <div><b class="flex items-center gap-2 text-sm text-ink-900 mb-2"><span class="ab-n">3</span><?= e(t('اسم الحملة')) ?></b>
-            <div class="flex flex-wrap items-center gap-3"><input name="name" class="input !mt-0 flex-1 min-w-[240px]" maxlength="200" placeholder="<?= e(t('مثلاً: عرض نوفمبر')) ?>">
+            <div class="flex flex-wrap items-center gap-3"><input name="name" class="input !mt-0 flex-1 min-w-[240px]" maxlength="200" placeholder="<?= e(t('مثلاً: عرض نوفمبر')) ?>" aria-label="<?= e(t('اسم الحملة')) ?>">
               <label class="inline-flex items-center gap-2 text-sm text-ink-700 rounded-xl border border-brand-200 bg-brand-50 px-3 py-2.5"><input type="checkbox" name="ai" value="1" class="rounded"> <?= ui_icon('spark', 'w-4 h-4 text-brand-600') ?><?= e(t('ابنيها بالذكاء الاصطناعي من ملف الشركة')) ?></label>
               <button class="btn-primary !px-6"><?= e(t('ابدأ')) ?> ←</button></div></div>
         </form>
