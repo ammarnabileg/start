@@ -63,18 +63,18 @@ render(t('مخزون المحتوى'), 'content_bank', function () use ($items, 
     ?>
     <p class="text-sm text-ink-500 mb-4"><?= e(t('المنشورات التي اعتمدتها من خطط المحتوى. ولّد الصورة من البرومبت بأي أداة ثم أرفقها، واختر: نشر الآن، أو طابور، أو جدولة فردية أو موزعة.')) ?> <a class="link" href="<?= e(url('content_plan')) ?>"><?= e(t('محتوى جديد')) ?></a></p>
     <?php if ($zerr): ?><div class="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 mb-4"><?= e($zerr) ?></div><?php endif; ?>
-    <?php if (!$items): ?><div class="card p-10 text-center text-sm text-ink-500"><?= e(t('المخزون فارغ. اكتب خطة محتوى واعتمد منها منشورات.')) ?><div class="mt-3"><a class="btn-primary" href="<?= e(url('content_plan')) ?>"><?= e(t('إنشاء المحتوى')) ?></a></div></div>
+    <?php if (!$items): ?><div class="card"><div class="ds-state"><div class="ds-state-ico"><?= ui_icon('layers', 'w-7 h-7') ?></div><div class="ds-state-title"><?= e(t('المخزون فارغ')) ?></div><div class="ds-state-text"><?= e(t('اكتب خطة محتوى واعتمد منها منشورات، وهتلاقيها هنا جاهزة للنشر والجدولة.')) ?></div><div class="ds-state-actions"><a class="btn-primary" href="<?= e(url('content_plan')) ?>"><?= e(t('إنشاء المحتوى')) ?></a></div></div></div>
     <?php else: ?>
-    <div class="flex flex-wrap gap-2 mb-3 text-sm">
-      <?php if (count($plans) > 1): ?><select id="cb-plan" class="input !mt-0 !py-1.5 !w-auto"><option value=""><?= e(t('كل الخطط')) ?></option><?php foreach ($plans as $id => $n): ?><option value="<?= $id ?>"><?= e($n) ?></option><?php endforeach; ?></select><?php endif; ?>
-      <input id="cb-q" type="search" class="input !mt-0 !py-1.5 flex-1 min-w-[10rem]" placeholder="<?= e(t('ابحث في النصوص…')) ?>">
-      <label class="flex items-center gap-1.5 px-2"><input type="checkbox" id="cb-noimg"><?= e(t('بدون صورة فقط')) ?></label>
+    <div class="flex flex-wrap items-center gap-2 mb-4 text-sm">
+      <?php if (count($plans) > 1): ?><select id="cb-plan" class="input !mt-0 !py-2 !w-auto"><option value=""><?= e(t('كل الخطط')) ?></option><?php foreach ($plans as $id => $n): ?><option value="<?= $id ?>"><?= e($n) ?></option><?php endforeach; ?></select><?php endif; ?>
+      <span class="relative flex-1 min-w-[12rem]"><span class="absolute inset-y-0 start-3 flex items-center text-ink-400"><?= ui_icon('search', 'w-4 h-4') ?></span><input id="cb-q" type="search" class="input !mt-0 !py-2 ps-10 w-full" placeholder="<?= e(t('ابحث في النصوص…')) ?>"></span>
+      <label class="inline-flex items-center gap-2 rounded-xl border border-ink-200 px-3 py-2 cursor-pointer hover:bg-ink-50 transition"><input type="checkbox" id="cb-noimg"><?= e(t('بدون صورة فقط')) ?></label>
     </div>
     <div id="cb-bar" class="hidden sticky top-2 z-10 card p-3 mb-3 space-y-2 text-sm">
       <div class="flex flex-wrap items-center gap-2"><b id="cb-n"></b><span class="flex-1"></span>
         <button type="button" data-do="now" class="btn-ghost !py-1.5"><?= e($T['now']) ?></button><button type="button" data-do="queue" class="btn-ghost !py-1.5"><?= e($T['queue']) ?></button><button type="button" data-do="sched" class="btn-primary !py-1.5"><?= e($T['sched']) ?></button><button type="button" data-do="back" class="btn-ghost !py-1.5"><?= e($T['back']) ?></button><label class="btn-ghost !py-1.5 cursor-pointer" title="<?= e(t('اختر صورًا كثيرة مرة واحدة: الأولى للمنشور الأول المحدد، والثانية للثاني، وهكذا.')) ?>"><input id="cb-bulk" type="file" accept="image/*,video/*" multiple class="hidden"><?= e($T['bulkAttach']) ?></label></div>
       <div class="flex flex-wrap items-center gap-2"><span class="text-ink-500"><?= e($T['accounts']) ?>:</span>
-        <?php foreach ($accounts as $a): ?><label class="inline-flex items-center gap-1.5 rounded-full border border-ink-200 px-2.5 py-1"><input type="checkbox" class="cb-acc" value="<?= e($a['id']) ?>" data-pf="<?= e($a['platform']) ?>" <?= in_array($a['id'], $saved, true) ? 'checked' : '' ?>><?= platform_icon($a['platform'], 'w-3.5 h-3.5') ?><?= e($a['name']) ?></label><?php endforeach; ?>
+        <?php foreach ($accounts as $a): ?><label class="cb-acc-lbl inline-flex items-center gap-1.5 rounded-full border border-ink-200 px-3 py-1.5"><input type="checkbox" class="cb-acc sr-only" value="<?= e($a['id']) ?>" data-pf="<?= e($a['platform']) ?>" <?= in_array($a['id'], $saved, true) ? 'checked' : '' ?>><?= platform_icon($a['platform'], 'w-3.5 h-3.5') ?><?= e($a['name']) ?></label><?php endforeach; ?>
         <span class="text-xs text-ink-400"><?= e($T['xNote']) ?></span></div>
       <div id="cb-sch" class="hidden rounded-xl border border-ink-200 p-3 space-y-2">
         <div class="flex flex-wrap gap-4"><label class="flex items-center gap-1.5"><input type="radio" name="cbm" value="one" checked><?= e($T['mOne']) ?></label><label class="flex items-center gap-1.5"><input type="radio" name="cbm" value="spread"><?= e($T['mSpread']) ?></label></div>
