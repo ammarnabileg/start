@@ -73,9 +73,9 @@
     }
   });
   document.getElementById('fd-save').addEventListener('click', function () {
-    var n = prompt(T.askName); if (!n || !n.trim()) return;
-    var fd = new FormData(form); fd.append('action', 'save_search'); fd.append('name', n.trim());
-    post(fd).then(function (r) { if (!r.ok) return toast(r.error || T.err, 'error'); D.searches = r.searches; drawSaved(); });
+    (window.fxAsk ? fxAsk(T.askName, { input: '' }) : Promise.resolve(prompt(T.askName))).then(function (n) { n = (n || '').trim(); if (!n) return;
+      var fd = new FormData(form); fd.append('action', 'save_search'); fd.append('name', n);
+      post(fd).then(function (r) { if (!r.ok) return toast(r.error || T.err, 'error'); D.searches = r.searches; drawSaved(); }); });
   });
   drawSaved();
   document.getElementById('fd-look').addEventListener('click', function () {

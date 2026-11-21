@@ -287,9 +287,10 @@
     }
     if (x.dataset.del !== undefined) { if (!(window.fxRe ? fxRe : confirm)(T.delQ)) return; X.mine.splice(+x.dataset.del, 1); return saveTpl(T.deleted, '__mine'); }
     if (x.dataset.x === 'savetpl') {
-      if (!ta.value.trim()) return toast(T.empty); var n = prompt(T.tplName); if (!n) return;
-      X.mine = (X.mine || []).concat([{ n: n.slice(0, 40), b: ta.value.slice(0, 3000) }]).slice(-30);
-      post({ action: 'cpt_save', kind: 'tpl', data: JSON.stringify(X.mine) }).then(function (r) { if (r.ok) { toast(T.saved); tplPane(); } }); return;
+      if (!ta.value.trim()) return toast(T.empty);
+      (window.fxAsk ? fxAsk(T.tplName, { input: '' }) : Promise.resolve(prompt(T.tplName))).then(function (n) { n = (n || '').trim(); if (!n) return;
+        X.mine = (X.mine || []).concat([{ n: n.slice(0, 40), b: ta.value.slice(0, 3000) }]).slice(-30);
+        post({ action: 'cpt_save', kind: 'tpl', data: JSON.stringify(X.mine) }).then(function (r) { if (r.ok) { toast(T.saved); tplPane(); } }); }); return;
     }
     if (x.dataset.addtags !== undefined) { var s = X.tags[+x.dataset.addtags], add = (s.t.match(/#[^\s#]+/g) || []).filter(function (h) { return !inPost(h); }).join(' '); if (add) { var v = ta.value.replace(/\s+$/, ''); ta.value = (v ? v + '\n\n' : '') + add; ta.dispatchEvent(new Event('input', { bubbles: true })); } toast(T.added); return tagsPane(); }
     if (x.dataset.ptag !== undefined) { var h = x.dataset.ptag;

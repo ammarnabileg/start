@@ -168,8 +168,9 @@
     setTimeout(paintViews, 300); }
   vbar.addEventListener('click', function (e) { var d = e.target.closest('[data-vdel]'); if (d) { e.stopPropagation(); if (!(window.fxRe ? fxRe : confirm)(VT.vDel)) return; post(C.selfUrl, { action: 'view_del', id: d.dataset.vdel }).then(function (j) { if (j.ok) { views = j.views; paintViews(); } }); return; }
     var b = e.target.closest('[data-vw]'); if (b) applyView(views.filter(function (v) { return v.id === b.dataset.vw; })[0]); });
-  if ($('pf-save')) $('pf-save').addEventListener('click', function () { var st = curState(); if (!Object.keys(st).length) return toast(VT.vEmpty, 'error'); var n = (prompt(VT.vName) || '').trim(); if (!n) return;
-    post(C.selfUrl, { action: 'view_save', name: n, state: JSON.stringify(st) }).then(function (j) { if (!j.ok) return toast(j.error || L.err, 'error'); views = j.views; paintViews(); toast(VT.vSaved); }); });
+  if ($('pf-save')) $('pf-save').addEventListener('click', function () { var st = curState(); if (!Object.keys(st).length) return toast(VT.vEmpty, 'error');
+    (window.fxAsk ? fxAsk(VT.vName, { input: '' }) : Promise.resolve(prompt(VT.vName))).then(function (n) { n = (n || '').trim(); if (!n) return;
+      post(C.selfUrl, { action: 'view_save', name: n, state: JSON.stringify(st) }).then(function (j) { if (!j.ok) return toast(j.error || L.err, 'error'); views = j.views; paintViews(); toast(VT.vSaved); }); }); });
   root.addEventListener('input', function () { setTimeout(paintViews, 400); }); root.addEventListener('change', function () { setTimeout(paintViews, 400); }); root.addEventListener('click', function (e) { if (e.target.closest('[data-mk-stat],[data-mk-sort]')) setTimeout(paintViews, 400); });
   paintViews(); var vq = new URLSearchParams(location.search).get('view'); if (vq) { var vv = views.filter(function (v) { return v.id === vq; })[0]; if (vv) setTimeout(function () { applyView(vv); }, 60); }
   // ?stat=ads مثلًا: يفتح الصفحة على كارت الأرقام ده (جاي من نماذج الإعلانات)
@@ -197,8 +198,9 @@
     run(function (part) { return bulk(part, 'owner', { owner: v }); }, function () { s0.forEach(function (r) { upd(r, 'owner', +v); }); }); });
   $('pb-next').addEventListener('change', function () { var v = this.value, s0 = list.selected(), el = this, lj = null; if (!v || !s0.length) return; el.value = '';
     run(function (part) { return setNext(part, v).then(function (j) { lj = j; return j; }); }, function () { s0.forEach(function (r) { rowNext(r, lj); }); }); });
-  $('pb-tag').addEventListener('click', function () { var s0 = list.selected(), t = (prompt(L.tagAsk) || '').trim(); if (!t || !s0.length) return;
-    run(function (part) { return bulk(part, 'tag', { tag: t }); }, function () { s0.forEach(function (r) { var d = jd(r); upd(r, 'tags', (d.tags ? d.tags + ', ' : '') + t); }); }); });
+  $('pb-tag').addEventListener('click', function () { var s0 = list.selected(); if (!s0.length) return;
+    (window.fxAsk ? fxAsk(L.tagAsk, { input: '' }) : Promise.resolve(prompt(L.tagAsk))).then(function (t) { t = (t || '').trim(); if (!t) return;
+      run(function (part) { return bulk(part, 'tag', { tag: t }); }, function () { s0.forEach(function (r) { var d = jd(r); upd(r, 'tags', (d.tags ? d.tags + ', ' : '') + t); }); }); }); });
   // إيميل جماعي لكل إيميلات العملاء المحددين
   function mkDlg(html) { var d = document.createElement('dialog'); d.className = 'pr-bdlg'; d.innerHTML = html; document.body.appendChild(d); d.addEventListener('close', function () { d.remove(); }); d.addEventListener('click', function (e) { if (e.target === d || e.target.closest('[data-close]')) d.close(); }); d.showModal(); return d; }
   function fill(t, d) { return String(t || '').replace(/\{name\}/g, d.first || '').replace(/\{company\}/g, d.company || ''); }

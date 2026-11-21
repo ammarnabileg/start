@@ -307,7 +307,7 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
       function post(d){var fd=new FormData();Object.keys(d).forEach(function(k){fd.append(k,d[k]);});fd.append('_csrf',C.csrf);fd.append('_ws',C.wid);return fetch(C.url,{method:'POST',body:fd,headers:{'X-WS-Id':C.wid}}).then(function(r){return r.json();});}
       box.addEventListener('click',function(e){
         var row=e.target.closest('[data-plan]'); if(!row)return; var id=row.getAttribute('data-plan');
-        if(e.target.closest('[data-prename]')){ e.preventDefault(); var el=row.querySelector('[data-pname]'); var nm=prompt(<?= json_encode(t('اسم الخطة الجديد:'), JSON_UNESCAPED_UNICODE) ?>, el.textContent.trim()); if(nm==null)return; nm=nm.trim(); if(!nm)return; post({action:'rename',plan:id,name:nm}).then(function(j){ if(j&&j.ok)el.textContent=j.name; }); }
+        if(e.target.closest('[data-prename]')){ e.preventDefault(); var el=row.querySelector('[data-pname]'); var msg=<?= json_encode(t('اسم الخطة الجديد:'), JSON_UNESCAPED_UNICODE) ?>; (window.fxAsk?fxAsk(msg,{input:el.textContent.trim()}):Promise.resolve(prompt(msg,el.textContent.trim()))).then(function(nm){ nm=(nm||'').trim(); if(!nm)return; post({action:'rename',plan:id,name:nm}).then(function(j){ if(j&&j.ok)el.textContent=j.name; }); }); }
         else if(e.target.closest('[data-predel]')){ e.preventDefault(); var msg=<?= json_encode(t('حذف الخطة؟ المنشورات المجدولة أو المنشورة تبقى في المخزون.'), JSON_UNESCAPED_UNICODE) ?>; (window.fxAsk?fxAsk(msg):Promise.resolve(confirm(msg))).then(function(ok){ if(!ok)return; post({action:'delete',plan:id}).then(function(j){ if(j&&j.ok){ row.remove(); if(!box.querySelector('[data-plan]')) location.reload(); } }); }); }
       });
     })();</script>
