@@ -147,6 +147,9 @@ html.dark .dz-ailang.on { background: rgb(var(--ink-200)); }
 .cb-chip:hover { background: rgb(var(--brand-50)); color: rgb(var(--brand-700)); border-color: rgb(var(--brand-200)); }
 .cb-chip.copied { background: rgb(var(--lime-50)); color: rgb(var(--lime-700)); border-color: rgb(var(--lime-200)); }
 .cb-chip svg { width: 13px; height: 13px; }
+/* نافذة التعديل المنبثقة */
+.cb-dlg::backdrop { background: rgba(13,22,48,.45); backdrop-filter: blur(2px); }
+html.dark .cb-dlg { background: rgb(var(--surface)); border-color: rgb(var(--ink-200)); }
 
 /* ---------- 7) شريط تحميل خطّي رفيع أعلى عنصر ---------- */
 .ds-bar { position: relative; height: 3px; border-radius: 999px; overflow: hidden; background: rgb(var(--ink-100)); }
