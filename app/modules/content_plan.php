@@ -993,7 +993,7 @@ function cpl_stamp_text(array $p, int $mid, string $headline): int
     $maxLines = $anchor === 'full' ? 3 : 4;
     for (; $size >= $min; $size -= 2) { $w = cpl_wrap_lines($headline, $font, $size, $colW, $rtl); if (count($w) <= $maxLines) { $lines = $w; break; } }
     if (!$lines) $lines = array_slice(cpl_wrap_lines($headline, $font, $size, $colW, $rtl), 0, $maxLines);
-    $lh = (int)round($size * ($rtl ? 1.48 : 1.4)); $blockH = $lh * count($lines);
+    $lh = (int)round($size * ($rtl ? 1.56 : 1.46)); $blockH = $lh * count($lines);
 
     // --- قالب التصميم: بيتغيّر لكل منشور (ثابت لنفس المنشور) ---
     $variant = (crc32($headline . '|' . $mid) % 3 + 3) % 3; // 0=هايلايت بوكس، 1=خط تحتي، 2=شريط + كلمة ملوّنة
@@ -1019,12 +1019,6 @@ function cpl_stamp_text(array $p, int $mid, string $headline): int
     $alignRight = $rtl;
     $xOf = function (int $tw) use ($alignRight, $colLeft, $colRight) { return $alignRight ? ($colRight - $tw) : $colLeft; };
     $y = $top + $size;
-    // شريط kicker قصير فوق العنوان (قالب 2)
-    if ($variant === 2) {
-        $bw = (int)round($size * 1.6); $bh = max(4, (int)round($size * 0.14));
-        $bx = $alignRight ? ($colRight - $bw) : $colLeft; $by = $top - (int)round($size * 0.5);
-        cpl_round_box($im, $bx, $by, $bx + $bw, $by + $bh, (int)round($bh / 2), $acc);
-    }
     // الكلمة المفتاحية تتلوّن جوّه السطر: قالب 0 = خلفية بلون الهوية، قالب 1/2 = نص ملوّن (مع خط تحتها في 1)
     $boxKey = $variant === 0; $keySpan = null;
     foreach ($lines as $ln) {
