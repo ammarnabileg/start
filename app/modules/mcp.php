@@ -39,6 +39,21 @@ function mcp_tokens_list(int $wid): array
 }
 function mcp_token_delete(int $wid, int $id): void { db()->prepare('DELETE FROM mcp_tokens WHERE id = ? AND workspace_id = ?')->execute([$id, $wid]); }
 function mcp_tokens_delete_all(int $wid): int { $st = db()->prepare('DELETE FROM mcp_tokens WHERE workspace_id = ?'); $st->execute([$wid]); return $st->rowCount(); }
+/** تغيير صلاحية توكن قائم (بدون تغيير قيمته). */
+function mcp_token_set_scope(int $wid, int $id, string $scope): bool
+{
+    $scope = in_array($scope, ['read', 'write', 'publish', 'admin'], true) ? $scope : 'read';
+    $st = db()->prepare('UPDATE mcp_tokens SET scopes = ? WHERE id = ? AND workspace_id = ?');
+    $st->execute([$scope, $id, $wid]); return $st->rowCount() > 0;
+}
+/** إعادة توليد قيمة توكن قائم: بترجّع القيمة الجديدة (القديمة بتبطل فورًا)، أو '' لو مش موجود. */
+function mcp_token_regen(int $wid, int $id): string
+{
+    $plain = 'wtd_' . bin2hex(random_bytes(24));
+    $st = db()->prepare('UPDATE mcp_tokens SET token_hash = ?, last_used_at = NULL WHERE id = ? AND workspace_id = ?');
+    $st->execute([hash('sha256', $plain), $id, $wid]);
+    return $st->rowCount() > 0 ? $plain : '';
+}
 
 /** يسجّل إجراء بانتظار موافقة المستخدم من داخل المنصة (لا يُنفَّذ تلقائيًا) */
 function mcp_action_create(int $wid, ?int $tokenId, string $type, string $summary, array $payload): int

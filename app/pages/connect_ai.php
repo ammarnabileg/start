@@ -20,6 +20,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $n = mcp_tokens_delete_all($wid);
         flash('success', t('حُذفت كل التوكنات (%s). سيتوقف أي اتصال قائم فورًا.', $n));
         redirect(url('connect_ai'));
+    } elseif ($a === 'scope') {
+        $sc = in_array($_POST['scope'] ?? '', ['read', 'write', 'publish', 'admin'], true) ? $_POST['scope'] : 'read';
+        mcp_token_set_scope($wid, (int)($_POST['id'] ?? 0), $sc);
+        flash('success', t('تم تغيير صلاحية التوكن.'));
+        redirect(url('connect_ai'));
+    } elseif ($a === 'regen') {
+        $t = mcp_token_regen($wid, (int)($_POST['id'] ?? 0));
+        if ($t !== '') { $_SESSION['mcp_new_token'] = $t; flash('success', t('أُعيد توليد التوكن. انسخه الآن، فلن يظهر مرة أخرى؛ والتوكن القديم بطل فورًا.')); }
+        else flash('error', t('التوكن غير موجود.'));
+        redirect(url('connect_ai'));
     }
 }
 $recent = mcp_actions_recent($wid, 12);
@@ -96,13 +106,39 @@ render(t('المساعد الخارجي'), 'connect_ai', function () use ($token
         <?php if ($tokens): ?><form method="post" onsubmit="return confirm('<?= e(t('حذف كل التوكنات؟ سيتوقف أي اتصال مع ChatGPT أو Claude فورًا، ولا يمكن التراجع.')) ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="delete_all"><button class="btn-ghost !py-1.5 text-red-600"><?= e(t('امسح كل التوكنات')) ?></button></form><?php endif; ?>
       </div>
       <?php if (!$tokens): ?><p class="text-sm text-ink-500"><?= e(t('لا توجد توكنات بعد.')) ?></p><?php else: ?>
+      <?php $scopeLbl = ['read' => t('قراءة فقط'), 'write' => t('قراءة + كتابة'), 'publish' => t('نشر مباشر'), 'admin' => t('مدير (كامل)')]; ?>
       <div class="divide-y divide-ink-100">
-        <?php foreach ($tokens as $tk): ?>
+        <?php foreach ($tokens as $tk): $sid = (int)$tk['id']; $cur = isset($scopeLbl[$tk['scopes']]) ? $tk['scopes'] : 'read'; ?>
         <div class="flex items-center gap-3 py-2 text-sm">
           <div class="flex-1 min-w-0"><b class="text-ink-900"><?= e($tk['name']) ?></b>
-            <span class="text-xs text-ink-400"><?= e($tk['scopes'] === 'write' ? t('قراءة + كتابة') : t('قراءة فقط')) ?> · <?= e($tk['last_used_at'] ? t('آخر استخدام %s', $tk['last_used_at']) : t('لم يُستخدم')) ?></span></div>
-          <form method="post" onsubmit="return confirm('<?= e(t('حذف التوكن؟ سيتوقف أي اتصال يستخدمه.')) ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int)$tk['id'] ?>"><button class="btn-ghost !py-1 text-red-600"><?= e(t('حذف')) ?></button></form>
+            <span class="text-xs text-ink-400"><?= e($scopeLbl[$cur]) ?> · <?= e($tk['last_used_at'] ? t('آخر استخدام %s', $tk['last_used_at']) : t('لم يُستخدم')) ?></span></div>
+          <button type="button" class="btn-ghost !py-1" onclick="document.getElementById('tkd-<?= $sid ?>').showModal()"><?= e(t('تفاصيل')) ?></button>
         </div>
+        <dialog id="tkd-<?= $sid ?>" class="w-[min(460px,94vw)] p-0 rounded-2xl border border-ink-200 bg-white text-ink-900 shadow-2xl backdrop:bg-black/30">
+          <div class="flex items-center gap-2 px-5 py-3.5 border-b border-ink-100"><b class="flex-1 truncate"><?= e($tk['name']) ?></b>
+            <button type="button" class="text-ink-400 hover:text-ink-700 w-8 h-8 rounded-lg grid place-items-center text-xl leading-none" onclick="this.closest('dialog').close()" aria-label="<?= e(t('إغلاق')) ?>">×</button></div>
+          <div class="p-5 space-y-4 text-sm">
+            <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+              <dt class="text-ink-500"><?= e(t('الصلاحية الحالية')) ?></dt><dd class="text-ink-800"><?= e($scopeLbl[$cur]) ?></dd>
+              <dt class="text-ink-500"><?= e(t('أُنشئ')) ?></dt><dd class="text-ink-800" dir="ltr"><?= e((string)($tk['created_at'] ?? '')) ?></dd>
+              <dt class="text-ink-500"><?= e(t('آخر استخدام')) ?></dt><dd class="text-ink-800" dir="ltr"><?= e($tk['last_used_at'] ? (string)$tk['last_used_at'] : t('لم يُستخدم')) ?></dd>
+            </dl>
+            <form method="post" class="space-y-2 pt-2 border-t border-ink-100"><?= csrf_field() ?><input type="hidden" name="action" value="scope"><input type="hidden" name="id" value="<?= $sid ?>">
+              <label class="block"><span class="text-xs text-ink-500"><?= e(t('تغيير الصلاحية')) ?></span>
+                <select name="scope" class="input !mt-1">
+                  <option value="read" <?= $cur === 'read' ? 'selected' : '' ?>><?= e(t('قراءة فقط (الأكثر أمانًا)')) ?></option>
+                  <option value="write" <?= $cur === 'write' ? 'selected' : '' ?>><?= e(t('قراءة وبدء خطط المحتوى')) ?></option>
+                  <option value="publish" <?= $cur === 'publish' ? 'selected' : '' ?>><?= e(t('نشر: قراءة وخطط ونشر وجدولة مباشرة')) ?></option>
+                  <option value="admin" <?= $cur === 'admin' ? 'selected' : '' ?>><?= e(t('مدير (خطر): كل ما سبق مع صرف الإعلانات والحذف')) ?></option>
+                </select></label>
+              <button class="btn-primary !py-1.5 w-full"><?= e(t('حفظ الصلاحية')) ?></button>
+            </form>
+            <form method="post" onsubmit="return confirm('<?= e(t('إعادة توليد التوكن؟ التوكن الحالي هيبطل فورًا، وهتحتاج تحدّث الرابط/التوكن في تطبيقك.')) ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="regen"><input type="hidden" name="id" value="<?= $sid ?>">
+              <button class="btn-ghost !py-1.5 w-full"><?= e(t('إعادة توليد التوكن')) ?></button></form>
+            <form method="post" onsubmit="return confirm('<?= e(t('حذف التوكن؟ سيتوقف أي اتصال يستخدمه.')) ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= $sid ?>">
+              <button class="btn-ghost !py-1.5 w-full text-red-600"><?= e(t('حذف التوكن')) ?></button></form>
+          </div>
+        </dialog>
         <?php endforeach; ?>
       </div>
       <?php endif; ?>
