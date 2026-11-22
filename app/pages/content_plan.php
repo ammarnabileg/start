@@ -239,7 +239,7 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
           <?php foreach ($cpFonts as $fk => [$fl, $fd]): ?>
           <label class="shrink-0 cursor-pointer"><input type="radio" name="font" value="<?= e($fk) ?>" class="peer sr-only" <?= $fk === 'auto' ? 'checked' : '' ?>>
             <span class="flex flex-col items-center justify-center gap-1 w-28 h-20 rounded-xl border border-ink-200 px-2 text-center transition hover:border-brand-300 peer-checked:border-brand-500 peer-checked:bg-brand-50">
-              <span class="text-lg leading-tight truncate w-full" style="<?= $fk === 'auto' ? '' : 'font-family:\'' . e($fk) . '\',sans-serif' ?>"><?= $fk === 'auto' ? '✨' : e(t('وتد Watad')) ?></span>
+              <span class="text-lg leading-tight truncate w-full" style="<?= $fk === 'auto' ? '' : 'font-family:\'' . e($fk) . '\',sans-serif' ?>"><?= $fk === 'auto' ? '✨' : e(t('تجربة')) ?></span>
               <span class="text-[10px] text-ink-500 truncate w-full"><?= e($fl) ?></span>
             </span></label>
           <?php endforeach; ?>
