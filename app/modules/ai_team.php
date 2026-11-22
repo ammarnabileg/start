@@ -225,7 +225,7 @@ html.dark #ai-workforce .aw-visual{background:radial-gradient(ellipse 72% 62% at
 @keyframes awBlink{0%,100%{opacity:1}50%{opacity:.35}}
 #ai-workforce .aw-cap{display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--awm);font-size:11px;padding:6px 11px 12px;flex-wrap:wrap}
 #ai-workforce .aw-cap .mark{color:#52C5D0;font-weight:750}
-@media(max-width:780px){#ai-workforce .aw-frame{padding:10px 8px}#ai-workforce .aw-visual{overflow:visible}#ai-workforce .aw-visual svg{min-width:0}#ai-workforce .aw-tags{position:static;display:flex;flex-wrap:wrap;justify-content:center;align-content:flex-start;gap:6px;margin-top:9px}#ai-workforce .aw-tag{position:static!important;left:auto!important;top:auto!important;transform:none!important;font-size:11px;padding:5px 11px;gap:5px;box-shadow:0 2px 8px rgba(15,23,42,.12)}#ai-workforce .aw-tag:hover{transform:translateY(-1px)!important}#ai-workforce .aw-tag .aw-tst{display:none}}
+@media(max-width:780px){#ai-workforce .aw-frame{padding:10px 6px}#ai-workforce .aw-visual{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none}#ai-workforce .aw-visual::-webkit-scrollbar{display:none}#ai-workforce .aw-visual svg{min-width:900px}#ai-workforce .aw-tags{right:auto;width:900px}#ai-workforce .aw-tag{font-size:10px;padding:3px 8px;gap:4px}#ai-workforce .aw-tag .aw-tst{display:none}}
 </style>
 CSS;
 
@@ -252,6 +252,25 @@ CSS;
   drive();
   // إعادة تشغيل نبضة الإشارات للأقسام النشطة باستمرار (المحرّك بيهدأ بعد كل دورة)
   setInterval(function(){ if(active.length && window.aiTeamNetwork && !document.hidden) window.aiTeamNetwork.cycleMany(active.slice()); }, 4800);
+  // تحريك أفقي تلقائي رايح‑جاي على الموبايل؛ لو المستخدم سحب بإيده يتوقف 5 ثواني ويكمّل
+  var vis=root.querySelector('.aw-visual');
+  if(vis){
+    var dir=1, pausedUntil=0, lastT=0, pos=vis.scrollLeft, SPEED=55; // ~55px/ث
+    function bump(){ pausedUntil=Date.now()+5000; }
+    ['touchstart','pointerdown','wheel','mousedown'].forEach(function(ev){ vis.addEventListener(ev,bump,{passive:true}); });
+    function tick(ts){
+      requestAnimationFrame(tick);
+      var max=vis.scrollWidth-vis.clientWidth;
+      if(max<=8||document.hidden){ lastT=ts; pos=vis.scrollLeft; return; } // شاشة كبيرة: مفيش سحب
+      if(Date.now()<pausedUntil){ lastT=ts; pos=vis.scrollLeft; return; } // المستخدم بيسحب
+      if(!lastT){ lastT=ts; return; }
+      var dt=(ts-lastT)/1000; lastT=ts; if(dt>0.1)dt=0.1;
+      pos+=dir*SPEED*dt;
+      if(pos>=max){ pos=max; dir=-1; } else if(pos<=0){ pos=0; dir=1; }
+      vis.scrollLeft=pos;
+    }
+    requestAnimationFrame(tick);
+  }
 })();
 </script>
 JS;
