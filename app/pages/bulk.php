@@ -653,6 +653,12 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
             <div id="bk-prog" class="hidden">
               <div class="flex justify-between text-xs text-ink-600 mb-1"><span id="bk-prog-t"></span><span id="bk-prog-p"></span></div>
               <div class="h-2 rounded-full bg-ink-100 overflow-hidden"><div id="bk-prog-bar" class="h-full bg-gradient-to-l from-brand-600 to-cyan-500 transition-all" style="width:0"></div></div>
+              <div class="flex items-center gap-2 mt-2 flex-wrap">
+                <button type="button" id="bk-pause" class="btn-ghost !py-1 text-xs"><?= e(t('إيقاف مؤقت')) ?></button>
+                <button type="button" id="bk-stop" class="btn-ghost !py-1 text-xs !text-red-600"><?= e(t('إيقاف')) ?></button>
+                <span class="ms-auto text-xs text-ink-500"><b class="text-lime-600" id="bk-fok">0</b> <?= e(t('مقبول')) ?> · <b class="text-red-600" id="bk-fbad">0</b> <?= e(t('مرفوض')) ?></span>
+              </div>
+              <ul id="bk-feed" class="mt-2 max-h-56 overflow-auto rounded-xl border border-ink-100 bg-ink-50/40 p-2 text-xs space-y-1 hidden" dir="rtl"></ul>
             </div>
           </section>
         </form>
@@ -814,6 +820,7 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
             'goCheck' => t('هنفحص %s سطر على %s دفعة'), 'goCreate' => t('هيتعمل منشور لكل سطر سليم (%s سطر على %s دفعة)'), 'confirm' => t('هيتعمل منشور لكل سطر سليم من %s سطر، و%s منهم هيتنشر فوراً. تكمل؟'),
             'batch' => t('دفعة %s من %s'), 'done' => t('خلصنا'), 'stopped' => t('وقفنا عند الدفعة %s: %s'), 'res' => t('نتيجة الفحص'), 'resC' => t('نتيجة الرفع'),
             'retry' => t('Zernio زحمة، بنستنى %s ث ونعيد الدفعة %s من %s…'),
+            'pause' => t('إيقاف مؤقت'), 'resume' => t('استئناف'), 'stop' => t('إيقاف'), 'paused' => t('متوقف مؤقتًا — دوس استئناف للمتابعة'), 'userstop' => t('وقفنا عند الدفعة %s بطلبك.'), 'okN' => t('مقبول'), 'badN' => t('مرفوض'), 'rejected' => t('اترفض'),
             'tot' => t('السطور'), 'okL' => t('سليم'), 'badL' => t('فيه مشكلة'), 'probs' => t('المشاكل وإزاي تصلحها'), 'nrows' => t('%s سطر'), 'show' => t('اعرضهم في الجدول'),
             'allok' => t('كل السطور سليمة 🎉 اختار "اعمل المنشورات" ودوس ابدأ.'), 'created' => t('اتعمل %s منشور واتشالوا من الجدول.'), 'opencal' => t('افتح التقويم'),
             'srv' => t('Zernio: %s'),

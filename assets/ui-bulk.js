@@ -666,9 +666,24 @@
     var agg = { total: 0, valid: 0, invalid: 0, groups: {}, explain: {}, created: [], warnings: {} }, okRows = [];
     srvErr = {};
     var go = $('#bk-go'), prog = $('#bk-prog'), bar = $('#bk-prog-bar');
+    var pauseBtn = $('#bk-pause'), stopBtn = $('#bk-stop'), feed = $('#bk-feed'), fok = $('#bk-fok'), fbad = $('#bk-fbad'), ci = col('post_content');
     go.disabled = true; prog.classList.remove('hidden'); resBox.innerHTML = ''; step(3);
-    var k = 0, tries = 0;
+    var k = 0, tries = 0, paused = false, stopped = false, okN = 0, badN = 0, done = false;
+    feed.innerHTML = ''; feed.classList.remove('hidden'); fok.textContent = '0'; fbad.textContent = '0';
+    pauseBtn.disabled = false; stopBtn.disabled = false; pauseBtn.textContent = S.pause;
+    pauseBtn.onclick = function () { if (stopped) return; paused = !paused; pauseBtn.textContent = paused ? S.resume : S.pause; if (paused) $('#bk-prog-t').textContent = S.paused; else next(); };
+    stopBtn.onclick = function () { if (stopped) return; stopped = true; if (paused) { paused = false; finish(f(S.userstop, k)); } };
+    function feedRow(gi, ok, reason) {
+      var txt = ci > -1 && rows[gi] ? String(rows[gi][ci] || '').replace(/\s+/g, ' ').trim().slice(0, 70) : '';
+      var li = document.createElement('li');
+      li.className = 'flex items-start gap-1.5 ' + (ok ? 'text-lime-700' : 'text-red-600');
+      li.innerHTML = '<span class="shrink-0">' + (ok ? '✓' : '✗') + '</span><b class="shrink-0">#' + (gi + 1) + '</b><span class="text-ink-500 truncate flex-1">' + esc(txt) + '</span>' + (ok ? '' : '<span class="shrink-0">— ' + esc(reason) + '</span>');
+      feed.insertBefore(li, feed.firstChild);
+      while (feed.childNodes.length > 250) feed.removeChild(feed.lastChild);
+    }
     function next() {
+      if (stopped) return finish(f(S.userstop, k));
+      if (paused) { $('#bk-prog-t').textContent = S.paused; return; }
       if (k >= chunks.length) return finish();
       // #2: متغيرات في النص زي {city} أو {price} بتتبدل بقيمة العمود اللي بنفس الاسم في نفس الصف
       var off = chunks[k], part = rows.slice(off, off + SZ).map(function (r) {
@@ -688,10 +703,12 @@
         (d.warnings || []).forEach(function (w) { if (!/^rows_exceed_advisory_limit/.test(w)) agg.warnings[w] = 1; });
         (d.results || []).forEach(function (row) {
           var gi = off + (+row.rowIndex || 0) - 1;
-          if (row.ok) { okRows.push(gi); if (row.createdPostId) agg.created.push({ row: gi + 1, id: row.createdPostId }); return; }
+          if (row.ok) { okRows.push(gi); if (row.createdPostId) agg.created.push({ row: gi + 1, id: row.createdPostId }); okN++; feedRow(gi, true, ''); return; }
           (row.errors || []).forEach(function (er) { (agg.groups[er] = agg.groups[er] || []).push(gi); });
           srvErr[gi] = (row.errors || []).map(function (er) { return (j.explain[er] || [er])[0]; });
+          badN++; feedRow(gi, false, (row.errors && row.errors[0]) ? ((j.explain[row.errors[0]] || [row.errors[0]])[0]) : S.rejected);
         });
+        fok.textContent = okN; fbad.textContent = badN;
         tries = 0; k++; next();
       }).catch(function (err) {
         // خطأ على مستوى الدفعة (غالبًا كثرة طلبات مؤقتة): استنى وأعد نفس الدفعة بدل ما توقف الرفع كله
@@ -704,8 +721,9 @@
       });
     }
     function finish(stopMsg) {
+      if (done) return; done = true;
       bar.style.width = '100%'; $('#bk-prog-p').textContent = stopMsg ? '' : '100%'; $('#bk-prog-t').textContent = stopMsg || S.done;
-      go.disabled = false;
+      go.disabled = false; pauseBtn.disabled = true; stopBtn.disabled = true;
       var createdN = 0;
       if (m === 'create' && okRows.length) {
         // السطور اللي اتعملت بتتشال عشان ماتتكررش لو رفعت تاني
