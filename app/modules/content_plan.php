@@ -50,6 +50,7 @@ function cpl_item_row(array $r): array
     $r['carousel'] = json_decode((string)($r['carousel'] ?? ''), true) ?: [];
     $r['media_raw'] = array_values(array_filter(array_map('intval', (array)json_decode((string)($r['media_raw'] ?? ''), true))));
     $r['logo'] = json_decode((string)($r['logo'] ?? ''), true) ?: null;
+    $r['txt_opts'] = json_decode((string)($r['txt_opts'] ?? ''), true) ?: null;
     $mids = array_values(array_filter(array_map('intval', (array)json_decode((string)($r['media_ids'] ?? ''), true)))); if (!$mids && !empty($r['media_id'])) $mids = [(int)$r['media_id']]; $r['media_ids'] = $mids;
     $r['id'] = (int)$r['id']; $r['plan_id'] = (int)$r['plan_id']; $r['seq'] = (int)$r['seq']; $r['media_id'] = $r['media_id'] !== null ? (int)$r['media_id'] : null;
     return $r;
@@ -684,8 +685,10 @@ function cpl_jobs_finalize(int $itemId, string $kind): void
     if (!$raw) return;
     $it = cpl_item($itemId); $p = $it ? cpl_plan($it['plan_id']) : null; if (!$p) return;
     $lopts = $it['logo'] ?: null; // إعداد لوجو خاص بالمنشور لو موجود
+    $tov = $it['txt_opts'] ?: []; // تعديلات النص الخاصة بالمنشور
     $heads = cpl_media_headlines($it, $kind, count($raw)); // نطبع العنوان بنفسنا (عربي سليم)
-    $raw = array_values($raw); $stamped = []; foreach ($raw as $i => $m) $stamped[] = cpl_compose_media($p, $m, (string)($heads[$i] ?? ''), $lopts);
+    if ($kind === 'image' && !empty($tov['headline'])) $heads[0] = (string)$tov['headline']; // عنوان معدّل يدويًا
+    $raw = array_values($raw); $stamped = []; foreach ($raw as $i => $m) $stamped[] = cpl_compose_media($p, $m, (string)($heads[$i] ?? ''), $lopts, $tov);
     db()->prepare('UPDATE cp_items SET fmt = ?, media_raw = ?, media_ids = ?, media_id = ? WHERE id = ?')->execute([$kind, json_encode($raw), json_encode(array_values($stamped)), $stamped[0], $itemId]);
 }
 
@@ -713,10 +716,36 @@ function cpl_restamp_item(int $itemId, array $in): ?array
         'logo_tint' => in_array($in['logo_tint'] ?? '', ['orig', 'white', 'black'], true) ? $in['logo_tint'] : 'orig',
         'logo_plate' => in_array($in['logo_plate'] ?? '', ['none', 'light', 'dark'], true) ? $in['logo_plate'] : 'none',
     ];
+    db()->prepare('UPDATE cp_items SET logo = ? WHERE id = ? AND workspace_id = ?')->execute([json_encode($lopts), $itemId, (int)ws('id')]);
+    return cpl_recompose($itemId);
+}
+
+/** يحفظ تعديلات النص الخاصة بالمنشور (عنوان معدّل + مكان/حجم/نمط/لون) ثم يعيد تركيب الصورة. */
+function cpl_restamp_text(int $itemId, array $in): ?array
+{
+    $it = cpl_item($itemId); if (!$it) return null;
+    $tov = is_array($it['txt_opts']) ? $it['txt_opts'] : [];
+    if (array_key_exists('headline', $in)) { $h = trim((string)$in['headline']); $tov['headline'] = mb_substr($h, 0, 160); }
+    if (isset($in['txt_pos']) && in_array($in['txt_pos'], ['auto', 'top', 'bottom'], true)) $tov['txt_pos'] = $in['txt_pos'];
+    if (isset($in['txt_size']) && in_array($in['txt_size'], ['s', 'm', 'l'], true)) $tov['txt_size'] = $in['txt_size'];
+    if (isset($in['txt_variant']) && in_array($in['txt_variant'], ['auto', 'box', 'underline', 'color'], true)) $tov['txt_variant'] = $in['txt_variant'];
+    if (isset($in['txt_accent'])) { $a = (string)$in['txt_accent']; $tov['txt_accent'] = (preg_match('/^#?[0-9a-fA-F]{6}$/', $a) && strtolower(ltrim($a, '#')) !== '10b981') ? ('#' . ltrim($a, '#')) : ''; }
+    db()->prepare('UPDATE cp_items SET txt_opts = ? WHERE id = ? AND workspace_id = ?')->execute([json_encode($tov, JSON_UNESCAPED_UNICODE), $itemId, (int)ws('id')]);
+    return cpl_recompose($itemId);
+}
+
+/** يعيد تركيب صور المنشور من النسخ الخام بإعدادات اللوجو والنص المحفوظة على المنشور. */
+function cpl_recompose(int $itemId): ?array
+{
+    $it = cpl_item($itemId); if (!$it) return null;
+    $raw = $it['media_raw'] ?: $it['media_ids']; if (!$raw) return $it;
+    $p = cpl_plan($it['plan_id']); if (!$p) return $it;
+    $lopts = $it['logo'] ?: null; $tov = is_array($it['txt_opts']) ? $it['txt_opts'] : [];
     $heads = cpl_media_headlines($it, (string)$it['fmt'], count($raw));
-    $raw = array_values($raw); $stamped = []; foreach ($raw as $i => $m) $stamped[] = cpl_compose_media($p, $m, (string)($heads[$i] ?? ''), $lopts);
-    db()->prepare('UPDATE cp_items SET media_raw = ?, logo = ?, media_ids = ?, media_id = ? WHERE id = ? AND workspace_id = ?')
-        ->execute([json_encode(array_values($raw)), json_encode($lopts), json_encode(array_values($stamped)), $stamped[0], $itemId, (int)ws('id')]);
+    if ((string)$it['fmt'] === 'image' && !empty($tov['headline'])) $heads[0] = (string)$tov['headline'];
+    $raw = array_values($raw); $stamped = []; foreach ($raw as $i => $m) $stamped[] = cpl_compose_media($p, $m, (string)($heads[$i] ?? ''), $lopts, $tov);
+    db()->prepare('UPDATE cp_items SET media_raw = ?, media_ids = ?, media_id = ? WHERE id = ? AND workspace_id = ?')
+        ->execute([json_encode(array_values($raw)), json_encode(array_values($stamped)), $stamped[0], $itemId, (int)ws('id')]);
     return cpl_item($itemId);
 }
 
@@ -971,7 +1000,7 @@ function cpl_draw_hline($im, int $size, string $font, string $line, string $key,
 
 /** يطبع العنوان على الصورة بنفسنا (عربي سليم مضمون) — محرّك تخطيط يختار مكان النص (فوق/تحت + يمين/شمال/كامل)
  *  حسب أهدأ منطقة في كل صورة، وقالبًا احترافيًا مختلفًا لكل منشور (كلمة مفتاحية ملوّنة جوّه السطر). */
-function cpl_stamp_text(array $p, int $mid, string $headline): int
+function cpl_stamp_text(array $p, int $mid, string $headline, array $ov = []): int
 {
     $headline = trim($headline); if ($headline === '') return $mid;
     // الكلمة المفتاحية: الموديل بيعلّمها بـ«» — نستخرجها ونشيل العلامات. لو مفيش، ناخد آخر كلمة.
@@ -985,7 +1014,7 @@ function cpl_stamp_text(array $p, int $mid, string $headline): int
     if (!imageistruecolor($im)) imagepalettetotruecolor($im);
     $W = imagesx($im); $H = imagesy($im); $rtl = (bool)preg_match('/[\x{0600}-\x{06FF}]/u', $headline);
     $margin = (int)round($W * 0.08);
-    $to = cpl_opts($p); // إعدادات النص: مكان/حجم/نمط
+    $to = $ov + cpl_opts($p); // إعدادات النص: تعديلات المنشور لها الأولوية على إعدادات الخطة
 
     // --- اختيار المنطقة الرأسية (فوق/تحت): من الإعدادات أو تلقائي حسب الأهدأ ---
     $zone = in_array($to['txt_pos'] ?? 'auto', ['top', 'bottom'], true) ? $to['txt_pos'] : cpl_text_zone($im, $W, $H);
@@ -1049,9 +1078,9 @@ function cpl_stamp_text(array $p, int $mid, string $headline): int
 }
 
 /** يركّب نسخة العرض من الصورة الخام: نطبع العنوان بنفسنا ثم اللوجو فوقه. */
-function cpl_compose_media(array $p, int $rawMid, string $headline, ?array $lopts = null): int
+function cpl_compose_media(array $p, int $rawMid, string $headline, ?array $lopts = null, array $tov = []): int
 {
-    $mid = cpl_stamp_text($p, $rawMid, $headline);
+    $mid = cpl_stamp_text($p, $rawMid, $headline, $tov);
     return cpl_stamp_logo($p, $mid, $lopts);
 }
 
