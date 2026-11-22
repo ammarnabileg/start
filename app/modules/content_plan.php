@@ -79,6 +79,7 @@ function cpl_create(array $in): int
         'video' => !empty($in['video']), 'carousel' => !isset($in['carousel']) || !empty($in['carousel']), 'humanize' => !isset($in['humanize']) || !empty($in['humanize']), 'qc' => !isset($in['qc']) || !empty($in['qc']),
         'logo_x' => max(0, min(100, (int)($in['logo_x'] ?? 86))), 'logo_y' => max(0, min(100, (int)($in['logo_y'] ?? 9))), 'logo_w' => max(8, min(35, (int)($in['logo_w'] ?? 18))), 'logo_op' => max(30, min(100, (int)($in['logo_op'] ?? 100))),
         'font' => preg_match('/^[\w .-]{1,40}$/', (string)($in['font'] ?? 'auto')) ? (string)$in['font'] : 'auto',
+        'img_q' => in_array($in['img_q'] ?? '', ['medium', 'high'], true) ? (string)$in['img_q'] : 'high',
         'logo_tint' => in_array($in['logo_tint'] ?? '', ['orig', 'white', 'black'], true) ? $in['logo_tint'] : 'orig', 'logo_plate' => in_array($in['logo_plate'] ?? '', ['none', 'light', 'dark'], true) ? $in['logo_plate'] : 'none', 'logo_on' => !isset($in['logo_on']) || !empty($in['logo_on'])];
     $name = mb_substr(trim((string)($in['name'] ?? '')), 0, 150) ?: mb_substr(preg_replace('/\s+/u', ' ', $goal), 0, 60);
     $hasLogo = function_exists('kb_logo') && kb_logo($wid);
@@ -87,7 +88,10 @@ function cpl_create(array $in): int
     $nid = (int)db()->lastInsertId(); cpl_log($nid, t('اتعملت الخطة: %s منشور، %s صورة مرجعية%s.', $n, count($refs), $hasLogo ? t('، والشعار من ملف الشركة') : '')); return $nid;
 }
 
-function cpl_opts(array $p): array { return (json_decode((string)$p['opts'], true) ?: []) + ['lang' => 'ar', 'dialect' => '', 'audience' => '', 'services' => [], 'tone' => '', 'cta' => '', 'avoid' => '', 'about' => '', 'font' => 'auto', 'video' => true, 'carousel' => true, 'humanize' => true, 'qc' => true]; }
+function cpl_opts(array $p): array { return (json_decode((string)$p['opts'], true) ?: []) + ['lang' => 'ar', 'dialect' => '', 'audience' => '', 'services' => [], 'tone' => '', 'cta' => '', 'avoid' => '', 'about' => '', 'font' => 'auto', 'video' => true, 'carousel' => true, 'humanize' => true, 'qc' => true, 'img_q' => 'high']; }
+
+/** جودة توليد صور الخطة (high افتراضيًا للتصميمات بمستوى الوكالات؛ يقدر صاحب الخطة يخفّضها لتوفير الكريدت). */
+function cpl_img_quality(array $p): string { $q = (string)(cpl_opts($p)['img_q'] ?? 'high'); return in_array($q, ['low', 'medium', 'high'], true) ? $q : 'high'; }
 
 /** البرومبت الأساسي = برومبت المستخدم بالحرف (app/prompts/content_plan.md) + إعدادات الخطة. قسم HTML اتشال لأن السيستم هو اللي بيعرض ويصدّر. */
 function cpl_master(array $p): string
@@ -858,7 +862,21 @@ function cpl_text_zone($im, int $W, int $H): string
     return $score((int)($H * 0.60), $H) < $score(0, (int)($H * 0.34)) - 6 ? 'bottom' : 'top';
 }
 
-/** يطبع العنوان على الصورة بنفسنا (عربي سليم مضمون) بالخط المختار، في أنسب منطقة (فوق/تحت)، مع ظل للوضوح. */
+/** متوسط لمعان + تباين منطقة (أقل = أهدأ وأغمق = أنسب للنص). */
+function cpl_region_score($im, int $x0, int $y0, int $x1, int $y1): float
+{
+    $x0 = max(0, $x0); $y0 = max(0, $y0); $x1 = min(imagesx($im), $x1); $y1 = min(imagesy($im), $y1);
+    if ($x1 <= $x0 || $y1 <= $y0) return 999.0;
+    $sx = max(1, (int)(($x1 - $x0) / 44)); $sy = max(1, (int)(($y1 - $y0) / 44)); $s = 0.0; $s2 = 0.0; $n = 0;
+    for ($y = $y0; $y < $y1; $y += $sy) for ($x = $x0; $x < $x1; $x += $sx) {
+        $c = imagecolorat($im, $x, $y); $l = 0.299 * (($c >> 16) & 255) + 0.587 * (($c >> 8) & 255) + 0.114 * ($c & 255);
+        $s += $l; $s2 += $l * $l; $n++;
+    }
+    $m = $n ? $s / $n : 128; $v = $n ? max(0, $s2 / $n - $m * $m) : 0; return $m + sqrt($v) * 0.6;
+}
+
+/** يطبع العنوان على الصورة بنفسنا (عربي سليم مضمون) — محرّك تخطيط يختار مكان النص (فوق/تحت + يمين/شمال/كامل)
+ *  حسب أهدأ منطقة في كل صورة، وقالبًا احترافيًا مختلفًا لكل منشور (هايلايت/خط تحتي/شريط جانبي). */
 function cpl_stamp_text(array $p, int $mid, string $headline): int
 {
     $headline = trim($headline); if ($headline === '') return $mid;
@@ -867,43 +885,81 @@ function cpl_stamp_text(array $p, int $mid, string $headline): int
     $im = @imagecreatefromstring((string)file_get_contents(media_file_path($wid, $m))); if (!$im) return $mid;
     if (!imageistruecolor($im)) imagepalettetotruecolor($im);
     $W = imagesx($im); $H = imagesy($im); $rtl = (bool)preg_match('/[\x{0600}-\x{06FF}]/u', $headline);
-    $margin = (int)round($W * 0.09); $maxW = $W - 2 * $margin;
-    $size = (int)round($W * 0.072); $lines = null; $min = max(12, (int)round($W * 0.03));
-    for (; $size >= $min; $size -= 2) { $w = cpl_wrap_lines($headline, $font, $size, $maxW, $rtl); if (count($w) <= 3) { $lines = $w; break; } }
-    if (!$lines) $lines = array_slice(cpl_wrap_lines($headline, $font, $size, $maxW, $rtl), 0, 3);
-    $lh = (int)round($size * ($rtl ? 1.62 : 1.42)); $blockH = $lh * count($lines);
-    // مكان النص بيتغيّر حسب الصورة: فوق أو تحت (أهدأ وأغمق منطقة) — مش مثبّت
+    $margin = (int)round($W * 0.08);
+
+    // --- اختيار المنطقة الرأسية (فوق/تحت) حسب الأهدأ ---
     $zone = cpl_text_zone($im, $W, $H);
-    $top = $zone === 'bottom' ? max((int)round($H * 0.42), $H - (int)round($H * 0.07) - $blockH) : (int)round($H * 0.075);
+    $bandY0 = $zone === 'top' ? 0 : (int)round($H * 0.52); $bandY1 = $zone === 'top' ? (int)round($H * 0.48) : $H;
+    // --- اختيار الجهة الأفقية: لو جنب أهدأ بوضوح من التاني، نحط النص في عمود جانبي (زي شغل الوكالات) ---
+    $scoreL = cpl_region_score($im, 0, $bandY0, (int)round($W * 0.52), $bandY1);
+    $scoreR = cpl_region_score($im, (int)round($W * 0.48), $bandY0, $W, $bandY1);
+    $anchor = 'full'; if (abs($scoreL - $scoreR) > 9) $anchor = $scoreL < $scoreR ? 'left' : 'right';
+    $colW = $anchor === 'full' ? ($W - 2 * $margin) : (int)round($W * 0.60);
+    $colLeft = $anchor === 'right' ? ($W - $margin - $colW) : $margin;
+    $colRight = $colLeft + $colW;
+
+    // --- قياس الخط ولفّ الأسطر داخل العمود المختار ---
+    $size = (int)round($W * ($anchor === 'full' ? 0.072 : 0.064)); $lines = null; $min = max(12, (int)round($W * 0.028));
+    $maxLines = $anchor === 'full' ? 3 : 4;
+    for (; $size >= $min; $size -= 2) { $w = cpl_wrap_lines($headline, $font, $size, $colW, $rtl); if (count($w) <= $maxLines) { $lines = $w; break; } }
+    if (!$lines) $lines = array_slice(cpl_wrap_lines($headline, $font, $size, $colW, $rtl), 0, $maxLines);
+    $lh = (int)round($size * ($rtl ? 1.48 : 1.4)); $blockH = $lh * count($lines);
+
+    // --- قالب التصميم: بيتغيّر لكل منشور (ثابت لنفس المنشور) ---
+    $variant = (crc32($headline . '|' . $mid) % 3 + 3) % 3; // 0=هايلايت بوكس، 1=خط تحتي، 2=شريط + كلمة ملوّنة
+    $top = $zone === 'bottom' ? max((int)round($H * 0.40), $H - (int)round($H * 0.08) - $blockH) : (int)round($H * 0.08);
     imagealphablending($im, true); imagesavealpha($im, true);
-    // سكريم متدرّج: بيغمّق منطقة النص والحافة القريبة ويخفّ على الجهة البعيدة — يشتغل فوق أو تحت
-    $txtTop = $top - (int)round($size * 0.9); $txtBot = $top + $blockH; $pad = (int)round($size * 1.0);
-    $bTop = $zone === 'top' ? 0 : max(0, $txtTop - $pad);
-    $bBot = $zone === 'bottom' ? $H : min($H, $txtBot + $pad);
-    for ($yy = $bTop; $yy < $bBot; $yy++) {
-        if ($zone === 'top') $k = $yy <= $txtBot ? 1 : max(0, 1 - ($yy - $txtBot) / max(1, $bBot - $txtBot));
-        else $k = $yy >= $txtTop ? 1 : max(0, 1 - ($txtTop - $yy) / max(1, $txtTop - $bTop));
-        $op = (int)round(135 * $k); if ($op <= 0) continue;
-        imagefilledrectangle($im, 0, $yy, $W, $yy, imagecolorallocatealpha($im, 0, 0, 0, 127 - min(120, (int)round($op * 0.9))));
+
+    // --- سكريم متدرّج ناعم (smoothstep) بلا حد أفقي حاد — يسيب الصورة «تتنفّس» ---
+    $txtTop = $top - (int)round($size * 0.9); $txtBot = $top + $blockH;
+    $peak = 0.78; $span = max(1, $blockH + (int)round($size * 2.6));
+    for ($yy = 0; $yy < $H; $yy++) {
+        if ($zone === 'top') { $d = $yy <= $txtBot ? 0.0 : ($yy - $txtBot) / $span; }
+        else { $d = $yy >= $txtTop ? 0.0 : ($txtTop - $yy) / $span; }
+        $u = max(0.0, 1.0 - $d); $s = $u * $u * (3 - 2 * $u);
+        $a = (int)round(127 * (1 - $peak * $s)); if ($a >= 127) continue;
+        imagefilledrectangle($im, 0, $yy, $W, $yy, imagecolorallocatealpha($im, 0, 0, 0, $a));
     }
-    // تصميم: عنوان أبيض عريض (Alexandria) بظل ناعم، وآخر سطر بـ«هايلايت» بخلفية لون الهوية (زي شغل الوكالات)
+
     $white = imagecolorallocate($im, 255, 255, 255);
     $shadow = imagecolorallocatealpha($im, 0, 0, 0, 62);
     [$ar, $ag, $ab] = cpl_accent_rgb($p); $acc = imagecolorallocate($im, $ar, $ag, $ab);
     $lum = 0.299 * $ar + 0.587 * $ag + 0.114 * $ab; $onAcc = $lum > 150 ? imagecolorallocate($im, 12, 16, 24) : $white;
+    // المحاذاة الأفقية: RTL يتحاذى لليمين، LTR لليسار — وداخل العمود المختار
+    $alignRight = $rtl;
+    $xOf = function (int $tw) use ($alignRight, $colLeft, $colRight) { return $alignRight ? ($colRight - $tw) : $colLeft; };
     $last = count($lines) - 1; $y = $top + $size;
+    // شريط kicker قصير فوق العنوان (قالب 2)
+    if ($variant === 2) {
+        $bw = (int)round($size * 1.6); $bh = max(4, (int)round($size * 0.14));
+        $bx = $alignRight ? ($colRight - $bw) : $colLeft; $by = $top - (int)round($size * 0.5);
+        cpl_round_box($im, $bx, $by, $bx + $bw, $by + $bh, (int)round($bh / 2), $acc);
+    }
     foreach ($lines as $i => $ln) {
         $shaped = $rtl ? cpl_ar_shape($ln) : $ln; $bb = imagettfbbox($size, 0, $font, $shaped); $tw = abs($bb[2] - $bb[0]);
-        $x = $rtl ? ($W - $margin - $tw) : $margin;
-        if ($i === $last && count($lines) > 1 && trim($ln) !== '') {
+        $x = $xOf($tw);
+        $isKey = $i === $last && trim($ln) !== '';
+        if ($variant === 0 && $isKey && count($lines) > 1) {
+            // هايلايت بوكس على آخر سطر
             $padx = (int)round($size * 0.26); $pady = (int)round($size * 0.16); $rad = (int)round($size * 0.22);
             cpl_round_box($im, $x - $padx, $y - $size - $pady, $x + $tw + $padx, $y + $pady, $rad, $acc);
             imagettftext($im, $size, 0, $x, $y, $onAcc, $font, $shaped);
+        } elseif ($variant === 2 && $isKey && count($lines) > 1) {
+            // آخر سطر بلون الهوية (مش بوكس)
+            imagettftext($im, $size, 0, $x + 2, $y + 3, $shadow, $font, $shaped);
+            imagettftext($im, $size, 0, $x, $y, $acc, $font, $shaped);
         } else {
             imagettftext($im, $size, 0, $x + 2, $y + 3, $shadow, $font, $shaped);
             imagettftext($im, $size, 0, $x, $y, $white, $font, $shaped);
         }
         $y += $lh;
+    }
+    // خط تحتي رفيع بلون الهوية تحت الكتلة (قالب 1) — فاصل احترافي
+    if ($variant === 1) {
+        $uw = (int)round($colW * 0.34); $uh = max(4, (int)round($size * 0.12));
+        $uy = $y - $lh + (int)round($size * 0.5);
+        $ux = $alignRight ? ($colRight - $uw) : $colLeft;
+        cpl_round_box($im, $ux, $uy, $ux + $uw, $uy + $uh, (int)round($uh / 2), $acc);
     }
     $tmp = tempnam(sys_get_temp_dir(), 'cpt') . '.png'; imagepng($im, $tmp); imagedestroy($im);
     try { $row = media_store_path($wid, $tmp, 'txt-' . preg_replace('/^(ai|logo|txt)-/', '', (string)$m['name']), 'image/png', media_ai_folder()); } catch (Throwable $e) { @unlink($tmp); return $mid; }
@@ -945,7 +1001,7 @@ function cpl_jobs_tick(int $planId): bool
                 $GLOBALS['img_no_trim'] = true;
                 $refFiles = []; foreach (array_slice(json_decode((string)$p['refs'], true) ?: [], 0, 3) as $rid) { $rm = media_get($wid, (int)$rid); if ($rm && ($rd = cpl_small_image(media_file_path($wid, $rm), 1024))) { $tf = tempnam(sys_get_temp_dir(), 'cpr') . '.jpg'; file_put_contents($tf, base64_decode(substr($rd, strpos($rd, ',') + 1))); $refFiles[] = $tf; } }
                 if ($refFiles) $prompt .= "\nThe " . count($refFiles) . " attached images are STYLE REFERENCES. Study ALL of them together and infer the shared visual system: exact colour palette, lighting mood, contrast, typography style and weight, grid and layout rhythm, texture and the overall level of polish; then apply that system here. Do not copy any subject, text, person or logo from them.";
-                try { $names = img_generate($prompt, '4:5', 1, $refFiles); } finally { foreach ($refFiles as $tf) @unlink($tf); } $ms = cpl_media_for_names($names); if (!$ms) throw new RuntimeException(t('لم تُحفظ الصورة الناتجة.'));
+                try { $names = img_generate($prompt, '4:5', 1, $refFiles, cpl_img_quality($p)); } finally { foreach ($refFiles as $tf) @unlink($tf); } $ms = cpl_media_for_names($names); if (!$ms) throw new RuntimeException(t('لم تُحفظ الصورة الناتجة.'));
                 db()->prepare('UPDATE cp_jobs SET status = "done", result = ? WHERE id = ?')->execute([json_encode($ms), $j['id']]); // الخام؛ الختم في finalize
                 cpl_log($planId, t('اكتملت %s للمنشور %s في %s ثانية.', $label, $it['seq'], round(microtime(true) - $t0)), 'ok');
                 cpl_jobs_finalize($it['id'], $j['kind']);
@@ -995,7 +1051,7 @@ function cpl_jobs_burst(int $planId, int $concurrency = 5): int
             cpl_log($planId, t('توليد صورة للمنشور %s…', $it['seq']));
         }
         $fail_all = function (string $msg) use ($meta) { foreach ($meta as $mm) { $retry = (int)$mm['job']['tries'] + 1 < 2; db()->prepare('UPDATE cp_jobs SET status = ?, error = ? WHERE id = ?')->execute([$retry ? 'queued' : 'failed', mb_substr($msg, 0, 300), $mm['job']['id']]); if (!$retry) cpl_jobs_finalize((int)$mm['it']['id'], $mm['job']['kind']); } };
-        try { $res = img_openai_batch($batch, '4:5'); }
+        try { $res = img_openai_batch($batch, '4:5', cpl_img_quality($p)); }
         catch (Throwable $e) { $fail_all($e->getMessage()); foreach ($refFiles as $tf) @unlink($tf); return 0; }
         $n = 0;
         foreach ($meta as $k => $mm) {

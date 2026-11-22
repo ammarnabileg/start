@@ -228,6 +228,19 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
           <?php endforeach; ?>
         </div>
       </div>
+      <div>
+        <span class="label"><?= e(t('جودة الصور')) ?></span>
+        <p class="text-xs text-ink-500 mb-2"><?= e(t('«الأعلى» تطلع تصميمات بمستوى الوكالات بتفاصيل وإضاءة أغنى (تكلفة كريدت أكبر). «جيدة» أسرع وأرخص.')) ?></p>
+        <div class="flex gap-2">
+          <?php foreach (['high' => [t('الأعلى (موصى به)'), t('مستوى وكالات')], 'medium' => [t('جيدة'), t('كريدت أقل')]] as $qk => [$ql, $qd]): ?>
+          <label class="shrink-0 cursor-pointer"><input type="radio" name="img_q" value="<?= e($qk) ?>" class="peer sr-only" <?= $qk === 'high' ? 'checked' : '' ?>>
+            <span class="flex flex-col items-center justify-center gap-0.5 w-32 h-16 rounded-xl border border-ink-200 px-2 text-center transition hover:border-brand-300 peer-checked:border-brand-500 peer-checked:bg-brand-50">
+              <span class="text-sm font-semibold"><?= e($ql) ?></span>
+              <span class="text-[10px] text-ink-500"><?= e($qd) ?></span>
+            </span></label>
+          <?php endforeach; ?>
+        </div>
+      </div>
       <?php $lgRow = function_exists('kb_logo') ? kb_logo($wid) : null; ?>
       <div class="rounded-2xl border border-ink-200 p-4">
         <span class="label"><?= e(t('اللوجو على التصميم')) ?></span>

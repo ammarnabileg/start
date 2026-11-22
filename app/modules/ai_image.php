@@ -185,9 +185,9 @@ function img_provider(): string { return img_openai_conn() ? 'openai' : (img_or_
 
 
 /** توليد صورة بأي مزوّد متاح (OpenAI أو OpenRouter) */
-function img_generate(string $prompt, string $aspect = '1:1', int $n = 1, array $refs = []): array
+function img_generate(string $prompt, string $aspect = '1:1', int $n = 1, array $refs = [], string $quality = ''): array
 {
-    if (img_provider() === 'openai') return img_openai_generate($prompt, $aspect, $n, $refs);
+    if (img_provider() === 'openai') return img_openai_generate($prompt, $aspect, $n, $refs, $quality);
     $out = []; for ($i = 0; $i < max(1, min(2, $n)); $i++) $out = array_merge($out, img_or_generate($prompt, $aspect, $refs));
     return $out;
 }
@@ -198,12 +198,12 @@ function img_generate(string $prompt, string $aspect = '1:1', int $n = 1, array 
  * بيرجّع مصفوفة بنفس الترتيب: كل عنصر ['names'=>[...]] أو ['error'=>'...'].
  * للاستخدام في توليد خطط المحتوى الكبيرة. يتطلب مزوّد openai.
  */
-function img_openai_batch(array $jobs, string $aspect = '4:5'): array
+function img_openai_batch(array $jobs, string $aspect = '4:5', string $quality = ''): array
 {
     $c = img_openai_conn(); if (!$c) throw new RuntimeException(t('اربط OpenAI أولًا من صفحة التكاملات.'));
     $wid = (int)ws('id'); $budget = function_exists('ai_budget') ? ai_budget($wid) : 0;
     if ($budget > 0 && function_exists('ai_month_spend') && ai_month_spend($wid) >= $budget) throw new RuntimeException(t('وصلت الشركة لحد استهلاك الذكاء الاصطناعي هذا الشهر ($%s). صاحب الشركة يقدر يرفعه من صفحة التكاملات.', number_format($budget, 2)));
-    $model = img_openai_model(); $size = img_openai_size($aspect); $q = img_openai_quality();
+    $model = img_openai_model(); $size = img_openai_size($aspect); $q = in_array($quality, ['low', 'medium', 'high'], true) ? $quality : img_openai_quality();
     $key = (string)$c['credentials']['api_key'];
     $mh = curl_multi_init(); $handles = [];
     foreach ($jobs as $i => $job) {
