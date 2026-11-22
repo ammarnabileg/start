@@ -98,6 +98,54 @@ function run_migrations(PDO $pdo): array
     return $ran;
 }
 
+/**
+ * تحديث تلقائي بعد النشر: لما رقم نسخة الكود يختلف عن المخزّن في قاعدة البيانات
+ * (يعني اترفعت نسخة جديدة)، نطبّق تحديثات قاعدة البيانات المعلّقة ونحدّث الرقم
+ * من غير أي تدخّل يدوي — عشان الموقع يفضل شغّال بعد كل نشر تلقائي.
+ * شبكة أمان: لو أي حاجة وقعت، نرجّع false والراوتر يحوّل لصفحة setup.php عشان
+ * يتدخّل المدير ويشوف الخطأ، فمفيش حاجة بتتكسر في صمت.
+ * قفل GET_LOCK بيضمن إن طلب واحد بس هو اللي يشغّل التحديث والباقي يستنى لحظات.
+ */
+function app_auto_update(): bool
+{
+    try {
+        $pdo = db();
+    } catch (Throwable $e) {
+        return false;
+    }
+    // قفل عشان طلب واحد بس يشغّل التحديث (لو السيرفر مايدعمش GET_LOCK نكمّل بدونه)
+    $locked = false;
+    try {
+        $locked = ((int)$pdo->query("SELECT GET_LOCK('wtd_auto_update', 15)")->fetchColumn() === 1);
+    } catch (Throwable $e) { /* بعض الإعدادات بتمنع GET_LOCK؛ نكمّل */ }
+    try {
+        // اتحدّثت بالفعل بينما كنا بنستنى القفل؟ نقرأ الرقم جديد من القاعدة مباشرة
+        try {
+            $fresh = $pdo->query("SELECT value FROM settings WHERE name='app_version'")->fetchColumn();
+            if ($fresh === APP_VERSION) { $GLOBALS['__settings']['app_version'] = $fresh; return true; }
+        } catch (Throwable $e) { /* جدول الإعدادات لسه ما اتعملش؛ المايجريشن هيعمله */ }
+
+        // النسخ القديمة مكانش فيها مفتاح تشفير: نضيفه لـ config.php
+        if (empty(app_config()['app_key'])) {
+            $GLOBALS['__app_key'] = new_app_key();
+            write_config(app_config() + ['app_key' => $GLOBALS['__app_key']]);
+        }
+        $before = (string)($pdo->query("SELECT value FROM settings WHERE name='app_version'")->fetchColumn() ?: 'غير معروف');
+        $ran = run_migrations($pdo);
+        save_setting('app_version', APP_VERSION, $pdo);
+        try {
+            $pdo->prepare("INSERT INTO activity_log (user_id, action, details) VALUES (NULL, 'system.auto_update', ?)")
+                ->execute([$before . ' -> ' . APP_VERSION . ($ran ? ' | migrations: ' . count($ran) : '')]);
+        } catch (Throwable $e) { /* السجل مش حرج */ }
+        return true;
+    } catch (Throwable $e) {
+        error_log('app_auto_update failed: ' . $e->getMessage());
+        return false;
+    } finally {
+        if ($locked) { try { $pdo->query("SELECT RELEASE_LOCK('wtd_auto_update')"); } catch (Throwable $e) {} }
+    }
+}
+
 /* ---------- الإعدادات ---------- */
 
 function setting(string $name, $default = null)
