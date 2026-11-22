@@ -217,10 +217,23 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
       <div>
         <span class="label"><?= e(t('ستايل التصميم')) ?></span>
         <p class="text-xs text-ink-500 mb-2"><?= e(t('اختر ستايل جاهز، أو ارفع تصميمات مرجعية فوق، أو سيبها تلقائي.')) ?></p>
+        <?php $styleBg = [
+          'auto' => 'linear-gradient(135deg,#6366f1,#0ea5a4)',
+          'cinematic' => 'radial-gradient(circle at 30% 30%,#134e4a,#0b1220 70%)',
+          'neon_sport' => 'linear-gradient(135deg,#020617,#06b6d4 120%)',
+          'luxury_gold' => 'linear-gradient(135deg,#0b0b0b,#b8860b)',
+          'clean_product' => 'linear-gradient(135deg,#e0f2fe,#f8fafc)',
+          'vibrant_pop' => 'linear-gradient(135deg,#ec4899,#f97316)',
+          'corporate_3d' => 'linear-gradient(135deg,#1e3a8a,#38bdf8)',
+          'nature_fresh' => 'linear-gradient(135deg,#065f46,#34d399)',
+        ]; ?>
         <div id="cp-styles" class="flex gap-2 overflow-x-auto pb-1">
           <?php foreach (cpl_styles() as $sk => [$sl, $sd]): ?>
           <label class="shrink-0 cursor-pointer"><input type="radio" name="style" value="<?= e($sk) ?>" class="peer sr-only" <?= $sk === 'auto' ? 'checked' : '' ?>>
-            <span class="flex items-center justify-center w-28 h-12 rounded-xl border border-ink-200 px-2 text-center text-sm font-semibold transition hover:border-brand-300 peer-checked:border-brand-500 peer-checked:bg-brand-50"><?= e($sl) ?></span>
+            <span class="flex flex-col items-center gap-1 w-24 rounded-xl border border-ink-200 p-1.5 transition hover:border-brand-300 peer-checked:border-brand-500 peer-checked:bg-brand-50">
+              <span class="w-full h-14 rounded-lg relative overflow-hidden" style="background:<?= $styleBg[$sk] ?? $styleBg['auto'] ?>"><?php if ($sk === 'auto'): ?><span class="absolute inset-0 grid place-items-center text-white text-xl">✨</span><?php endif; ?></span>
+              <span class="text-xs font-semibold text-center leading-tight"><?= e($sl) ?></span>
+            </span>
           </label>
           <?php endforeach; ?>
         </div>
