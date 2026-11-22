@@ -277,6 +277,6 @@ JS;
 
     return '<div id="ai-workforce">' . $css
         . '<div class="aw-frame"><div class="aw-visual">' . $svg . '<div class="aw-tags">' . $tags . '</div></div>'
-        . '<div class="aw-cap"><span>◉ ' . e($capTxt) . '</span><span class="mark">LIVE SIGNAL LAYER</span></div></div>'
+        . '<div class="aw-cap"><span class="mark">LIVE SIGNAL LAYER</span></div></div>'
         . $js . '</div>';
 }
