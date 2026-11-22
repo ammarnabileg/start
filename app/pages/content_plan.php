@@ -271,6 +271,19 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
           <?php endforeach; ?>
         </div>
       </div>
+      <div>
+        <span class="label"><?= e(t('حجم الصور')) ?></span>
+        <p class="text-xs text-ink-500 mb-2"><?= e(t('نسبة أبعاد التصميمات المولّدة.')) ?></p>
+        <div class="flex gap-2 flex-wrap">
+          <?php foreach (['4:5' => [t('طولي'), '4:5', 'w-10 h-12'], '1:1' => [t('مربع'), '1:1', 'w-11 h-11'], '9:16' => [t('ستوري'), '9:16', 'w-8 h-14'], '16:9' => [t('عرضي'), '16:9', 'w-14 h-8']] as $ak => [$al, $ar, $box]): ?>
+          <label class="shrink-0 cursor-pointer"><input type="radio" name="aspect" value="<?= e($ak) ?>" class="peer sr-only" <?= $ak === '4:5' ? 'checked' : '' ?>>
+            <span class="flex flex-col items-center justify-center gap-1 w-20 h-20 rounded-xl border border-ink-200 px-2 text-center transition hover:border-brand-300 peer-checked:border-brand-500 peer-checked:bg-brand-50">
+              <span class="<?= $box ?> rounded border-2 border-ink-300 bg-ink-100"></span>
+              <span class="text-xs font-semibold"><?= e($al) ?> <span class="text-ink-400" dir="ltr"><?= e($ar) ?></span></span>
+            </span></label>
+          <?php endforeach; ?>
+        </div>
+      </div>
       <?php $lgRow = function_exists('kb_logo') ? kb_logo($wid) : null; ?>
       <div class="rounded-2xl border border-ink-200 p-4">
         <span class="label"><?= e(t('اللوجو على التصميم')) ?></span>

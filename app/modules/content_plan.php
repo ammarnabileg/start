@@ -81,6 +81,7 @@ function cpl_create(array $in): int
         'font' => preg_match('/^[\w .-]{1,40}$/', (string)($in['font'] ?? 'auto')) ? (string)$in['font'] : 'auto',
         'img_q' => in_array($in['img_q'] ?? '', ['medium', 'high'], true) ? (string)$in['img_q'] : 'high',
         'style' => array_key_exists((string)($in['style'] ?? 'auto'), cpl_styles()) ? (string)$in['style'] : 'auto',
+        'aspect' => in_array($in['aspect'] ?? '', ['4:5', '1:1', '9:16', '16:9'], true) ? (string)$in['aspect'] : '4:5',
         'products' => array_slice(array_values(array_filter(array_map('intval', (array)($in['products'] ?? [])), function ($id) use ($wid) { $m = media_get($wid, $id); return $id > 0 && $m && empty($m['deleted_at']) && media_kind((string)$m['mime']) === 'image'; })), 0, 6),
         'logo_tint' => in_array($in['logo_tint'] ?? '', ['orig', 'white', 'black'], true) ? $in['logo_tint'] : 'orig', 'logo_plate' => in_array($in['logo_plate'] ?? '', ['none', 'light', 'dark'], true) ? $in['logo_plate'] : 'none', 'logo_on' => !isset($in['logo_on']) || !empty($in['logo_on'])];
     $name = mb_substr(trim((string)($in['name'] ?? '')), 0, 150) ?: mb_substr(preg_replace('/\s+/u', ' ', $goal), 0, 60);
@@ -90,7 +91,10 @@ function cpl_create(array $in): int
     $nid = (int)db()->lastInsertId(); cpl_log($nid, t('اتعملت الخطة: %s منشور، %s صورة مرجعية%s.', $n, count($refs), $hasLogo ? t('، والشعار من ملف الشركة') : '')); return $nid;
 }
 
-function cpl_opts(array $p): array { return (json_decode((string)$p['opts'], true) ?: []) + ['lang' => 'ar', 'dialect' => '', 'audience' => '', 'services' => [], 'tone' => '', 'cta' => '', 'avoid' => '', 'about' => '', 'font' => 'auto', 'video' => true, 'carousel' => true, 'humanize' => true, 'qc' => true, 'img_q' => 'high', 'style' => 'auto', 'products' => []]; }
+function cpl_opts(array $p): array { return (json_decode((string)$p['opts'], true) ?: []) + ['lang' => 'ar', 'dialect' => '', 'audience' => '', 'services' => [], 'tone' => '', 'cta' => '', 'avoid' => '', 'about' => '', 'font' => 'auto', 'video' => true, 'carousel' => true, 'humanize' => true, 'qc' => true, 'img_q' => 'high', 'style' => 'auto', 'products' => [], 'aspect' => '4:5']; }
+
+/** نسبة/حجم الصورة المختارة للخطة (4:5 طولي افتراضيًا). */
+function cpl_aspect(array $p): string { $a = (string)(cpl_opts($p)['aspect'] ?? '4:5'); return in_array($a, ['4:5', '1:1', '9:16', '16:9'], true) ? $a : '4:5'; }
 
 /** ستايلات تصميم جاهزة: المستخدم يختار واحد، أو يرفع صورة ريفرنس (refs)، أو يسيبها تلقائي. */
 function cpl_styles(): array
@@ -1072,7 +1076,7 @@ function cpl_jobs_tick(int $planId): bool
             } else {
                 $GLOBALS['img_no_trim'] = true;
                 [$refFiles, $refHint] = cpl_ref_images($p, $wid, 4); $prompt .= $refHint;
-                try { $names = img_generate($prompt, '4:5', 1, $refFiles, cpl_img_quality($p)); } finally { foreach ($refFiles as $tf) @unlink($tf); } $ms = cpl_media_for_names($names); if (!$ms) throw new RuntimeException(t('لم تُحفظ الصورة الناتجة.'));
+                try { $names = img_generate($prompt, cpl_aspect($p), 1, $refFiles, cpl_img_quality($p)); } finally { foreach ($refFiles as $tf) @unlink($tf); } $ms = cpl_media_for_names($names); if (!$ms) throw new RuntimeException(t('لم تُحفظ الصورة الناتجة.'));
                 db()->prepare('UPDATE cp_jobs SET status = "done", result = ? WHERE id = ?')->execute([json_encode($ms), $j['id']]); // الخام؛ الختم في finalize
                 cpl_log($planId, t('اكتملت %s للمنشور %s في %s ثانية.', $label, $it['seq'], round(microtime(true) - $t0)), 'ok');
                 cpl_jobs_finalize($it['id'], $j['kind']);
@@ -1120,7 +1124,7 @@ function cpl_jobs_burst(int $planId, int $concurrency = 5): int
             cpl_log($planId, t('توليد صورة للمنشور %s…', $it['seq']));
         }
         $fail_all = function (string $msg) use ($meta) { foreach ($meta as $mm) { $retry = (int)$mm['job']['tries'] + 1 < 2; db()->prepare('UPDATE cp_jobs SET status = ?, error = ? WHERE id = ?')->execute([$retry ? 'queued' : 'failed', mb_substr($msg, 0, 300), $mm['job']['id']]); if (!$retry) cpl_jobs_finalize((int)$mm['it']['id'], $mm['job']['kind']); } };
-        try { $res = img_openai_batch($batch, '4:5', cpl_img_quality($p)); }
+        try { $res = img_openai_batch($batch, cpl_aspect($p), cpl_img_quality($p)); }
         catch (Throwable $e) { $fail_all($e->getMessage()); foreach ($refFiles as $tf) @unlink($tf); return 0; }
         $n = 0;
         foreach ($meta as $k => $mm) {
