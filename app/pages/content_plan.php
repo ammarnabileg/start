@@ -214,6 +214,23 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
         <div id="cp-refs" class="flex flex-wrap gap-2"></div>
         <div class="flex flex-wrap gap-2 mt-2"><label class="btn-ghost !py-1.5 cursor-pointer"><input id="cp-ref-in" type="file" accept="image/*,application/pdf,.pdf" multiple class="hidden"><?= ui_icon('upload', 'w-4 h-4') ?><?= e(t('أضف صورًا أو PDF')) ?></label><button type="button" id="cp-ref-lib" class="btn-ghost !py-1.5"><?= ui_icon('image', 'w-4 h-4') ?><?= e(t('اختر من مكتبة الوسائط')) ?></button></div>
       </div>
+      <div>
+        <span class="label"><?= e(t('ستايل التصميم')) ?></span>
+        <p class="text-xs text-ink-500 mb-2"><?= e(t('اختر ستايل جاهز، أو ارفع تصميمات مرجعية فوق، أو سيبها تلقائي.')) ?></p>
+        <div id="cp-styles" class="flex gap-2 overflow-x-auto pb-1">
+          <?php foreach (cpl_styles() as $sk => [$sl, $sd]): ?>
+          <label class="shrink-0 cursor-pointer"><input type="radio" name="style" value="<?= e($sk) ?>" class="peer sr-only" <?= $sk === 'auto' ? 'checked' : '' ?>>
+            <span class="flex items-center justify-center w-28 h-12 rounded-xl border border-ink-200 px-2 text-center text-sm font-semibold transition hover:border-brand-300 peer-checked:border-brand-500 peer-checked:bg-brand-50"><?= e($sl) ?></span>
+          </label>
+          <?php endforeach; ?>
+        </div>
+      </div>
+      <div>
+        <span class="label"><?= e(t('صور المنتج (اختياري، حتى 6 صور)')) ?></span>
+        <p class="text-xs text-ink-500 mb-2"><?= e(t('لو عندك منتج (علبة، برطمان، جهاز…)، ارفع صوره ليظهر المنتج نفسه داخل كل تصميم بشكله الحقيقي.')) ?></p>
+        <div id="cp-prods" class="flex flex-wrap gap-2"></div>
+        <div class="flex flex-wrap gap-2 mt-2"><label class="btn-ghost !py-1.5 cursor-pointer"><input id="cp-prod-in" type="file" accept="image/*" multiple class="hidden"><?= ui_icon('upload', 'w-4 h-4') ?><?= e(t('أضف صور المنتج')) ?></label><button type="button" id="cp-prod-lib" class="btn-ghost !py-1.5"><?= ui_icon('image', 'w-4 h-4') ?><?= e(t('اختر من مكتبة الوسائط')) ?></button></div>
+      </div>
       <?php $cpFonts = ['auto' => [t('تلقائي (من الريفرنس/الهوية)'), ''], 'Cairo' => ['Cairo', 'geometric humanist sans, clean and modern'], 'Alexandria' => ['Alexandria', 'clean modern geometric sans'], 'Tajawal' => ['Tajawal', 'modern geometric sans, friendly'], 'Almarai' => ['Almarai', 'neutral rounded sans, highly legible'], 'Changa' => ['Changa', 'bold condensed display'], 'El Messiri' => ['El Messiri', 'elegant contemporary with calligraphic touch'], 'Reem Kufi' => ['Reem Kufi', 'kufic geometric display'], 'Amiri' => ['Amiri', 'classic Naskh serif, editorial'], 'Lateef' => ['Lateef', 'traditional Arabic'], 'IBM Plex Sans Arabic' => ['IBM Plex Sans Arabic', 'technical corporate sans']]; ?>
       <div>
         <span class="label"><?= e(t('خط العناوين')) ?></span>

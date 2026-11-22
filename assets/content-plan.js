@@ -13,9 +13,12 @@
   /* ---------- المعالج ---------- */
   var W = $('#cp-wiz');
   if (W) {
-    var key = 'cp_draft_' + C.wid, refs = [];
+    var key = 'cp_draft_' + C.wid, refs = [], prods = [];
     function paintRefs() { $('#cp-refs').innerHTML = refs.map(function (r, i) { return '<span class="relative"><img src="' + esc(r.thumb) + '" class="w-20 h-24 object-cover rounded-xl border border-ink-200" alt=""><button type="button" data-rm="' + i + '" class="absolute -top-1.5 -end-1.5 w-6 h-6 rounded-full bg-white border border-ink-200 text-xs">×</button></span>'; }).join(''); }
-    function collect() { var d = { refs: refs.map(function (r) { return r.id; }), services: $$('[name=services]:checked', W).map(function (x) { return x.value; }) };
+    function paintProds() { var el = $('#cp-prods'); if (el) el.innerHTML = prods.map(function (r, i) { return '<span class="relative"><img src="' + esc(r.thumb) + '" class="w-20 h-24 object-cover rounded-xl border border-ink-200" alt=""><button type="button" data-pm="' + i + '" class="absolute -top-1.5 -end-1.5 w-6 h-6 rounded-full bg-white border border-ink-200 text-xs">×</button></span>'; }).join(''); }
+    function collect() { var d = { refs: refs.map(function (r) { return r.id; }), products: prods.map(function (r) { return r.id; }), services: $$('[name=services]:checked', W).map(function (x) { return x.value; }) };
+      if (W.querySelector('[name=style]:checked')) d.style = W.querySelector('[name=style]:checked').value;
+      if (W.querySelector('[name=img_q]:checked')) d.img_q = W.querySelector('[name=img_q]:checked').value;
       ['goal', 'count', 'name', 'tone', 'cta', 'audience', 'about', 'avoid', 'dialect_other', 'lang_all', 'lang_li', 'lang_x', 'lang_img', 'lang_vo', 'dialect_k'].forEach(function (n) { if (W[n]) d[n] = W[n].value; }); d.video = W.video.checked; d.carousel = W.carousel.checked; d.humanize = W.humanize.checked; d.qc = W.qc ? W.qc.checked : true;
       if (W.font) d.font = (W.querySelector('[name=font]:checked') || {}).value || 'auto';
       if (W.logo_w) { ['logo_x', 'logo_y', 'logo_w', 'logo_op'].forEach(function (n) { d[n] = +W[n].value; }); ['logo_tint', 'logo_plate'].forEach(function (n) { d[n] = (W.querySelector('[name=' + n + ']:checked') || {}).value; }); d.logo_on = W.logo_on.checked; } return d; }
@@ -27,7 +30,11 @@
       if (W.font && dr.font) Array.prototype.slice.call(W.querySelectorAll('[name=font]')).forEach(function (x) { x.checked = x.value === dr.font; });
       if (W.logo_w) { ['logo_x', 'logo_y', 'logo_w', 'logo_op'].forEach(function (n) { if (dr[n] != null) W[n].value = dr[n]; }); ['logo_tint', 'logo_plate'].forEach(function (n) { if (dr[n]) $$('[name=' + n + ']', W).forEach(function (x) { x.checked = x.value === dr[n]; }); }); W.logo_on.checked = dr.logo_on !== false; }
       $$('[name=services]', W).forEach(function (x) { x.checked = (dr.services || []).indexOf(x.value) >= 0; });
-      refs = dr.refsFull || []; paintRefs(); toast(T.draftRestored, 'info');
+      refs = dr.refsFull || []; paintRefs();
+      prods = dr.prodsFull || []; paintProds();
+      if (dr.style) $$('[name=style]', W).forEach(function (x) { x.checked = x.value === dr.style; });
+      if (dr.img_q) $$('[name=img_q]', W).forEach(function (x) { x.checked = x.value === dr.img_q; });
+      toast(T.draftRestored, 'info');
     }
     // معاينة اللوجو التفاعلية: سحب، أماكن جاهزة، حجم، شفافية، لون، خلفية. نفس معادلات السيرفر بالظبط (cpl_logo_box)
     var bgIx = 0;
@@ -104,9 +111,26 @@
       var rows = [[S.goal, v(d.goal), 0], [S.count, d.count, 0], [S.aud, v(d.audience), 1], [S.svc, v((d.services || []).join('، ')), 1], [S.lang, lg, 2], [S.dial, v(dn), 2], [S.tone, v(d.tone), 2], [S.cta, v(d.cta), 2], [S.refs, String((d.refs || []).length), 3], [S.logo, W.logo_w ? (d.logo_on ? S.on : S.off) : S.none, 3]];
       $('#cp-sum').innerHTML = rows.map(function (r) { return '<div class="rounded-xl bg-ink-50 px-3 py-2"><dt class="text-xs text-ink-500 flex justify-between">' + esc(r[0]) + '<button type="button" data-go="' + r[2] + '" class="link text-xs">✎</button></dt><dd class="text-ink-900 break-words" dir="auto">' + esc(r[1]) + '</dd></div>'; }).join(''); }
     var s0 = 0; try { s0 = +(sessionStorage.getItem(key + '_s') || 0); } catch (e) {} show(dr && dr.goal ? s0 : 0);
-    function saveDraft() { lprev(); var d = collect(); d.refsFull = refs; ls(key, d); }
+    function saveDraft() { lprev(); var d = collect(); d.refsFull = refs; d.prodsFull = prods; ls(key, d); }
     W.addEventListener('input', saveDraft); W.addEventListener('change', saveDraft);
     $('#cp-refs').addEventListener('click', function (e) { var b = e.target.closest('[data-rm]'); if (!b) return; refs.splice(+b.dataset.rm, 1); paintRefs(); saveDraft(); });
+    // صور المنتج: حذف، مكتبة، رفع (6 كحد أقصى)
+    var prodsEl = $('#cp-prods');
+    if (prodsEl) prodsEl.addEventListener('click', function (e) { var b = e.target.closest('[data-pm]'); if (!b) return; prods.splice(+b.dataset.pm, 1); paintProds(); saveDraft(); });
+    var prodLib = $('#cp-prod-lib');
+    if (prodLib && window.mediaPick) prodLib.addEventListener('click', function () {
+      window.mediaPick({ accept: 'image', multiple: true }).then(function (items) { if (!items || !items.length) return;
+        var room = 6 - prods.length; var have = {}; prods.forEach(function (r) { have[r.id] = 1; });
+        items.filter(function (it) { return it && it.id && !have[it.id]; }).slice(0, room).forEach(function (it) { prods.push({ id: it.id, thumb: it.thumb || it.url }); });
+        paintProds(); saveDraft(); }).catch(function () {}); });
+    else if (prodLib) prodLib.style.display = 'none';
+    var prodIn = $('#cp-prod-in');
+    if (prodIn) prodIn.addEventListener('change', function () {
+      var all = [].slice.call(this.files); this.value = ''; var room = 6 - prods.length; if (room <= 0) return toast(T.refMax, 'error');
+      Promise.all(all.slice(0, room).map(shrink)).then(function (fs) { if (!fs.length) return;
+        toast(T.uploading, 'info');
+        return post({ action: 'ref' }, fs).then(function (j) { if (!j.ok) return toast(j.error || T.err, 'error'); prods = prods.concat(j.items); paintProds(); saveDraft(); toast(T.uploaded); }); }).catch(function () { toast(T.err, 'error'); });
+    });
     // PDF مرجعي: كل صفحة تتحول لصورة JPEG في المتصفح، فالذكاء الاصطناعي يشوفها زي الصور بالظبط
     function pdfPages(f, max) { return window.extractKit.loadPdf().then(function (lib) { return f.arrayBuffer().then(function (b) { return lib.getDocument({ data: b }).promise; }); }).then(function (doc) {
       var out = [], n = Math.min(doc.numPages, max);

@@ -80,15 +80,56 @@ function cpl_create(array $in): int
         'logo_x' => max(0, min(100, (int)($in['logo_x'] ?? 86))), 'logo_y' => max(0, min(100, (int)($in['logo_y'] ?? 9))), 'logo_w' => max(8, min(35, (int)($in['logo_w'] ?? 18))), 'logo_op' => max(30, min(100, (int)($in['logo_op'] ?? 100))),
         'font' => preg_match('/^[\w .-]{1,40}$/', (string)($in['font'] ?? 'auto')) ? (string)$in['font'] : 'auto',
         'img_q' => in_array($in['img_q'] ?? '', ['medium', 'high'], true) ? (string)$in['img_q'] : 'high',
+        'style' => array_key_exists((string)($in['style'] ?? 'auto'), cpl_styles()) ? (string)$in['style'] : 'auto',
+        'products' => array_slice(array_values(array_filter(array_map('intval', (array)($in['products'] ?? [])), function ($id) use ($wid) { $m = media_get($wid, $id); return $id > 0 && $m && empty($m['deleted_at']) && media_kind((string)$m['mime']) === 'image'; })), 0, 6),
         'logo_tint' => in_array($in['logo_tint'] ?? '', ['orig', 'white', 'black'], true) ? $in['logo_tint'] : 'orig', 'logo_plate' => in_array($in['logo_plate'] ?? '', ['none', 'light', 'dark'], true) ? $in['logo_plate'] : 'none', 'logo_on' => !isset($in['logo_on']) || !empty($in['logo_on'])];
     $name = mb_substr(trim((string)($in['name'] ?? '')), 0, 150) ?: mb_substr(preg_replace('/\s+/u', ' ', $goal), 0, 60);
     $hasLogo = function_exists('kb_logo') && kb_logo($wid);
     db()->prepare('INSERT INTO cp_plans (workspace_id, user_id, name, goal, cnt, opts, refs, stage, status) VALUES (?,?,?,?,?,?,?,?, "generating")')
-        ->execute([$wid, (int)(current_user()['id'] ?? 0), $name, $goal, $n, json_encode($opts, JSON_UNESCAPED_UNICODE), json_encode($refs), ($refs || $hasLogo) ? 'visual' : 'outline']);
+        ->execute([$wid, (int)(current_user()['id'] ?? 0), $name, $goal, $n, json_encode($opts, JSON_UNESCAPED_UNICODE), json_encode($refs), ($refs || $hasLogo || !empty($opts['products'])) ? 'visual' : 'outline']);
     $nid = (int)db()->lastInsertId(); cpl_log($nid, t('اتعملت الخطة: %s منشور، %s صورة مرجعية%s.', $n, count($refs), $hasLogo ? t('، والشعار من ملف الشركة') : '')); return $nid;
 }
 
-function cpl_opts(array $p): array { return (json_decode((string)$p['opts'], true) ?: []) + ['lang' => 'ar', 'dialect' => '', 'audience' => '', 'services' => [], 'tone' => '', 'cta' => '', 'avoid' => '', 'about' => '', 'font' => 'auto', 'video' => true, 'carousel' => true, 'humanize' => true, 'qc' => true, 'img_q' => 'high']; }
+function cpl_opts(array $p): array { return (json_decode((string)$p['opts'], true) ?: []) + ['lang' => 'ar', 'dialect' => '', 'audience' => '', 'services' => [], 'tone' => '', 'cta' => '', 'avoid' => '', 'about' => '', 'font' => 'auto', 'video' => true, 'carousel' => true, 'humanize' => true, 'qc' => true, 'img_q' => 'high', 'style' => 'auto', 'products' => []]; }
+
+/** ستايلات تصميم جاهزة: المستخدم يختار واحد، أو يرفع صورة ريفرنس (refs)، أو يسيبها تلقائي. */
+function cpl_styles(): array
+{
+    return [
+        'auto' => [t('تلقائي / من الريفرنس'), ''],
+        'cinematic' => [t('سينمائي غامق'), 'ART-DIRECTION STYLE: cinematic dark premium scene, moody low-key lighting, strong brand-colour rim/accent glow, volumetric light, reflections, shallow depth of field, photoreal, award-winning advertising look.'],
+        'neon_sport' => [t('نيون رياضي'), 'ART-DIRECTION STYLE: vibrant energetic sports aesthetic, dynamic sense of motion, glowing neon brand-colour light-trails and energy streaks, high contrast, bold and punchy.'],
+        'luxury_gold' => [t('فخامة ذهبية'), 'ART-DIRECTION STYLE: luxury premium aesthetic, deep dark background, elegant gold and brand-colour accents, soft specular reflections, refined high-end mood.'],
+        'clean_product' => [t('منتج نظيف'), 'ART-DIRECTION STYLE: clean product-hero studio shot, soft bright pastel or brand-colour seamless background, gentle soft shadows, crisp minimal premium e-commerce composition.'],
+        'vibrant_pop' => [t('بوب زاهي'), 'ART-DIRECTION STYLE: playful vibrant pop aesthetic, bright saturated brand colours, bold geometric shapes and fun props, cheerful and scroll-stopping.'],
+        'corporate_3d' => [t('كوربوريت ثري دي'), 'ART-DIRECTION STYLE: modern corporate scene with sleek 3D elements, app/device mockups, clean depth, smooth brand-colour gradients, professional tech feel.'],
+        'nature_fresh' => [t('طبيعي منعش'), 'ART-DIRECTION STYLE: fresh natural daylight scene with water, greenery or fruit elements, airy clean composition, vivid and refreshing.'],
+    ];
+}
+
+/** معرّفات صور المنتج اللي رفعها المستخدم (اختياري) — تُرسل لموديل الصور ليظهر المنتج نفسه في التصميم. */
+function cpl_prod_ids(array $p): array { return array_values(array_filter(array_map('intval', (array)(cpl_opts($p)['products'] ?? [])))); }
+
+/** يحضّر ملفات مرجعية لموديل الصور: صور المنتج أولًا (تُعاد بأمانة) ثم تصميمات الستايل، مع توجيه نصّي مميّز لكل نوع.
+ *  يرجّع [$files, $hint]. المتصل مسؤول عن حذف الملفات المؤقتة بعد الاستخدام. */
+function cpl_ref_images(array $p, int $wid, int $max = 4): array
+{
+    $files = []; $prod = 0; $style = 0;
+    $load = function ($rid) use ($wid, &$files) {
+        $rm = media_get($wid, (int)$rid);
+        if ($rm && ($rd = cpl_small_image(media_file_path($wid, $rm), 1024))) {
+            $tf = tempnam(sys_get_temp_dir(), 'cpr') . '.jpg';
+            file_put_contents($tf, base64_decode(substr($rd, strpos($rd, ',') + 1))); $files[] = $tf; return true;
+        }
+        return false;
+    };
+    foreach (cpl_prod_ids($p) as $pid) { if (count($files) >= $max) break; if ($load($pid)) $prod++; }
+    foreach (array_slice(json_decode((string)$p['refs'], true) ?: [], 0, $max) as $rid) { if (count($files) >= $max) break; if ($load($rid)) $style++; }
+    $hint = '';
+    if ($prod) $hint .= "\nThe first {$prod} attached image(s) show the EXACT real PRODUCT to feature as the clear hero of the design — reproduce it faithfully: real shape, colour, packaging, proportions and its real label/logo kept intact and legible. Integrate it naturally into the scene with correct perspective, lighting, shadow and reflections. Do NOT redesign the product or invent text on it.";
+    if ($style) $hint .= "\nThe " . ($prod ? "remaining {$style}" : (string)$style) . " attached image(s) are STYLE REFERENCES — infer their shared visual system (colour palette, lighting mood, contrast, composition and polish) and apply it. Do not copy any subject, text, person or logo from them.";
+    return [$files, $hint];
+}
 
 /** جودة توليد صور الخطة (high افتراضيًا للتصميمات بمستوى الوكالات؛ يقدر صاحب الخطة يخفّضها لتوفير الكريدت). */
 function cpl_img_quality(array $p): string { $q = (string)(cpl_opts($p)['img_q'] ?? 'high'); return in_array($q, ['low', 'medium', 'high'], true) ? $q : 'high'; }
@@ -689,8 +730,10 @@ function cpl_job_prompt(array $p, array $it, array $j): string
 {
     $o = cpl_opts($p); $vis = trim((string)$p['visual']);
     [$car, $cag, $cab] = cpl_accent_rgb($p); $accHex = sprintf('#%02X%02X%02X', $car, $cag, $cab);
+    $styleTxt = ''; $st = (string)($o['style'] ?? 'auto'); $styles = cpl_styles();
+    if ($st !== 'auto' && !empty($styles[$st][1])) $styleTxt = "\n" . $styles[$st][1];
     $rules = "\nBRAND ACCENT COLOUR: use {$accHex} as the single signature accent of the whole series — the rim/edge light, the coloured glow and any highlight should be this exact colour, used with restraint over a mostly dark, moody, premium base so every post feels like one cohesive campaign.\nLOOK & FEEL — HIGH-END CREATIVE-AGENCY POSTER (mandatory): this must look like a premium, award-winning advertising campaign visual, NOT a plain stock photo. One strong hero subject as a clear focal point; cinematic dramatic lighting with a coloured rim/accent glow in the brand colour; a moody, rich, premium environment with real depth, volumetric light, reflections and tactile premium materials; deliberate composition with the subject offset and the upper area kept calm/darker as negative space for the headline; shallow depth of field, cinematic colour grade, subtle film grain. Make it striking and scroll-stopping. Never flat, bright-and-empty, generic, cluttered or AI-plastic.\nFULL-BLEED: one complete, edge-to-edge photographic image that fills the entire 1080x1350 frame; do NOT add or leave any solid colour band, gradient bar, letterbox, flat panel, or cropped colour strip, and no borders or margins of flat colour, UNLESS the supplied reference designs clearly use such a band (then match them). Maximum photographic quality: sharp focus, rich detail, correct exposure, natural depth of field, professional colour grading; not flat, not AI-plastic.\nIf the image shows people: make them look like real, candid photographed humans, not AI renders. Add authentic, specific features: natural asymmetric faces, real skin texture with pores and subtle blemishes, flyaway hair, correct hands with five fingers, natural eye catchlights and gaze, believable clothing fit and wrinkles, and lived-in environment detail. No waxy skin, no plastic smoothness, no uncanny symmetry, no extra fingers.\nCRITICAL — NO TEXT AND NO LOGOS ANYWHERE: do NOT render any text, letters, words, headline, caption, numbers, labels, signage copy, logo, brand name, wordmark or watermark ANYWHERE in the image — this includes on clothing, uniforms, hard hats, badges, lanyards, ID cards, device/tablet/monitor screens, machines, equipment, cabinets, packaging, walls, posters, vehicles and any surface. People's uniforms and chest areas must be PLAIN with no company name, no made-up logo and no emblem. Device and monitor screens must show abstract graphics only, never readable text or a logo. The headline and the real company logo are added afterwards by the system, so output a purely visual photograph with NO typography and NO brand marks of any kind. Any text or logo the model invents will be wrong and must not appear.\nLEAVE CLEAN SPACE (VARY IT): keep EITHER the top ~30% OR the bottom ~30% of the frame calmer, simpler and a little darker (sky, wall, shadow, shallow background) as uncluttered negative space where the headline will be placed later — choose whichever side suits this composition and vary it across the series so the text position is not always the same. Keep the " . cpl_logo_corner($p) . " corner area (about 260x160px) clean for the logo. Keep the main subject and every key element at least 100px (about 9%) inside each edge; nothing touches or is cropped by an edge.";
-    if ($j['kind'] === 'image') return $it['image_prompt'] . ($vis !== '' ? "\n\nBrand visual DNA: " . mb_substr($vis, 0, 1200) : '') . $rules;
+    if ($j['kind'] === 'image') return $it['image_prompt'] . ($vis !== '' ? "\n\nBrand visual DNA: " . mb_substr($vis, 0, 1200) : '') . $styleTxt . $rules;
     if ($j['kind'] === 'video') return $it['video_prompt']
         . "\n\n=== CINEMATIC LOOK — shoot it like a premium ad film ===\n"
         . "ONE strong hero subject; dramatic cinematic lighting with a coloured rim/accent glow in {$accHex}; a moody, rich, premium environment with real depth, volumetric light and reflections; shallow depth of field; slow, deliberate, smooth camera motion (gentle push-in, parallax or orbit); cinematic colour grade and subtle film grain. Striking and scroll-stopping, never flat, bright-and-empty, generic or AI-plastic.\n"
@@ -703,7 +746,7 @@ function cpl_job_prompt(array $p, array $it, array $j): string
     $s = $it['carousel'][(int)$j['slide']] ?? []; $n = count($it['carousel']);
     return "Carousel slide " . ((int)$j['slide'] + 1) . " of {$n} (" . ($s['role'] ?? '') . ") for a premium social campaign, 4:5 1080x1350, one consistent series across all slides.\n"
         . "Visual concept: " . ($s['visual'] ?? '') . "\nLayout: " . ($s['layout'] ?? '')
-        . ($vis !== '' ? "\n\nBrand visual DNA: " . mb_substr($vis, 0, 1200) : '') . $rules;
+        . ($vis !== '' ? "\n\nBrand visual DNA: " . mb_substr($vis, 0, 1200) : '') . $styleTxt . $rules;
 }
 
 /** ركن اللوجو: عربي = أعلى اليمين، إنجليزي = أعلى اليسار */
@@ -999,8 +1042,7 @@ function cpl_jobs_tick(int $planId): bool
                 cpl_log($planId, t('بدأ توليد الفيديو للمنشور %s، وسنتابعه حتى يكتمل (قد يستغرق دقائق).', $it['seq']));
             } else {
                 $GLOBALS['img_no_trim'] = true;
-                $refFiles = []; foreach (array_slice(json_decode((string)$p['refs'], true) ?: [], 0, 3) as $rid) { $rm = media_get($wid, (int)$rid); if ($rm && ($rd = cpl_small_image(media_file_path($wid, $rm), 1024))) { $tf = tempnam(sys_get_temp_dir(), 'cpr') . '.jpg'; file_put_contents($tf, base64_decode(substr($rd, strpos($rd, ',') + 1))); $refFiles[] = $tf; } }
-                if ($refFiles) $prompt .= "\nThe " . count($refFiles) . " attached images are STYLE REFERENCES. Study ALL of them together and infer the shared visual system: exact colour palette, lighting mood, contrast, typography style and weight, grid and layout rhythm, texture and the overall level of polish; then apply that system here. Do not copy any subject, text, person or logo from them.";
+                [$refFiles, $refHint] = cpl_ref_images($p, $wid, 4); $prompt .= $refHint;
                 try { $names = img_generate($prompt, '4:5', 1, $refFiles, cpl_img_quality($p)); } finally { foreach ($refFiles as $tf) @unlink($tf); } $ms = cpl_media_for_names($names); if (!$ms) throw new RuntimeException(t('لم تُحفظ الصورة الناتجة.'));
                 db()->prepare('UPDATE cp_jobs SET status = "done", result = ? WHERE id = ?')->execute([json_encode($ms), $j['id']]); // الخام؛ الختم في finalize
                 cpl_log($planId, t('اكتملت %s للمنشور %s في %s ثانية.', $label, $it['seq'], round(microtime(true) - $t0)), 'ok');
@@ -1037,10 +1079,8 @@ function cpl_jobs_burst(int $planId, int $concurrency = 5): int
         $st = db()->prepare('SELECT * FROM cp_jobs WHERE plan_id = ? AND status = "queued" AND kind IN ("image","carousel") ORDER BY id LIMIT ' . max(1, min(8, (int)$concurrency))); $st->execute([$planId]);
         $jobs = $st->fetchAll();
         if (!$jobs) return cpl_jobs_tick($planId) ? 1 : 0; // مفيش صور: خلي cpl_jobs_tick يبدأ فيديو منتظر أو يخلص
-        // ملفات الريفرانس (مشتركة للخطة) مرة واحدة
-        $refFiles = [];
-        foreach (array_slice(json_decode((string)$p['refs'], true) ?: [], 0, 3) as $rid) { $rm = media_get($wid, (int)$rid); if ($rm && ($rd = cpl_small_image(media_file_path($wid, $rm), 1024))) { $tf = tempnam(sys_get_temp_dir(), 'cpr') . '.jpg'; file_put_contents($tf, base64_decode(substr($rd, strpos($rd, ',') + 1))); $refFiles[] = $tf; } }
-        $refHint = $refFiles ? ("\nThe " . count($refFiles) . " attached images are STYLE REFERENCES. Study ALL of them together and infer the shared visual system: exact colour palette, lighting mood, contrast, typography style and weight, grid and layout rhythm, texture and the overall level of polish; then apply that system here. Do not copy any subject, text, person or logo from them.") : '';
+        // ملفات الريفرانس (صور المنتج + تصميمات الستايل، مشتركة للخطة) مرة واحدة
+        [$refFiles, $refHint] = cpl_ref_images($p, $wid, 4);
         $batch = []; $meta = [];
         foreach ($jobs as $j) {
             $it = cpl_item((int)$j['item_id']); if (!$it) { db()->prepare('UPDATE cp_jobs SET status = "failed", error = "item" WHERE id = ?')->execute([$j['id']]); continue; }
