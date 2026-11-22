@@ -258,18 +258,29 @@ function apify_charge(): void
 
 function tnd_apify_req(string $method, string $path, ?array $body = null, ?string $tok = null): array
 {
-    if ($method === 'POST' && preg_match('~/runs(\?|$)|/run-sync~', $path) && strpos($path, '/acts/' . rawurlencode(tnd_apify_actor()) . '/') === false) apify_charge(); // تشغيلة مدفوعة (سحب المناقصات على مستوى المنصة مابيتحسبش على شركة)
+    $isLaunch = $method === 'POST' && preg_match('~/runs(\?|$)|/run-sync~', $path);
+    if ($isLaunch && strpos($path, '/acts/' . rawurlencode(tnd_apify_actor()) . '/') === false) apify_charge(); // تشغيلة مدفوعة (سحب المناقصات على مستوى المنصة مابيتحسبش على شركة)
     $tok = $tok ?? (string)(tnd_apify_conn()['credentials']['api_key'] ?? ''); if ($tok === '') throw new RuntimeException(t('اربط Apify من التكاملات الأول.'));
-    $ch = curl_init(tnd_apify_base() . $path);
-    $h = ['Accept: application/json', 'Authorization: Bearer ' . $tok];
-    if ($body !== null) { $h[] = 'Content-Type: application/json'; curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body, JSON_UNESCAPED_UNICODE)); }
-    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_CUSTOMREQUEST => $method, CURLOPT_TIMEOUT => 60, CURLOPT_CONNECTTIMEOUT => 10, CURLOPT_HTTPHEADER => $h]);
-    $raw = curl_exec($ch); $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); $err = curl_error($ch); curl_close($ch);
-    if ($raw === false) throw new RuntimeException(net_friendly('Apify', (string)$err));
-    $d = json_decode((string)$raw, true);
-    if ($code === 401 || $code === 403) throw new RuntimeException(t('مفتاح Apify غلط أو مالوش صلاحية.'));
-    if ($code >= 400) throw new RuntimeException('Apify: ' . (is_array($d) ? (string)($d['error']['message'] ?? $code) : $code));
-    return is_array($d) ? $d : [];
+    $payload = $body !== null ? json_encode($body, JSON_UNESCAPED_UNICODE) : null;
+    $waits = [4, 8, 12]; // لو Apify وصل أقصى عدد تشغيلات متزامنة: نستنى ونعيد (التشغيلات القديمة بتخلص وتفضّي أماكن) بدل الفشل الفوري على الكل
+    for ($att = 0; ; $att++) {
+        $ch = curl_init(tnd_apify_base() . $path);
+        $h = ['Accept: application/json', 'Authorization: Bearer ' . $tok];
+        if ($payload !== null) { $h[] = 'Content-Type: application/json'; curl_setopt($ch, CURLOPT_POSTFIELDS, $payload); }
+        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_CUSTOMREQUEST => $method, CURLOPT_TIMEOUT => 60, CURLOPT_CONNECTTIMEOUT => 10, CURLOPT_HTTPHEADER => $h]);
+        $raw = curl_exec($ch); $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); $err = curl_error($ch); curl_close($ch);
+        if ($raw === false) throw new RuntimeException(net_friendly('Apify', (string)$err));
+        $d = json_decode((string)$raw, true);
+        if ($code === 401 || $code === 403) throw new RuntimeException(t('مفتاح Apify غلط أو مالوش صلاحية.'));
+        if ($code >= 400) {
+            $msg = is_array($d) ? (string)($d['error']['message'] ?? $d['error']['type'] ?? $code) : (string)$code;
+            $isConc = stripos($msg, 'concurrent') !== false; // "exceed your limit of N concurrent Actor runs"
+            if ($isLaunch && $isConc && $att < count($waits)) { sleep($waits[$att]); continue; }
+            if ($isConc) throw new RuntimeException(t('Apify مشغّل أقصى عدد تشغيلات في نفس الوقت دلوقتي. استنى دقيقة وجرّب تاني، أو ارفع باقة Apify لعدد تشغيلات أكبر.'));
+            throw new RuntimeException('Apify: ' . $msg);
+        }
+        return is_array($d) ? $d : [];
+    }
 }
 
 /** كلمات السحب: اتحاد كلمات البحث والمجالات لكل الشركات النشطة. السحب بيبقى عليها بس عشان Apify بيحاسب على كل منافسة */
