@@ -101,6 +101,16 @@ if ($z && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['ajax'] ?? '') === 'd
     $pid = null;
     @set_time_limit(30 + 5 * count($rows));
     $res = []; $valid = 0;
+    // منع ضرب حد Zernio (429): تجميع الصفوف المتطابقة في الفحص (طلب واحد بدل عشرات)،
+    // مباعدة بسيطة بين الطلبات الفعلية، وإعادة محاولة لطيفة عند كثرة الطلبات
+    $valCache = [];
+    $zTry = function (callable $fn) {
+        $wait = 1;
+        for ($i = 0; ; $i++) {
+            try { return $fn(); }
+            catch (ZernioException $ex) { if (($ex->status ?? 0) === 429 && $i < 2) { sleep($wait); $wait *= 2; continue; } throw $ex; }
+        }
+    };
     foreach ($rows as $k => $r) {
         $errs = [];
         $g = function ($c) use ($r) { return trim((string)($r[$c] ?? '')); };
@@ -135,12 +145,19 @@ if ($z && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['ajax'] ?? '') === 'd
         $row = ['rowIndex' => $k + 1, 'ok' => false, 'errors' => []];
         if (!$errs && $platforms) {
             try {
-                $v = pub_validate_post($z, ['content' => $payload['content'], 'platforms' => $platforms]);
-                foreach ((array)($v['errors'] ?? []) as $ve) $errs[] = platform_label((string)($ve['platform'] ?? '')) . ': ' . (string)($ve['error'] ?? '');
+                // الصفوف المتطابقة (نفس المحتوى + نفس الحسابات) بتتفحص مرة واحدة بس
+                $sig = sha1($payload['content'] . '|' . json_encode($platforms, JSON_UNESCAPED_UNICODE));
+                if (!array_key_exists($sig, $valCache)) {
+                    $ve2 = [];
+                    $v = $zTry(function () use ($z, $payload, $platforms) { usleep(90000); return pub_validate_post($z, ['content' => $payload['content'], 'platforms' => $platforms]); });
+                    foreach ((array)($v['errors'] ?? []) as $ve) $ve2[] = platform_label((string)($ve['platform'] ?? '')) . ': ' . (string)($ve['error'] ?? '');
+                    $valCache[$sig] = $ve2;
+                }
+                foreach ($valCache[$sig] as $e) $errs[] = $e;
             } catch (ZernioException $ex) { $errs[] = $ex->getMessage(); }
         }
         if (!$errs && !$dry) {
-            try { $c = $z->createPost($payload); $row['createdPostId'] = (string)($c['post']['_id'] ?? ''); } catch (ZernioException $ex) { $errs[] = $ex->getMessage(); }
+            try { $c = $zTry(function () use ($z, $payload) { usleep(90000); return $z->createPost($payload); }); $row['createdPostId'] = (string)($c['post']['_id'] ?? ''); } catch (ZernioException $ex) { $errs[] = $ex->getMessage(); }
         }
         $row['ok'] = !$errs; $row['errors'] = $errs; if (!$errs) $valid++;
         $res[] = $row;
