@@ -22,6 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $it = cpl_item((int)($_POST['id'] ?? 0)); if (!$it) $J(['ok' => false, 'error' => t('طلب غير صحيح.')], 404);
             if (($it['status'] ?? '') !== 'approved') $J(['ok' => false, 'error' => t('مينفعش تعدّل منشور اتنشر أو اتجدول.')], 403);
             $f = []; foreach (['linkedin', 'x', 'headline', 'image_prompt', 'video_prompt'] as $k) if (array_key_exists($k, $_POST)) $f[$k] = (string)$_POST[$k];
+            if (isset($_POST['carousel'])) { $car = json_decode((string)$_POST['carousel'], true); if (is_array($car)) $f['carousel'] = $car; }
             if ($f) cpl_save_item((int)$it['id'], $f);
             $J(['ok' => true]);
         }
@@ -52,7 +53,7 @@ render(t('مخزون المحتوى'), 'content_bank', function () use ($items, 
     
     $saved = json_decode((string)setting('cb_accounts_' . $wid . '_' . (int)(current_user()['id'] ?? 0), '[]'), true) ?: [];
     $T = [
-        'all' => t('تحديد الكل'), 'sel' => t('%s محدد'), 'now' => t('انشر الآن'), 'queue' => t('أضف للطابور'), 'sched' => t('جدولة'), 'back' => t('إرجاع للمراجعة'), 'attach' => t('أرفق صورة/فيديو'), 'more' => t('+ ملف'), 'bulkAttach' => t('أرفق صورًا للمحدد بالترتيب'), 'bulkDone' => t('تم إرفاق %s ملف.'), 'bulkNone' => t('حدد العناصر الأول اللي عايز ترفعلها.'), 'bulkExtra' => t('اخترت %s ملف بس المحدد %s عنصر. الملفات الزيادة مش هتترفع. تكمل؟'), 'carNote' => t('للكاروسيل: أرفق الصور الخمس بالترتيب.'), 'change' => t('غيّر'), 'remove' => t('إزالة'),
+        'all' => t('تحديد الكل'), 'clearSel' => t('إلغاء التحديد'), 'sel' => t('%s محدد'), 'now' => t('انشر الآن'), 'queue' => t('أضف للطابور'), 'sched' => t('جدولة'), 'back' => t('إرجاع للمراجعة'), 'attach' => t('أرفق صورة/فيديو'), 'more' => t('+ ملف'), 'bulkAttach' => t('أرفق صورًا للمحدد بالترتيب'), 'bulkDone' => t('تم إرفاق %s ملف.'), 'bulkNone' => t('حدد العناصر الأول اللي عايز ترفعلها.'), 'bulkExtra' => t('اخترت %s ملف بس المحدد %s عنصر. الملفات الزيادة مش هتترفع. تكمل؟'), 'carNote' => t('للكاروسيل: أرفق الصور الخمس بالترتيب.'), 'change' => t('غيّر'), 'remove' => t('إزالة'),
         'copy' => t('نسخ'), 'copied' => t('تم النسخ'), 'img' => t('برومبت الصورة'), 'vid' => t('برومبت الفيديو'), 'car' => t('الكاروسيل'), 'li' => 'LinkedIn', 'x' => 'X',
         'hl' => t('العنوان'), 'saved' => t('تم الحفظ ✓'), 'editBtn' => t('تعديل'), 'viewBtn' => t('عرض'), 'close' => t('إغلاق'), 'cancel' => t('إلغاء'), 'save2' => t('حفظ التعديلات'),
         's_approved' => t('جاهز'), 's_scheduled' => t('مجدول %s'), 's_queued' => t('في الطابور'), 's_published' => t('تم النشر'),
@@ -68,7 +69,15 @@ render(t('مخزون المحتوى'), 'content_bank', function () use ($items, 
     <div class="flex flex-wrap items-center gap-2 mb-4 text-sm">
       <?php if (count($plans) > 1): ?><select id="cb-plan" class="input !mt-0 !py-2 !w-auto"><option value=""><?= e(t('كل الخطط')) ?></option><?php foreach ($plans as $id => $n): ?><option value="<?= $id ?>"><?= e($n) ?></option><?php endforeach; ?></select><?php endif; ?>
       <span class="relative flex-1 min-w-[12rem]"><span class="absolute inset-y-0 start-3 flex items-center text-ink-400"><?= ui_icon('search', 'w-4 h-4') ?></span><input id="cb-q" type="search" class="input !mt-0 !py-2 ps-10 w-full" placeholder="<?= e(t('ابحث في النصوص…')) ?>"></span>
-      <label class="inline-flex items-center gap-2 rounded-xl border border-ink-200 px-3 py-2 cursor-pointer hover:bg-ink-50 transition"><input type="checkbox" id="cb-noimg"><?= e(t('بدون صورة فقط')) ?></label>
+      <select id="cb-type" class="input !mt-0 !py-2 !w-auto" title="<?= e(t('فلترة حسب النوع')) ?>">
+        <option value=""><?= e(t('كل الأنواع')) ?></option>
+        <option value="img"><?= e(t('فيه صورة مرفقة')) ?></option>
+        <option value="noimg"><?= e(t('بدون صورة')) ?></option>
+        <option value="vid"><?= e(t('فيه فيديو')) ?></option>
+        <option value="car"><?= e(t('فيه كاروسيل')) ?></option>
+        <option value="text"><?= e(t('نص فقط')) ?></option>
+      </select>
+      <button type="button" id="cb-all" class="btn-ghost !py-2 text-sm whitespace-nowrap"><?= e(t('تحديد الكل')) ?></button>
     </div>
     <div id="cb-bar" class="hidden sticky top-2 z-10 card p-3 mb-3 space-y-2 text-sm">
       <div class="flex flex-wrap items-center gap-2"><b id="cb-n"></b><span class="flex-1"></span>

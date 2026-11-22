@@ -385,6 +385,14 @@ function cpl_save_item(int $id, array $f): void
     $it = cpl_item($id); if (!$it) throw new RuntimeException(t('العنصر غير موجود.'));
     $cols = ['linkedin' => 5000, 'x' => 600, 'headline' => 120, 'image_prompt' => 4000, 'video_prompt' => 4000]; $set = []; $a = [];
     foreach ($cols as $c => $max) if (array_key_exists($c, $f)) { $set[] = "$c = ?"; $a[] = mb_substr(trim((string)$f[$c]), 0, $max); }
+    if (array_key_exists('carousel', $f) && is_array($f['carousel'])) {
+        $old = (array)($it['carousel'] ?: []); $car = [];
+        foreach (array_slice(array_values($f['carousel']), 0, 10) as $i => $s) {
+            $s = (array)$s; $base = (array)($old[$i] ?? []);
+            $car[] = array_merge($base, ['title' => mb_substr(trim((string)($s['title'] ?? '')), 0, 300), 'body' => mb_substr(trim((string)($s['body'] ?? '')), 0, 2000)]);
+        }
+        $set[] = 'carousel = ?'; $a[] = json_encode($car, JSON_UNESCAPED_UNICODE);
+    }
     if (array_key_exists('media_ids', $f)) { $ms = array_slice(array_values(array_unique(array_filter(array_map('intval', (array)$f['media_ids'])))), 0, 10); foreach ($ms as $mid) if (!media_get((int)ws('id'), $mid)) throw new RuntimeException(t('الملف مش موجود')); $set[] = 'media_ids = ?'; $a[] = json_encode($ms); $set[] = 'media_id = ?'; $a[] = $ms[0] ?? null; }
     if (!$set) return; $a[] = $id; $a[] = (int)ws('id');
     db()->prepare('UPDATE cp_items SET ' . implode(', ', $set) . ' WHERE id = ? AND workspace_id = ?')->execute($a);
