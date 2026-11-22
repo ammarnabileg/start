@@ -146,6 +146,7 @@ function mcp_tools(): array
             'video' => ['type' => 'boolean', 'description' => 'Also generate a video per post (slower, costs more)'],
             'reference_media_ids' => ['type' => 'array', 'items' => ['type' => 'integer'], 'description' => 'Reference image ids (from list_media) to match the visual style'],
         ]]],
+        ['name' => 'generate_plan_media', 'description' => 'Generate the real images (and videos) for every post of a content plan made by create_content_plan. Call it after the plan status is "review" (see list_content_plans). It queues real generation in the background using the workspace image/video provider; results appear on the plan for review and publish nothing. Costs real money; video is much slower. Needs a write token.', 'inputSchema' => ['type' => 'object', 'required' => ['plan_id'], 'properties' => ['plan_id' => ['type' => 'integer', 'description' => 'Content plan id'], 'media' => ['type' => 'string', 'enum' => ['image', 'video', 'both'], 'description' => 'What to generate (default image)']]]],
         ['name' => 'schedule_post', 'description' => 'Publish or schedule a post to the chosen accounts. This needs a token with publish permission. It runs right away with no approval step, and the platform records every post in its activity log.', 'inputSchema' => ['type' => 'object', 'required' => ['text', 'account_ids'], 'properties' => [
             'text' => ['type' => 'string', 'description' => 'Post text'],
             'account_ids' => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'Target account ids (from list_social_accounts)'],
@@ -229,7 +230,16 @@ function mcp_call(string $name, array $args, string $scopes, int $tokenId = 0): 
                 'video' => !empty($args['video']), 'refs' => $refs,
                 'audience' => (string)($args['audience'] ?? ''), 'tone' => (string)($args['tone'] ?? '')];
             if (!empty($args['dialect'])) { $in['dialect'] = (string)$args['dialect']; $in['dialect_k'] = in_array($args['dialect'], ['msa', 'saudi', 'gulf', 'emirati', 'kuwaiti', 'egyptian', 'levantine', 'maghrebi', 'white'], true) ? $args['dialect'] : 'other'; if ($in['dialect_k'] === 'other') $in['dialect_other'] = (string)$args['dialect']; }
-            try { $pid = cpl_create($in); return $text('Content plan started (id ' . $pid . '). It generates in the background; drafts will appear in the content bank for review. Use list_content_plans to check progress.'); }
+            try { $pid = cpl_create($in); return $text('Content plan started (id ' . $pid . '). The text generates in the background; when its status is "review" call generate_plan_media to create the images/videos. Use list_content_plans to check progress.'); }
+            catch (Throwable $ex) { return $err($ex->getMessage()); }
+        case 'generate_plan_media':
+            if (!mcp_scope_allows($scopes, 'write')) return $err('This token is read-only. Create a token with "write" permission.');
+            if (!function_exists('cpl_jobs_add') || !function_exists('cpl_plan')) return $err('Content planning is not available.');
+            $pid = (int)($args['plan_id'] ?? 0); $plan = cpl_plan($pid); if (!$plan) return $err('Plan not found.');
+            $media = in_array($args['media'] ?? 'image', ['image', 'video', 'both'], true) ? (string)$args['media'] : 'image';
+            $q = db()->prepare('SELECT id FROM cp_items WHERE plan_id = ? AND linkedin IS NOT NULL'); $q->execute([$pid]); $ids = array_map('intval', $q->fetchAll(PDO::FETCH_COLUMN));
+            if (!$ids) return $err('No ready posts yet — wait until the plan status is "review".');
+            try { $n = 0; if ($media === 'image' || $media === 'both') $n += cpl_jobs_add($pid, $ids, 'image'); if ($media === 'video' || $media === 'both') $n += cpl_jobs_add($pid, $ids, 'video'); return $text('Queued ' . $n . ' media job(s) for ' . count($ids) . ' post(s). They generate in the background; check list_content_plans.'); }
             catch (Throwable $ex) { return $err($ex->getMessage()); }
         case 'schedule_post':
             if (!mcp_scope_allows($scopes, 'publish')) return $err('Publishing needs a token with "publish" permission (created by the workspace owner in the panel).');
