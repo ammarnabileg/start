@@ -3,7 +3,7 @@
 $wid = (int)ws('id');
 $J = function (array $d, int $c = 200) { http_response_code($c); header('Content-Type: application/json; charset=utf-8'); exit(json_encode($d, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)); };
 $zerr = null; $z = zernio_or_null($zerr);
-function cb_thumbs(array $ms): array { return array_map(function ($m) { return ['id' => $m, 'thumb' => url('media', ['file' => $m, 'thumb' => 1])]; }, $ms); }
+function cb_thumbs(array $ms): array { $wid = (int)ws('id'); return array_map(function ($m) use ($wid) { $md = media_get($wid, (int)$m); $kind = $md ? media_kind((string)($md['mime'] ?? '')) : 'image'; return ['id' => $m, 'thumb' => url('media', ['file' => $m, 'thumb' => 1]), 'url' => url('media', ['file' => $m]), 'kind' => $kind]; }, $ms); }
 $fxd = getenv('UI_FIXTURES'); if ($fxd && is_file($fxd . '/cb_fake_z.php')) $z = require $fxd . '/cb_fake_z.php'; // اختبارات بس: مفيش نشر حقيقي
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

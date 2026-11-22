@@ -13,12 +13,14 @@
     var pl = $('#cb-plan') ? $('#cb-plan').value : '', q = $('#cb-q').value.trim().toLowerCase(), ty = $('#cb-type') ? $('#cb-type').value : '';
     return items.filter(function (i) {
       if (pl && i.plan_id != pl) return false;
-      var img = (i.media || []).length, vid = !!i.video_prompt, car = (i.carousel || []).length;
-      if (ty === 'img' && !img) return false;
-      if (ty === 'noimg' && img) return false;
-      if (ty === 'vid' && !vid) return false;
+      var media = i.media || [], car = (i.carousel || []).length;
+      var hasImg = media.some(function (m) { return (m.kind || 'image') === 'image'; });
+      var hasVid = media.some(function (m) { return m.kind === 'video'; });
+      if (ty === 'img' && !hasImg) return false;
+      if (ty === 'noimg' && media.length) return false;
+      if (ty === 'vid' && !hasVid) return false;
       if (ty === 'car' && !car) return false;
-      if (ty === 'text' && (img || vid || car)) return false;
+      if (ty === 'text' && (media.length || car)) return false;
       if (q && ((i.linkedin || '') + ' ' + (i.x || '') + ' ' + ((i.topic || {}).title || '') + ' ' + (i.headline || '')).toLowerCase().indexOf(q) < 0) return false;
       return true;
     });

@@ -231,7 +231,7 @@
     var canLogo = ms.length && it.fmt && it.fmt !== 'video' && P && P.has_logo;
     return '<div class="mt-3 rounded-xl border border-ink-200 p-3"><div class="flex flex-wrap items-center gap-2 mb-2"><b class="text-xs text-ink-500">' + esc(fm) + '</b>' + chips
       + (canLogo ? '<span class="flex-1"></span><button type="button" data-ilogo-open class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs bg-ink-100 text-ink-700 hover:bg-ink-200">🏷 ' + esc(T.ilAdj) + '</button>' : '') + '</div>'
-      + (ms.length ? '<div class="flex flex-wrap gap-2">' + ms.map(function (m) { return it.fmt === 'video' ? '<a href="' + esc(murl(m)) + '" target="_blank" class="w-24 h-32 rounded-lg bg-ink-900 text-[#fff] grid place-items-center text-xs">▶ ' + esc(T.kVideo) + '</a>' : '<a href="' + esc(murl(m)) + '" target="_blank"><img src="' + esc(murl(m, 1)) + '" class="w-24 h-32 object-cover rounded-lg border border-ink-200" alt=""></a>'; }).join('') + '</div>' : '') + '</div>';
+      + (ms.length ? '<div class="flex flex-wrap gap-2">' + ms.map(function (m) { return it.fmt === 'video' ? '<video src="' + esc(murl(m)) + '" controls preload="metadata" playsinline class="w-36 h-48 rounded-lg bg-ink-900 border border-ink-200 object-cover"></video>' : '<a href="' + esc(murl(m)) + '" target="_blank"><img src="' + esc(murl(m, 1)) + '" class="w-24 h-32 object-cover rounded-lg border border-ink-200" alt=""></a>'; }).join('') + '</div>' : '') + '</div>';
   }
   var fl = $('#cp-float');
   function genLoop() { if (genLoop.on) return; genLoop.on = true;
