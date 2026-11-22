@@ -3,3 +3,14 @@ Options -Indexes
   Require all denied
 </FilesMatch>
 DirectoryIndex index.php
+
+# تمرير ترويسة Authorization إلى PHP: بعض إعدادات Apache بتشيلها قبل ما توصل لـPHP،
+# فموصّلات MCP (ChatGPT/Claude) اللي بتبعت التوكن بصيغة «Authorization: Bearer» بتفشل بـ401.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{HTTP:Authorization} .
+  RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+</IfModule>
+<IfModule mod_setenvif.c>
+  SetEnvIf Authorization "(.+)" HTTP_AUTHORIZATION=$1
+</IfModule>
