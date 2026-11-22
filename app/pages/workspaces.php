@@ -235,7 +235,7 @@ render(t('شركاتي'), 'workspaces', function () use ($list, $invites, $cur, 
         <label class="block"><span class="label"><?= e(t('الدولة')) ?></span>
           <select name="country" class="input !mt-0">
             <option value=""><?= e(t('اختر الدولة')) ?></option>
-            <?php foreach ($cs as $code => $cData): ?><option value="<?= e($code) ?>"><?= e($cData[2] . ' ' . (lang() === 'en' ? $cData[1] : $cData[0])) ?></option><?php endforeach; ?>
+            <?php foreach ($cs as $code => $cData): ?><option value="<?= e($code) ?>"><?= e(trim(($cData['flag'] ?? '') . ' ' . (lang() === 'en' ? ($cData['en'] ?? '') : ($cData['ar'] ?? $cData['en'] ?? $code)))) ?></option><?php endforeach; ?>
           </select></label>
         <label class="block"><span class="label"><?= e(t('نوع النشاط')) ?></span><input name="biz_type" maxlength="120" class="input !mt-0" placeholder="<?= e(t('مثال: تجارة تجزئة، عقارات، خدمات…')) ?>"></label>
         <?php endif; ?>
