@@ -9,6 +9,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $json = function (array $d, int $c = 200) { http_response_code($c); exit(json_encode($d, JSON_UNESCAPED_UNICODE)); };
     $action = (string)($_POST['action'] ?? '');
     if ($action !== 'kb_test' && !$canEdit) $json(['error' => t('مالكش صلاحية تعدّل قاعدة المعرفة. اطلبها من صاحب الشركة.')], 403);
+    // عمليات قاعدة المعرفة (قراءة ملف/موقع، حفظ، إعادة قراءة) تقيلة وممكن تاخد دقيقة. PHP بيقفل ملف
+    // الجلسة طول الطلب، فلو سبناه مقفول بيجمّد باقي تبويبات وطلبات نفس المستخدم (اللي بتعمل poll
+    // باستمرار) لحد ما العملية تخلص. بنقفل كتابة الجلسة بدري (الصلاحيات اتقرت فوق) فالموقع مايهنجش.
+    session_write_close();
+    @set_time_limit(180);
     $str = function ($v, $max = 4000) { return mb_substr(trim((string)$v), 0, $max); };
 
     // ملء الملف من الموقع: اقتراحات + تطبيق اللي المستخدم يختاره (من غير ذكاء اصطناعي)
@@ -30,8 +35,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         return $out;
     };
     if ($action === 'kb_site') {
+        // طلب تفاعلي: قراءة سريعة بس. مانشغلش العامل 90-100 ثانية في انتظار Apify (ده بيخلص
+        // عمّال السيرفر فيهنج الموقع على الكل لو كذا واحد بيقرا في نفس الوقت)؛ القراءة الكاملة
+        // للمواقع العنيدة موجودة في «اقرأ الموقع كله» اللي بتشتغل بالخلفية على خطوات.
+        $GLOBALS['net_quick'] = true;
         $r = kb_import_site(trim((string)($_POST['url'] ?? '')));
-        if ($r['err'] !== '') $json(['error' => $r['err']], 422);
+        if ($r['err'] !== '') $json(['error' => !empty($GLOBALS['net_quick_skipped']) ? t('الموقع رفض القراءة السريعة. استخدم «اقرأ الموقع كله» عشان يتقرا في الخلفية من غير ما يبطّئ الموقع.') : $r['err']], 422);
         $json(['ok' => true, 'groups' => $kbGroups($r), 'pages' => $r['pages']]);
     }
     // قراءة الموقع كله في الخلفية (حتى 10,000 صفحة)
@@ -39,11 +48,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (in_array($c['status'], ['done', 'stopped'], true)) { $acc = json_decode((string)$c['acc'], true) ?: []; $p['groups'] = $kbGroups(['sections' => (array)($acc['sections'] ?? []), 'src' => (array)($acc['src'] ?? [])]); }
         return ['ok' => true, 'crawl' => $p]; };
     if ($action === 'kb_crawl_start') { $r = kbc_start($wid, (string)($_POST['url'] ?? '')); if (!empty($r['err'])) $json(['error' => $r['err']], 422); $json($kbcOut(kbc_step(kbc_get($wid, $r['id']), 8.0))); }
-    if ($action === 'kb_crawl_step') { session_write_close(); $c = kbc_get($wid, (int)($_POST['id'] ?? 0)); if (!$c) $json(['error' => t('طلب غير صحيح.')], 404); if ($c['status'] === 'running') $c = kbc_step($c, 12.0); $json($kbcOut($c)); }
+    if ($action === 'kb_crawl_step') { $c = kbc_get($wid, (int)($_POST['id'] ?? 0)); if (!$c) $json(['error' => t('طلب غير صحيح.')], 404); if ($c['status'] === 'running') $c = kbc_step($c, 12.0); $json($kbcOut($c)); }
     if ($action === 'kb_crawl_status') { $c = kbc_active($wid); $json($c ? $kbcOut($c) : ['ok' => true, 'crawl' => null]); }
     if ($action === 'kb_crawl_pages') { $c = kbc_get($wid, (int)($_POST['id'] ?? 0)); if (!$c) $json(['error' => t('طلب غير صحيح.')], 404); $json(['ok' => true] + kbc_pages($c, mb_substr(trim((string)($_POST['q'] ?? '')), 0, 100), (int)($_POST['off'] ?? 0))); }
     if ($action === 'kb_crawl_page') { $c = kbc_get($wid, (int)($_POST['id'] ?? 0)); $pg = $c ? kbc_page_text($c, (int)($_POST['pid'] ?? 0)) : null; $pg ? $json(['ok' => true] + $pg) : $json(['error' => t('طلب غير صحيح.')], 404); }
-    if ($action === 'kb_crawl_cancel') { session_write_close(); $cid = (int)($_POST['id'] ?? 0); db()->prepare("UPDATE kb_crawls SET status = 'stopped' WHERE workspace_id = ? AND id = ? AND status = 'running'")->execute([$wid, $cid]); $c = kbc_get($wid, $cid); if ($c && $c['status'] === 'stopped' && (int)$c['done'] > 0) kbc_to_kb($c); if ($c) $json($kbcOut($c)); $json(['ok' => true]); }
+    if ($action === 'kb_crawl_cancel') { $cid = (int)($_POST['id'] ?? 0); db()->prepare("UPDATE kb_crawls SET status = 'stopped' WHERE workspace_id = ? AND id = ? AND status = 'running'")->execute([$wid, $cid]); $c = kbc_get($wid, $cid); if ($c && $c['status'] === 'stopped' && (int)$c['done'] > 0) kbc_to_kb($c); if ($c) $json($kbcOut($c)); $json(['ok' => true]); }
     if ($action === 'kb_logo_colors') { $pal = function_exists('kb_logo_palette') ? kb_logo_palette($wid) : []; $json($pal ? ['ok' => true, 'colors' => implode(', ', $pal)] : ['ok' => false, 'error' => t('أضف الشعار في «عن الشركة» أولًا.')]); }
     if ($action === 'kb_site_apply') {
         $pick = json_decode((string)($_POST['pick'] ?? '{}'), true) ?: []; $cur = kb_get($wid); $n = 0;
