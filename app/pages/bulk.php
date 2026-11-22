@@ -166,15 +166,25 @@ if ($z && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['ajax'] ?? '') === 'd
         }
     }
     // تجميع النتائج + الإنشاء الفعلي (الفحص فقط مابينشئش)
-    $res = []; $valid = 0;
+    // مباعدة 250ms بين الإنشاءات عشان مانخنقش Zernio (كان 60ms وبيضرب حد كثرة الطلبات بسرعة)
+    $res = []; $valid = 0; $rl = 0; $attempted = 0;
+    if (!$dry) @set_time_limit(60 + 8 * count($meta));
     foreach ($meta as $k => $m) {
         $errs = $m['errs']; $row = $m['row'];
         if (!$errs && $m['sig'] !== null) foreach ($valCache[$m['sig']] as $e) $errs[] = $e;
         if (!$errs && !$dry) {
-            try { $c = $zTry(function () use ($z, $m) { usleep(60000); return $z->createPost($m['payload']); }); $row['createdPostId'] = (string)($c['post']['_id'] ?? ''); } catch (ZernioException $ex) { $errs[] = $ex->getMessage(); }
+            $attempted++;
+            try { $c = $zTry(function () use ($z, $m) { usleep(250000); return $z->createPost($m['payload']); }); $row['createdPostId'] = (string)($c['post']['_id'] ?? ''); }
+            catch (ZernioException $ex) { $errs[] = $ex->getMessage(); if (($ex->status ?? 0) === 429) $rl++; }
         }
         $row['ok'] = !$errs; $row['errors'] = $errs; if (!$errs) $valid++;
         $res[] = $row;
+    }
+    // الدفعة اتخنقت بالكامل (مفيش منشور اتعمل + فيه كثرة طلبات): رجّع ok:false عشان الواجهة تستنى
+    // وتعيد نفس الدفعة تلقائيًا. آمن لأن مفيش منشور نجح يتكرر؛ والدفعة اللي فيها نجاح جزئي بتكمل عادي.
+    if (!$dry && $valid === 0 && $rl > 0) {
+        echo json_encode(['ok' => false, 'error' => t('Zernio بيقول إن الطلبات كتير دلوقتي. بنستنى شوية ونعيد نفس الدفعة تلقائيًا.'), 'ratelimited' => true], JSON_UNESCAPED_UNICODE);
+        exit;
     }
     if (!$dry && $valid) log_activity('post.bulk_direct', $valid . '/' . count($rows));
     $explain = []; foreach ($res as $r) foreach ($r['errors'] as $e) $explain[$e] = [$e, ''];
