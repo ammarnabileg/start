@@ -275,7 +275,7 @@ function cpl_do_posts(array $p): void
     $list = []; foreach ($rows as $r) { $t = json_decode((string)$r['topic'], true) ?: []; $list[] = ['n' => (int)$r['seq']] + array_intersect_key($t, array_flip(['title', 'angle', 'category', 'service', 'audience', 'objective'])); }
     $st2 = db()->prepare('SELECT seq, headline FROM cp_items WHERE plan_id = ? AND linkedin IS NOT NULL ORDER BY seq'); $st2->execute([(int)$p['id']]); $used = array_filter(array_column($st2->fetchAll(), 'headline'));
     $sys = "CONTENT_PLAN_JSON\n" . cpl_rules($p) . "\n\nSTEP 2 OF 2: write the complete posts for the topics given, all six sections each, finished and usable."
-        . "\nReturn ONLY JSON: {\"posts\":[{\"n\":1,\"linkedin\":\"130-220 words\",\"x\":\"max 280 characters incl. hashtags\",\"headline\":\"2-6 word poster headline\",\"image_prompt\":\"120-200 words English, covering concept, subject, art direction, composition, camera, lighting, brand identity, realism, the headline with its exact placement, output 4:5 1080x1350, and the avoid list\",\"video_prompt\":\"an 8-second vertical 9:16 cinematic video prompt in professional English: ONE clear simple visual idea with smooth natural camera motion and believable real action that shows the post's concept. NO on-screen text, NO captions or subtitles, NO titles or headlines, NO UI/dashboard/chart text, NO readable screens, NO logos, NO brand names, NO watermarks, NO call-to-action text and NO end card — any text the video model draws comes out as broken gibberish, so keep every screen and surface abstract and out of focus. Photoreal, realistic humans with correct hands, natural lighting; end on a clean calm frame with empty space\",\"carousel\":[{\"role\":\"Hook|Problem|Insight|Solution|CTA\",\"title\":\"on-slide headline\",\"body\":\"on-slide supporting copy\",\"visual\":\"visual concept and composition\",\"layout\":\"layout instructions\"}]}]} one object per topic with the same n; carousel has exactly 5 slides in the order Hook, Problem, Insight, Solution, CTA."
+        . "\nReturn ONLY JSON: {\"posts\":[{\"n\":1,\"linkedin\":\"130-220 words\",\"x\":\"max 280 characters incl. hashtags\",\"headline\":\"2-6 word poster headline\",\"image_prompt\":\"150-220 words English for a HIGH-END ADVERTISING / CREATIVE-AGENCY poster (think award-winning social campaign, not a plain stock photo). Describe: a single powerful hero subject (a real expressive person in a candid decisive moment, OR one striking hero object / premium 3D element) as the clear focal point; a cinematic, dramatic, premium scene with depth — moody dark or rich brand-colored environment, strong directional key light plus a coloured rim/accent glow in the brand colour, volumetric light, reflections and premium materials; professional composition with the subject offset and deliberate EMPTY NEGATIVE SPACE in the upper area kept calm and darker for the headline to be added later; shallow depth of field, sharp focus on the subject, cinematic colour grade, fine film grain, photoreal and tactile — never flat, generic, bright-and-empty or AI-plastic. State the exact brand accent colour and mood. Output 4:5 1080x1350. End with the avoid list.\",\"video_prompt\":\"an 8-second vertical 9:16 cinematic video prompt in professional English: ONE clear simple visual idea with smooth natural camera motion and believable real action that shows the post's concept. NO on-screen text, NO captions or subtitles, NO titles or headlines, NO UI/dashboard/chart text, NO readable screens, NO logos, NO brand names, NO watermarks, NO call-to-action text and NO end card — any text the video model draws comes out as broken gibberish, so keep every screen and surface abstract and out of focus. Photoreal, realistic humans with correct hands, natural lighting; end on a clean calm frame with empty space\",\"carousel\":[{\"role\":\"Hook|Problem|Insight|Solution|CTA\",\"title\":\"on-slide headline\",\"body\":\"on-slide supporting copy\",\"visual\":\"visual concept and composition\",\"layout\":\"layout instructions\"}]}]} one object per topic with the same n; carousel has exactly 5 slides in the order Hook, Problem, Insight, Solution, CTA."
         . ($used ? "\nHeadlines and visual concepts already used in this plan (do not repeat them): " . implode(' | ', array_slice($used, -40)) : '');
     $seqs = array_column($list, 'n'); cpl_log((int)$p['id'], t('كتابة المنشور %s بالأقسام الستة…', implode(' و', $seqs))); $tw = microtime(true);
     // ميزانية توكنز سخية: موديلات التفكير بتستهلك جزء كبير على التفكير قبل إخراج الـ JSON،
@@ -684,7 +684,7 @@ function cpl_font_note(array $p): string
 function cpl_job_prompt(array $p, array $it, array $j): string
 {
     $o = cpl_opts($p); $vis = trim((string)$p['visual']);
-    $rules = "\nFULL-BLEED: one complete, edge-to-edge photographic image that fills the entire 1080x1350 frame; do NOT add or leave any solid colour band, gradient bar, letterbox, flat panel, or cropped colour strip, and no borders or margins of flat colour, UNLESS the supplied reference designs clearly use such a band (then match them). Maximum photographic quality: sharp focus, rich detail, correct exposure, natural depth of field, professional colour grading; not flat, not AI-plastic.\nIf the image shows people: make them look like real, candid photographed humans, not AI renders. Add authentic, specific features: natural asymmetric faces, real skin texture with pores and subtle blemishes, flyaway hair, correct hands with five fingers, natural eye catchlights and gaze, believable clothing fit and wrinkles, and lived-in environment detail. No waxy skin, no plastic smoothness, no uncanny symmetry, no extra fingers.\nCRITICAL — NO TEXT AND NO LOGOS ANYWHERE: do NOT render any text, letters, words, headline, caption, numbers, labels, signage copy, logo, brand name, wordmark or watermark ANYWHERE in the image — this includes on clothing, uniforms, hard hats, badges, lanyards, ID cards, device/tablet/monitor screens, machines, equipment, cabinets, packaging, walls, posters, vehicles and any surface. People's uniforms and chest areas must be PLAIN with no company name, no made-up logo and no emblem. Device and monitor screens must show abstract graphics only, never readable text or a logo. The headline and the real company logo are added afterwards by the system, so output a purely visual photograph with NO typography and NO brand marks of any kind. Any text or logo the model invents will be wrong and must not appear.\nLEAVE CLEAN SPACE: keep the top ~28% of the frame calmer, simpler and a little darker (sky, wall, shadow, shallow background) as uncluttered negative space where the headline will be placed later, and keep the " . cpl_logo_corner($p) . " corner area (about 260x160px) clean for the logo. Keep the main subject and every key element at least 100px (about 9%) inside each edge; nothing touches or is cropped by an edge.";
+    $rules = "\nLOOK & FEEL — HIGH-END CREATIVE-AGENCY POSTER (mandatory): this must look like a premium, award-winning advertising campaign visual, NOT a plain stock photo. One strong hero subject as a clear focal point; cinematic dramatic lighting with a coloured rim/accent glow in the brand colour; a moody, rich, premium environment with real depth, volumetric light, reflections and tactile premium materials; deliberate composition with the subject offset and the upper area kept calm/darker as negative space for the headline; shallow depth of field, cinematic colour grade, subtle film grain. Make it striking and scroll-stopping. Never flat, bright-and-empty, generic, cluttered or AI-plastic.\nFULL-BLEED: one complete, edge-to-edge photographic image that fills the entire 1080x1350 frame; do NOT add or leave any solid colour band, gradient bar, letterbox, flat panel, or cropped colour strip, and no borders or margins of flat colour, UNLESS the supplied reference designs clearly use such a band (then match them). Maximum photographic quality: sharp focus, rich detail, correct exposure, natural depth of field, professional colour grading; not flat, not AI-plastic.\nIf the image shows people: make them look like real, candid photographed humans, not AI renders. Add authentic, specific features: natural asymmetric faces, real skin texture with pores and subtle blemishes, flyaway hair, correct hands with five fingers, natural eye catchlights and gaze, believable clothing fit and wrinkles, and lived-in environment detail. No waxy skin, no plastic smoothness, no uncanny symmetry, no extra fingers.\nCRITICAL — NO TEXT AND NO LOGOS ANYWHERE: do NOT render any text, letters, words, headline, caption, numbers, labels, signage copy, logo, brand name, wordmark or watermark ANYWHERE in the image — this includes on clothing, uniforms, hard hats, badges, lanyards, ID cards, device/tablet/monitor screens, machines, equipment, cabinets, packaging, walls, posters, vehicles and any surface. People's uniforms and chest areas must be PLAIN with no company name, no made-up logo and no emblem. Device and monitor screens must show abstract graphics only, never readable text or a logo. The headline and the real company logo are added afterwards by the system, so output a purely visual photograph with NO typography and NO brand marks of any kind. Any text or logo the model invents will be wrong and must not appear.\nLEAVE CLEAN SPACE: keep the top ~28% of the frame calmer, simpler and a little darker (sky, wall, shadow, shallow background) as uncluttered negative space where the headline will be placed later, and keep the " . cpl_logo_corner($p) . " corner area (about 260x160px) clean for the logo. Keep the main subject and every key element at least 100px (about 9%) inside each edge; nothing touches or is cropped by an edge.";
     if ($j['kind'] === 'image') return $it['image_prompt'] . ($vis !== '' ? "\n\nBrand visual DNA: " . mb_substr($vis, 0, 1200) : '') . $rules;
     if ($j['kind'] === 'video') return $it['video_prompt']
         . "\n\n=== HARD VIDEO RULES — OBEY EXACTLY, OVERRIDE ANYTHING ABOVE THAT CONFLICTS ===\n"
@@ -804,12 +804,49 @@ function cpl_wrap_lines(string $text, string $font, int $size, int $maxW, bool $
     if ($cur !== '') $lines[] = $cur; return $lines;
 }
 
-/** يطبع العنوان على الصورة بنفسنا (عربي سليم مضمون) بخط Cairo، في المنطقة الآمنة، مع ظل للوضوح. */
+/** ملف الخط المستخدم لطباعة العنوان على الصورة حسب اختيار الخطة (يرجع app.ttf الافتراضي لو الملف مش موجود). */
+function cpl_font_file(array $p): string
+{
+    $dir = ROOT_DIR . '/assets/fonts/';
+    $map = ['Alexandria' => 'alexandria.ttf', 'Cairo' => 'app.ttf'];
+    $f = (string)(cpl_opts($p)['font'] ?? 'auto');
+    if (isset($map[$f]) && is_file($dir . $map[$f])) return $dir . $map[$f];
+    // الافتراضي: Alexandria لو موجود (أنضف وأعرض للعناوين)، وإلا app.ttf
+    return is_file($dir . 'alexandria.ttf') ? $dir . 'alexandria.ttf' : $dir . 'app.ttf';
+}
+
+/** لون الهوية (accent) من ألوان اللوجو، وإلا أخضر تيل افتراضي — يُستخدم في هايلايت العنوان. */
+function cpl_accent_rgb(array $p): array
+{
+    if (function_exists('kb_logo_palette')) {
+        try {
+            foreach ((array)kb_logo_palette((int)ws('id')) as $hex) {
+                if (preg_match('/#?([0-9a-fA-F]{6})/', (string)$hex, $mm)) {
+                    $r = hexdec(substr($mm[1], 0, 2)); $g = hexdec(substr($mm[1], 2, 2)); $b = hexdec(substr($mm[1], 4, 2));
+                    $mx = max($r, $g, $b); $mn = min($r, $g, $b);
+                    if ($mx - $mn > 28 && $mx > 60 && $mx < 252) return [$r, $g, $b]; // لون واضح مش أبيض/أسود/رمادي
+                }
+            }
+        } catch (Throwable $e) {}
+    }
+    return [16, 185, 129];
+}
+
+/** مستطيل بحواف دائرية (للهايلايت خلف الكلمة المميّزة). */
+function cpl_round_box($im, int $x1, int $y1, int $x2, int $y2, int $r, int $col): void
+{
+    $r = max(0, min($r, (int)(($x2 - $x1) / 2), (int)(($y2 - $y1) / 2)));
+    imagefilledrectangle($im, $x1 + $r, $y1, $x2 - $r, $y2, $col);
+    imagefilledrectangle($im, $x1, $y1 + $r, $x2, $y2 - $r, $col);
+    if ($r > 0) { imagefilledellipse($im, $x1 + $r, $y1 + $r, $r * 2, $r * 2, $col); imagefilledellipse($im, $x2 - $r, $y1 + $r, $r * 2, $r * 2, $col); imagefilledellipse($im, $x1 + $r, $y2 - $r, $r * 2, $r * 2, $col); imagefilledellipse($im, $x2 - $r, $y2 - $r, $r * 2, $r * 2, $col); }
+}
+
+/** يطبع العنوان على الصورة بنفسنا (عربي سليم مضمون) بالخط المختار، في المنطقة الآمنة، مع ظل للوضوح. */
 function cpl_stamp_text(array $p, int $mid, string $headline): int
 {
     $headline = trim($headline); if ($headline === '') return $mid;
     $wid = (int)ws('id'); $m = media_get($wid, $mid); if (!$m || !function_exists('imagettftext')) return $mid;
-    $font = ROOT_DIR . '/assets/fonts/app.ttf'; if (!is_file($font)) return $mid;
+    $font = cpl_font_file($p); if (!is_file($font)) return $mid;
     $im = @imagecreatefromstring((string)file_get_contents(media_file_path($wid, $m))); if (!$im) return $mid;
     if (!imageistruecolor($im)) imagepalettetotruecolor($im);
     $W = imagesx($im); $H = imagesy($im); $rtl = (bool)preg_match('/[\x{0600}-\x{06FF}]/u', $headline);
@@ -817,25 +854,35 @@ function cpl_stamp_text(array $p, int $mid, string $headline): int
     $size = (int)round($W * 0.072); $lines = null; $min = max(12, (int)round($W * 0.03));
     for (; $size >= $min; $size -= 2) { $w = cpl_wrap_lines($headline, $font, $size, $maxW, $rtl); if (count($w) <= 3) { $lines = $w; break; } }
     if (!$lines) $lines = array_slice(cpl_wrap_lines($headline, $font, $size, $maxW, $rtl), 0, 3);
-    $lh = (int)round($size * 1.5); $blockH = $lh * count($lines);
-    $top = (int)round($H * 0.085);
+    $lh = (int)round($size * ($rtl ? 1.62 : 1.42)); $blockH = $lh * count($lines);
+    $top = (int)round($H * 0.075);
     imagealphablending($im, true); imagesavealpha($im, true);
-    // سكريم متدرّج أقوى من أعلى الصورة: أغمق خلف النص ويخفّ تدريجيًا للأسفل — يضمن الوضوح فوق أي خلفية
-    $scrimBot = min($H, $top + $blockH + (int)round($size * 0.9)); $peak = (int)round($top + $blockH * 0.45);
+    // سكريم متدرّج للوضوح: أغمق خلف النص ويخفّ تدريجيًا، يضمن الوضوح فوق أي خلفية
+    $scrimBot = min($H, $top + $blockH + (int)round($size * 1.1)); $peak = (int)round($top + $blockH * 0.5);
     for ($yy = 0; $yy < $scrimBot; $yy++) {
-        $t = $yy <= $peak ? ($peak ? $yy / $peak : 1) : 1 - ($yy - $peak) / max(1, $scrimBot - $peak); // 0..1..0
-        $op = (int)round(118 * max(0, min(1, $t))); if ($op <= 0) continue;
-        imagefilledrectangle($im, 0, $yy, $W, $yy, imagecolorallocatealpha($im, 0, 0, 0, 127 - min(118, (int)round($op * 0.86))));
+        $t = $yy <= $peak ? ($peak ? $yy / $peak : 1) : 1 - ($yy - $peak) / max(1, $scrimBot - $peak);
+        $op = (int)round(135 * max(0, min(1, $t))); if ($op <= 0) continue;
+        imagefilledrectangle($im, 0, $yy, $W, $yy, imagecolorallocatealpha($im, 0, 0, 0, 127 - min(120, (int)round($op * 0.9))));
     }
-    // حدّ (أوت‌لاين) غامق حول الحروف لضمان التباين على أي صورة، ثم التعبئة البيضاء
-    $stroke = max(2, (int)round($size * 0.055));
-    $dark = imagecolorallocate($im, 12, 16, 24); $white = imagecolorallocate($im, 255, 255, 255);
-    $y = $top + $size;
-    foreach ($lines as $ln) { $shaped = $rtl ? cpl_ar_shape($ln) : $ln; $bb = imagettfbbox($size, 0, $font, $shaped); $tw = abs($bb[2] - $bb[0]);
+    // تصميم: عنوان أبيض عريض (Alexandria) بظل ناعم، وآخر سطر بـ«هايلايت» بخلفية لون الهوية (زي شغل الوكالات)
+    $white = imagecolorallocate($im, 255, 255, 255);
+    $shadow = imagecolorallocatealpha($im, 0, 0, 0, 62);
+    [$ar, $ag, $ab] = cpl_accent_rgb($p); $acc = imagecolorallocate($im, $ar, $ag, $ab);
+    $lum = 0.299 * $ar + 0.587 * $ag + 0.114 * $ab; $onAcc = $lum > 150 ? imagecolorallocate($im, 12, 16, 24) : $white;
+    $last = count($lines) - 1; $y = $top + $size;
+    foreach ($lines as $i => $ln) {
+        $shaped = $rtl ? cpl_ar_shape($ln) : $ln; $bb = imagettfbbox($size, 0, $font, $shaped); $tw = abs($bb[2] - $bb[0]);
         $x = $rtl ? ($W - $margin - $tw) : $margin;
-        for ($dx = -$stroke; $dx <= $stroke; $dx += $stroke) for ($dy = -$stroke; $dy <= $stroke; $dy += $stroke) if ($dx || $dy) imagettftext($im, $size, 0, $x + $dx, $y + $dy, $dark, $font, $shaped);
-        imagettftext($im, $size, 0, $x, $y, $white, $font, $shaped);
-        $y += $lh; }
+        if ($i === $last && count($lines) > 1 && trim($ln) !== '') {
+            $padx = (int)round($size * 0.26); $pady = (int)round($size * 0.16); $rad = (int)round($size * 0.22);
+            cpl_round_box($im, $x - $padx, $y - $size - $pady, $x + $tw + $padx, $y + $pady, $rad, $acc);
+            imagettftext($im, $size, 0, $x, $y, $onAcc, $font, $shaped);
+        } else {
+            imagettftext($im, $size, 0, $x + 2, $y + 3, $shadow, $font, $shaped);
+            imagettftext($im, $size, 0, $x, $y, $white, $font, $shaped);
+        }
+        $y += $lh;
+    }
     $tmp = tempnam(sys_get_temp_dir(), 'cpt') . '.png'; imagepng($im, $tmp); imagedestroy($im);
     try { $row = media_store_path($wid, $tmp, 'txt-' . preg_replace('/^(ai|logo|txt)-/', '', (string)$m['name']), 'image/png', media_ai_folder()); } catch (Throwable $e) { @unlink($tmp); return $mid; }
     @unlink($tmp); return (int)$row['id'];
