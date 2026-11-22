@@ -320,7 +320,7 @@ function cpl_do_posts(array $p): void
     $list = []; foreach ($rows as $r) { $t = json_decode((string)$r['topic'], true) ?: []; $list[] = ['n' => (int)$r['seq']] + array_intersect_key($t, array_flip(['title', 'angle', 'category', 'service', 'audience', 'objective'])); }
     $st2 = db()->prepare('SELECT seq, headline FROM cp_items WHERE plan_id = ? AND linkedin IS NOT NULL ORDER BY seq'); $st2->execute([(int)$p['id']]); $used = array_filter(array_column($st2->fetchAll(), 'headline'));
     $sys = "CONTENT_PLAN_JSON\n" . cpl_rules($p) . "\n\nSTEP 2 OF 2: write the complete posts for the topics given, all six sections each, finished and usable."
-        . "\nReturn ONLY JSON: {\"posts\":[{\"n\":1,\"linkedin\":\"130-220 words\",\"x\":\"max 280 characters incl. hashtags\",\"headline\":\"2-6 word poster headline\",\"image_prompt\":\"150-220 words English for a HIGH-END ADVERTISING / CREATIVE-AGENCY poster (think award-winning social campaign, not a plain stock photo). Describe: a single powerful hero subject (a real expressive person in a candid decisive moment, OR one striking hero object / premium 3D element) as the clear focal point; a cinematic, dramatic, premium scene with depth — moody dark or rich brand-colored environment, strong directional key light plus a coloured rim/accent glow in the brand colour, volumetric light, reflections and premium materials; professional composition with the subject offset and deliberate EMPTY NEGATIVE SPACE in the upper area kept calm and darker for the headline to be added later; shallow depth of field, sharp focus on the subject, cinematic colour grade, fine film grain, photoreal and tactile — never flat, generic, bright-and-empty or AI-plastic. State the exact brand accent colour and mood. Output 4:5 1080x1350. End with the avoid list.\",\"video_prompt\":\"an 8-second vertical 9:16 cinematic video prompt in professional English: ONE clear simple visual idea with smooth natural camera motion and believable real action that shows the post's concept. NO on-screen text, NO captions or subtitles, NO titles or headlines, NO UI/dashboard/chart text, NO readable screens, NO logos, NO brand names, NO watermarks, NO call-to-action text and NO end card — any text the video model draws comes out as broken gibberish, so keep every screen and surface abstract and out of focus. Photoreal, realistic humans with correct hands, natural lighting; end on a clean calm frame with empty space\",\"carousel\":[{\"role\":\"Hook|Problem|Insight|Solution|CTA\",\"title\":\"on-slide headline\",\"body\":\"on-slide supporting copy\",\"visual\":\"visual concept and composition\",\"layout\":\"layout instructions\"}]}]} one object per topic with the same n; carousel has exactly 5 slides in the order Hook, Problem, Insight, Solution, CTA."
+        . "\nReturn ONLY JSON: {\"posts\":[{\"n\":1,\"linkedin\":\"130-220 words\",\"x\":\"max 280 characters incl. hashtags\",\"headline\":\"2-6 word poster headline; wrap the SINGLE most important word (one word only, the punchy keyword) in «» guillemets, e.g. «راقب» أنظمة التحكم — this word will be coloured as an accent, so pick the word that carries the message\",\"image_prompt\":\"150-220 words English for a HIGH-END ADVERTISING / CREATIVE-AGENCY poster (think award-winning social campaign, not a plain stock photo). Describe: a single powerful hero subject (a real expressive person in a candid decisive moment, OR one striking hero object / premium 3D element) as the clear focal point; a cinematic, dramatic, premium scene with depth — moody dark or rich brand-colored environment, strong directional key light plus a coloured rim/accent glow in the brand colour, volumetric light, reflections and premium materials; professional composition with the subject offset and deliberate EMPTY NEGATIVE SPACE in the upper area kept calm and darker for the headline to be added later; shallow depth of field, sharp focus on the subject, cinematic colour grade, fine film grain, photoreal and tactile — never flat, generic, bright-and-empty or AI-plastic. State the exact brand accent colour and mood. Output 4:5 1080x1350. End with the avoid list.\",\"video_prompt\":\"an 8-second vertical 9:16 cinematic video prompt in professional English: ONE clear simple visual idea with smooth natural camera motion and believable real action that shows the post's concept. NO on-screen text, NO captions or subtitles, NO titles or headlines, NO UI/dashboard/chart text, NO readable screens, NO logos, NO brand names, NO watermarks, NO call-to-action text and NO end card — any text the video model draws comes out as broken gibberish, so keep every screen and surface abstract and out of focus. Photoreal, realistic humans with correct hands, natural lighting; end on a clean calm frame with empty space\",\"carousel\":[{\"role\":\"Hook|Problem|Insight|Solution|CTA\",\"title\":\"on-slide headline\",\"body\":\"on-slide supporting copy\",\"visual\":\"visual concept and composition\",\"layout\":\"layout instructions\"}]}]} one object per topic with the same n; carousel has exactly 5 slides in the order Hook, Problem, Insight, Solution, CTA."
         . ($used ? "\nHeadlines and visual concepts already used in this plan (do not repeat them): " . implode(' | ', array_slice($used, -40)) : '');
     $seqs = array_column($list, 'n'); cpl_log((int)$p['id'], t('كتابة المنشور %s بالأقسام الستة…', implode(' و', $seqs))); $tw = microtime(true);
     // ميزانية توكنز سخية: موديلات التفكير بتستهلك جزء كبير على التفكير قبل إخراج الـ JSON،
@@ -918,11 +918,54 @@ function cpl_region_score($im, int $x0, int $y0, int $x1, int $y1): float
     $m = $n ? $s / $n : 128; $v = $n ? max(0, $s2 / $n - $m * $m) : 0; return $m + sqrt($v) * 0.6;
 }
 
+/** يرسم سطر عنوان مع تلوين الكلمة المفتاحية جوّه السطر (آمن للعربي: الحروف ما بتتوصلش عبر المسافات).
+ *  لو $boxKey يرسم خلفية بلون الهوية خلف الكلمة، وإلا يلوّنها بلون الهوية. يرجّع [x1,x2,y] لحدود الكلمة أو null. */
+function cpl_draw_hline($im, int $size, string $font, string $line, string $key, bool $rtl, int $colLeft, int $colRight, int $y, int $white, int $acc, int $onAcc, int $shadow, bool $boxKey): ?array
+{
+    $line = trim($line); if ($line === '') return null;
+    $off = -1;
+    if ($key !== '' && preg_match('/(?<![^\s])' . preg_quote($key, '/') . '(?![^\s])/u', $line, $mm, PREG_OFFSET_CAPTURE)) $off = (int)$mm[0][1];
+    if ($off < 0) { // مفيش كلمة مفتاحية في السطر: أبيض عادي
+        $sh = $rtl ? cpl_ar_shape($line) : $line; $bb = imagettfbbox($size, 0, $font, $sh); $tw = abs($bb[2] - $bb[0]);
+        $x = $rtl ? ($colRight - $tw) : $colLeft;
+        imagettftext($im, $size, 0, $x + 2, $y + 3, $shadow, $font, $sh);
+        imagettftext($im, $size, 0, $x, $y, $white, $font, $sh);
+        return null;
+    }
+    $before = rtrim(substr($line, 0, $off)); $after = ltrim(substr($line, $off + strlen($key)));
+    $segs = []; if ($before !== '') $segs[] = [$before . ' ', 'w']; $segs[] = [$key, 'k']; if ($after !== '') $segs[] = [' ' . $after, 'w'];
+    $meas = []; $tot = 0;
+    foreach ($segs as [$txt, $role]) { $sh = $rtl ? cpl_ar_shape($txt) : $txt; $bb = imagettfbbox($size, 0, $font, $sh); $w = abs($bb[2] - $bb[0]); $meas[] = [$sh, $role, $w]; $tot += $w; }
+    $x = $rtl ? ($colRight - $tot) : $colLeft; $order = $rtl ? array_reverse($meas) : $meas;
+    $keyX1 = null; $keyX2 = null;
+    foreach ($order as [$sh, $role, $w]) {
+        if ($role === 'k') { $keyX1 = $x; $keyX2 = $x + $w;
+            if ($boxKey) {
+                $padx = (int)round($size * 0.22); $pady = (int)round($size * 0.14); $rad = (int)round($size * 0.2);
+                cpl_round_box($im, $x - $padx, $y - $size - $pady, $x + $w + $padx, $y + $pady, $rad, $acc);
+                imagettftext($im, $size, 0, $x, $y, $onAcc, $font, $sh);
+            } else {
+                imagettftext($im, $size, 0, $x + 2, $y + 3, $shadow, $font, $sh);
+                imagettftext($im, $size, 0, $x, $y, $acc, $font, $sh);
+            }
+        } else {
+            imagettftext($im, $size, 0, $x + 2, $y + 3, $shadow, $font, $sh);
+            imagettftext($im, $size, 0, $x, $y, $white, $font, $sh);
+        }
+        $x += $w;
+    }
+    return [$keyX1, $keyX2, $y];
+}
+
 /** يطبع العنوان على الصورة بنفسنا (عربي سليم مضمون) — محرّك تخطيط يختار مكان النص (فوق/تحت + يمين/شمال/كامل)
- *  حسب أهدأ منطقة في كل صورة، وقالبًا احترافيًا مختلفًا لكل منشور (هايلايت/خط تحتي/شريط جانبي). */
+ *  حسب أهدأ منطقة في كل صورة، وقالبًا احترافيًا مختلفًا لكل منشور (كلمة مفتاحية ملوّنة جوّه السطر). */
 function cpl_stamp_text(array $p, int $mid, string $headline): int
 {
     $headline = trim($headline); if ($headline === '') return $mid;
+    // الكلمة المفتاحية: الموديل بيعلّمها بـ«» — نستخرجها ونشيل العلامات. لو مفيش، ناخد آخر كلمة.
+    $key = ''; if (preg_match('/«\s*(.+?)\s*»/u', $headline, $kk)) $key = trim($kk[1]);
+    $headline = trim(preg_replace('/\s+/u', ' ', str_replace(['«', '»'], '', $headline)));
+    if ($key === '') { $pp = preg_split('/\s+/u', $headline); $lastW = (string)end($pp); if (mb_strlen($lastW) >= 2) $key = $lastW; }
     $wid = (int)ws('id'); $m = media_get($wid, $mid); if (!$m || !function_exists('imagettftext')) return $mid;
     $font = cpl_font_file($p); if (!is_file($font)) return $mid;
     $im = @imagecreatefromstring((string)file_get_contents(media_file_path($wid, $m))); if (!$im) return $mid;
@@ -971,38 +1014,24 @@ function cpl_stamp_text(array $p, int $mid, string $headline): int
     // المحاذاة الأفقية: RTL يتحاذى لليمين، LTR لليسار — وداخل العمود المختار
     $alignRight = $rtl;
     $xOf = function (int $tw) use ($alignRight, $colLeft, $colRight) { return $alignRight ? ($colRight - $tw) : $colLeft; };
-    $last = count($lines) - 1; $y = $top + $size;
+    $y = $top + $size;
     // شريط kicker قصير فوق العنوان (قالب 2)
     if ($variant === 2) {
         $bw = (int)round($size * 1.6); $bh = max(4, (int)round($size * 0.14));
         $bx = $alignRight ? ($colRight - $bw) : $colLeft; $by = $top - (int)round($size * 0.5);
         cpl_round_box($im, $bx, $by, $bx + $bw, $by + $bh, (int)round($bh / 2), $acc);
     }
-    foreach ($lines as $i => $ln) {
-        $shaped = $rtl ? cpl_ar_shape($ln) : $ln; $bb = imagettfbbox($size, 0, $font, $shaped); $tw = abs($bb[2] - $bb[0]);
-        $x = $xOf($tw);
-        $isKey = $i === $last && trim($ln) !== '';
-        if ($variant === 0 && $isKey && count($lines) > 1) {
-            // هايلايت بوكس على آخر سطر
-            $padx = (int)round($size * 0.26); $pady = (int)round($size * 0.16); $rad = (int)round($size * 0.22);
-            cpl_round_box($im, $x - $padx, $y - $size - $pady, $x + $tw + $padx, $y + $pady, $rad, $acc);
-            imagettftext($im, $size, 0, $x, $y, $onAcc, $font, $shaped);
-        } elseif ($variant === 2 && $isKey && count($lines) > 1) {
-            // آخر سطر بلون الهوية (مش بوكس)
-            imagettftext($im, $size, 0, $x + 2, $y + 3, $shadow, $font, $shaped);
-            imagettftext($im, $size, 0, $x, $y, $acc, $font, $shaped);
-        } else {
-            imagettftext($im, $size, 0, $x + 2, $y + 3, $shadow, $font, $shaped);
-            imagettftext($im, $size, 0, $x, $y, $white, $font, $shaped);
-        }
+    // الكلمة المفتاحية تتلوّن جوّه السطر: قالب 0 = خلفية بلون الهوية، قالب 1/2 = نص ملوّن (مع خط تحتها في 1)
+    $boxKey = $variant === 0; $keySpan = null;
+    foreach ($lines as $ln) {
+        $sp = cpl_draw_hline($im, $size, $font, $ln, $key, $rtl, $colLeft, $colRight, $y, $white, $acc, $onAcc, $shadow, $boxKey);
+        if ($sp && !$keySpan) $keySpan = $sp;
         $y += $lh;
     }
-    // خط تحتي رفيع بلون الهوية تحت الكتلة (قالب 1) — فاصل احترافي
-    if ($variant === 1) {
-        $uw = (int)round($colW * 0.34); $uh = max(4, (int)round($size * 0.12));
-        $uy = $y - $lh + (int)round($size * 0.5);
-        $ux = $alignRight ? ($colRight - $uw) : $colLeft;
-        cpl_round_box($im, $ux, $uy, $ux + $uw, $uy + $uh, (int)round($uh / 2), $acc);
+    // قالب 1: خط رفيع بلون الهوية تحت الكلمة المفتاحية مباشرة
+    if ($variant === 1 && $keySpan) {
+        [$kx1, $kx2, $ky] = $keySpan; $uh = max(4, (int)round($size * 0.1)); $uy = $ky + (int)round($size * 0.2);
+        cpl_round_box($im, (int)$kx1, $uy, (int)$kx2, $uy + $uh, (int)round($uh / 2), $acc);
     }
     $tmp = tempnam(sys_get_temp_dir(), 'cpt') . '.png'; imagepng($im, $tmp); imagedestroy($im);
     try { $row = media_store_path($wid, $tmp, 'txt-' . preg_replace('/^(ai|logo|txt)-/', '', (string)$m['name']), 'image/png', media_ai_folder()); } catch (Throwable $e) { @unlink($tmp); return $mid; }
