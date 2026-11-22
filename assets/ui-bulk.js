@@ -279,7 +279,7 @@
       + (dupN ? ' · <span class="text-amber-700">' + esc(f(S.dups, dupN)) + '</span>' : '')
       + (missing.length ? ' · <span class="text-red-600 font-medium">' + esc(f(S.need, missing.join(', '))) + '</span>' : '') + (rows.length > 5000 ? ' · <span class="text-red-600">' + esc(S.max) + '</span>' : '') + (dirty ? ' <span class="text-amber-700">' + esc(S.edited) + '</span>' : '');
     $('#bk-filter [data-f=srv]').classList.toggle('hidden', !srvN);
-    var batches = Math.max(1, Math.ceil(rows.length / (col('accounts') > -1 ? 20 : CHUNK)));
+    var batches = Math.max(1, Math.ceil(rows.length / (col('accounts') > -1 ? 25 : CHUNK)));
     $('#bk-go-hint').textContent = rows.length ? f(mode() === 'create' ? S.goCreate : S.goCheck, rows.length, batches) : S.empty;
     $('#bk-go').disabled = !rows.length || missing.length > 0 || rows.length > 5000;
     selBar(); days(); save();
@@ -661,13 +661,13 @@
   });
   function run(m) {
     var sendHead = head.filter(function (h) { return !ignored[h]; }), idx = head.map(function (h, i) { return ignored[h] ? -1 : i; }).filter(function (i) { return i > -1; });
-    var direct = col('accounts') > -1, SZ = direct ? 20 : CHUNK;
+    var direct = col('accounts') > -1, SZ = direct ? 25 : CHUNK;
     var chunks = []; for (var o = 0; o < rows.length; o += SZ) chunks.push(o);
     var agg = { total: 0, valid: 0, invalid: 0, groups: {}, explain: {}, created: [], warnings: {} }, okRows = [];
     srvErr = {};
     var go = $('#bk-go'), prog = $('#bk-prog'), bar = $('#bk-prog-bar');
     go.disabled = true; prog.classList.remove('hidden'); resBox.innerHTML = ''; step(3);
-    var k = 0;
+    var k = 0, tries = 0;
     function next() {
       if (k >= chunks.length) return finish();
       // #2: متغيرات في النص زي {city} أو {price} بتتبدل بقيمة العمود اللي بنفس الاسم في نفس الصف
@@ -692,8 +692,16 @@
           (row.errors || []).forEach(function (er) { (agg.groups[er] = agg.groups[er] || []).push(gi); });
           srvErr[gi] = (row.errors || []).map(function (er) { return (j.explain[er] || [er])[0]; });
         });
-        k++; next();
-      }).catch(function (err) { finish(f(S.stopped, k + 1, err.message)); });
+        tries = 0; k++; next();
+      }).catch(function (err) {
+        // خطأ على مستوى الدفعة (غالبًا كثرة طلبات مؤقتة): استنى وأعد نفس الدفعة بدل ما توقف الرفع كله
+        if (tries < 4) {
+          tries++; var wait = 5 * tries;
+          $('#bk-prog-t').textContent = f(S.retry || S.batch, wait, k + 1, chunks.length);
+          setTimeout(next, wait * 1000); return;
+        }
+        finish(f(S.stopped, k + 1, err.message));
+      });
     }
     function finish(stopMsg) {
       bar.style.width = '100%'; $('#bk-prog-p').textContent = stopMsg ? '' : '100%'; $('#bk-prog-t').textContent = stopMsg || S.done;

@@ -96,14 +96,18 @@ if ($z && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['ajax'] ?? '') === 'd
     if (!$dry && !can('posts.create')) { echo json_encode(['ok' => false, 'error' => t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.')], JSON_UNESCAPED_UNICODE); exit; }
     $rows = array_slice((array)json_decode((string)($_POST['rows'] ?? '[]'), true), 0, 25);
     $wid = (int)ws('id'); $tz = new DateTimeZone(site_timezone());
-    $byId = [];
-    try { foreach (acc_filter($z->accounts(zernio_profile())) as $a) $byId[(string)$a['_id']] = $a; } catch (ZernioException $ex) { echo json_encode(['ok' => false, 'error' => $ex->getMessage()], JSON_UNESCAPED_UNICODE); exit; }
+    $byId = []; $accErr = null;
+    // إعادة محاولة لجلب الحسابات عند كثرة الطلبات، عشان 429 مؤقت مايوقفش الدفعة كلها
+    for ($att = 0; $att < 3; $att++) {
+        try { $byId = []; foreach (acc_filter($z->accounts(zernio_profile())) as $a) $byId[(string)$a['_id']] = $a; $accErr = null; break; }
+        catch (ZernioException $ex) { $accErr = $ex; if (($ex->status ?? 0) === 429 && $att < 2) { sleep(1 + $att); continue; } break; }
+    }
+    if ($accErr) { echo json_encode(['ok' => false, 'error' => $accErr->getMessage()], JSON_UNESCAPED_UNICODE); exit; }
     $pid = null;
     @set_time_limit(30 + 5 * count($rows));
     $res = []; $valid = 0;
-    // منع ضرب حد Zernio (429): تجميع الصفوف المتطابقة في الفحص (طلب واحد بدل عشرات)،
-    // مباعدة بسيطة بين الطلبات الفعلية، وإعادة محاولة لطيفة عند كثرة الطلبات
-    $valCache = [];
+    // الأداء ومنع ضرب حد Zernio: بنبني كل الصفوف الأول، بنفحص التواقيع الفريدة بالتوازي (دفعة واحدة
+    // بدل طلب لكل صف)، وبعدين بنجمّع النتائج. الإنشاء الفعلي بيفضل بالتسلسل مع إعادة محاولة عند 429.
     $zTry = function (callable $fn) {
         $wait = 1;
         for ($i = 0; ; $i++) {
@@ -111,6 +115,7 @@ if ($z && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['ajax'] ?? '') === 'd
             catch (ZernioException $ex) { if (($ex->status ?? 0) === 429 && $i < 2) { sleep($wait); $wait *= 2; continue; } throw $ex; }
         }
     };
+    $meta = []; $toValidate = [];
     foreach ($rows as $k => $r) {
         $errs = [];
         $g = function ($c) use ($r) { return trim((string)($r[$c] ?? '')); };
@@ -142,22 +147,31 @@ if ($z && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['ajax'] ?? '') === 'd
             else $payload['scheduledFor'] = $dt->format('Y-m-d\TH:i:s');
         }
         if ($payload['content'] === '' && !$media) $errs[] = t('نص المنشور فاضي.');
-        $row = ['rowIndex' => $k + 1, 'ok' => false, 'errors' => []];
-        if (!$errs && $platforms) {
-            try {
-                // الصفوف المتطابقة (نفس المحتوى + نفس الحسابات) بتتفحص مرة واحدة بس
-                $sig = sha1($payload['content'] . '|' . json_encode($platforms, JSON_UNESCAPED_UNICODE));
-                if (!array_key_exists($sig, $valCache)) {
-                    $ve2 = [];
-                    $v = $zTry(function () use ($z, $payload, $platforms) { usleep(90000); return pub_validate_post($z, ['content' => $payload['content'], 'platforms' => $platforms]); });
-                    foreach ((array)($v['errors'] ?? []) as $ve) $ve2[] = platform_label((string)($ve['platform'] ?? '')) . ': ' . (string)($ve['error'] ?? '');
-                    $valCache[$sig] = $ve2;
-                }
-                foreach ($valCache[$sig] as $e) $errs[] = $e;
-            } catch (ZernioException $ex) { $errs[] = $ex->getMessage(); }
+        // الصفوف المتطابقة (نفس المحتوى + نفس الحسابات) بتتفحص مرة واحدة بس
+        $sig = (!$errs && $platforms) ? sha1($payload['content'] . '|' . json_encode($platforms, JSON_UNESCAPED_UNICODE)) : null;
+        if ($sig !== null && !isset($toValidate[$sig])) $toValidate[$sig] = ['content' => $payload['content'], 'platforms' => $platforms];
+        $meta[$k] = ['errs' => $errs, 'payload' => $payload, 'sig' => $sig, 'row' => ['rowIndex' => $k + 1, 'ok' => false, 'errors' => []]];
+    }
+    // فحص التواقيع الفريدة بالتوازي: الدفعة بتاخد وقت أبطأ طلب واحد بدل مجموع الطلبات
+    $valCache = [];
+    if ($toValidate) {
+        $sigs = array_keys($toValidate);
+        try { $vr = $z->validateBatch(array_values($toValidate)); }
+        catch (ZernioException $ex) { $vr = []; foreach ($sigs as $i => $_s) $vr[$i] = ['__error' => $ex->getMessage()]; }
+        foreach ($sigs as $i => $sig) {
+            $v = $vr[$i] ?? []; $ve2 = [];
+            if (isset($v['__error'])) $ve2[] = (string)$v['__error'];
+            else foreach ((array)($v['errors'] ?? []) as $ve) $ve2[] = platform_label((string)($ve['platform'] ?? '')) . ': ' . (string)($ve['error'] ?? '');
+            $valCache[$sig] = $ve2;
         }
+    }
+    // تجميع النتائج + الإنشاء الفعلي (الفحص فقط مابينشئش)
+    $res = []; $valid = 0;
+    foreach ($meta as $k => $m) {
+        $errs = $m['errs']; $row = $m['row'];
+        if (!$errs && $m['sig'] !== null) foreach ($valCache[$m['sig']] as $e) $errs[] = $e;
         if (!$errs && !$dry) {
-            try { $c = $zTry(function () use ($z, $payload) { usleep(90000); return $z->createPost($payload); }); $row['createdPostId'] = (string)($c['post']['_id'] ?? ''); } catch (ZernioException $ex) { $errs[] = $ex->getMessage(); }
+            try { $c = $zTry(function () use ($z, $m) { usleep(60000); return $z->createPost($m['payload']); }); $row['createdPostId'] = (string)($c['post']['_id'] ?? ''); } catch (ZernioException $ex) { $errs[] = $ex->getMessage(); }
         }
         $row['ok'] = !$errs; $row['errors'] = $errs; if (!$errs) $valid++;
         $res[] = $row;
@@ -789,6 +803,7 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
             'plpick' => t('اختار منصة واحدة على الأقل'), 'spstart' => t('اختار ميعاد البداية'), 'applied' => t('اتطبّق على %s سطر'),
             'goCheck' => t('هنفحص %s سطر على %s دفعة'), 'goCreate' => t('هيتعمل منشور لكل سطر سليم (%s سطر على %s دفعة)'), 'confirm' => t('هيتعمل منشور لكل سطر سليم من %s سطر، و%s منهم هيتنشر فوراً. تكمل؟'),
             'batch' => t('دفعة %s من %s'), 'done' => t('خلصنا'), 'stopped' => t('وقفنا عند الدفعة %s: %s'), 'res' => t('نتيجة الفحص'), 'resC' => t('نتيجة الرفع'),
+            'retry' => t('Zernio زحمة، بنستنى %s ث ونعيد الدفعة %s من %s…'),
             'tot' => t('السطور'), 'okL' => t('سليم'), 'badL' => t('فيه مشكلة'), 'probs' => t('المشاكل وإزاي تصلحها'), 'nrows' => t('%s سطر'), 'show' => t('اعرضهم في الجدول'),
             'allok' => t('كل السطور سليمة 🎉 اختار "اعمل المنشورات" ودوس ابدأ.'), 'created' => t('اتعمل %s منشور واتشالوا من الجدول.'), 'opencal' => t('افتح التقويم'),
             'srv' => t('Zernio: %s'),

@@ -166,6 +166,58 @@ class Zernio
         curl_multi_close($mh);
     }
 
+    /**
+     * فحص عدة منشورات في نفس الوقت (POST متوازي) بدل واحد ورا التاني — فوقت الدفعة = أبطأ طلب بس.
+     * بيرجّع مصفوفة بنفس ترتيب الإدخال؛ كل عنصر = رد Zernio، أو ['__error' => رسالة] لو فشل.
+     * اللي يضرب 429/5xx بيتعاد مرة واحدة بعد ثانية.
+     */
+    public function validateBatch(array $posts): array
+    {
+        $n = count($posts);
+        if ($n === 0) return [];
+        if ($n === 1 || !function_exists('curl_multi_init')) {
+            $out = [];
+            foreach ($posts as $i => $p) {
+                try { $out[$i] = $this->request('POST', '/v1/tools/validate/post', [], $p); }
+                catch (ZernioException $ex) { $out[$i] = ['__error' => $ex->getMessage()]; }
+            }
+            return $out;
+        }
+        $run = function (array $idx) use ($posts) {
+            $mh = curl_multi_init(); $hs = [];
+            foreach ($idx as $i) {
+                $ch = curl_init(self::base() . '/v1/tools/validate/post');
+                curl_setopt_array($ch, [
+                    CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true,
+                    CURLOPT_TIMEOUT => 30, CURLOPT_CONNECTTIMEOUT => 10,
+                    CURLOPT_POSTFIELDS => json_encode($posts[$i], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                    CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $this->key, 'Accept: application/json', 'Content-Type: application/json'],
+                ]);
+                curl_multi_add_handle($mh, $ch); $hs[$i] = $ch;
+            }
+            do { $st = curl_multi_exec($mh, $running); if ($running) curl_multi_select($mh, 1.0); } while ($running && $st === CURLM_OK);
+            $out = [];
+            foreach ($hs as $i => $ch) {
+                $out[$i] = ['code' => (int)curl_getinfo($ch, CURLINFO_HTTP_CODE), 'data' => json_decode((string)curl_multi_getcontent($ch), true)];
+                curl_multi_remove_handle($mh, $ch); curl_close($ch);
+            }
+            curl_multi_close($mh);
+            return $out;
+        };
+        // بنحدّد التزامن لـ8 في المرة (موجة ورا موجة) عشان مانضغطش على Zernio بـ25 اتصال دفعة واحدة
+        $runAll = function (array $idx) use ($run) { $o = []; foreach (array_chunk($idx, 8) as $grp) foreach ($run($grp) as $i => $x) $o[$i] = $x; return $o; };
+        $r = $runAll(array_keys($posts));
+        $retry = [];
+        foreach ($r as $i => $x) if (in_array($x['code'], [429, 500, 502, 503, 504], true)) $retry[] = $i;
+        if ($retry) { sleep(1); foreach ($runAll($retry) as $i => $x) $r[$i] = $x; }
+        $out = [];
+        foreach ($posts as $i => $_p) {
+            $code = $r[$i]['code']; $data = is_array($r[$i]['data']) ? $r[$i]['data'] : [];
+            $out[$i] = ($code >= 200 && $code < 300) ? $data : ['__error' => self::errorMessage($code ?: 0, $data)];
+        }
+        return $out;
+    }
+
     /** تنظيف ملفات الكاش القديمة (أقدم من ساعة) */
     private static function cacheGc(): void
     {
@@ -494,6 +546,28 @@ class ZernioMulti extends Zernio
             $query['profileId'] = $this->profiles[$id];
         }
         return $query;
+    }
+
+    /** فحص متوازي بتوجيه صح: كل منشور بيتفحص على الاتصال اللي حساباته تبعه (مش كله على الأساسي) */
+    public function validateBatch(array $posts): array
+    {
+        if (count($this->clients) <= 1) return parent::validateBatch($posts);
+        $fallback = $this->firstId();
+        $groups = []; // connId => [origIndex => post]
+        foreach ($posts as $i => $p) {
+            $aid = '';
+            foreach ((array)($p['platforms'] ?? []) as $pl) { if (!empty($pl['accountId'])) { $aid = (string)$pl['accountId']; break; } }
+            $cid = ($aid !== '' ? $this->connectionOf($aid) : null) ?? $fallback;
+            $groups[$cid][$i] = $p;
+        }
+        $out = [];
+        foreach ($groups as $cid => $g) {
+            $idx = array_keys($g);
+            $r = $this->clients[$cid]->validateBatch(array_values($g));
+            foreach ($idx as $j => $origI) $out[$origI] = $r[$j] ?? [];
+        }
+        ksort($out);
+        return $out;
     }
 
     private static function accountIn(string $path, array $query, $body): ?string
