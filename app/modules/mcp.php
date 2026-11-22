@@ -168,6 +168,7 @@ function mcp_tools(): array
             'max_daily_budget' => ['type' => 'number', 'description' => 'Maximum daily budget the user allows, in the account currency (ask the user)'],
         ]]],
         ['name' => 'list_media', 'description' => 'List images in the workspace media library, with id and name. Use this to get reference-image ids for create_content_plan. If the user wants a specific visual style, ASK them to add a reference image to the media library first, then pass its id.', 'inputSchema' => ['type' => 'object', 'properties' => ['limit' => ['type' => 'integer']]]],
+        ['name' => 'get_media', 'description' => 'Fetch one image from the workspace media library by id and return it inline so it can be viewed. Find ids via list_media or a content plan.', 'inputSchema' => ['type' => 'object', 'required' => ['media_id'], 'properties' => ['media_id' => ['type' => 'integer', 'description' => 'Media library image id']]]],
         ['name' => 'analytics_summary', 'description' => 'Review social (organic) performance for a period and get stats plus concrete suggestions on what to improve. Returns impressions, reach, engagement and rate, follower growth, posts published, a messages summary, top posts, and a suggestions list. Read-only.', 'inputSchema' => ['type' => 'object', 'properties' => [
             'period' => ['type' => 'string', 'enum' => ['last_week', 'last_month', 'custom'], 'description' => 'Default last_week'],
             'from' => ['type' => 'string', 'description' => 'For custom: YYYY-MM-DD'],
@@ -284,6 +285,14 @@ function mcp_call(string $name, array $args, string $scopes, int $tokenId = 0): 
                 if (count($out) >= $n) break;
             }
             return $text($out);
+
+        case 'get_media':
+            if (!function_exists('media_get') || !function_exists('media_file_path')) return $err('Media not available.');
+            $mid = (int)($args['media_id'] ?? 0); $m = media_get((int)ws('id'), $mid); if (!$m) return $err('Media not found.');
+            $mime = (string)($m['mime'] ?? 'image/png'); if (strpos($mime, 'image/') !== 0) return $err('Not an image.');
+            $path = media_file_path((int)ws('id'), $m); if (!is_file($path)) return $err('File missing.');
+            if (filesize($path) > 8 * 1048576) return $err('Image too large to return inline.');
+            return ['content' => [['type' => 'image', 'data' => base64_encode((string)file_get_contents($path)), 'mimeType' => $mime]]];
 
         case 'analytics_summary':
             if (!function_exists('rp_build')) return $err('Analytics not available.');
