@@ -685,7 +685,7 @@ function cpl_job_prompt(array $p, array $it, array $j): string
 {
     $o = cpl_opts($p); $vis = trim((string)$p['visual']);
     [$car, $cag, $cab] = cpl_accent_rgb($p); $accHex = sprintf('#%02X%02X%02X', $car, $cag, $cab);
-    $rules = "\nBRAND ACCENT COLOUR: use {$accHex} as the single signature accent of the whole series — the rim/edge light, the coloured glow and any highlight should be this exact colour, used with restraint over a mostly dark, moody, premium base so every post feels like one cohesive campaign.\nLOOK & FEEL — HIGH-END CREATIVE-AGENCY POSTER (mandatory): this must look like a premium, award-winning advertising campaign visual, NOT a plain stock photo. One strong hero subject as a clear focal point; cinematic dramatic lighting with a coloured rim/accent glow in the brand colour; a moody, rich, premium environment with real depth, volumetric light, reflections and tactile premium materials; deliberate composition with the subject offset and the upper area kept calm/darker as negative space for the headline; shallow depth of field, cinematic colour grade, subtle film grain. Make it striking and scroll-stopping. Never flat, bright-and-empty, generic, cluttered or AI-plastic.\nFULL-BLEED: one complete, edge-to-edge photographic image that fills the entire 1080x1350 frame; do NOT add or leave any solid colour band, gradient bar, letterbox, flat panel, or cropped colour strip, and no borders or margins of flat colour, UNLESS the supplied reference designs clearly use such a band (then match them). Maximum photographic quality: sharp focus, rich detail, correct exposure, natural depth of field, professional colour grading; not flat, not AI-plastic.\nIf the image shows people: make them look like real, candid photographed humans, not AI renders. Add authentic, specific features: natural asymmetric faces, real skin texture with pores and subtle blemishes, flyaway hair, correct hands with five fingers, natural eye catchlights and gaze, believable clothing fit and wrinkles, and lived-in environment detail. No waxy skin, no plastic smoothness, no uncanny symmetry, no extra fingers.\nCRITICAL — NO TEXT AND NO LOGOS ANYWHERE: do NOT render any text, letters, words, headline, caption, numbers, labels, signage copy, logo, brand name, wordmark or watermark ANYWHERE in the image — this includes on clothing, uniforms, hard hats, badges, lanyards, ID cards, device/tablet/monitor screens, machines, equipment, cabinets, packaging, walls, posters, vehicles and any surface. People's uniforms and chest areas must be PLAIN with no company name, no made-up logo and no emblem. Device and monitor screens must show abstract graphics only, never readable text or a logo. The headline and the real company logo are added afterwards by the system, so output a purely visual photograph with NO typography and NO brand marks of any kind. Any text or logo the model invents will be wrong and must not appear.\nLEAVE CLEAN SPACE: keep the top ~28% of the frame calmer, simpler and a little darker (sky, wall, shadow, shallow background) as uncluttered negative space where the headline will be placed later, and keep the " . cpl_logo_corner($p) . " corner area (about 260x160px) clean for the logo. Keep the main subject and every key element at least 100px (about 9%) inside each edge; nothing touches or is cropped by an edge.";
+    $rules = "\nBRAND ACCENT COLOUR: use {$accHex} as the single signature accent of the whole series — the rim/edge light, the coloured glow and any highlight should be this exact colour, used with restraint over a mostly dark, moody, premium base so every post feels like one cohesive campaign.\nLOOK & FEEL — HIGH-END CREATIVE-AGENCY POSTER (mandatory): this must look like a premium, award-winning advertising campaign visual, NOT a plain stock photo. One strong hero subject as a clear focal point; cinematic dramatic lighting with a coloured rim/accent glow in the brand colour; a moody, rich, premium environment with real depth, volumetric light, reflections and tactile premium materials; deliberate composition with the subject offset and the upper area kept calm/darker as negative space for the headline; shallow depth of field, cinematic colour grade, subtle film grain. Make it striking and scroll-stopping. Never flat, bright-and-empty, generic, cluttered or AI-plastic.\nFULL-BLEED: one complete, edge-to-edge photographic image that fills the entire 1080x1350 frame; do NOT add or leave any solid colour band, gradient bar, letterbox, flat panel, or cropped colour strip, and no borders or margins of flat colour, UNLESS the supplied reference designs clearly use such a band (then match them). Maximum photographic quality: sharp focus, rich detail, correct exposure, natural depth of field, professional colour grading; not flat, not AI-plastic.\nIf the image shows people: make them look like real, candid photographed humans, not AI renders. Add authentic, specific features: natural asymmetric faces, real skin texture with pores and subtle blemishes, flyaway hair, correct hands with five fingers, natural eye catchlights and gaze, believable clothing fit and wrinkles, and lived-in environment detail. No waxy skin, no plastic smoothness, no uncanny symmetry, no extra fingers.\nCRITICAL — NO TEXT AND NO LOGOS ANYWHERE: do NOT render any text, letters, words, headline, caption, numbers, labels, signage copy, logo, brand name, wordmark or watermark ANYWHERE in the image — this includes on clothing, uniforms, hard hats, badges, lanyards, ID cards, device/tablet/monitor screens, machines, equipment, cabinets, packaging, walls, posters, vehicles and any surface. People's uniforms and chest areas must be PLAIN with no company name, no made-up logo and no emblem. Device and monitor screens must show abstract graphics only, never readable text or a logo. The headline and the real company logo are added afterwards by the system, so output a purely visual photograph with NO typography and NO brand marks of any kind. Any text or logo the model invents will be wrong and must not appear.\nLEAVE CLEAN SPACE (VARY IT): keep EITHER the top ~30% OR the bottom ~30% of the frame calmer, simpler and a little darker (sky, wall, shadow, shallow background) as uncluttered negative space where the headline will be placed later — choose whichever side suits this composition and vary it across the series so the text position is not always the same. Keep the " . cpl_logo_corner($p) . " corner area (about 260x160px) clean for the logo. Keep the main subject and every key element at least 100px (about 9%) inside each edge; nothing touches or is cropped by an edge.";
     if ($j['kind'] === 'image') return $it['image_prompt'] . ($vis !== '' ? "\n\nBrand visual DNA: " . mb_substr($vis, 0, 1200) : '') . $rules;
     if ($j['kind'] === 'video') return $it['video_prompt']
         . "\n\n=== CINEMATIC LOOK — shoot it like a premium ad film ===\n"
@@ -844,7 +844,21 @@ function cpl_round_box($im, int $x1, int $y1, int $x2, int $y2, int $r, int $col
     if ($r > 0) { imagefilledellipse($im, $x1 + $r, $y1 + $r, $r * 2, $r * 2, $col); imagefilledellipse($im, $x2 - $r, $y1 + $r, $r * 2, $r * 2, $col); imagefilledellipse($im, $x1 + $r, $y2 - $r, $r * 2, $r * 2, $col); imagefilledellipse($im, $x2 - $r, $y2 - $r, $r * 2, $r * 2, $col); }
 }
 
-/** يطبع العنوان على الصورة بنفسنا (عربي سليم مضمون) بالخط المختار، في المنطقة الآمنة، مع ظل للوضوح. */
+/** يختار أنسب منطقة للعنوان (فوق/تحت) حسب أهدأ وأغمق جزء في الصورة — فالمكان بيتغيّر مع كل صورة. */
+function cpl_text_zone($im, int $W, int $H): string
+{
+    $score = function (int $y0, int $y1) use ($im, $W) {
+        $sx = max(1, (int)($W / 48)); $sy = max(1, (int)(($y1 - $y0) / 40)); $s = 0.0; $s2 = 0.0; $n = 0;
+        for ($y = $y0; $y < $y1; $y += $sy) for ($x = 0; $x < $W; $x += $sx) {
+            $c = imagecolorat($im, $x, $y); $l = 0.299 * (($c >> 16) & 255) + 0.587 * (($c >> 8) & 255) + 0.114 * ($c & 255);
+            $s += $l; $s2 += $l * $l; $n++;
+        }
+        $m = $n ? $s / $n : 128; $v = $n ? max(0, $s2 / $n - $m * $m) : 0; return $m + sqrt($v) * 0.6; // أقل = أهدأ وأغمق = أنسب للنص
+    };
+    return $score((int)($H * 0.60), $H) < $score(0, (int)($H * 0.34)) - 6 ? 'bottom' : 'top';
+}
+
+/** يطبع العنوان على الصورة بنفسنا (عربي سليم مضمون) بالخط المختار، في أنسب منطقة (فوق/تحت)، مع ظل للوضوح. */
 function cpl_stamp_text(array $p, int $mid, string $headline): int
 {
     $headline = trim($headline); if ($headline === '') return $mid;
@@ -858,13 +872,18 @@ function cpl_stamp_text(array $p, int $mid, string $headline): int
     for (; $size >= $min; $size -= 2) { $w = cpl_wrap_lines($headline, $font, $size, $maxW, $rtl); if (count($w) <= 3) { $lines = $w; break; } }
     if (!$lines) $lines = array_slice(cpl_wrap_lines($headline, $font, $size, $maxW, $rtl), 0, 3);
     $lh = (int)round($size * ($rtl ? 1.62 : 1.42)); $blockH = $lh * count($lines);
-    $top = (int)round($H * 0.075);
+    // مكان النص بيتغيّر حسب الصورة: فوق أو تحت (أهدأ وأغمق منطقة) — مش مثبّت
+    $zone = cpl_text_zone($im, $W, $H);
+    $top = $zone === 'bottom' ? max((int)round($H * 0.42), $H - (int)round($H * 0.07) - $blockH) : (int)round($H * 0.075);
     imagealphablending($im, true); imagesavealpha($im, true);
-    // سكريم متدرّج للوضوح: أغمق خلف النص ويخفّ تدريجيًا، يضمن الوضوح فوق أي خلفية
-    $scrimBot = min($H, $top + $blockH + (int)round($size * 1.1)); $peak = (int)round($top + $blockH * 0.5);
-    for ($yy = 0; $yy < $scrimBot; $yy++) {
-        $t = $yy <= $peak ? ($peak ? $yy / $peak : 1) : 1 - ($yy - $peak) / max(1, $scrimBot - $peak);
-        $op = (int)round(135 * max(0, min(1, $t))); if ($op <= 0) continue;
+    // سكريم متدرّج: بيغمّق منطقة النص والحافة القريبة ويخفّ على الجهة البعيدة — يشتغل فوق أو تحت
+    $txtTop = $top - (int)round($size * 0.9); $txtBot = $top + $blockH; $pad = (int)round($size * 1.0);
+    $bTop = $zone === 'top' ? 0 : max(0, $txtTop - $pad);
+    $bBot = $zone === 'bottom' ? $H : min($H, $txtBot + $pad);
+    for ($yy = $bTop; $yy < $bBot; $yy++) {
+        if ($zone === 'top') $k = $yy <= $txtBot ? 1 : max(0, 1 - ($yy - $txtBot) / max(1, $bBot - $txtBot));
+        else $k = $yy >= $txtTop ? 1 : max(0, 1 - ($txtTop - $yy) / max(1, $txtTop - $bTop));
+        $op = (int)round(135 * $k); if ($op <= 0) continue;
         imagefilledrectangle($im, 0, $yy, $W, $yy, imagecolorallocatealpha($im, 0, 0, 0, 127 - min(120, (int)round($op * 0.9))));
     }
     // تصميم: عنوان أبيض عريض (Alexandria) بظل ناعم، وآخر سطر بـ«هايلايت» بخلفية لون الهوية (زي شغل الوكالات)
