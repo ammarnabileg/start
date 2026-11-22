@@ -258,6 +258,35 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
           <?php endforeach; ?>
         </div>
       </div>
+      <div class="rounded-2xl border border-ink-200 p-4 space-y-3">
+        <span class="label"><?= e(t('إعدادات النص على الصور')) ?></span>
+        <div class="grid grid-cols-2 gap-3">
+          <label class="block"><span class="text-xs text-ink-500"><?= e(t('مكان النص')) ?></span>
+            <select name="txt_pos" class="input !py-2">
+              <option value="auto"><?= e(t('تلقائي (أنسب منطقة)')) ?></option>
+              <option value="top"><?= e(t('فوق')) ?></option>
+              <option value="bottom"><?= e(t('تحت')) ?></option>
+            </select></label>
+          <label class="block"><span class="text-xs text-ink-500"><?= e(t('حجم النص')) ?></span>
+            <select name="txt_size" class="input !py-2">
+              <option value="s"><?= e(t('صغير')) ?></option>
+              <option value="m" selected><?= e(t('متوسط')) ?></option>
+              <option value="l"><?= e(t('كبير')) ?></option>
+            </select></label>
+          <label class="block"><span class="text-xs text-ink-500"><?= e(t('نمط تمييز الكلمة')) ?></span>
+            <select name="txt_variant" class="input !py-2">
+              <option value="auto"><?= e(t('تلقائي (متنوّع)')) ?></option>
+              <option value="color"><?= e(t('كلمة ملوّنة')) ?></option>
+              <option value="underline"><?= e(t('كلمة ملوّنة + خط تحتها')) ?></option>
+              <option value="box"><?= e(t('خلفية ملوّنة خلف الكلمة')) ?></option>
+            </select></label>
+          <label class="block"><span class="text-xs text-ink-500"><?= e(t('لون التمييز')) ?></span>
+            <div class="flex items-center gap-2">
+              <input type="color" name="txt_accent" value="#10b981" class="h-9 w-12 rounded-lg border border-ink-200 p-0.5 bg-white cursor-pointer">
+              <span class="text-xs text-ink-400"><?= e(t('اتركه أخضر = من هوية الشركة تلقائيًا')) ?></span>
+            </div></label>
+        </div>
+      </div>
       <div>
         <span class="label"><?= e(t('جودة الصور')) ?></span>
         <p class="text-xs text-ink-500 mb-2"><?= e(t('«الأعلى» تطلع تصميمات بمستوى الوكالات بتفاصيل وإضاءة أغنى (تكلفة كريدت أكبر). «جيدة» أسرع وأرخص.')) ?></p>

@@ -20,12 +20,12 @@
       if (W.querySelector('[name=style]:checked')) d.style = W.querySelector('[name=style]:checked').value;
       if (W.querySelector('[name=img_q]:checked')) d.img_q = W.querySelector('[name=img_q]:checked').value;
       if (W.querySelector('[name=aspect]:checked')) d.aspect = W.querySelector('[name=aspect]:checked').value;
-      ['goal', 'count', 'name', 'tone', 'cta', 'audience', 'about', 'avoid', 'dialect_other', 'lang_all', 'lang_li', 'lang_x', 'lang_img', 'lang_vo', 'dialect_k'].forEach(function (n) { if (W[n]) d[n] = W[n].value; }); d.video = W.video.checked; d.carousel = W.carousel.checked; d.humanize = W.humanize.checked; d.qc = W.qc ? W.qc.checked : true;
+      ['goal', 'count', 'name', 'tone', 'cta', 'audience', 'about', 'avoid', 'dialect_other', 'lang_all', 'lang_li', 'lang_x', 'lang_img', 'lang_vo', 'dialect_k', 'txt_pos', 'txt_size', 'txt_variant', 'txt_accent'].forEach(function (n) { if (W[n]) d[n] = W[n].value; }); d.video = W.video.checked; d.carousel = W.carousel.checked; d.humanize = W.humanize.checked; d.qc = W.qc ? W.qc.checked : true;
       if (W.font) d.font = (W.querySelector('[name=font]:checked') || {}).value || 'auto';
       if (W.logo_w) { ['logo_x', 'logo_y', 'logo_w', 'logo_op'].forEach(function (n) { d[n] = +W[n].value; }); ['logo_tint', 'logo_plate'].forEach(function (n) { d[n] = (W.querySelector('[name=' + n + ']:checked') || {}).value; }); d.logo_on = W.logo_on.checked; } return d; }
     var dr = ls(key);
     if (dr && (dr.goal || (dr.refsFull || []).length)) {
-      ['goal', 'count', 'name', 'tone', 'cta', 'audience', 'about', 'avoid', 'dialect_other', 'lang_all', 'lang_li', 'lang_x', 'lang_img', 'lang_vo', 'dialect_k'].forEach(function (n) { if (dr[n] != null && W[n]) W[n].value = dr[n]; });
+      ['goal', 'count', 'name', 'tone', 'cta', 'audience', 'about', 'avoid', 'dialect_other', 'lang_all', 'lang_li', 'lang_x', 'lang_img', 'lang_vo', 'dialect_k', 'txt_pos', 'txt_size', 'txt_variant', 'txt_accent'].forEach(function (n) { if (dr[n] != null && W[n]) W[n].value = dr[n]; });
       W.video.checked = dr.video !== false; W.carousel.checked = dr.carousel !== false; W.humanize.checked = dr.humanize !== false;
       if (W.font && dr.font) Array.prototype.slice.call(W.querySelectorAll('[name=font]')).forEach(function (x) { x.checked = x.value === dr.font; });
       if (W.font && dr.font) Array.prototype.slice.call(W.querySelectorAll('[name=font]')).forEach(function (x) { x.checked = x.value === dr.font; });

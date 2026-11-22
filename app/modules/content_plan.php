@@ -82,6 +82,10 @@ function cpl_create(array $in): int
         'img_q' => in_array($in['img_q'] ?? '', ['medium', 'high'], true) ? (string)$in['img_q'] : 'high',
         'style' => array_key_exists((string)($in['style'] ?? 'auto'), cpl_styles()) ? (string)$in['style'] : 'auto',
         'aspect' => in_array($in['aspect'] ?? '', ['4:5', '1:1', '9:16', '16:9'], true) ? (string)$in['aspect'] : '4:5',
+        'txt_pos' => in_array($in['txt_pos'] ?? '', ['auto', 'top', 'bottom'], true) ? (string)$in['txt_pos'] : 'auto',
+        'txt_size' => in_array($in['txt_size'] ?? '', ['s', 'm', 'l'], true) ? (string)$in['txt_size'] : 'm',
+        'txt_variant' => in_array($in['txt_variant'] ?? '', ['auto', 'box', 'underline', 'color'], true) ? (string)$in['txt_variant'] : 'auto',
+        'txt_accent' => (preg_match('/^#?[0-9a-fA-F]{6}$/', (string)($in['txt_accent'] ?? '')) && strtolower(ltrim((string)$in['txt_accent'], '#')) !== '10b981') ? ('#' . ltrim((string)$in['txt_accent'], '#')) : '',
         'products' => array_slice(array_values(array_filter(array_map('intval', (array)($in['products'] ?? [])), function ($id) use ($wid) { $m = media_get($wid, $id); return $id > 0 && $m && empty($m['deleted_at']) && media_kind((string)$m['mime']) === 'image'; })), 0, 6),
         'logo_tint' => in_array($in['logo_tint'] ?? '', ['orig', 'white', 'black'], true) ? $in['logo_tint'] : 'orig', 'logo_plate' => in_array($in['logo_plate'] ?? '', ['none', 'light', 'dark'], true) ? $in['logo_plate'] : 'none', 'logo_on' => !isset($in['logo_on']) || !empty($in['logo_on'])];
     $name = mb_substr(trim((string)($in['name'] ?? '')), 0, 150) ?: mb_substr(preg_replace('/\s+/u', ' ', $goal), 0, 60);
@@ -91,7 +95,8 @@ function cpl_create(array $in): int
     $nid = (int)db()->lastInsertId(); cpl_log($nid, t('اتعملت الخطة: %s منشور، %s صورة مرجعية%s.', $n, count($refs), $hasLogo ? t('، والشعار من ملف الشركة') : '')); return $nid;
 }
 
-function cpl_opts(array $p): array { return (json_decode((string)$p['opts'], true) ?: []) + ['lang' => 'ar', 'dialect' => '', 'audience' => '', 'services' => [], 'tone' => '', 'cta' => '', 'avoid' => '', 'about' => '', 'font' => 'auto', 'video' => true, 'carousel' => true, 'humanize' => true, 'qc' => true, 'img_q' => 'high', 'style' => 'auto', 'products' => [], 'aspect' => '4:5']; }
+function cpl_opts(array $p): array { return (json_decode((string)$p['opts'], true) ?: []) + ['lang' => 'ar', 'dialect' => '', 'audience' => '', 'services' => [], 'tone' => '', 'cta' => '', 'avoid' => '', 'about' => '', 'font' => 'auto', 'video' => true, 'carousel' => true, 'humanize' => true, 'qc' => true, 'img_q' => 'high', 'style' => 'auto', 'products' => [], 'aspect' => '4:5',
+    'txt_pos' => 'auto', 'txt_size' => 'm', 'txt_variant' => 'auto', 'txt_accent' => '']; }
 
 /** نسبة/حجم الصورة المختارة للخطة (4:5 طولي افتراضيًا). */
 function cpl_aspect(array $p): string { $a = (string)(cpl_opts($p)['aspect'] ?? '4:5'); return in_array($a, ['4:5', '1:1', '9:16', '16:9'], true) ? $a : '4:5'; }
@@ -872,6 +877,9 @@ function cpl_font_file(array $p): string
 /** لون الهوية (accent) من ألوان اللوجو، وإلا أخضر تيل افتراضي — يُستخدم في هايلايت العنوان. */
 function cpl_accent_rgb(array $p): array
 {
+    // لون تمييز مخصص من إعدادات الخطة له الأولوية
+    $custom = (string)(cpl_opts($p)['txt_accent'] ?? '');
+    if (preg_match('/^#?([0-9a-fA-F]{6})$/', $custom, $cm)) return [hexdec(substr($cm[1], 0, 2)), hexdec(substr($cm[1], 2, 2)), hexdec(substr($cm[1], 4, 2))];
     if (function_exists('kb_logo_palette')) {
         try {
             foreach ((array)kb_logo_palette((int)ws('id')) as $hex) {
@@ -976,9 +984,10 @@ function cpl_stamp_text(array $p, int $mid, string $headline): int
     if (!imageistruecolor($im)) imagepalettetotruecolor($im);
     $W = imagesx($im); $H = imagesy($im); $rtl = (bool)preg_match('/[\x{0600}-\x{06FF}]/u', $headline);
     $margin = (int)round($W * 0.08);
+    $to = cpl_opts($p); // إعدادات النص: مكان/حجم/نمط
 
-    // --- اختيار المنطقة الرأسية (فوق/تحت) حسب الأهدأ ---
-    $zone = cpl_text_zone($im, $W, $H);
+    // --- اختيار المنطقة الرأسية (فوق/تحت): من الإعدادات أو تلقائي حسب الأهدأ ---
+    $zone = in_array($to['txt_pos'] ?? 'auto', ['top', 'bottom'], true) ? $to['txt_pos'] : cpl_text_zone($im, $W, $H);
     $bandY0 = $zone === 'top' ? 0 : (int)round($H * 0.52); $bandY1 = $zone === 'top' ? (int)round($H * 0.48) : $H;
     // --- اختيار الجهة الأفقية: لو جنب أهدأ بوضوح من التاني، نحط النص في عمود جانبي (زي شغل الوكالات) ---
     $scoreL = cpl_region_score($im, 0, $bandY0, (int)round($W * 0.52), $bandY1);
@@ -988,15 +997,17 @@ function cpl_stamp_text(array $p, int $mid, string $headline): int
     $colLeft = $anchor === 'right' ? ($W - $margin - $colW) : $margin;
     $colRight = $colLeft + $colW;
 
-    // --- قياس الخط ولفّ الأسطر داخل العمود المختار ---
-    $size = (int)round($W * ($anchor === 'full' ? 0.072 : 0.064)); $lines = null; $min = max(12, (int)round($W * 0.028));
+    // --- قياس الخط ولفّ الأسطر داخل العمود المختار (الحجم من الإعدادات) ---
+    $szMul = ['s' => 0.86, 'm' => 1.0, 'l' => 1.16][$to['txt_size'] ?? 'm'] ?? 1.0;
+    $size = (int)round($W * ($anchor === 'full' ? 0.072 : 0.064) * $szMul); $lines = null; $min = max(12, (int)round($W * 0.028));
     $maxLines = $anchor === 'full' ? 3 : 4;
     for (; $size >= $min; $size -= 2) { $w = cpl_wrap_lines($headline, $font, $size, $colW, $rtl); if (count($w) <= $maxLines) { $lines = $w; break; } }
     if (!$lines) $lines = array_slice(cpl_wrap_lines($headline, $font, $size, $colW, $rtl), 0, $maxLines);
     $lh = (int)round($size * ($rtl ? 1.56 : 1.46)); $blockH = $lh * count($lines);
 
-    // --- قالب التصميم: بيتغيّر لكل منشور (ثابت لنفس المنشور) ---
-    $variant = (crc32($headline . '|' . $mid) % 3 + 3) % 3; // 0=هايلايت بوكس، 1=خط تحتي، 2=شريط + كلمة ملوّنة
+    // --- قالب التمييز: من الإعدادات أو تلقائي (يتغيّر لكل منشور) ---
+    $vmap = ['box' => 0, 'underline' => 1, 'color' => 2];
+    $variant = isset($vmap[$to['txt_variant'] ?? 'auto']) ? $vmap[$to['txt_variant']] : (crc32($headline . '|' . $mid) % 3 + 3) % 3;
     $top = $zone === 'bottom' ? max((int)round($H * 0.40), $H - (int)round($H * 0.08) - $blockH) : (int)round($H * 0.08);
     imagealphablending($im, true); imagesavealpha($im, true);
 
