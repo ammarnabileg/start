@@ -51,7 +51,7 @@ render(t('المساعد الخارجي'), 'connect_ai', function () use ($token
             <button type="button" class="btn-ghost !py-1.5" onclick="navigator.clipboard.writeText(document.getElementById('newtok').textContent);this.textContent='✓'"><?= e(t('نسخ')) ?></button></div>
         </div>
         <?php endif; ?>
-        <form method="post" class="grid sm:grid-cols-2 gap-3 items-end">
+        <form method="post" data-no-ajax class="grid sm:grid-cols-2 gap-3 items-end">
           <?= csrf_field() ?><input type="hidden" name="action" value="create">
           <label class="block"><span class="label"><?= e(t('اسم للتمييز')) ?></span><input name="name" class="input" placeholder="<?= e(t('مثال: ChatGPT الخاص بي')) ?>" maxlength="120"></label>
           <label class="block"><span class="label"><?= e(t('الصلاحية')) ?></span>
@@ -103,7 +103,7 @@ render(t('المساعد الخارجي'), 'connect_ai', function () use ($token
 
     <div class="card p-5 mt-5">
       <div class="flex items-center gap-3 mb-3"><b class="text-ink-900 flex-1"><?= e(t('التوكنات')) ?></b>
-        <?php if ($tokens): ?><form method="post" onsubmit="return confirm('<?= e(t('حذف كل التوكنات؟ سيتوقف أي اتصال مع ChatGPT أو Claude فورًا، ولا يمكن التراجع.')) ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="delete_all"><button class="btn-ghost !py-1.5 text-red-600"><?= e(t('امسح كل التوكنات')) ?></button></form><?php endif; ?>
+        <?php if ($tokens): ?><form method="post" data-no-ajax onsubmit="return confirm('<?= e(t('حذف كل التوكنات؟ سيتوقف أي اتصال مع ChatGPT أو Claude فورًا، ولا يمكن التراجع.')) ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="delete_all"><button class="btn-ghost !py-1.5 text-red-600"><?= e(t('امسح كل التوكنات')) ?></button></form><?php endif; ?>
       </div>
       <?php if (!$tokens): ?><p class="text-sm text-ink-500"><?= e(t('لا توجد توكنات بعد.')) ?></p><?php else: ?>
       <?php $scopeLbl = ['read' => t('قراءة فقط'), 'write' => t('قراءة + كتابة'), 'publish' => t('نشر مباشر'), 'admin' => t('مدير (كامل)')]; ?>
@@ -123,7 +123,7 @@ render(t('المساعد الخارجي'), 'connect_ai', function () use ($token
               <dt class="text-ink-500"><?= e(t('أُنشئ')) ?></dt><dd class="text-ink-800" dir="ltr"><?= e((string)($tk['created_at'] ?? '')) ?></dd>
               <dt class="text-ink-500"><?= e(t('آخر استخدام')) ?></dt><dd class="text-ink-800" dir="ltr"><?= e($tk['last_used_at'] ? (string)$tk['last_used_at'] : t('لم يُستخدم')) ?></dd>
             </dl>
-            <form method="post" class="space-y-2 pt-2 border-t border-ink-100"><?= csrf_field() ?><input type="hidden" name="action" value="scope"><input type="hidden" name="id" value="<?= $sid ?>">
+            <form method="post" data-no-ajax class="space-y-2 pt-2 border-t border-ink-100"><?= csrf_field() ?><input type="hidden" name="action" value="scope"><input type="hidden" name="id" value="<?= $sid ?>">
               <label class="block"><span class="text-xs text-ink-500"><?= e(t('تغيير الصلاحية')) ?></span>
                 <select name="scope" class="input !mt-1">
                   <option value="read" <?= $cur === 'read' ? 'selected' : '' ?>><?= e(t('قراءة فقط (الأكثر أمانًا)')) ?></option>
@@ -133,9 +133,9 @@ render(t('المساعد الخارجي'), 'connect_ai', function () use ($token
                 </select></label>
               <button class="btn-primary !py-1.5 w-full"><?= e(t('حفظ الصلاحية')) ?></button>
             </form>
-            <form method="post" onsubmit="return confirm('<?= e(t('إعادة توليد التوكن؟ التوكن الحالي هيبطل فورًا، وهتحتاج تحدّث الرابط/التوكن في تطبيقك.')) ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="regen"><input type="hidden" name="id" value="<?= $sid ?>">
+            <form method="post" data-no-ajax onsubmit="return confirm('<?= e(t('إعادة توليد التوكن؟ التوكن الحالي هيبطل فورًا، وهتحتاج تحدّث الرابط/التوكن في تطبيقك.')) ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="regen"><input type="hidden" name="id" value="<?= $sid ?>">
               <button class="btn-ghost !py-1.5 w-full"><?= e(t('إعادة توليد التوكن')) ?></button></form>
-            <form method="post" onsubmit="return confirm('<?= e(t('حذف التوكن؟ سيتوقف أي اتصال يستخدمه.')) ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= $sid ?>">
+            <form method="post" data-no-ajax onsubmit="return confirm('<?= e(t('حذف التوكن؟ سيتوقف أي اتصال يستخدمه.')) ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= $sid ?>">
               <button class="btn-ghost !py-1.5 w-full text-red-600"><?= e(t('حذف التوكن')) ?></button></form>
           </div>
         </dialog>
