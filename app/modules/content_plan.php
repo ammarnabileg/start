@@ -976,7 +976,8 @@ function cpl_stamp_text(array $p, int $mid, string $headline): int
     $headline = trim($headline); if ($headline === '') return $mid;
     // الكلمة المفتاحية: الموديل بيعلّمها بـ«» — نستخرجها ونشيل العلامات. لو مفيش، ناخد آخر كلمة.
     $key = ''; if (preg_match('/«\s*(.+?)\s*»/u', $headline, $kk)) $key = trim($kk[1]);
-    $headline = trim(preg_replace('/\s+/u', ' ', str_replace(['«', '»'], '', $headline)));
+    // إزالة فواصل زخرفية يحطها الموديل بين العربي والإنجليزي (| ｜ /) — بتتطبع كشرطة غلط
+    $headline = trim(preg_replace(['/\s*[|｜]\s*/u', '/\s+/u'], [' ', ' '], str_replace(['«', '»'], '', $headline)));
     if ($key === '') { $pp = preg_split('/\s+/u', $headline); $lastW = (string)end($pp); if (mb_strlen($lastW) >= 2) $key = $lastW; }
     $wid = (int)ws('id'); $m = media_get($wid, $mid); if (!$m || !function_exists('imagettftext')) return $mid;
     $font = cpl_font_file($p); if (!is_file($font)) return $mid;
