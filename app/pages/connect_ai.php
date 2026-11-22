@@ -1,14 +1,17 @@
 <?php
 /** ربط المساعد الخارجي: ChatGPT / Claude بالمنصة عبر MCP (توكنات وتعليمات). */
 $wid = (int)ws('id');
-$newToken = null;
+// التوكن الجديد بيتخزّن في الجلسة لمرة واحدة ويُقرأ بعد الـredirect (PRG)، فبيظهر مع رسالة النجاح بثبات
+// (قبل كده كان متغير محلي بيضيع لو حصل أي redirect/تحديث، فالرسالة تظهر من غير التوكن)
+$newToken = $_SESSION['mcp_new_token'] ?? null; unset($_SESSION['mcp_new_token']);
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     check_csrf();
     $a = (string)($_POST['action'] ?? '');
     if ($a === 'create') {
         $sc = in_array($_POST['scope'] ?? '', ['read', 'write', 'publish', 'admin'], true) ? $_POST['scope'] : 'read';
-        $newToken = mcp_token_create($wid, (int)(current_user()['id'] ?? 0), (string)($_POST['name'] ?? ''), $sc);
+        $_SESSION['mcp_new_token'] = mcp_token_create($wid, (int)(current_user()['id'] ?? 0), (string)($_POST['name'] ?? ''), $sc);
         flash('success', t('أُنشئ توكن جديد. انسخه الآن، فلن يظهر مرة أخرى.'));
+        redirect(url('connect_ai'));
     } elseif ($a === 'delete') {
         mcp_token_delete($wid, (int)($_POST['id'] ?? 0));
         flash('success', t('حُذف التوكن.'));
