@@ -359,22 +359,76 @@
       post({ action: 'logo', id: iState.id, logo: JSON.stringify(lopts) }).then(function (j) { btn.disabled = false; btn.textContent = old;
         if (!j.ok) return toast(T.err, 'error'); iClose(); toast(T.ilSaved); load(); }).catch(function () { btn.disabled = false; btn.textContent = old; toast(T.offline, 'error'); }); });
   }
-  /* ---------- المصمم الكامل (iframe مِلء الشاشة) داخل صفحة الكونتنت ---------- */
-  var tMod = $('#cp-itxt'), tFrame = $('#it-frame');
+  /* ---------- محرّر التصميم المدمج (Fabric) داخل البوب أب ---------- */
+  var tMod = $('#cp-itxt'), fc = null, FW = 1080, FH = 1350, FONTS = ['Cairo', 'Alexandria', 'Tajawal'];
+  function fcFit() { if (!fc) return; var wrap = $('#it-cwrap'); var dw = (wrap && wrap.clientWidth) || 420; fc.setZoom(dw / FW); fc.setDimensions({ width: dw, height: Math.round(dw * FH / FW) }); }
+  function fcActive() { return fc && fc.getActiveObject(); }
+  // خانة النص الخارجية (التعديل المباشر بيبوّظ تحديد العربي في Fabric)
+  function fcTxtSync() { var inp = $('#dz-txt'); var o = fcActive(); if (inp) { if (o && o.type === 'textbox') { inp.disabled = false; inp.value = o.text || ''; } else { inp.value = ''; inp.disabled = true; } } var sz = $('#dz-size'), szv = $('#dz-size-v'); if (sz) { var fs = (o && o.type === 'textbox') ? Math.round((o.fontSize || 80) * (o.scaleY || 1)) : 80; sz.value = fs; if (szv) szv.textContent = fs; } var dc = $('#dz-color'); if (dc && o && o.fill && typeof o.fill === 'string' && o.fill[0] === '#') dc.value = o.fill; }
+  // Fabric بيرسم العربي مكسور لو الخط لسه ما اتحمّلش؛ نعيد قياس كل نص بعد تحميل الخطوط
+  function fcRefreshText() { if (!fc) return; fc.getObjects().forEach(function (o) { if (o.type === 'textbox' || o.type === 'i-text' || o.type === 'text') { o.set('dirty', true); if (o.initDimensions) o.initDimensions(); } }); fc.requestRenderAll(); }
+  function fcEnsureFonts() { if (!document.fonts || !document.fonts.load) return Promise.resolve(); return Promise.all(['900 64px Cairo', '700 64px Cairo', '400 64px Cairo', '800 64px Alexandria', '700 64px Tajawal'].map(function (f) { return document.fonts.load(f).catch(function () {}); })); }
   function tOpen(id) {
-    if (!tMod || !tFrame) return; var it = items.find(function (i) { return i.id === id; }); if (!it) return;
-    var rawId = (it.media_raw || [])[0] || (it.media_ids || [])[0]; if (!rawId) { toast(T.err, 'error'); return; }
-    var head = String(it.headline || '').replace(/[«»]/g, '');
-    var src = 'index.php?p=designer&embed=1&cpitem=' + id + '&cpplan=' + (P ? P.id : '') +
-      '&img=' + encodeURIComponent('index.php?p=media&file=' + rawId) + '&title=' + encodeURIComponent(head);
-    tMod.dataset.id = id; tFrame.src = src;
-    tMod.classList.remove('hidden'); document.body.style.overflow = 'hidden';
+    if (!tMod) return; if (!window.fabric) { toast(T.err, 'error'); return; }
+    var it = items.find(function (i) { return i.id === id; }); if (!it) return;
+    tMod.dataset.id = id; tMod.classList.remove('hidden'); document.body.style.overflow = 'hidden';
+    if (!fc) { fc = new fabric.Canvas('it-canvas', { backgroundColor: '#0b1220', preserveObjectStacking: true, allowTouchScrolling: false });
+      fc.on('selection:created', fcTxtSync); fc.on('selection:updated', fcTxtSync); fc.on('selection:cleared', fcTxtSync); }
+    fc.clear(); fc.setBackgroundImage(null, fc.renderAll.bind(fc)); fcFit();
+    var rawId = (it.media_raw || [])[0] || (it.media_ids || [])[0];
+    if (rawId) fabric.Image.fromURL(murl(rawId), function (im) { if (!im || !im.width) return; var k = Math.max(FW / im.width, FH / im.height); im.set({ scaleX: k, scaleY: k, originX: 'center', originY: 'center', left: FW / 2, top: FH / 2 }); fc.setBackgroundImage(im, fc.renderAll.bind(fc)); });
+    var head = String(it.headline || '').replace(/[«»]/g, '') || 'عنوان';
+    var tb = new fabric.Textbox(head, { left: FW * 0.08, top: FH * 0.07, width: FW * 0.84, fontSize: Math.round(FW * 0.085), fill: '#ffffff', fontWeight: '900', fontFamily: 'Cairo', textAlign: 'right', direction: 'rtl', editable: false });
+    fc.add(tb); fc.setActiveObject(tb); fcTxtSync(); fc.requestRenderAll();
+    fcEnsureFonts().then(fcRefreshText);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(fcRefreshText);
+    // اللوجو كطبقة قابلة للتحريك/التحجيم مع النص
+    if (P && P.logo) fabric.Image.fromURL(P.logo, function (lg) { if (!lg || !lg.width) return; var k = (FW * 0.20) / lg.width; lg.set({ scaleX: k, scaleY: k, left: FW * 0.74, top: FH * 0.035 }); lg.dzLogo = true; fc.add(lg); fc.requestRenderAll(); });
   }
-  function tClose() { if (tMod) { tMod.classList.add('hidden'); document.body.style.overflow = ''; if (tFrame) tFrame.src = 'about:blank'; } }
+  function tClose() { if (tMod) { tMod.classList.add('hidden'); document.body.style.overflow = ''; } }
   if (tMod) {
-    tMod.addEventListener('click', function (e) { if (e.target.closest('[data-tclose]')) tClose(); });
+    window.addEventListener('resize', function () { if (!tMod.classList.contains('hidden')) fcFit(); });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !tMod.classList.contains('hidden')) tClose(); });
-    window.addEventListener('message', function (e) { if (e.data && e.data.dzSaved) { tClose(); toast(T.itSaved); load(); } });
+    var dzTxt = $('#dz-txt');
+    if (dzTxt) dzTxt.addEventListener('input', function () { var o = fcActive(); if (o && o.type === 'textbox') { o.set('text', dzTxt.value); if (o.initDimensions) o.initDimensions(); fc.requestRenderAll(); } });
+    tMod.addEventListener('click', function (e) {
+      if (e.target === tMod || e.target.closest('[data-tclose]')) return tClose();
+      var b = e.target.closest('[data-dz]'); if (!b || !fc) return; var cmd = b.dataset.dz, o = fcActive();
+      if (cmd === 'addtext') { var nt = new fabric.Textbox('نص جديد', { left: FW * 0.12, top: FH * 0.42, width: FW * 0.6, fontSize: Math.round(FW * 0.06), fill: ($('#dz-color') || {}).value || '#ffffff', fontFamily: 'Cairo', fontWeight: '700', textAlign: 'right', direction: 'rtl', editable: false }); fc.add(nt); fc.setActiveObject(nt); fcTxtSync(); var inp = $('#dz-txt'); if (inp) inp.select(); fc.requestRenderAll(); }
+      else if (cmd === 'del' && o) { fc.remove(o); fcTxtSync(); fc.requestRenderAll(); }
+      else if (cmd === 'front' && o) { o.bringToFront(); fc.requestRenderAll(); }
+      else if (cmd === 'back' && o) { o.sendToBack(); fc.requestRenderAll(); }
+      else if (cmd === 'dup' && o && o.clone) { o.clone(function (c) { c.set({ left: (o.left || 0) + 30, top: (o.top || 0) + 30 }); if (o.dzLogo) c.dzLogo = true; fc.add(c); fc.setActiveObject(c); fcTxtSync(); fc.requestRenderAll(); }); }
+      else if (cmd === 'bold' && o && o.set) { o.set('fontWeight', (o.fontWeight === '900' || o.fontWeight === 'bold') ? '400' : '900'); fc.requestRenderAll(); }
+      else if (cmd === 'font' && o && o.set) { var i = (FONTS.indexOf(o.fontFamily) + 1) % FONTS.length; o.set('fontFamily', FONTS[i]); fc.requestRenderAll(); toast(FONTS[i], 'info'); if (document.fonts && document.fonts.load) document.fonts.load('700 64px ' + FONTS[i]).then(fcRefreshText).catch(function () {}); }
+      else if (cmd === 'al-right' && o && o.set) { o.set('textAlign', 'right'); fc.requestRenderAll(); }
+      else if (cmd === 'al-center' && o && o.set) { o.set('textAlign', 'center'); fc.requestRenderAll(); }
+      else if (cmd === 'al-left' && o && o.set) { o.set('textAlign', 'left'); fc.requestRenderAll(); }
+    });
+    var dc = $('#dz-color'); if (dc) dc.addEventListener('input', function () { var o = fcActive(); if (o && o.set) { o.set('fill', this.value); fc.requestRenderAll(); } });
+    var dsz = $('#dz-size'); if (dsz) dsz.addEventListener('input', function () { var o = fcActive(); if (o && o.set && o.type === 'textbox') { o.set('fontSize', +this.value); if (o.initDimensions) o.initDimensions(); fc.requestRenderAll(); var lbl = $('#dz-size-v'); if (lbl) lbl.textContent = this.value; } });
+    $('#it-save').addEventListener('click', function () {
+      if (!fc) return; var id = +tMod.dataset.id, btn = this; btn.disabled = true; var old = btn.textContent; btn.textContent = T.ilBusy;
+      fc.discardActiveObject(); var z = fc.getZoom(); fc.setZoom(1); fc.setDimensions({ width: FW, height: FH }); fc.renderAll();
+      var data = fc.toDataURL({ format: 'png', multiplier: 1 }); fc.setZoom(z); fcFit();
+      post({ action: 'savecanvas', id: id, img: data }).then(function (j) { btn.disabled = false; btn.textContent = old; if (!j.ok) return toast(T.err, 'error'); tClose(); toast(T.itSaved); load(); }).catch(function () { btn.disabled = false; btn.textContent = old; toast(T.offline, 'error'); });
+    });
+    var itAll = $('#it-all');
+    if (itAll) itAll.addEventListener('click', function () {
+      if (!fc) return; var id = +tMod.dataset.id, btn = this; btn.disabled = true; var old = btn.textContent; btn.textContent = T.ilBusy;
+      // اقرأ ستايل العنوان الرئيسي (أكبر textbox) لتطبيقه على باقي المنشورات
+      var heads = fc.getObjects().filter(function (o) { return o.type === 'textbox'; });
+      var main = heads.sort(function (a, b) { return (b.fontSize || 0) - (a.fontSize || 0); })[0];
+      var sty = {};
+      if (main) { sty.txt_scale = Math.round(((main.fontSize || 80) * (main.scaleY || 1)) / (FW * 0.085) * 100); if (main.fill && typeof main.fill === 'string') sty.txt_accent = main.fill; sty.txt_align = main.textAlign || 'right'; sty.txt_y = Math.round((main.top || 0) / FH * 100); }
+      // احفظ الكانفاس الحالي أولاً ثم طبّق الستايل على الكل
+      fc.discardActiveObject(); var z = fc.getZoom(); fc.setZoom(1); fc.setDimensions({ width: FW, height: FH }); fc.renderAll();
+      var data = fc.toDataURL({ format: 'png', multiplier: 1 }); fc.setZoom(z); fcFit();
+      // الكل أولاً (يعيد تركيب كل الصور بالنمط المشترك)، ثم احفظ تصميم المنشور الحالي يدويًا فوقه
+      post({ action: 'retxt_all', id: id, txt: JSON.stringify(sty) }).then(function () {
+        return post({ action: 'savecanvas', id: id, img: data });
+      }).then(function (j) { btn.disabled = false; btn.textContent = old; if (!j || !j.ok) return toast(T.err, 'error'); tClose(); toast(T.itSaved); load(); }).catch(function () { btn.disabled = false; btn.textContent = old; toast(T.offline, 'error'); });
+    });
   }
   paintProg({}); load(); loop();
 })();

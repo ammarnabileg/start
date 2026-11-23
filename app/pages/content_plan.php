@@ -138,9 +138,51 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
         </div>
       </div>
     </div>
-    <div id="cp-itxt" class="hidden fixed inset-0 z-[70] bg-ink-900" dir="rtl">
-      <button type="button" data-tclose class="absolute top-2 start-2 z-[71] rounded-full bg-white/90 shadow px-3 py-1.5 text-sm font-semibold hover:bg-white"><?= e(t('✕ إغلاق')) ?></button>
-      <iframe id="it-frame" class="w-full h-full border-0 bg-white" allow="clipboard-write"></iframe>
+    <div id="cp-itxt" class="hidden fixed inset-0 z-[70] bg-ink-900 flex flex-col sm:flex-row" dir="rtl">
+      <!-- الكانفس (يمين) -->
+      <div class="order-1 flex-1 min-h-0 grid place-items-center p-3 overflow-auto">
+        <div id="it-cwrap" style="width:min(92%,440px);max-height:88vh">
+          <canvas id="it-canvas" class="rounded-xl shadow-2xl touch-none"></canvas>
+        </div>
+      </div>
+      <!-- الأدوات (شمال) -->
+      <div class="order-2 w-full sm:w-80 shrink-0 bg-white sm:h-full overflow-auto flex flex-col">
+        <div class="flex items-center justify-between gap-2 px-4 py-3 border-b border-ink-100 sticky top-0 bg-white z-10">
+          <b class="text-ink-900"><?= e(t('محرّر التصميم')) ?></b>
+          <button type="button" data-tclose class="btn-ghost !py-1.5 !px-3 text-sm"><?= e(t('✕ إغلاق')) ?></button>
+        </div>
+        <div class="p-3 space-y-3 text-sm">
+          <input id="dz-txt" type="text" dir="auto" class="input !py-2 w-full" placeholder="<?= e(t('اختر نصًا من اللوحة وعدّل كتابته…')) ?>" disabled>
+          <div>
+            <span class="text-xs text-ink-500 block mb-1"><?= e(t('العناصر')) ?></span>
+            <div class="flex flex-wrap items-center gap-1">
+              <button type="button" data-dz="addtext" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5 hover:border-brand-400">➕ <?= e(t('نص')) ?></button>
+              <button type="button" data-dz="dup" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5" title="<?= e(t('نسخة')) ?>">⧉</button>
+              <button type="button" data-dz="front" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5" title="<?= e(t('للأمام')) ?>">⬆</button>
+              <button type="button" data-dz="back" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5" title="<?= e(t('للخلف')) ?>">⬇</button>
+              <button type="button" data-dz="del" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5 text-red-600" title="<?= e(t('حذف')) ?>">🗑</button>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="inline-flex items-center justify-between gap-1 rounded-lg bg-ink-50 border border-ink-200 px-2 py-1.5 cursor-pointer"><span class="text-xs text-ink-600"><?= e(t('اللون')) ?></span><input type="color" id="dz-color" value="#ffffff" class="w-7 h-7 border-0 bg-transparent p-0 cursor-pointer"></label>
+            <button type="button" data-dz="bold" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5 font-black"><?= e(t('غامق')) ?> B</button>
+            <button type="button" data-dz="font" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5 col-span-2"><?= e(t('تبديل الخط')) ?></button>
+          </div>
+          <label class="block"><span class="text-xs text-ink-500 flex justify-between"><span><?= e(t('حجم النص المحدد')) ?></span><b id="dz-size-v" class="tabular-nums"></b></span>
+            <input type="range" id="dz-size" min="20" max="200" value="80" class="w-full accent-brand-600"></label>
+          <div><span class="text-xs text-ink-500 block mb-1"><?= e(t('المحاذاة')) ?></span>
+            <div class="grid grid-cols-3 gap-1.5" dir="ltr">
+              <button type="button" data-dz="al-right" class="rounded-lg bg-ink-50 border border-ink-200 py-1.5">⇥</button>
+              <button type="button" data-dz="al-center" class="rounded-lg bg-ink-50 border border-ink-200 py-1.5">≡</button>
+              <button type="button" data-dz="al-left" class="rounded-lg bg-ink-50 border border-ink-200 py-1.5">⇤</button>
+            </div></div>
+          <p class="text-[11px] text-ink-400"><?= e(t('اسحب أي عنصر (نص/لوجو) وكبّره بالمقابض · عدّل الكتابة من الخانة فوق')) ?></p>
+        </div>
+        <div class="mt-auto p-3 border-t border-ink-100 bg-white sticky bottom-0 flex gap-2">
+          <button type="button" id="it-all" class="btn-ghost flex-1 !py-2 text-sm"><?= e(t('حفظ على الكل')) ?></button>
+          <button type="button" id="it-save" class="btn-primary flex-1 !py-2 text-sm"><?= e(t('حفظ')) ?></button>
+        </div>
+      </div>
     </div>
     <div id="cp-float" class="hidden fixed bottom-4 inset-x-0 z-40 px-3 pointer-events-none">
       <div class="pointer-events-auto mx-auto w-fit max-w-full rounded-2xl border border-ink-200 bg-white shadow-2xl p-2 flex flex-wrap items-center justify-center gap-2 text-sm">
@@ -410,6 +452,7 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
     <?php $cfg['media'] = url('media'); ?><script>window.CP = <?= json_encode($cfg, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;</script>
     <?php if (!$plan): ?><script src="assets/extract.js?v=<?= e(APP_VERSION) ?>"></script><?php endif; ?>
     <?php if (!$plan): ?><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&family=Alexandria:wght@400;700&family=Tajawal:wght@400;700&family=Almarai:wght@400;700&family=Changa:wght@400;700&family=El+Messiri:wght@400;700&family=Reem+Kufi:wght@400;700&family=Amiri:wght@400;700&family=Lateef&family=IBM+Plex+Sans+Arabic:wght@400;700&display=swap" rel="stylesheet"><?php endif; ?>
+    <?php if ($plan): ?><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&family=Alexandria:wght@400;700;800&family=Tajawal:wght@400;700&display=swap" rel="stylesheet"><script src="assets/vendor/fabric-5.3.0.min.js"></script><?php endif; ?>
     <script src="assets/content-plan.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
 });
