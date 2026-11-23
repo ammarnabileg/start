@@ -413,9 +413,15 @@ render(t('المصمم'), 'designer', function () use ($brand, $co, $img, $kbd, 
   <script>/* محرّر مدمج لخطة المحتوى: تحميل اللوجو تلقائيًا + حفظ التصميم على المنشور */
   (function(){
     function boot(){
-      var X = window.DZX; if (!X) { return setTimeout(boot, 200); }
-      // اللوجو تلقائيًا فوق التصميم (لو مش موجود في القالب)
-      try { if (window.DZ.kit && window.DZ.kit.logo) { var cmd = document.querySelector('[data-cmd="addlogo"]'); if (cmd) setTimeout(function(){ cmd.click(); }, 900); } } catch(e){}
+      var X = window.DZX; if (!X || !window.fabric) { return setTimeout(boot, 200); }
+      // اللوجو تلقائيًا كطبقة مباشرة فوق التصميم (أضمن من زر addlogo)
+      try {
+        var lu = window.DZ.kit && window.DZ.kit.logo;
+        if (lu) setTimeout(function(){
+          fabric.Image.fromURL(lu, function(lg){ if(!lg||!lg.width) return; var W=X.W,H=X.H, k=(W*0.18)/lg.width;
+            lg.set({ scaleX:k, scaleY:k, left: W*0.06, top: H*0.035 }); lg.dzLogoAuto=true; X.cv.add(lg); lg.bringToFront(); X.cv.requestRenderAll(); if(X.snap) X.snap(); }, { crossOrigin:'anonymous' });
+        }, 1000);
+      } catch(e){}
     }
     document.addEventListener('dz:ready', boot); if (window.DZX) boot();
     var btn = document.getElementById('dz-cpsave');

@@ -295,7 +295,11 @@
   /* ---------- البداية ---------- */
   var draft = null; try { draft = localStorage.getItem(KEY); } catch (e) {}
   function start() {
-    if (C.img) { setSize('1080x1350'); addImg(C.img); if (C.title) { var _ti = C.title; setTimeout(function () { try { T(_ti, { top: H * 0.06, fontSize: W * 0.085, fill: '#ffffff', fontWeight: 900, width: W * 0.86 }); } catch (e) {} }, 700); } }
+    if (C.img) { setSize('1080x1350');
+      if (C.cpitem) { // من خطة المحتوى: الصورة تملا الإطار كخلفية + العنوان فوق
+        fabric.Image.fromURL(C.img, function (im) { if (!im || !im.width) return; var k = Math.max(W / im.width, H / im.height); im.set({ scaleX: k, scaleY: k, left: W / 2, top: H / 2, originX: 'center', originY: 'center' }); cv.add(im); cv.sendToBack(im); cv.requestRenderAll(); snap(); }, { crossOrigin: 'anonymous' });
+      } else { addImg(C.img); }
+      if (C.title) { var _ti = C.title; setTimeout(function () { try { T(_ti, { top: H * 0.06, left: W * 0.08, fontSize: W * 0.082, fill: '#ffffff', fontWeight: 900, width: W * 0.84, textAlign: 'right', direction: 'rtl' }); cv.requestRenderAll(); } catch (e) {} }, 650); } }
     else if (C.title || C.text) { useTplNow(6); }
     else if (draft) { window.dzAsk(L.restore, { title: L.restoreT, ok: L.cont, cancel: L.fresh, icon: '✎' }).then(function (ok) { if (ok) load(draft, function () { hist = [draft]; }); else { try { localStorage.removeItem(KEY); } catch (e) {} useTplNow(0); } }); return; }
     else { useTplNow(0); }
