@@ -117,6 +117,7 @@ details.lp-q summary::-webkit-details-marker{display:none}details.lp-q[open] .lp
 .lp-diag .lp-node{opacity:0;transform:translateY(10px) scale(.7);transform-box:fill-box;transform-origin:center;transition:opacity .55s ease,transform .55s cubic-bezier(.34,1.56,.64,1)}
 .lp-diag.in .lp-node{opacity:1;transform:none}
 .lp-diag .lp-node:hover{transform:scale(1.08)}
+[dir=rtl] .lp-arrow svg{transform:scaleX(-1)}
 .lp-nlabel{fill:#334155;font-size:13px;font-weight:700}
 .dark .lp-nlabel{fill:#cbd5e1}
 .lp-hub{animation:hubPulse 3s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
@@ -244,7 +245,7 @@ details.lp-q summary::-webkit-details-marker{display:none}details.lp-q[open] .lp
         <?php foreach ($diag as $di => $d): ?>
           <line class="lp-spoke" x1="<?= $cx ?>" y1="<?= $cy ?>" x2="<?= $d[0] ?>" y2="<?= $d[1] ?>" pathLength="1" stroke-dasharray="1" stroke="#93c5fd" stroke-width="2" stroke-linecap="round" style="transition-delay:<?= $di * 90 ?>ms"></line>
         <?php endforeach; ?>
-        <g class="lp-hub"><circle cx="<?= $cx ?>" cy="<?= $cy ?>" r="50" fill="url(#lpHub)"/><circle cx="<?= $cx ?>" cy="<?= $cy ?>" r="50" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="2"/><text x="<?= $cx ?>" y="<?= $cy + 6 ?>" text-anchor="middle" fill="#fff" font-size="17" font-weight="800"><?= e(t('شركتك')) ?></text></g>
+        <g class="lp-hub"><circle cx="<?= $cx ?>" cy="<?= $cy ?>" r="50" fill="url(#lpHub)"/><circle cx="<?= $cx ?>" cy="<?= $cy ?>" r="50" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="2"/><?php $hubW = preg_split('/\s+/', trim(t('شركتك'))); ?><text x="<?= $cx ?>" y="<?= $cy + (count($hubW) > 1 ? -2 : 6) ?>" text-anchor="middle" fill="#fff" font-size="<?= count($hubW) > 1 ? 14 : 17 ?>" font-weight="800"><?php foreach ($hubW as $wi => $w): ?><tspan x="<?= $cx ?>"<?= $wi ? ' dy="16"' : '' ?>><?= e($w) ?></tspan><?php endforeach; ?></text></g>
         <?php foreach ($diag as $di => $d): $ly = $d[1] <= $cy ? $d[1] + 52 : $d[1] - 44; ?>
           <g class="lp-node" style="transition-delay:<?= $di * 90 + 420 ?>ms">
             <circle cx="<?= $d[0] ?>" cy="<?= $d[1] ?>" r="34" fill="url(#lpNode)" stroke="#bfdbfe" stroke-width="1.5"/>
@@ -262,13 +263,13 @@ details.lp-q summary::-webkit-details-marker{display:none}details.lp-q[open] .lp
     <h2 class="text-3xl font-extrabold text-ink-900"><?= e(t('منصّة واحدة تغني عن أدوات كثيرة')) ?></h2>
     <p class="mt-3 text-ink-600"><?= e(t('بدل اشتراكات متفرّقة لا تتكلّم مع بعضها — كل شيء في مكان واحد، بنفس البيانات والفريق.')) ?></p>
   </div>
-  <div class="mt-10 grid lg:grid-cols-[1fr_auto_auto] gap-6 items-center">
-    <div data-reveal class="flex flex-wrap gap-2.5 justify-center lg:justify-start">
+  <div class="mt-10 flex flex-col lg:flex-row gap-6 items-center">
+    <div data-reveal class="flex flex-wrap gap-2.5 justify-center lg:justify-start lg:flex-1">
       <?php foreach ($replaces as $ri => $rp): ?>
         <span data-reveal data-reveal-delay="<?= $ri * 45 ?>" class="lp-strike inline-flex items-center rounded-xl border border-ink-200 bg-ink-50 px-3.5 py-2 text-sm font-medium text-ink-600"><?= e($rp) ?></span>
       <?php endforeach; ?>
     </div>
-    <div data-reveal data-reveal-delay="200" class="hidden lg:grid place-items-center text-brand-400"><?= $ic('M5 12h14M13 6l6 6-6 6', 'w-9 h-9') ?></div>
+    <div data-reveal data-reveal-delay="200" class="lp-arrow hidden lg:flex items-center justify-center text-brand-400 shrink-0"><?= $ic('M5 12h14M13 6l6 6-6 6', 'w-9 h-9') ?></div>
     <div data-reveal data-reveal-delay="300" class="lp-card rounded-3xl p-6 text-center text-white shadow-2xl shadow-brand-900/20 mx-auto" style="background:linear-gradient(135deg,#1d4ed8,#06b6d4)">
       <span class="lp-ic inline-grid w-14 h-14 rounded-2xl bg-white/15 place-items-center mx-auto mb-3"><?= $ic('M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z', 'w-7 h-7') ?></span>
       <div class="text-xl font-extrabold"><?= e($siteName) ?></div>
