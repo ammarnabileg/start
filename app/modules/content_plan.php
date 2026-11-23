@@ -106,7 +106,7 @@ function cpl_aspect(array $p): string { $a = (string)(cpl_opts($p)['aspect'] ?? 
 function cpl_styles(): array
 {
     return [
-        'auto' => [t('تلقائي / من الريفرنس'), ''],
+        'auto' => [t('تلقائي / من المرجع'), ''],
         'cinematic' => [t('سينمائي غامق'), 'ART-DIRECTION STYLE: cinematic dark premium scene, moody low-key lighting, strong brand-colour rim/accent glow, volumetric light, reflections, shallow depth of field, photoreal, award-winning advertising look.'],
         'neon_sport' => [t('نيون رياضي'), 'ART-DIRECTION STYLE: vibrant energetic sports aesthetic, dynamic sense of motion, glowing neon brand-colour light-trails and energy streaks, high contrast, bold and punchy.'],
         'luxury_gold' => [t('فخامة ذهبية'), 'ART-DIRECTION STYLE: luxury premium aesthetic, deep dark background, elegant gold and brand-colour accents, soft specular reflections, refined high-end mood.'],
@@ -984,7 +984,6 @@ function cpl_draw_hline($im, int $size, string $font, string $line, string $key,
     if ($off < 0) { // مفيش كلمة مفتاحية في السطر: أبيض عادي
         $sh = $rtl ? cpl_ar_shape($line) : $line; $bb = imagettfbbox($size, 0, $font, $sh); $tw = abs($bb[2] - $bb[0]);
         $x = $rtl ? ($colRight - $tw) : $colLeft;
-        imagettftext($im, $size, 0, $x + 2, $y + 3, $shadow, $font, $sh);
         imagettftext($im, $size, 0, $x, $y, $white, $font, $sh);
         return null;
     }
@@ -1001,11 +1000,9 @@ function cpl_draw_hline($im, int $size, string $font, string $line, string $key,
                 cpl_round_box($im, $x - $padx, $y - $size - $pady, $x + $w + $padx, $y + $pady, $rad, $acc);
                 imagettftext($im, $size, 0, $x, $y, $onAcc, $font, $sh);
             } else {
-                imagettftext($im, $size, 0, $x + 2, $y + 3, $shadow, $font, $sh);
                 imagettftext($im, $size, 0, $x, $y, $acc, $font, $sh);
             }
         } else {
-            imagettftext($im, $size, 0, $x + 2, $y + 3, $shadow, $font, $sh);
             imagettftext($im, $size, 0, $x, $y, $white, $font, $sh);
         }
         $x += $w;

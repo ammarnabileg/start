@@ -86,7 +86,7 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
         'uploading' => t('جارٍ رفع الصور…'), 'imported' => t('تم تحديث %s منشور من الملف (تخطّينا %s).'), 'needGoal' => t('اكتب هدف الحملة.'), 'draftRestored' => t('استرجعنا المسودة التي لم تُرسل.'), 'refMax' => t('حتى 12 صورة.'), 'uploaded' => t('تم رفع الصور.'), 'sum' => ['goal' => t('الهدف'), 'count' => t('عدد المنشورات'), 'aud' => t('الجمهور'), 'svc' => t('الخدمات'), 'lang' => t('اللغة'), 'dial' => t('اللهجة'), 'tone' => t('النبرة'), 'cta' => t('الدعوة للإجراء'), 'refs' => t('صور مرجعية'), 'logo' => t('اللوجو'), 'none' => t('—'), 'on' => t('مركّب'), 'off' => t('بدون'), 'li' => 'LinkedIn', 'x' => 'X', 'img' => t('الصور'), 'vo' => t('الصوت')], 'langN' => ['ar' => t('عربي'), 'en' => 'English', 'both' => t('عربي + English'), 'ar_en' => t('عربي + إنجليزي'), 'en_ar' => t('إنجليزي + عربي'), 'none' => t('بدون نص')], 'dialEx' => ['msa' => t('مثال: نساعد فرق المشتريات على تقليل وقت التوريد دون التضحية بالجودة.'), 'saudi' => t('مثال: نساعد فريق المشتريات يختصر وقت التوريد بدون ما يضحّي بالجودة.'), 'gulf' => t('مثال: نساعد فريق المشتريات يختصر وقت التوريد من دون ما يتأثر المستوى.'), 'emirati' => t('مثال: نساعد فريق المشتريات يختصر وقت التوريد بدون ما تتأثر الجودة.'), 'kuwaiti' => t('مثال: نساعد فريق المشتريات يختصر وقت التوريد بدون ما تنزل الجودة.'), 'egyptian' => t('مثال: بنساعد فريق المشتريات يختصر وقت التوريد من غير ما الجودة تتأثر.'), 'levantine' => t('مثال: منساعد فريق المشتريات يختصر وقت التوريد بدون ما تتأثر الجودة.'), 'maghrebi' => t('مثال: نعاونو فريق المشتريات باش يختصر وقت التوريد بلا ما تنقص الجودة.'), 'white' => t('مثال: نساعد فريق المشتريات يختصر وقت التوريد بدون ما تتأثر الجودة.'), 'other' => t('اكتب اللهجة أو الأسلوب الذي تريده في الخانة.')], 'fSel' => t('%s محدد'), 'genAsk' => t('توليد %s لـ %s منشور؟ يُخصم من رصيد مزوّد الصور/الفيديو.'), 'genOne' => t('توليد'), 'kImage' => t('صورة'), 'kVideo' => t('فيديو'), 'kCarousel' => t('كاروسيل (5 صور)'), 'genAdded' => t('بدأ التوليد: %s مهمة. يكمل في الخلفية حتى لو أغلقت الصفحة.'), 'genNone' => t('لا شيء جديد للتوليد (ربما قيد التوليد بالفعل، أو لا يوجد كاروسيل).'),
         'jBusy' => t('جارٍ التوليد'), 'jDone' => t('جاهز'), 'jFail' => t('فشل'), 'toBankOne' => t('إرسال للمخزون'), 'fmtText' => t('نص فقط'), 'useFmt' => t('اضغط لاستخدام هذا الشكل في النشر'), 'inUse' => t('المستخدم في النشر'), 'sent' => t('أُرسل %s منشور للمخزون.'), 'logT' => t('سجل التنفيذ المباشر'), 'srcBg' => t('خلفية'), 'srcPage' => t('الصفحة'), 'elapsed' => t('%s ثانية'), 'busyBg' => t('خطوة تعمل في الخلفية، ننتظرها'), 'pdfPages' => t('جارٍ تحويل صفحات PDF إلى صور…'), 'qc' => t('فحص الجودة:'), 'cats' => array_map('t', cpl_categories()),
         'ilAdj' => t('اضبط اللوجو'), 'ilTitle' => t('ضبط اللوجو على هذه الصورة'), 'ilHint' => t('اسحب اللوجو لأي مكان — حتى خارج حدود الصورة. الخط المتقطع = المنطقة الآمنة.'), 'ilSize' => t('الحجم'), 'ilOp' => t('الشفافية'), 'ilColor' => t('لون اللوجو'), 'ilPlate' => t('خلفية خلف اللوجو'), 'ilSave' => t('حفظ'), 'ilSaved' => t('تم تحديث اللوجو على الصورة.'), 'ilNone' => t('لا يوجد لوجو في ملف الشركة.'), 'ilBusy' => t('جارٍ إعادة التركيب…'),
-        'itAdj' => t('اضبط النص'), 'itSaved' => t('تم تحديث النص على الصورة.'), 'itAllAsk' => t('تطبيق المكان والحجم والنمط واللون على كل التصاميم؟ (النص نفسه لكل منشور يفضل زي ما هو)'), 'itAllDone' => t('تم تطبيق الإعدادات على %s تصميم.'),
+        'itAdj' => t('اضبط النص'), 'itSaved' => t('تم تحديث النص على الصورة.'), 'itAllAsk' => t('تطبيق المكان والحجم والنمط واللون على كل التصاميم؟ (يبقى نصّ كل منشور كما هو)'), 'itAllDone' => t('تم تطبيق الإعدادات على %s تصميم.'),
         'ilTint' => ['orig' => t('الأصلي'), 'white' => t('أبيض'), 'black' => t('أسود')], 'ilPlateV' => ['none' => t('بدون'), 'light' => t('فاتحة'), 'dark' => t('داكنة')],
     ];
     
@@ -145,7 +145,7 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
           <div class="space-y-3 text-sm min-w-0 flex-1">
             <label class="block"><span class="text-xs text-ink-500"><?= e(t('نص العنوان')) ?></span>
               <textarea name="t_head" rows="3" class="input !py-2" dir="auto" placeholder="<?= e(t('اكتب العنوان… ضع «» حول الكلمة المميّزة')) ?>"></textarea>
-              <span class="text-[11px] text-ink-400"><?= e(t('الكلمة اللي جوه «» بتتلوّن. مثال: «راقب» الشبكة')) ?></span></label>
+              <span class="text-[11px] text-ink-400"><?= e(t('الكلمة الموضوعة بين «» تُلوَّن. مثال: «راقب» الشبكة')) ?></span></label>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <label class="block"><span class="text-xs text-ink-500 block mb-1"><?= e(t('مكان النص')) ?></span>
                 <select name="t_pos" class="input !py-2 w-full"><option value="auto"><?= e(t('تلقائي')) ?></option><option value="top"><?= e(t('فوق')) ?></option><option value="bottom"><?= e(t('تحت')) ?></option></select></label>
@@ -156,7 +156,7 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
               <label class="block"><span class="text-xs text-ink-500 block mb-1"><?= e(t('لون التمييز')) ?></span>
                 <input type="color" name="t_accent" value="#10b981" class="h-10 w-full rounded-lg border border-ink-200 p-0.5 bg-white cursor-pointer"></label>
             </div>
-            <p class="text-[11px] text-ink-400"><?= e(t('المعاينة بتتحدّث لحظيًا. بعد الحفظ تُطبّق على الصورة.')) ?></p>
+            <p class="text-[11px] text-ink-400"><?= e(t('تتحدّث المعاينة فورًا، وتُطبَّق على الصورة بعد الحفظ.')) ?></p>
           </div>
         </div>
       </div>
@@ -243,8 +243,8 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
         <div class="flex flex-wrap gap-2 mt-2"><label class="btn-ghost !py-1.5 cursor-pointer"><input id="cp-ref-in" type="file" accept="image/*,application/pdf,.pdf" multiple class="hidden"><?= ui_icon('upload', 'w-4 h-4') ?><?= e(t('أضف صورًا أو PDF')) ?></label><button type="button" id="cp-ref-lib" class="btn-ghost !py-1.5"><?= ui_icon('image', 'w-4 h-4') ?><?= e(t('اختر من مكتبة الوسائط')) ?></button></div>
       </div>
       <div>
-        <span class="label"><?= e(t('ستايل التصميم')) ?></span>
-        <p class="text-xs text-ink-500 mb-2"><?= e(t('اختر ستايل جاهز، أو ارفع تصميمات مرجعية فوق، أو سيبها تلقائي.')) ?></p>
+        <span class="label"><?= e(t('نمط التصميم')) ?></span>
+        <p class="text-xs text-ink-500 mb-2"><?= e(t('اختر نمطًا جاهزًا، أو ارفع تصاميم مرجعية بالأعلى، أو اتركها تلقائية.')) ?></p>
         <?php $styleBg = [
           'auto' => 'linear-gradient(135deg,#6366f1,#0ea5a4)',
           'cinematic' => 'radial-gradient(circle at 30% 30%,#134e4a,#0b1220 70%)',
@@ -268,7 +268,7 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
       </div>
       <div>
         <span class="label"><?= e(t('صور المنتج (اختياري، حتى 6 صور)')) ?></span>
-        <p class="text-xs text-ink-500 mb-2"><?= e(t('لو عندك منتج (علبة، برطمان، جهاز…)، ارفع صوره ليظهر المنتج نفسه داخل كل تصميم بشكله الحقيقي.')) ?></p>
+        <p class="text-xs text-ink-500 mb-2"><?= e(t('إن كان لديك منتج (علبة، عبوة، جهاز…)، فارفع صوره ليظهر داخل كل تصميم بشكله الحقيقي.')) ?></p>
         <div id="cp-prods" class="flex flex-wrap gap-2"></div>
         <div class="flex flex-wrap gap-2 mt-2"><label class="btn-ghost !py-1.5 cursor-pointer"><input id="cp-prod-in" type="file" accept="image/*" multiple class="hidden"><?= ui_icon('upload', 'w-4 h-4') ?><?= e(t('أضف صور المنتج')) ?></label><button type="button" id="cp-prod-lib" class="btn-ghost !py-1.5"><?= ui_icon('image', 'w-4 h-4') ?><?= e(t('اختر من مكتبة الوسائط')) ?></button></div>
       </div>
@@ -311,15 +311,15 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
           <label class="block"><span class="text-xs text-ink-500"><?= e(t('لون التمييز')) ?></span>
             <div class="flex items-center gap-2">
               <input type="color" name="txt_accent" value="#10b981" class="h-9 w-12 rounded-lg border border-ink-200 p-0.5 bg-white cursor-pointer">
-              <span class="text-xs text-ink-400"><?= e(t('اتركه أخضر = من هوية الشركة تلقائيًا')) ?></span>
+              <span class="text-xs text-ink-400"><?= e(t('اترك اللون الأخضر لاستخدام لون هوية الشركة تلقائيًا')) ?></span>
             </div></label>
         </div>
       </div>
       <div>
         <span class="label"><?= e(t('جودة الصور')) ?></span>
-        <p class="text-xs text-ink-500 mb-2"><?= e(t('«الأعلى» تطلع تصميمات بمستوى الوكالات بتفاصيل وإضاءة أغنى (تكلفة كريدت أكبر). «جيدة» أسرع وأرخص.')) ?></p>
+        <p class="text-xs text-ink-500 mb-2"><?= e(t('«الأعلى» ينتج تصاميم بمستوى الوكالات بتفاصيل وإضاءة أغنى (تكلفة أعلى). «جيدة» أسرع وأقل تكلفة.')) ?></p>
         <div class="flex gap-2">
-          <?php foreach (['high' => [t('الأعلى (موصى به)'), t('مستوى وكالات')], 'medium' => [t('جيدة'), t('كريدت أقل')]] as $qk => [$ql, $qd]): ?>
+          <?php foreach (['high' => [t('الأعلى (موصى به)'), t('مستوى وكالات')], 'medium' => [t('جيدة'), t('تكلفة أقل')]] as $qk => [$ql, $qd]): ?>
           <label class="shrink-0 cursor-pointer"><input type="radio" name="img_q" value="<?= e($qk) ?>" class="peer sr-only" <?= $qk === 'high' ? 'checked' : '' ?>>
             <span class="flex flex-col items-center justify-center gap-0.5 w-32 h-16 rounded-xl border border-ink-200 px-2 text-center transition hover:border-brand-300 peer-checked:border-brand-500 peer-checked:bg-brand-50">
               <span class="text-sm font-semibold"><?= e($ql) ?></span>
@@ -389,7 +389,7 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
         <label class="flex items-center gap-1.5"><input type="checkbox" name="video" checked><?= e(t('برومبت فيديو لكل منشور')) ?></label>
         <label class="flex items-center gap-1.5"><input type="checkbox" name="carousel" checked><?= e(t('كاروسيل 5 شرائح')) ?></label>
         <label class="flex items-center gap-1.5" title="<?= e(t('مهارة Humanizer كاملة تدخل في برومبت الكتابة نفسه، فيُكتب المحتوى بأسلوب بشري من البداية دون تغيير المعلومات.')) ?>"><input type="checkbox" name="humanize" checked><?= e(t('الكتابة بمهارة Humanizer')) ?></label>
-        <label class="flex items-center gap-1.5" title="<?= e(t('فحص كل منشور بعد كتابته وتصحيحه تلقائيًا لو فيه مشكلة. إيقافه أسرع ويوفّر استهلاك الكريدت، لكن بدون تصحيح تلقائي.')) ?>"><input type="checkbox" name="qc" checked><?= e(t('فحص الجودة والتصحيح التلقائي')) ?></label>
+        <label class="flex items-center gap-1.5" title="<?= e(t('فحص كل منشور بعد كتابته وتصحيحه تلقائيًا إن وُجدت مشكلة. إيقافه أسرع ويوفّر الاستهلاك، لكن بدون تصحيح تلقائي.')) ?>"><input type="checkbox" name="qc" checked><?= e(t('فحص الجودة والتصحيح التلقائي')) ?></label>
       </div>
       </section>
       </div>
