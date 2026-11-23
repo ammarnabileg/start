@@ -267,7 +267,6 @@
     var rawId = (it.media_raw || [])[0] || ms[0];
     return '<div class="mt-3 rounded-xl border border-ink-200 p-3"><div class="flex flex-wrap items-center gap-2 mb-2"><b class="text-xs text-ink-500">' + esc(fm) + '</b>' + chips
       + (canTxt || canLogo ? '<span class="flex-1"></span>' : '')
-      + (canTxt ? '<button type="button" data-redesign class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold bg-ink-100 text-ink-700 hover:bg-ink-200" title="' + esc(T.itReDo || '') + '">↻ ' + esc(T.itReDo || '') + '</button>' : '')
       + (canTxt ? '<button type="button" data-itxt-open class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold bg-brand-600 text-[#fff] hover:bg-brand-700">🎨 ' + esc(T.itAdj) + '</button>' : '') + '</div>'
       + (ms.length ? '<div class="flex flex-wrap gap-2">' + ms.map(function (m) { return it.fmt === 'video' ? '<video src="' + esc(murl(m)) + '" controls preload="metadata" playsinline class="w-36 h-48 rounded-lg bg-ink-900 border border-ink-200 object-cover"></video>' : '<a href="' + esc(murl(m)) + '" target="_blank"><img src="' + esc(murl(m, 1)) + '" class="w-24 h-32 object-cover rounded-lg border border-ink-200" alt=""></a>'; }).join('') + '</div>' : '') + '</div>';
   }
@@ -303,8 +302,7 @@
     if ((b = e.target.closest('[data-st]'))) return setSt([id], b.dataset.st);
     if ((b = e.target.closest('[data-copy]'))) { navigator.clipboard.writeText(it[b.dataset.copy] || '').then(function () { toast(T.copied); }); return; }
     if (e.target.closest('[data-ilogo-open]')) { iOpen(id); return; }
-    if ((b = e.target.closest('[data-redesign]'))) { b.disabled = true; var ob = b.textContent; b.textContent = '…'; post({ action: 'redesign', id: id }).then(function (j) { b.disabled = false; b.textContent = ob; if (!j.ok) return toast(j.error || T.err, 'error'); if (j.item) Object.assign(it, j.item); toast(T.itSaved); load(); }).catch(function () { b.disabled = false; b.textContent = ob; toast(T.offline, 'error'); }); return; }
-    if (e.target.closest('[data-itxt-open]')) { tOpen(id); return; }
+    if ((b = e.target.closest('[data-itxt-open]'))) { b.disabled = true; var ot = b.innerHTML; b.innerHTML = '…'; post({ action: 'redesign', id: id }).then(function (j) { b.disabled = false; b.innerHTML = ot; if (j && j.ok && j.item) Object.assign(it, j.item); tOpen(id); load(); }).catch(function () { b.disabled = false; b.innerHTML = ot; tOpen(id); }); return; }
     if ((b = e.target.closest('[data-fmt]'))) { post({ action: 'usefmt', id: id, kind: b.dataset.fmt }).then(function () { load(); }); return; }
     if ((b = e.target.closest('[data-gen1]'))) { var k = b.dataset.gen1, lab = T['k' + k[0].toUpperCase() + k.slice(1)];
       (window.fxAsk ? fxAsk(fmt(T.genAsk, lab, 1)) : Promise.resolve(confirm(fmt(T.genAsk, lab, 1)))).then(function (ok) { if (!ok) return;
@@ -387,10 +385,20 @@
       // الكتابة المباشرة على العربي بتتكسر في Fabric، فالدبل-كليك على النص يودّي لخانة الكتابة الجانبية
       fc.on('mouse:dblclick', function (e) { var t = e && e.target; if (t && t.type === 'textbox') { fc.setActiveObject(t); fcTxtSync(); var inp = $('#dz-txt'); if (inp) { inp.disabled = false; try { inp.focus(); inp.select(); } catch (x) {} } } }); }
     fc.clear(); fc.setBackgroundImage(null, fc.renderAll.bind(fc)); fcFit();
+    var acc = (P && P.accent) || '#10b981';
     var rawId = (it.media_raw || [])[0] || (it.media_ids || [])[0];
+    // الصورة كاملة (full-bleed) كخلفية
     if (rawId) fabric.Image.fromURL(murl(rawId), function (im) { if (!im || !im.width) return; var k = Math.max(FW / im.width, FH / im.height); im.set({ scaleX: k, scaleY: k, originX: 'center', originY: 'center', left: FW / 2, top: FH / 2 }); fc.setBackgroundImage(im, fc.renderAll.bind(fc)); });
+    // تدرّج داكن من الأسفل لإبراز النص (نفس روح قالب full)
+    var scrim = new fabric.Rect({ left: 0, top: FH * 0.40, width: FW, height: FH * 0.60, selectable: false, evented: false, dzBg: true });
+    scrim.set('fill', new fabric.Gradient({ type: 'linear', coords: { x1: 0, y1: 0, x2: 0, y2: FH * 0.60 }, colorStops: [{ offset: 0, color: 'rgba(6,10,18,0)' }, { offset: 0.55, color: 'rgba(6,10,18,0.55)' }, { offset: 1, color: 'rgba(6,10,18,0.92)' }] }));
+    fc.add(scrim);
+    // شريط لون الهوية (kicker) فوق العنوان
+    var kick = new fabric.Rect({ left: FW * 0.70, top: FH * 0.70, width: FW * 0.14, height: Math.round(FW * 0.013), rx: 4, ry: 4, fill: acc, dzKick: true });
+    fc.add(kick);
+    // العنوان أسفل الصورة — قابل للتعديل من الخانة الجانبية
     var head = String(it.headline || '').replace(/[«»]/g, '') || 'عنوان';
-    var tb = new fabric.Textbox(head, { left: FW * 0.08, top: FH * 0.07, width: FW * 0.84, fontSize: Math.round(FW * 0.085), fill: '#ffffff', fontWeight: '900', fontFamily: 'Cairo', textAlign: 'right', direction: 'rtl', editable: false });
+    var tb = new fabric.Textbox(head, { left: FW * 0.08, top: FH * 0.72, width: FW * 0.84, fontSize: Math.round(FW * 0.082), fill: '#ffffff', fontWeight: '900', fontFamily: 'Cairo', textAlign: 'right', direction: 'rtl', editable: false });
     fc.add(tb); fc.setActiveObject(tb); fcTxtSync(); fc.requestRenderAll();
     setTimeout(fcFocusTxt, 60);
     fcEnsureFonts().then(fcRefreshText);
