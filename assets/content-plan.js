@@ -182,9 +182,10 @@
     P = Object.assign(P, s);
     var pct = P.count ? Math.round(100 * P.ready / P.count) : 0, txt;
     if (P.status === 'generating') txt = P.stage === 'visual' ? T.stVisual : P.stage === 'outline' ? T.stOutline : fmt(T.stPosts, P.ready, P.count);
-    else if (P.status === 'paused') txt = T.stPaused; else txt = T.stReview;
+    else if (P.status === 'paused') txt = T.stPaused; else if (P.status === 'topics') txt = fmt(T.stTopics || 'راجع الأفكار (%s) واحذف ما لا تريده، ثم ولّد النصوص', P.topics || P.count); else txt = T.stReview;
     var live = P.status === 'generating', secs = live && P._t0 ? Math.round((Date.now() - P._t0) / 1000) : 0;
     prog.innerHTML = '<div class="flex flex-wrap items-center gap-3">' + (live ? '<span class="w-4 h-4 rounded-full border-2 border-brand-600 border-t-transparent animate-spin"></span>' : '') + '<b class="text-ink-900">' + esc(txt) + '</b>' + (live && secs > 5 ? '<span class="text-xs text-ink-400 tabular-nums">' + esc(fmt(T.elapsed, secs)) + (P.busy ? ' · ' + esc(T.busyBg) : '') + '</span>' : '') + '<span class="flex-1"></span>'
+      + (P.status === 'topics' ? '<button type="button" id="cp-genposts" class="btn-primary !py-1.5">' + esc(fmt(T.genPosts || 'ولّد النصوص للأفكار المعتمدة (%s)', P.topics || P.count)) + ' ←</button>' : '')
       + (P.status === 'paused' || (P.status === 'generating' && P.error) ? '<button type="button" id="cp-resume" class="btn-primary !py-1.5">' + esc(T.resume) + '</button>' : '') + ((P.status === 'generating' || P.status === 'paused') ? '<button type="button" id="cp-stop" class="btn-ghost !py-1.5 !text-rose-600 hover:!bg-rose-50">' + esc(T.stop) + '</button>' : '') + '</div>'
       + '<div class="mt-2 h-2 rounded-full bg-ink-100 overflow-hidden">' + (live && !pct ? '<div class="h-full w-1/3 bg-brand-600 rounded-full animate-pulse"></div>' : '<div class="h-full bg-brand-600 transition-all" style="width:' + pct + '%"></div>') + '</div>'
       + (P.error ? '<p class="text-xs text-red-600 mt-2">' + esc(P.error) + '</p>' : '')
@@ -217,6 +218,7 @@
   window.addEventListener('online', function () { paintProg({}); loop(); });
   document.addEventListener('visibilitychange', function () { if (!document.hidden) post({ action: 'status' }).then(function (j) { if (j.ok) { paintProg(j); load(); loop(); } }); });
   document.addEventListener('click', function (e) { if (e.target.id === 'cp-resume') post({ action: 'resume' }).then(function () { P.status = 'generating'; P.error = ''; paintProg({}); loop(); }); });
+  document.addEventListener('click', function (e) { var g = e.target.closest && e.target.closest('#cp-genposts'); if (!g) return; g.disabled = true; post({ action: 'genposts' }).then(function (j) { if (!j.ok) { g.disabled = false; return toast(j.error || T.err, 'error'); } P.status = 'generating'; P.stage = 'posts'; paintProg(j); paint(); loop(); }).catch(function () { g.disabled = false; toast(T.offline, 'error'); }); });
   document.addEventListener('click', function (e) { if (e.target.id === 'cp-stop') { if (!confirm(T.stopAsk)) return; post({ action: 'stop' }).then(function (j) { if (j && j.ok) { running = false; P.status = 'review'; if (j.log) P.log = j.log; paintProg(j); load(); } }); } });
 
   /* ---------- المراجعة ---------- */
@@ -277,7 +279,15 @@
       load(); if (j.jobs.pending) setTimeout(next, j.did ? 300 : 5000); else genLoop.on = false; })
       .catch(function () { setTimeout(function () { genLoop.on = false; genLoop(); }, 8000); }); })(); }
   function itemText(i) { var t = i.topic || {}; return ((i.headline || '') + ' ' + (i.linkedin || '') + ' ' + (i.x || '') + ' ' + (t.title || '') + ' ' + (t.angle || '') + ' ' + (t.service || '') + ' ' + (t.audience || '')).toLowerCase(); }
+  function topicCard(it) { var t = it.topic || {};
+    return '<article class="card p-4" data-id="' + it.id + '"><div class="flex items-start gap-2"><span class="w-7 h-7 rounded-full bg-brand-50 text-brand-700 grid place-items-center text-xs font-bold shrink-0">' + it.seq + '</span>'
+      + '<div class="min-w-0 flex-1"><b class="text-ink-900 break-words">' + esc(t.title || '—') + '</b>'
+      + (t.angle ? '<p class="text-sm text-ink-600 mt-0.5 break-words">' + esc(t.angle) + '</p>' : '')
+      + '<div class="flex flex-wrap gap-1.5 mt-2 text-[11px]">' + [t.service, t.audience, t.objective, t.category].filter(Boolean).map(function (x) { return '<span class="rounded-full bg-ink-50 border border-ink-200 px-2 py-0.5 text-ink-600">' + esc(x) + '</span>'; }).join('') + '</div></div>'
+      + '<button type="button" data-deltopic class="btn-ghost !py-1 !px-2 text-rose-600 shrink-0" title="' + esc(T.rejectTopic || 'رفض الفكرة') + '">🗑</button></div></article>';
+  }
   function paint() {
+    if (P.status === 'topics') { list.className = 'space-y-2 pb-28'; var ts = items.slice().sort(function (a, b) { return a.seq - b.seq; }); list.innerHTML = '<div class="rounded-xl bg-brand-50 border border-brand-200 p-3 text-sm text-brand-800 mb-2">' + esc(T.topicsHint || 'دي الأفكار قبل كتابة النصوص. احذف اللي مش عايزه — هنكتب النصوص للمعتمد فقط (توفير كريدت).') + '</div>' + ts.map(topicCard).join(''); bar.classList.add('hidden'); fl.classList.add('hidden'); return; }
     var vis = items.filter(function (i) { return !filter || (filter === 'qc' ? (i.qc || []).length : i.status === filter); });
     if (query) { var qq = query.toLowerCase(); vis = vis.filter(function (i) { return itemText(i).indexOf(qq) >= 0; }); }
     list.className = (view === 'grid' ? 'grid sm:grid-cols-2 xl:grid-cols-3 gap-3 pb-28 items-start' : 'space-y-3 pb-28');
@@ -311,6 +321,7 @@
   list.addEventListener('click', function (e) {
     var art = e.target.closest('article'); if (!art) return; var id = +art.dataset.id, it = items.find(function (i) { return i.id === id; }); if (!it) return;
     var b;
+    if (e.target.closest('[data-deltopic]')) { post({ action: 'deltopic', id: id }).then(function (j) { if (!j.ok) return toast(j.error || T.err, 'error'); items = items.filter(function (x) { return x.id !== id; }); paintProg(j); paint(); }).catch(function () { toast(T.offline, 'error'); }); return; }
     if ((b = e.target.closest('[data-st]'))) return setSt([id], b.dataset.st);
     if ((b = e.target.closest('[data-copy]'))) { navigator.clipboard.writeText(it[b.dataset.copy] || '').then(function () { toast(T.copied); }); return; }
     if (e.target.closest('[data-ilogo-open]')) { iOpen(id); return; }

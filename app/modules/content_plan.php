@@ -86,6 +86,7 @@ function cpl_create(array $in): int
         'aspect' => in_array($in['aspect'] ?? '', ['4:5', '1:1', '9:16', '16:9'], true) ? (string)$in['aspect'] : '4:5',
         'design_mode' => in_array($in['design_mode'] ?? '', ['photo', 'layout', 'ai'], true) ? (string)$in['design_mode'] : 'layout',
         'layout' => array_key_exists((string)($in['layout'] ?? 'full'), cpl_layouts()) ? (string)$in['layout'] : 'full',
+        'topics_first' => !isset($in['topics_first']) || !empty($in['topics_first']),
         'txt_pos' => in_array($in['txt_pos'] ?? '', ['auto', 'top', 'bottom'], true) ? (string)$in['txt_pos'] : 'auto',
         'txt_size' => in_array($in['txt_size'] ?? '', ['s', 'm', 'l'], true) ? (string)$in['txt_size'] : 'm',
         'txt_scale' => isset($in['txt_scale']) ? max(50, min(180, (int)$in['txt_scale'])) : 100,
@@ -104,7 +105,7 @@ function cpl_create(array $in): int
 
 function cpl_opts(array $p): array { return (json_decode((string)$p['opts'], true) ?: []) + ['lang' => 'ar', 'dialect' => '', 'audience' => '', 'services' => [], 'tone' => '', 'cta' => '', 'avoid' => '', 'about' => '', 'font' => 'auto', 'video' => true, 'carousel' => true, 'humanize' => true, 'qc' => true, 'img_q' => 'high', 'style' => 'auto', 'products' => [], 'aspect' => '4:5',
     'txt_pos' => 'auto', 'txt_size' => 'm', 'txt_variant' => 'auto', 'txt_accent' => '', 'txt_scale' => 100, 'txt_align' => 'auto', 'txt_y' => null,
-    'design_mode' => 'layout', 'layout' => 'full']; }
+    'design_mode' => 'layout', 'layout' => 'full', 'topics_first' => true]; }
 
 /** نسبة/حجم الصورة المختارة للخطة (4:5 طولي افتراضيًا). */
 function cpl_aspect(array $p): string { $a = (string)(cpl_opts($p)['aspect'] ?? '4:5'); return in_array($a, ['4:5', '1:1', '9:16', '16:9'], true) ? $a : '4:5'; }
@@ -322,8 +323,12 @@ function cpl_do_outline(array $p): void
     $ins = db()->prepare('INSERT INTO cp_items (plan_id, workspace_id, seq, topic, status) VALUES (?,?,?,?, "pending")');
     db()->prepare('DELETE FROM cp_items WHERE plan_id = ?')->execute([(int)$p['id']]);
     foreach ($topics as $i => $t) $ins->execute([(int)$p['id'], (int)ws('id'), $i + 1, json_encode(array_map(function ($v) { return is_string($v) ? mb_substr($v, 0, 300) : ''; }, array_intersect_key($t, array_flip(['title', 'angle', 'category', 'service', 'audience', 'objective']))), JSON_UNESCAPED_UNICODE)]);
-    db()->prepare('UPDATE cp_plans SET stage = "posts", cnt = ? WHERE id = ?')->execute([count($topics), (int)$p['id']]);
-    cpl_log((int)$p['id'], t('%s موضوع جاهز في %s ثانية. أول موضوع: %s', count($topics), round(microtime(true) - $to), (string)($topics[0]['title'] ?? '')), 'ok');
+    // مسار ذكي: نتوقف لمراجعة الأفكار قبل كتابة النصوص الكاملة — نولّد نصوص المعتمدة فقط (توفير كريدت على المرفوض)
+    $tf = !empty(cpl_opts($p)['topics_first']);
+    db()->prepare('UPDATE cp_plans SET stage = "posts", status = ?, cnt = ? WHERE id = ?')->execute([$tf ? 'topics' : 'generating', count($topics), (int)$p['id']]);
+    cpl_log((int)$p['id'], $tf
+        ? t('%s فكرة جاهزة في %s ثانية. راجعها واحذف ما لا تريده، ثم ولّد النصوص للأفكار المعتمدة فقط.', count($topics), round(microtime(true) - $to))
+        : t('%s موضوع جاهز في %s ثانية. أول موضوع: %s', count($topics), round(microtime(true) - $to), (string)($topics[0]['title'] ?? '')), 'ok');
 }
 
 /** مراجعة Humanizer: المهارة كاملة على نصوص المنشورات (لينكدإن، X، العنوان، الكاروسيل). البرومبتات الإنجليزي مابتتلمسش. */
