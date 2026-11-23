@@ -150,8 +150,8 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
             <button type="button" data-dz="del" class="btn-ghost !py-1.5 !px-3 text-red-600">🗑</button>
             <span class="text-[11px] text-ink-400 w-full sm:w-auto"><?= e(t('اسحب النص وكبّره بالمقابض · دبل-كليك لتعديل الكتابة')) ?></span>
           </div>
-          <div class="mx-auto" style="width:min(86vw,440px)">
-            <canvas id="it-canvas" class="rounded-xl border border-ink-200 w-full touch-none bg-ink-900"></canvas>
+          <div id="it-cwrap" class="mx-auto" style="width:min(86vw,440px)">
+            <canvas id="it-canvas" class="rounded-xl border border-ink-200 touch-none"></canvas>
           </div>
         </div>
       </div>

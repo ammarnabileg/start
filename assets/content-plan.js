@@ -362,7 +362,7 @@
   }
   /* ---------- محرّر التصميم المدمج (Fabric) داخل البوب أب ---------- */
   var tMod = $('#cp-itxt'), fc = null, FW = 1080, FH = 1350, FONTS = ['Cairo', 'Alexandria', 'Tajawal'];
-  function fcFit() { if (!fc) return; var el = $('#it-canvas'); var dw = (el.parentNode.clientWidth) || 420; fc.setZoom(dw / FW); fc.setDimensions({ width: dw, height: Math.round(dw * FH / FW) }); }
+  function fcFit() { if (!fc) return; var wrap = $('#it-cwrap'); var dw = (wrap && wrap.clientWidth) || 420; fc.setZoom(dw / FW); fc.setDimensions({ width: dw, height: Math.round(dw * FH / FW) }); }
   function fcActive() { return fc && fc.getActiveObject(); }
   // Fabric بيرسم العربي مكسور لو الخط لسه ما اتحمّلش؛ نعيد قياس كل نص بعد تحميل الخطوط
   function fcRefreshText() { if (!fc) return; fc.getObjects().forEach(function (o) { if (o.type === 'textbox' || o.type === 'i-text' || o.type === 'text') { o.set('dirty', true); if (o.initDimensions) o.initDimensions(); } }); fc.requestRenderAll(); }
