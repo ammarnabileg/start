@@ -95,7 +95,7 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
     $steps = [1 => [t('الخطوة الأولى'), t('الهدف وعدد المنشورات والصور المرجعية ← تجهيز الملف والبرومبتات (بدون صور أو فيديو)')], 2 => [t('الخطوة الثانية'), t('حدد منشورات ← ولّد لها صورة أو فيديو أو كاروسيل (أو اتركها نصًا) ← أرسلها للمخزون')]];
     echo '<ol class="grid sm:grid-cols-2 gap-2 mb-5">'; foreach ($steps as $n => [$h, $d]) echo '<li class="rounded-2xl border p-3 ' . ($n === $stepNow ? 'border-brand-300 bg-brand-50/60' : 'border-ink-200 bg-white') . '"><div class="flex items-center gap-2"><span class="w-6 h-6 rounded-full grid place-items-center text-xs font-bold ' . ($n === $stepNow ? 'bg-brand-600 text-[#fff]' : ($n < $stepNow ? 'bg-lime-500 text-[#fff]' : 'bg-ink-100 text-ink-500')) . '">' . ($n < $stepNow ? '✓' : $n) . '</span><b class="text-sm">' . e($h) . '</b></div><p class="text-xs text-ink-500 mt-1">' . e($d) . '</p></li>'; echo '</ol>';
     $cfg = ['url' => url('content_plan'), 'bank' => url('content_bank'), 'csrf' => csrf_token(), 'wid' => $wid, 't' => $T];
-    if ($plan): $cfg['plan'] = cpl_status($plan) + ['name' => (string)$plan['name'], 'has_logo' => (function_exists('kb_logo') && kb_logo($wid)) ? 1 : 0]; ?>
+    if ($plan): $__lg = function_exists('kb_logo') ? kb_logo($wid) : null; $cfg['plan'] = cpl_status($plan) + ['name' => (string)$plan['name'], 'has_logo' => $__lg ? 1 : 0, 'logo' => $__lg ? url('media', ['file' => $__lg['id']]) : '']; ?>
     <div class="flex flex-wrap items-center gap-2 mb-4">
       <a href="<?= e(url('content_plan')) ?>" class="btn-ghost !py-1.5">← <?= e(t('كل الخطط')) ?></a>
       <span class="text-sm text-ink-500 min-w-0 flex-1 truncate"><?= e(mb_substr((string)$plan['goal'], 0, 160)) ?></span>
@@ -142,14 +142,19 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
       <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[92vh] overflow-auto">
         <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-ink-100 sticky top-0 bg-white z-10"><b class="text-ink-900"><?= e(t('محرّر التصميم')) ?></b><div class="flex gap-2"><button type="button" data-tclose class="btn-ghost !py-1.5 !px-3 text-sm whitespace-nowrap"><?= e(t('إلغاء')) ?></button><button type="button" id="it-save" class="btn-primary !py-1.5 !px-4 text-sm whitespace-nowrap"><?= e(t('حفظ')) ?></button></div></div>
         <div class="p-3">
-          <div class="flex flex-wrap items-center gap-1.5 mb-3 text-sm">
-            <button type="button" data-dz="addtext" class="btn-ghost !py-1.5 !px-3">➕ <?= e(t('نص')) ?></button>
-            <label class="inline-flex items-center gap-1 rounded-xl border border-ink-200 px-2 py-1 cursor-pointer"><?= e(t('لون')) ?> <input type="color" id="dz-color" value="#ffffff" class="w-6 h-6 border-0 bg-transparent p-0 cursor-pointer"></label>
-            <button type="button" data-dz="bold" class="btn-ghost !py-1.5 !px-3 font-black">B</button>
-            <button type="button" data-dz="font" class="btn-ghost !py-1.5 !px-3"><?= e(t('الخط')) ?></button>
-            <button type="button" data-dz="del" class="btn-ghost !py-1.5 !px-3 text-red-600">🗑</button>
-            <span class="text-[11px] text-ink-400 w-full sm:w-auto"><?= e(t('اسحب النص وكبّره بالمقابض · دبل-كليك لتعديل الكتابة')) ?></span>
+          <input id="dz-txt" type="text" dir="auto" class="input !py-2 text-sm w-full mb-2" placeholder="<?= e(t('اختر عنصر نص من اللوحة وعدّل كتابته من هنا…')) ?>" disabled>
+          <div class="flex flex-wrap items-center gap-1 mb-3 text-sm bg-ink-50 rounded-xl p-1.5">
+            <button type="button" data-dz="addtext" class="inline-flex items-center gap-1 rounded-lg bg-white border border-ink-200 px-2.5 py-1.5 hover:border-brand-400">➕ <?= e(t('نص')) ?></button>
+            <label class="inline-flex items-center gap-1 rounded-lg bg-white border border-ink-200 px-2 py-1 cursor-pointer" title="<?= e(t('لون النص المحدد')) ?>"><input type="color" id="dz-color" value="#ffffff" class="w-6 h-6 border-0 bg-transparent p-0 cursor-pointer"><span class="text-xs text-ink-500"><?= e(t('لون')) ?></span></label>
+            <button type="button" data-dz="bold" class="rounded-lg bg-white border border-ink-200 px-2.5 py-1.5 font-black" title="<?= e(t('غامق')) ?>">B</button>
+            <button type="button" data-dz="font" class="rounded-lg bg-white border border-ink-200 px-2.5 py-1.5" title="<?= e(t('تبديل الخط')) ?>"><?= e(t('الخط')) ?></button>
+            <span class="w-px h-5 bg-ink-200 mx-0.5"></span>
+            <button type="button" data-dz="front" class="rounded-lg bg-white border border-ink-200 px-2.5 py-1.5" title="<?= e(t('للأمام')) ?>">⬆</button>
+            <button type="button" data-dz="back" class="rounded-lg bg-white border border-ink-200 px-2.5 py-1.5" title="<?= e(t('للخلف')) ?>">⬇</button>
+            <button type="button" data-dz="dup" class="rounded-lg bg-white border border-ink-200 px-2.5 py-1.5" title="<?= e(t('نسخة')) ?>">⧉</button>
+            <button type="button" data-dz="del" class="rounded-lg bg-white border border-ink-200 px-2.5 py-1.5 text-red-600" title="<?= e(t('حذف')) ?>">🗑</button>
           </div>
+          <p class="text-[11px] text-ink-400 mb-2"><?= e(t('اسحب أي عنصر (نص أو لوجو) وكبّره بالمقابض · عدّل الكتابة من الخانة فوق')) ?></p>
           <div id="it-cwrap" class="mx-auto" style="width:min(86vw,440px)">
             <canvas id="it-canvas" class="rounded-xl border border-ink-200 touch-none"></canvas>
           </div>
