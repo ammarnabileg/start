@@ -65,6 +65,36 @@ $faq = [[t('من أين تأتي بيانات المنافسات؟'), t('من م
 .dark .lp-glow{background:radial-gradient(60% 60% at 70% 20%,rgb(37 99 235/.28),transparent 70%),radial-gradient(50% 50% at 20% 80%,rgb(6 182 212/.18),transparent 70%)}
 .lp-in{animation:lpIn .7s ease-out both}@keyframes lpIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 details.lp-q summary::-webkit-details-marker{display:none}details.lp-q[open] .lp-chev{transform:rotate(180deg)}
+/* ====== بهجة وحركة ====== */
+/* فقاعات متدرّجة طايرة في الخلفية */
+.lp-blob{position:absolute;border-radius:9999px;filter:blur(60px);opacity:.5;pointer-events:none;will-change:transform}
+.lp-blob.b1{width:380px;height:380px;background:radial-gradient(circle,rgb(37 99 235/.55),transparent 70%);top:-80px;inset-inline-end:-60px;animation:floatA 14s ease-in-out infinite}
+.lp-blob.b2{width:300px;height:300px;background:radial-gradient(circle,rgb(6 182 212/.5),transparent 70%);bottom:-70px;inset-inline-start:-50px;animation:floatB 18s ease-in-out infinite}
+.lp-blob.b3{width:220px;height:220px;background:radial-gradient(circle,rgb(132 204 22/.4),transparent 70%);top:40%;inset-inline-start:30%;animation:floatA 20s ease-in-out infinite reverse}
+@keyframes floatA{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-24px,26px) scale(1.08)}}
+@keyframes floatB{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(28px,-22px) scale(1.1)}}
+/* ظهور تدريجي عند التمرير */
+[data-reveal]{opacity:0;transform:translateY(26px);transition:opacity .7s cubic-bezier(.22,1,.36,1),transform .7s cubic-bezier(.22,1,.36,1)}
+[data-reveal].in{opacity:1;transform:none}
+/* لمعان متحرك على العنوان المتدرّج */
+.lp-shine{background-size:200% auto;animation:shine 5s linear infinite}
+@keyframes shine{to{background-position:200% center}}
+/* شريط شعارات متحرك (ماركي) */
+.lp-marquee{display:flex;gap:2.5rem;width:max-content;animation:marq 26s linear infinite}
+.lp-marquee:hover{animation-play-state:paused}
+@keyframes marq{to{transform:translateX(50%)}}
+[dir=ltr] .lp-marquee{animation-name:marqL}@keyframes marqL{to{transform:translateX(-50%)}}
+/* نبض خفيف على نقطة الشارة */
+.lp-pulse{animation:lpPulse 1.8s ease-in-out infinite}@keyframes lpPulse{0%,100%{box-shadow:0 0 0 0 rgb(132 204 22/.6)}50%{box-shadow:0 0 0 6px rgb(132 204 22/0)}}
+/* رفعة البطاقة + ميل خفيف للأيقونة */
+.lp-card{transition:transform .35s cubic-bezier(.22,1,.36,1),box-shadow .35s,border-color .35s,opacity .7s}
+.lp-card[data-reveal]:not(.in){transition:opacity .7s cubic-bezier(.22,1,.36,1),transform .7s cubic-bezier(.22,1,.36,1)}
+.lp-card:hover{transform:translateY(-6px)}
+.lp-card:hover .lp-ic{transform:translateY(-3px) rotate(-4deg) scale(1.08)}
+.lp-ic{transition:transform .35s cubic-bezier(.34,1.56,.64,1)}
+/* عوم لطيف لبطاقة الهيرو */
+.lp-float{animation:heroFloat 6s ease-in-out infinite}@keyframes heroFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+@media (prefers-reduced-motion:reduce){.lp-blob,.lp-shine,.lp-marquee,.lp-pulse,.lp-float{animation:none!important}[data-reveal]{opacity:1;transform:none;transition:none}}
 </style>
 </head>
 <body class="bg-white text-ink-800 antialiased">
@@ -80,21 +110,22 @@ details.lp-q summary::-webkit-details-marker{display:none}details.lp-q[open] .lp
 
 <section class="relative overflow-hidden">
   <div class="absolute inset-0 lp-grid opacity-60"></div><div class="absolute inset-0 lp-glow"></div>
+  <span class="lp-blob b1"></span><span class="lp-blob b2"></span><span class="lp-blob b3"></span>
   <div class="relative max-w-6xl mx-auto px-4 pt-14 pb-20 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
     <div class="lp-in min-w-0">
-      <span class="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-brand-50 text-brand-700 text-xs font-semibold px-3 py-1"><span class="w-1.5 h-1.5 rounded-full bg-lime-500"></span><?= e(t('الفرص · المحتوى · النشر · التواصل · النتائج')) ?></span>
-      <h1 class="mt-5 text-3xl sm:text-5xl break-words font-extrabold leading-tight text-ink-900"><?= e(t('كل ما تحتاجه شركتك لتكسب عملاء أكثر')) ?><br><span class="bg-gradient-to-l from-brand-600 to-cyan-500 bg-clip-text text-transparent"><?= e(t('في منصة واحدة')) ?></span></h1>
+      <span class="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-brand-50 text-brand-700 text-xs font-semibold px-3 py-1"><span class="w-1.5 h-1.5 rounded-full bg-lime-500 lp-pulse"></span><?= e(t('الفرص · المحتوى · النشر · التواصل · النتائج')) ?></span>
+      <h1 class="mt-5 text-3xl sm:text-5xl break-words font-extrabold leading-tight text-ink-900"><?= e(t('كل ما تحتاجه شركتك لتكسب عملاء أكثر')) ?><br><span class="lp-shine bg-gradient-to-l from-brand-600 via-cyan-500 to-brand-600 bg-clip-text text-transparent"><?= e(t('في منصة واحدة')) ?></span></h1>
       <p class="mt-5 text-lg text-ink-600 leading-relaxed max-w-xl"><?= e(t('منافسات اعتماد وترسياتها، والعملاء والصفقات، والمحتوى والنشر على كل المنصات، والإعلانات، وصندوق رسائل موحّد مع واتساب والهاتف، والتحليلات. كلها من ملف شركتك وبفريقك وصلاحياتهم.')) ?></p>
       <div class="mt-8 flex flex-wrap gap-3"><a href="<?= e(url($canReg ? 'register' : 'login')) ?>" class="btn-primary !px-6 !py-3 text-base"><?= e($canReg ? t('ابدأ الآن') : t('دخول')) ?></a><a href="#how" class="btn-ghost !px-6 !py-3 text-base"><?= e(t('كيف يعمل؟')) ?></a></div>
       <p class="mt-4 text-xs text-ink-500"><?= e(t('عربي وإنجليزي · فاتح وداكن · بيانات كل شركة منفصلة')) ?></p>
     </div>
     <div class="lp-in min-w-0 [animation-delay:.15s]">
-      <div class="rounded-3xl border border-ink-200 bg-white shadow-2xl shadow-brand-900/10 p-5">
+      <div class="lp-float rounded-3xl border border-ink-200 bg-white shadow-2xl shadow-brand-900/10 p-5">
         <div class="flex items-center gap-2 mb-4"><span class="w-2.5 h-2.5 rounded-full bg-red-400"></span><span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span><span class="w-2.5 h-2.5 rounded-full bg-lime-400"></span><b class="ms-3 text-sm text-ink-900"><?= e(t('نظرة عامة')) ?></b></div>
         <div class="grid grid-cols-3 gap-3">
-          <div class="rounded-2xl bg-brand-50 p-3"><div class="text-[11px] text-ink-500"><?= e(t('عملاء جدد')) ?></div><div class="text-2xl font-extrabold text-brand-700">38</div></div>
-          <div class="rounded-2xl bg-lime-50 p-3"><div class="text-[11px] text-ink-500"><?= e(t('منافسات مطابقة')) ?></div><div class="text-2xl font-extrabold text-lime-700">24</div></div>
-          <div class="rounded-2xl bg-amber-50 p-3"><div class="text-[11px] text-ink-500"><?= e(t('منشورات مجدولة')) ?></div><div class="text-2xl font-extrabold text-amber-700">12</div></div>
+          <div class="rounded-2xl bg-brand-50 p-3"><div class="text-[11px] text-ink-500"><?= e(t('عملاء جدد')) ?></div><div class="text-2xl font-extrabold text-brand-700 lp-count" data-to="38">0</div></div>
+          <div class="rounded-2xl bg-lime-50 p-3"><div class="text-[11px] text-ink-500"><?= e(t('منافسات مطابقة')) ?></div><div class="text-2xl font-extrabold text-lime-700 lp-count" data-to="24">0</div></div>
+          <div class="rounded-2xl bg-amber-50 p-3"><div class="text-[11px] text-ink-500"><?= e(t('منشورات مجدولة')) ?></div><div class="text-2xl font-extrabold text-amber-700 lp-count" data-to="12">0</div></div>
         </div>
         <div class="mt-4 space-y-2">
           <?php foreach ([[t('توريد وتركيب مطابخ تجارية'), t('منافسة مطابقة · وزارة الصحة'), '92%', 'new'], [t('كم سعر الباقة الشهرية؟'), t('رسالة واتساب · أحمد'), '2m', 'new'], [t('عرض نهاية الشهر'), t('منشور مجدول · إنستجرام وتيك توك'), '18:00', '']] as $r): ?>
@@ -110,20 +141,26 @@ details.lp-q summary::-webkit-details-marker{display:none}details.lp-q[open] .lp
 </section>
 
 <section class="border-y border-ink-100 bg-ink-50/60">
-  <div class="max-w-6xl mx-auto px-4 py-6 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm text-ink-500"><span class="font-semibold text-ink-700"><?= e(t('يعمل مع')) ?></span>
-    <?php foreach ([t('منصة اعتماد'), 'Facebook', 'Instagram', 'TikTok', 'LinkedIn', 'X', 'YouTube', t('واتساب'), 'Google Business', 'Apollo', 'Meta Ads'] as $s): ?><span><?= e($s) ?></span><?php endforeach; ?></div>
+  <div class="max-w-6xl mx-auto px-4 py-6 flex items-center gap-4">
+    <span class="shrink-0 font-semibold text-ink-700 text-sm"><?= e(t('يعمل مع')) ?></span>
+    <div class="relative flex-1 overflow-hidden" style="-webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)">
+      <div class="lp-marquee py-1 text-sm text-ink-500">
+        <?php for ($k = 0; $k < 2; $k++): foreach ([t('منصة اعتماد'), 'Facebook', 'Instagram', 'TikTok', 'LinkedIn', 'X', 'YouTube', t('واتساب'), 'Google Business', 'Apollo', 'Meta Ads'] as $s): ?><span class="whitespace-nowrap font-medium transition-colors hover:text-brand-600"><?= e($s) ?></span><?php endforeach; endfor; ?>
+      </div>
+    </div>
+  </div>
 </section>
 
 <section id="features" class="max-w-6xl mx-auto px-4 py-20 scroll-mt-20">
-  <div class="text-center max-w-2xl mx-auto"><h2 class="text-3xl font-extrabold text-ink-900"><?= e(t('كل خدمات شركتك في منصة واحدة')) ?></h2><p class="mt-3 text-ink-600"><?= e(t('من أول فرصة إلى المحتوى والنشر والتواصل والنتائج، دون التنقل بين أدوات متفرقة.')) ?></p></div>
+  <div data-reveal class="text-center max-w-2xl mx-auto"><h2 class="text-3xl font-extrabold text-ink-900"><?= e(t('كل خدمات شركتك في منصة واحدة')) ?></h2><p class="mt-3 text-ink-600"><?= e(t('من أول فرصة إلى المحتوى والنشر والتواصل والنتائج، دون التنقل بين أدوات متفرقة.')) ?></p></div>
   <div class="mt-10 flex flex-wrap justify-center gap-2" role="tablist">
     <?php foreach ($groups as $gi => $g): ?><button type="button" role="tab" data-lpt="<?= $gi ?>" aria-selected="<?= $gi ? 'false' : 'true' ?>" class="lp-tab inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition"><?= $ic($g[0], 'w-4 h-4') ?><?= e($g[1]) ?> <span class="text-[11px] opacity-70"><?= count($g[2]) ?></span></button><?php endforeach; ?>
   </div>
   <?php foreach ($groups as $gi => $g): ?>
   <div data-lpp="<?= $gi ?>" class="lp-pane mt-8 grid sm:grid-cols-2 lg:grid-cols-3 gap-5<?= $gi ? ' hidden' : '' ?>">
-    <?php foreach ($g[2] as $f): ?>
-      <div class="group rounded-3xl border border-ink-200 bg-white p-6 hover:border-brand-300 hover:shadow-xl hover:shadow-brand-900/5 transition">
-        <span class="w-12 h-12 rounded-2xl bg-brand-50 text-brand-600 grid place-items-center group-hover:scale-105 transition"><?= $ic($f[0]) ?></span>
+    <?php foreach ($g[2] as $fx => $f): ?>
+      <div class="lp-card group rounded-3xl border border-ink-200 bg-white p-6 hover:border-brand-300 hover:shadow-xl hover:shadow-brand-900/5"<?= $gi ? '' : ' data-reveal data-reveal-delay="' . ($fx * 70) . '"' ?>>
+        <span class="lp-ic w-12 h-12 rounded-2xl bg-brand-50 text-brand-600 grid place-items-center"><?= $ic($f[0]) ?></span>
         <h3 class="mt-4 font-bold text-lg text-ink-900"><?= e($f[1]) ?></h3><p class="mt-2 text-sm text-ink-600 leading-relaxed"><?= e($f[2]) ?></p>
       </div>
     <?php endforeach; ?>
@@ -140,10 +177,10 @@ details.lp-q summary::-webkit-details-marker{display:none}details.lp-q[open] .lp
 
 <section id="how" class="bg-ink-50/60 border-y border-ink-100 scroll-mt-20">
   <div class="max-w-6xl mx-auto px-4 py-20">
-    <div class="text-center max-w-2xl mx-auto"><h2 class="text-3xl font-extrabold text-ink-900"><?= e(t('كيف يعمل')) ?></h2><p class="mt-3 text-ink-600"><?= e(t('أربع خطوات من التسجيل إلى أول نتيجة.')) ?></p></div>
+    <div data-reveal class="text-center max-w-2xl mx-auto"><h2 class="text-3xl font-extrabold text-ink-900"><?= e(t('كيف يعمل')) ?></h2><p class="mt-3 text-ink-600"><?= e(t('أربع خطوات من التسجيل إلى أول نتيجة.')) ?></p></div>
     <ol class="mt-12 grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
       <?php foreach ($steps as $i => $s): ?>
-        <li class="relative rounded-3xl bg-white border border-ink-200 p-6"><span class="w-10 h-10 rounded-full bg-gradient-to-br from-brand-600 to-cyan-500 text-white font-bold grid place-items-center"><?= $i + 1 ?></span>
+        <li data-reveal data-reveal-delay="<?= $i * 90 ?>" class="lp-card relative rounded-3xl bg-white border border-ink-200 p-6"><span class="lp-ic w-10 h-10 rounded-full bg-gradient-to-br from-brand-600 to-cyan-500 text-white font-bold grid place-items-center"><?= $i + 1 ?></span>
           <h3 class="mt-4 font-bold text-ink-900"><?= e($s[0]) ?></h3><p class="mt-2 text-sm text-ink-600 leading-relaxed"><?= e($s[1]) ?></p></li>
       <?php endforeach; ?>
     </ol>
@@ -151,16 +188,16 @@ details.lp-q summary::-webkit-details-marker{display:none}details.lp-q[open] .lp
 </section>
 
 <section id="faq" class="max-w-3xl mx-auto px-4 py-20 scroll-mt-20">
-  <h2 class="text-3xl font-extrabold text-center text-ink-900"><?= e(t('الأسئلة الشائعة')) ?></h2>
+  <h2 data-reveal class="text-3xl font-extrabold text-center text-ink-900"><?= e(t('الأسئلة الشائعة')) ?></h2>
   <div class="mt-10 space-y-3">
-    <?php foreach ($faq as $q): ?>
-      <details class="lp-q rounded-2xl border border-ink-200 bg-white px-5 py-4"><summary class="cursor-pointer list-none flex items-center gap-3 font-semibold text-ink-900"><span class="flex-1"><?= e($q[0]) ?></span><span class="lp-chev transition text-ink-400"><?= $ic('M6 9l6 6 6-6', 'w-5 h-5') ?></span></summary><p class="mt-3 text-sm text-ink-600 leading-relaxed"><?= e($q[1]) ?></p></details>
+    <?php foreach ($faq as $qi => $q): ?>
+      <details data-reveal data-reveal-delay="<?= $qi * 60 ?>" class="lp-q rounded-2xl border border-ink-200 bg-white px-5 py-4 transition-colors hover:border-brand-200"><summary class="cursor-pointer list-none flex items-center gap-3 font-semibold text-ink-900"><span class="flex-1"><?= e($q[0]) ?></span><span class="lp-chev transition text-ink-400"><?= $ic('M6 9l6 6 6-6', 'w-5 h-5') ?></span></summary><p class="mt-3 text-sm text-ink-600 leading-relaxed"><?= e($q[1]) ?></p></details>
     <?php endforeach; ?>
   </div>
 </section>
 
 <section class="max-w-6xl mx-auto px-4 pb-20">
-  <div class="rounded-[2rem] p-10 sm:p-14 text-center relative overflow-hidden" style="background:linear-gradient(135deg,#1d4ed8,#2563eb 55%,#06b6d4);color:#fff"><div class="absolute inset-0 lp-grid opacity-20"></div>
+  <div data-reveal class="rounded-[2rem] p-10 sm:p-14 text-center relative overflow-hidden" style="background:linear-gradient(135deg,#1d4ed8,#2563eb 55%,#06b6d4);color:#fff"><div class="absolute inset-0 lp-grid opacity-20"></div><span class="lp-blob b3" style="opacity:.35"></span>
     <h2 class="relative text-3xl sm:text-4xl font-extrabold"><?= e(t('ابدأ اليوم وأدر كل شيء من مكان واحد')) ?></h2><p class="relative mt-3 max-w-xl mx-auto" style="color:rgba(255,255,255,.85)"><?= e(t('سجّل، وعرّفنا بشركتك، واربط حساباتك في دقائق.')) ?></p>
     <a href="<?= e(url($canReg ? 'register' : 'login')) ?>" class="relative mt-8 inline-flex rounded-2xl font-bold px-8 py-3 transition hover:opacity-90" style="background:#fff;color:#1d4ed8"><?= e($canReg ? t('ابدأ الآن') : t('دخول')) ?></a></div>
 </section>
@@ -169,6 +206,46 @@ details.lp-q summary::-webkit-details-marker{display:none}details.lp-q[open] .lp
   <div class="max-w-6xl mx-auto px-4 py-8 flex flex-wrap items-center gap-4 text-sm text-ink-500"><span class="font-semibold text-ink-700"><?= e($siteName) ?></span><span>© <?= date('Y') ?></span>
     <span class="sm:hidden flex gap-2"><?= pref_switch() ?></span><a href="<?= e(url('login')) ?>" class="ms-auto hover:text-brand-600"><?= e(t('دخول')) ?></a></div>
 </footer>
+<script>
+(function () {
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  var reveals = document.querySelectorAll('[data-reveal]');
+  if (reduce || !('IntersectionObserver' in window)) {
+    reveals.forEach(function (el) { el.classList.add('in'); });
+  } else {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (!en.isIntersecting) return;
+        var el = en.target, d = parseInt(el.getAttribute('data-reveal-delay') || '0', 10);
+        setTimeout(function () { el.classList.add('in'); }, d);
+        io.unobserve(el);
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
+    reveals.forEach(function (el) { io.observe(el); });
+  }
+  // عدّاد الأرقام في بطاقة الهيرو
+  var counts = document.querySelectorAll('.lp-count');
+  function run(el) {
+    var to = parseInt(el.getAttribute('data-to') || '0', 10), dur = 1100, t0 = null;
+    if (reduce) { el.textContent = to; return; }
+    function tick(ts) {
+      if (t0 === null) t0 = ts;
+      var p = Math.min((ts - t0) / dur, 1), eased = 1 - Math.pow(1 - p, 3);
+      el.textContent = Math.round(to * eased);
+      if (p < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+  if (!('IntersectionObserver' in window)) {
+    counts.forEach(run);
+  } else {
+    var co = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) { if (en.isIntersecting) { run(en.target); co.unobserve(en.target); } });
+    }, { threshold: 0.6 });
+    counts.forEach(function (el) { co.observe(el); });
+  }
+})();
+</script>
 <script src="assets/app.js?v=<?= e(APP_VERSION) ?>" defer></script>
 </body>
 </html>
