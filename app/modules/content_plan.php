@@ -83,8 +83,8 @@ function cpl_create(array $in): int
         'img_q' => in_array($in['img_q'] ?? '', ['medium', 'high'], true) ? (string)$in['img_q'] : 'high',
         'style' => array_key_exists((string)($in['style'] ?? 'auto'), cpl_styles()) ? (string)$in['style'] : 'auto',
         'aspect' => in_array($in['aspect'] ?? '', ['4:5', '1:1', '9:16', '16:9'], true) ? (string)$in['aspect'] : '4:5',
-        'design_mode' => in_array($in['design_mode'] ?? '', ['photo', 'layout', 'ai'], true) ? (string)$in['design_mode'] : 'photo',
-        'layout' => array_key_exists((string)($in['layout'] ?? 'auto'), cpl_layouts()) ? (string)$in['layout'] : 'auto',
+        'design_mode' => in_array($in['design_mode'] ?? '', ['photo', 'layout', 'ai'], true) ? (string)$in['design_mode'] : 'layout',
+        'layout' => array_key_exists((string)($in['layout'] ?? 'full'), cpl_layouts()) ? (string)$in['layout'] : 'full',
         'txt_pos' => in_array($in['txt_pos'] ?? '', ['auto', 'top', 'bottom'], true) ? (string)$in['txt_pos'] : 'auto',
         'txt_size' => in_array($in['txt_size'] ?? '', ['s', 'm', 'l'], true) ? (string)$in['txt_size'] : 'm',
         'txt_scale' => isset($in['txt_scale']) ? max(50, min(180, (int)$in['txt_scale'])) : 100,
@@ -103,7 +103,7 @@ function cpl_create(array $in): int
 
 function cpl_opts(array $p): array { return (json_decode((string)$p['opts'], true) ?: []) + ['lang' => 'ar', 'dialect' => '', 'audience' => '', 'services' => [], 'tone' => '', 'cta' => '', 'avoid' => '', 'about' => '', 'font' => 'auto', 'video' => true, 'carousel' => true, 'humanize' => true, 'qc' => true, 'img_q' => 'high', 'style' => 'auto', 'products' => [], 'aspect' => '4:5',
     'txt_pos' => 'auto', 'txt_size' => 'm', 'txt_variant' => 'auto', 'txt_accent' => '', 'txt_scale' => 100, 'txt_align' => 'auto', 'txt_y' => null,
-    'design_mode' => 'photo', 'layout' => 'auto']; }
+    'design_mode' => 'layout', 'layout' => 'full']; }
 
 /** نسبة/حجم الصورة المختارة للخطة (4:5 طولي افتراضيًا). */
 function cpl_aspect(array $p): string { $a = (string)(cpl_opts($p)['aspect'] ?? '4:5'); return in_array($a, ['4:5', '1:1', '9:16', '16:9'], true) ? $a : '4:5'; }
@@ -1147,7 +1147,7 @@ function cpl_stamp_text(array $p, int $mid, string $headline, array $ov = [], bo
 /** قائمة القوالب المتاحة (مفتاح ⇦ اسم عربي). auto = نوّع تلقائيًا لكل منشور. */
 function cpl_layouts(): array
 {
-    return ['auto' => t('تلقائي (تنويع)'), 'brand_footer' => t('شريط سفلي بالهوية'), 'top_band' => t('شريط علوي بالهوية'),
+    return ['auto' => t('تلقائي (تنويع)'), 'full' => t('الصورة كاملة + نص'), 'brand_footer' => t('شريط سفلي بالهوية'), 'top_band' => t('شريط علوي بالهوية'),
         'side_card' => t('بطاقة جانبية'), 'overlay_panel' => t('لوحة زجاجية'), 'arch' => t('قوس علوي')];
 }
 
@@ -1222,7 +1222,19 @@ function cpl_render_layout(array $p, int $rawMid, string $headline, array $ov = 
     $align = (string)($to['txt_align'] ?? 'auto'); if (!in_array($align, ['right', 'left', 'center'], true)) $align = $rtl ? 'right' : 'left';
     $mg = (int)round($W * 0.075);
 
-    if ($lay === 'brand_footer') { // صورة فوق + شريط هوية سفلي بالعنوان
+    if ($lay === 'full') { // الصورة كاملة (full-bleed) + تدرّج قوي تحت + العنوان فوق الصورة
+        cpl_place_photo($im, $src, 0, 0, $W, $H, 0, 0.0);
+        // تدرّج داكن من الأسفل (مموّه بلون الهوية قليلًا) لإبراز النص مع إبقاء الصورة كاملة
+        $gh = (int)round($H * 0.52); $gy = $H - $gh;
+        for ($i = 0; $i < $gh; $i++) { $t = $i / max(1, $gh - 1); $s = $t * $t; // أقوى تحت
+            $a = (int)round(127 * (1 - 0.92 * $s)); if ($a >= 127) continue;
+            imagefilledrectangle($im, 0, $gy + $i, $W, $gy + $i, imagecolorallocatealpha($im, max(0, (int)($dark[0] * 0.5)), max(0, (int)($dark[1] * 0.5)), max(0, (int)($dark[2] * 0.6)), $a)); }
+        $size = (int)round($W * 0.082);
+        // نقيس كتلة العنوان ونحطها قرب الأسفل
+        $tmpLines = cpl_wrap_lines($headline, $font, $size, $W - 2 * $mg, $rtl); $nl = max(1, min(3, count($tmpLines)));
+        $blockH = (int)round($size * 1.5 * $nl); $yTop = $H - (int)round($H * 0.07) - $blockH;
+        cpl_draw_title_block($im, $font, $headline, $key, $size, $mg, $W - $mg, $yTop, $align, $white, $acc, $onAcc, $rtl, 3, true);
+    } elseif ($lay === 'brand_footer') { // صورة فوق + شريط هوية سفلي بالعنوان
         $footH = (int)round($H * 0.30); $phH = $H - $footH;
         cpl_place_photo($im, $src, 0, 0, $W, $phH, 0, 0.12);
         cpl_grad_v($im, 0, $phH, $W, $footH, [$ar2, $ag, $ab], [max(0, (int)($ar2 * 0.7)), max(0, (int)($ag * 0.7)), max(0, (int)($ab * 0.7))]);

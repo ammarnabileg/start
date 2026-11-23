@@ -291,7 +291,7 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
           <span class="label !text-sm"><?= e(t('القالب')) ?></span>
           <div class="flex gap-2 overflow-x-auto pb-1" id="cp-layouts">
             <?php foreach (cpl_layouts() as $lk => $ll): ?>
-            <label class="shrink-0 cursor-pointer"><input type="radio" name="layout" value="<?= e($lk) ?>" class="peer sr-only" <?= $lk === 'auto' ? 'checked' : '' ?>>
+            <label class="shrink-0 cursor-pointer"><input type="radio" name="layout" value="<?= e($lk) ?>" class="peer sr-only" <?= $lk === 'full' ? 'checked' : '' ?>>
               <span class="flex flex-col items-center gap-1 w-24 rounded-xl border border-ink-200 p-1.5 transition hover:border-brand-300 peer-checked:border-brand-500 peer-checked:bg-brand-50">
                 <span class="w-full h-14 rounded-lg relative overflow-hidden bg-ink-900 grid place-items-center text-[9px] text-white/70"><?= $lk === 'auto' ? '✨' : e($ll) ?></span>
                 <span class="text-[11px] font-semibold text-center leading-tight"><?= e($ll) ?></span>
