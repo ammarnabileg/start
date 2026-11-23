@@ -1194,10 +1194,7 @@ function cpl_stamp_text(array $p, int $mid, string $headline, array $ov = [], bo
     // المحاذاة الأفقية: من الإعدادات (يمين/وسط/يسار) أو تلقائي حسب اتجاه النص
     $align = (string)($to['txt_align'] ?? 'auto');
     if (!in_array($align, ['right', 'left', 'center'], true)) $align = $rtl ? 'right' : 'left';
-    // شريط لون الهوية فوق العنوان (لمسة وكالة) — يدّي إحساس تصميم متكامل مش نص مرمي
-    $barW = (int)round($size * 1.6); $barH = max(5, (int)round($size * 0.14)); $barY = $top - (int)round($size * 0.5);
-    $barX = $align === 'left' ? $colLeft : ($align === 'center' ? $colLeft + (int)round(($colW - $barW) / 2) : $colRight - $barW);
-    if ($barY > 2) cpl_round_box($im, $barX, $barY, $barX + $barW, $barY + $barH, (int)round($barH / 2), $acc);
+    // (أُزيل شريط لون الهوية فوق العنوان بناءً على طلب المستخدم)
     $y = $top + $size;
     // الكلمة المفتاحية تتلوّن جوّه السطر: قالب 0 = خلفية بلون الهوية، قالب 1/2 = نص ملوّن (مع خط تحتها في 1)
     $boxKey = $variant === 0; $keySpan = null;
@@ -1257,9 +1254,7 @@ function cpl_draw_title_block($im, string $font, string $headline, string $key, 
     for ($s = $size; $s >= $min; $s -= 2) { $w = cpl_wrap_lines($headline, $font, $s, $colW, $rtl); if (count($w) <= $maxLines) { $lines = $w; $size = $s; break; } }
     if (!$lines) { $lines = array_slice(cpl_wrap_lines($headline, $font, $size, $colW, $rtl), 0, $maxLines); }
     $lh = (int)round($size * ($rtl ? 1.5 : 1.4)); $y = $yTop + $size; $top0 = $yTop;
-    if ($kicker) { $barW = (int)round($size * 1.7); $barH = max(5, (int)round($size * 0.15)); $barY = $yTop - (int)round($size * 0.55);
-        $barX = $align === 'left' ? $colLeft : ($align === 'center' ? $colLeft + (int)round(($colW - $barW) / 2) : $colRight - $barW);
-        if ($barY > 2) cpl_round_box($im, $barX, $barY, $barX + $barW, $barY + $barH, (int)round($barH / 2), $acc); }
+    // (أُزيل شريط لون الهوية فوق العنوان بناءً على طلب المستخدم)
     $shadow = imagecolorallocatealpha($im, 0, 0, 0, 80);
     foreach ($lines as $ln) { cpl_draw_hline($im, $size, $font, $ln, $key, $rtl, $colLeft, $colRight, $y, $white, $acc, $onAcc, $shadow, false, $align); $y += $lh; }
     return $y - $top0;

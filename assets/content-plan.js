@@ -513,10 +513,11 @@
   // إعدادات عنصر «تحريك المكان فقط»: بلا تكبير/تدوير، مقبض تحريك فقط
   var MOVE_ONLY = { lockScalingX: true, lockScalingY: true, lockRotation: true, lockSkewingX: true, lockSkewingY: true, hasControls: false, hasBorders: true, editable: false };
   // بعد تحميل مستند محفوظ: النص واللوجو «تحريك فقط»، والخلفية/التدرّج/الشريط مقفولة
-  function tNormalize() { if (!fc) return; var kick = null; fc.getObjects().forEach(function (x) { if (x.dzKick) kick = x; });
+  function tNormalize() { if (!fc) return;
+    fc.getObjects().slice().forEach(function (o) { if (o.dzKick) fc.remove(o); }); // إزالة شريط الهوية القديم خالص
     fc.getObjects().forEach(function (o) {
-      if (o.dzHead || o.dzLogo) { o.set(MOVE_ONLY); if (o.dzHead) { o.dzKickRef = kick; o.dzBw = o.dzBw || o.width; o.dzBl = (o.dzBl != null) ? o.dzBl : o.left; o.dzKw = o.dzKw || FW * 0.14; } }
-      else if (o.dzHero || o.dzBg || o.dzKick) { o.set({ selectable: false, evented: false }); }
+      if (o.dzHead || o.dzLogo) { o.set(MOVE_ONLY); if (o.dzHead) { o.dzBw = o.dzBw || o.width; o.dzBl = (o.dzBl != null) ? o.dzBl : o.left; } o.dzKickRef = null; }
+      else if (o.dzHero || o.dzBg) { o.set({ selectable: false, evented: false }); }
       o.setCoords && o.setCoords(); }); fc.requestRenderAll(); }
   function tBuildFresh(it) {
     var acc = (P && P.accent) || '#10b981';
@@ -530,13 +531,9 @@
     var head0 = String(it.headline || '').replace(/[«»]/g, '').replace(/\s+/g, ' ').trim() || 'عنوان';
     var bw = FW * 0.86, bl = FW * 0.07;
     var fs = head0.split(' ').length >= 4 ? 0.075 : 0.088;
-    var kw = FW * 0.14;
-    // شريط لون الهوية — مقفول (يتحرك تلقائيًا مع العنوان)
-    var kick = new fabric.Rect({ left: bl + bw - kw, top: FH * 0.70, width: kw, height: Math.round(FW * 0.013), rx: 4, ry: 4, fill: acc, dzKick: true, selectable: false, evented: false });
-    fc.add(kick);
     // العنوان — تحريك المكان فقط
     var tb = new fabric.Textbox(head0, { left: bl, top: FH * 0.72, width: bw, fontSize: Math.round(FW * fs), fill: '#ffffff', fontWeight: '900', fontFamily: 'Cairo', textAlign: 'right', direction: 'rtl', splitByGrapheme: false });
-    tb.set(MOVE_ONLY); tb.dzHead = true; tb.dzBw = bw; tb.dzSrc = head0; tb.dzKickRef = kick; tb.dzBl = bl; tb.dzKw = kw; tb.dzKickDY = tb.top - kick.top;
+    tb.set(MOVE_ONLY); tb.dzHead = true; tb.dzBw = bw; tb.dzSrc = head0; tb.dzBl = bl;
     fc.add(tb); fc.setActiveObject(tb); fc.requestRenderAll();
     fcEnsureFonts().then(function () { fcRefreshText(); layoutHead(tb); fc.requestRenderAll(); });
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { fcRefreshText(); layoutHead(tb); fc.requestRenderAll(); });
