@@ -370,6 +370,14 @@
   var tMod = $('#cp-itxt'), fc = null, FW = 1080, FH = 1350, FONTS = ['Cairo', 'Alexandria', 'Tajawal'];
   function fcFit() { if (!fc) return; var wrap = $('#it-cwrap'); var dw = (wrap && wrap.clientWidth) || 420; fc.setZoom(dw / FW); fc.setDimensions({ width: dw, height: Math.round(dw * FH / FW) }); }
   function fcActive() { return fc && fc.getActiveObject(); }
+  // لفّ العنوان الطويل لأسطر تملأ عرض المربع (Fabric لا يلفّ العربي RTL تلقائيًا) مع تصغير الحجم إن لزم
+  function cpMeasure(px) { var c = cpMeasure._c || (cpMeasure._c = document.createElement('canvas').getContext('2d')); c.font = '900 ' + px + 'px Cairo, Alexandria, sans-serif'; return c; }
+  function cpWrap(s, maxW, px) { var ctx = cpMeasure(px), ws = s.split(' '), lines = [], cur = ''; for (var i = 0; i < ws.length; i++) { var t = cur ? cur + ' ' + ws[i] : ws[i]; if (ctx.measureText(t).width <= maxW || !cur) cur = t; else { lines.push(cur); cur = ws[i]; } } if (cur) lines.push(cur); return lines; }
+  function layoutHead(tb) { if (!tb || !tb.dzHead || !fc) return; var src = (tb.dzSrc || tb.text || '').replace(/\n/g, ' ').replace(/\s+/g, ' ').trim(); if (!src) return; var bw = tb.dzBw || tb.width, fsz = tb.fontSize, lines;
+    for (var g = 0; g < 14; g++) { lines = cpWrap(src, bw, fsz); if ((lines.length <= 4 && fsz * 1.5 * lines.length <= FH * 0.30) || fsz <= 34) break; fsz = Math.max(34, fsz - 5); }
+    tb.set({ fontSize: fsz, text: lines.join('\n') }); if (tb.initDimensions) tb.initDimensions();
+    var bottom = FH * 0.93; tb.set({ top: Math.max(FH * 0.48, bottom - tb.height) }); if (tb.initDimensions) tb.initDimensions();
+    if (tb.dzKickRef) tb.dzKickRef.set({ top: tb.top - FW * 0.045, left: (tb.dzBl || 0) + (tb.dzBw || bw) - (tb.dzKw || FW * 0.14) }); fc.requestRenderAll(); }
   // خانة النص الخارجية (التعديل المباشر بيبوّظ تحديد العربي في Fabric)
   function fcFocusTxt() { var inp = $('#dz-txt'); if (inp && !inp.disabled) { try { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); } catch (e) {} } }
   function fcTxtSync() { var inp = $('#dz-txt'); var o = fcActive(); if (inp) { if (o && o.type === 'textbox') { inp.disabled = false; inp.value = o.text || ''; } else { inp.value = ''; inp.disabled = true; } } var sz = $('#dz-size'), szv = $('#dz-size-v'); if (sz) { var fs = (o && o.type === 'textbox') ? Math.round((o.fontSize || 80) * (o.scaleY || 1)) : 80; sz.value = fs; if (szv) szv.textContent = fs; } var dc = $('#dz-color'); if (dc && o && o.fill && typeof o.fill === 'string' && o.fill[0] === '#') dc.value = o.fill; }
@@ -393,20 +401,19 @@
     var scrim = new fabric.Rect({ left: 0, top: FH * 0.40, width: FW, height: FH * 0.60, selectable: false, evented: false, dzBg: true });
     scrim.set('fill', new fabric.Gradient({ type: 'linear', coords: { x1: 0, y1: 0, x2: 0, y2: FH * 0.60 }, colorStops: [{ offset: 0, color: 'rgba(6,10,18,0)' }, { offset: 0.55, color: 'rgba(6,10,18,0.55)' }, { offset: 1, color: 'rgba(6,10,18,0.92)' }] }));
     fc.add(scrim);
-    // العنوان أسفل الصورة — قابل للتعديل من الخانة الجانبية. الحجم يصغر تلقائيًا للعناوين الطويلة ليبقى داخل الصورة
-    var head = String(it.headline || '').replace(/[«»]/g, '') || 'عنوان';
-    var words = head.split(/\s+/).length, fs = words >= 6 ? 0.062 : (words >= 4 ? 0.07 : 0.082);
+    // العنوان أسفل الصورة — قابل للتعديل. العناوين الطويلة تُلفّ لأسطر داخل عرض المربع (Fabric لا يلفّ العربي RTL فنلفّه بأنفسنا)
+    var head0 = String(it.headline || '').replace(/[«»]/g, '').replace(/\s+/g, ' ').trim() || 'عنوان';
     var bw = FW * 0.86, bl = FW * 0.07;
-    // شريط لون الهوية (kicker) فوق العنوان — على الحافة اليمنى
-    var kickY = FH * 0.70, kw = FW * 0.14;
-    var kick = new fabric.Rect({ left: bl + bw - kw, top: kickY, width: kw, height: Math.round(FW * 0.013), rx: 4, ry: 4, fill: acc, dzKick: true });
+    var fs = head0.split(' ').length >= 4 ? 0.075 : 0.088;
+    var kw = FW * 0.14;
+    var kick = new fabric.Rect({ left: bl + bw - kw, top: FH * 0.70, width: kw, height: Math.round(FW * 0.013), rx: 4, ry: 4, fill: acc, dzKick: true });
     fc.add(kick);
-    var tb = new fabric.Textbox(head, { left: bl, top: FH * 0.72, width: bw, fontSize: Math.round(FW * fs), fill: '#ffffff', fontWeight: '900', fontFamily: 'Cairo', textAlign: 'right', direction: 'rtl', splitByGrapheme: false, editable: false });
+    var tb = new fabric.Textbox(head0, { left: bl, top: FH * 0.72, width: bw, fontSize: Math.round(FW * fs), fill: '#ffffff', fontWeight: '900', fontFamily: 'Cairo', textAlign: 'right', direction: 'rtl', splitByGrapheme: false, editable: false });
+    tb.dzHead = true; tb.dzBw = bw; tb.dzSrc = head0; tb.dzKickRef = kick; tb.dzBl = bl; tb.dzKw = kw;
     fc.add(tb); fc.setActiveObject(tb); fcTxtSync(); fc.requestRenderAll();
     setTimeout(fcFocusTxt, 60);
-    function fitHead() { if (!tb) return; if (tb.initDimensions) tb.initDimensions(); var over = (tb.top + tb.height) - FH * 0.96; if (over > 0 && tb.fontSize > 34) { tb.set({ fontSize: Math.max(34, tb.fontSize - 6), top: Math.max(FH * 0.52, tb.top - over) }); if (tb.initDimensions) tb.initDimensions(); } fc.requestRenderAll(); }
-    fcEnsureFonts().then(function () { fcRefreshText(); fitHead(); });
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { fcRefreshText(); fitHead(); });
+    fcEnsureFonts().then(function () { fcRefreshText(); layoutHead(tb); fc.requestRenderAll(); });
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { fcRefreshText(); layoutHead(tb); fc.requestRenderAll(); });
     // اللوجو كطبقة قابلة للتحريك/التحجيم مع النص
     if (P && P.logo) fabric.Image.fromURL(P.logo, function (lg) { if (!lg || !lg.width) return; var k = (FW * 0.20) / lg.width; lg.set({ scaleX: k, scaleY: k, left: FW * 0.74, top: FH * 0.035 }); lg.dzLogo = true; fc.add(lg); fc.requestRenderAll(); });
   }
