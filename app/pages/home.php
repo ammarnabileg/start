@@ -63,6 +63,15 @@ $stats = [
 ];
 $replaces = [t('أداة جدولة'), t('أداة تصميم'), t('نظام CRM'), t('صندوق رسائل'), t('أداة إعلانات'), t('مراقبة منافسين'), t('قراءة منافسات'), t('لوحة تحليلات'), t('واتساب API'), t('صفحات هبوط'), t('ردود تلقائية'), t('قاعدة معرفة')];
 $rotate = [t('عملاء جُدد'), t('منافسات مطابقة'), t('محتوى ينشر نفسه'), t('ردود فورية'), t('نتائج تُقاس')];
+// تدفّق المحادثة التفاعلية في الهيرو (5 أسئلة + نتيجة = 6 خطوات)
+$heroFlow = [
+    ['q' => t('أهلًا بك 👋 إيش نشاط شركتك؟'), 'a' => [t('مقاولات وتوريدات'), t('خدمات'), t('تجارة تجزئة'), t('أخرى')]],
+    ['q' => t('كم حجم فريقك؟'), 'a' => [t('لوحدي'), t('٢–١٠'), t('١١–٥٠'), t('أكثر من ٥٠')]],
+    ['q' => t('أكبر تحدٍّ عندك الآن؟'), 'a' => [t('إيجاد عملاء'), t('منافسات اعتماد'), t('المحتوى والنشر'), t('الرد على الرسائل')]],
+    ['q' => t('على أي قنوات تتواصل مع عملائك؟'), 'a' => [t('واتساب'), t('إنستجرام'), t('مكالمات'), t('كلها')]],
+    ['q' => t('تحب نبدأ معك من إيش؟'), 'a' => [t('الفرص والمبيعات'), t('المحتوى والنشر'), t('التواصل والردود'), t('كل شيء')]],
+];
+$heroDone = t('تمام! جهّزنا لك منصّتك على مقاس شركتك — ابدأ مجانًا وشوفها شغالة على نشاطك.');
 // مواضع عُقد المخطط الدائري (بيضاوي حول المركز)
 $cx = 300; $cy = 205; $rx = 212; $ry = 150; $diag = [];
 foreach ($groups as $gi => $g) {
@@ -87,6 +96,13 @@ html{scroll-behavior:smooth}
 .lp-head{position:sticky;inset-block-start:0;z-index:50;transition:background .35s,box-shadow .35s,backdrop-filter .35s,border-color .35s}
 .lp-head.shrunk{background:rgba(255,255,255,.82);backdrop-filter:blur(14px);box-shadow:0 8px 30px -18px rgba(15,23,42,.35);border-bottom:1px solid rgba(226,232,240,.9)}
 .dark .lp-head.shrunk{background:rgba(10,15,30,.72);border-bottom-color:rgba(255,255,255,.08)}
+/* فوق الهيرو الداكن (قبل التمرير): نصوص فاتحة */
+.lp-head:not(.shrunk){color:#fff}
+.lp-head:not(.shrunk) .hd-logo{color:#fff}
+.lp-head:not(.shrunk) nav a{color:rgba(226,232,240,.82)}
+.lp-head:not(.shrunk) nav a:hover{color:#fff}
+.lp-head:not(.shrunk) .btn-ghost{color:#fff;border-color:rgba(255,255,255,.25)}
+.lp-head:not(.shrunk) .btn-ghost:hover{background:rgba(255,255,255,.1)}
 .lp-navlink{position:relative}
 .lp-navlink::after{content:"";position:absolute;inset-inline-start:0;inset-block-end:-4px;height:2px;width:100%;background:linear-gradient(90deg,var(--b1),var(--b2));transform:scaleX(0);transform-origin:inline-start;transition:transform .3s cubic-bezier(.22,1,.36,1)}
 .lp-navlink:hover::after{transform:scaleX(1)}
@@ -215,6 +231,16 @@ html{scroll-behavior:smooth}
 .chip-deal{opacity:0;transform:translateY(10px);transition:opacity .5s,transform .5s cubic-bezier(.34,1.56,.64,1)}
 .chip-deal.show{opacity:1;transform:none}
 .typwrap{opacity:0;transition:opacity .3s}.typwrap.show{opacity:1}
+/* محادثة الهيرو */
+#hcBody::-webkit-scrollbar{width:0}
+.hc-chip{cursor:pointer;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.07);color:#fff;border-radius:9999px;padding:8px 14px;font-size:13px;font-weight:600;transition:transform .2s,background .2s,border-color .2s;opacity:0;transform:translateY(8px);animation:hcIn .35s forwards}
+.hc-chip:hover{background:rgba(37,99,235,.5);border-color:transparent;transform:translateY(-2px)}
+@keyframes hcIn{to{opacity:1;transform:none}}
+.hc-msg{display:flex;animation:hcPop .4s cubic-bezier(.22,1,.36,1) both}
+@keyframes hcPop{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+.hc-bot .bub{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.14);color:#fff;border-start-start-radius:6px}
+.hc-you{justify-content:flex-end}
+.hc-you .bub{background:linear-gradient(135deg,#2563eb,#06b6d4);color:#fff;border-start-end-radius:6px}
 
 /* 19) زر العودة للأعلى */
 .totop{position:fixed;inset-block-end:22px;inset-inline-end:22px;z-index:40;opacity:0;transform:translateY(16px) scale(.9);pointer-events:none;transition:opacity .3s,transform .3s}
@@ -238,7 +264,7 @@ html{scroll-behavior:smooth}
 
 <header class="lp-head border-b border-transparent">
   <div class="max-w-6xl mx-auto px-4 h-16 flex items-center gap-4">
-    <a href="<?= e(url('home')) ?>" class="flex items-center gap-2 font-bold text-ink-900"><span class="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-600 to-cyan-500 text-white grid place-items-center shadow-lg shadow-brand-600/30"><?= e(mb_substr($siteName, 0, 1)) ?></span><?= e($siteName) ?></a>
+    <a href="<?= e(url('home')) ?>" class="hd-logo flex items-center gap-2 font-bold text-ink-900"><span class="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-600 to-cyan-500 text-white grid place-items-center shadow-lg shadow-brand-600/30"><?= e(mb_substr($siteName, 0, 1)) ?></span><?= e($siteName) ?></a>
     <nav class="hidden md:flex items-center gap-6 text-sm text-ink-600 ms-6"><a href="#live" class="lp-navlink hover:text-brand-600"><?= e(t('المنصة')) ?></a><a href="#features" class="lp-navlink hover:text-brand-600"><?= e(t('المزايا')) ?></a><a href="#how" class="lp-navlink hover:text-brand-600"><?= e(t('كيف يعمل')) ?></a><a href="#faq" class="lp-navlink hover:text-brand-600"><?= e(t('الأسئلة')) ?></a></nav>
     <div class="ms-auto flex items-center gap-2"><div class="hidden sm:flex gap-2"><?= pref_switch() ?></div>
       <a href="<?= e(url('login')) ?>" class="btn-ghost !py-2"><?= e(t('دخول')) ?></a>
@@ -270,32 +296,24 @@ html{scroll-behavior:smooth}
       </div>
     </div>
 
-    <!-- كارت زجاجي تفاعلي 3D بواجهة حقيقية -->
-    <div data-reveal="left" class="min-w-0 [perspective:1200px]">
-      <div class="tilt glass rounded-3xl p-5" data-tilt>
-        <div class="depth flex items-center gap-2 mb-4"><span class="w-2.5 h-2.5 rounded-full bg-red-400"></span><span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span><span class="w-2.5 h-2.5 rounded-full bg-lime-400"></span><b class="ms-3 text-sm text-white"><?= e(t('لوحة شركتك')) ?></b><span class="ms-auto inline-flex items-center gap-1 text-[10px] text-lime-300"><span class="w-1.5 h-1.5 rounded-full bg-lime-400 pulse"></span><?= e(t('مباشر')) ?></span></div>
-        <div class="depth-sm grid grid-cols-3 gap-3">
-          <div class="glass-row rounded-2xl p-3"><div class="text-[11px]" style="color:rgba(226,232,240,.6)"><?= e(t('عملاء جدد')) ?></div><div class="text-2xl font-extrabold text-white lp-count" data-to="38">0</div></div>
-          <div class="glass-row rounded-2xl p-3"><div class="text-[11px]" style="color:rgba(226,232,240,.6)"><?= e(t('منافسات')) ?></div><div class="text-2xl font-extrabold text-cyan-300 lp-count" data-to="24">0</div></div>
-          <div class="glass-row rounded-2xl p-3"><div class="text-[11px]" style="color:rgba(226,232,240,.6)"><?= e(t('منشورات')) ?></div><div class="text-2xl font-extrabold text-lime-300 lp-count" data-to="12">0</div></div>
+    <!-- محادثة الهيرو التفاعلية -->
+    <div data-reveal="left" class="min-w-0">
+      <div class="glass rounded-3xl overflow-hidden" id="heroChat"
+           data-flow='<?= e(json_encode($heroFlow, JSON_UNESCAPED_UNICODE)) ?>'
+           data-done="<?= e($heroDone) ?>"
+           data-cta="<?= e($canReg ? t('ابدأ مجانًا') : t('دخول')) ?>"
+           data-href="<?= e(url($canReg ? 'register' : 'login')) ?>"
+           data-l-you="<?= e(t('أنت')) ?>" data-l-bot="<?= e(t('مساعد وتد')) ?>">
+        <div class="flex items-center gap-3 px-4 py-3 border-b border-white/10">
+          <span class="w-9 h-9 rounded-full grid place-items-center text-white shrink-0" style="background:linear-gradient(135deg,#2563eb,#06b6d4)"><?= $ic('M12 2a7 7 0 017 7c0 5-7 13-7 13S5 14 5 9a7 7 0 017-7z', 'w-4 h-4') ?></span>
+          <div class="flex-1 min-w-0"><div class="text-sm font-bold text-white"><?= e(t('مساعد وتد')) ?></div><div class="text-[11px] inline-flex items-center gap-1" style="color:rgba(226,232,240,.7)"><span class="w-1.5 h-1.5 rounded-full bg-lime-400 pulse"></span><?= e(t('متصل الآن')) ?></div></div>
+          <div class="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-white/10 text-white"><span id="hcStep">1</span> <?= e(t('من')) ?> <?= count($heroFlow) + 1 ?></div>
         </div>
-        <!-- مخطّط أعمدة حيّ -->
-        <div class="depth-sm glass-row rounded-2xl p-3 mt-3">
-          <div class="flex items-center justify-between mb-2"><span class="text-[11px]" style="color:rgba(226,232,240,.7)"><?= e(t('أداء الأسبوع')) ?></span><span class="text-[11px] text-lime-300">+18%</span></div>
-          <div class="flex items-end gap-1.5" style="height:56px">
-            <?php foreach ([38,52,44,67,58,80,72] as $h): ?><div class="bar" data-h="<?= $h ?>" style="--rh:<?= $h ?>%"></div><?php endforeach; ?>
-          </div>
-        </div>
-        <!-- شريط فعاليات حيّ + كتابة -->
-        <div class="depth-sm ticker mt-3">
-          <div class="ticker-track">
-            <?php $feed = [[t('منافسة مطابقة · وزارة الصحة'),'92%'],[t('رسالة واتساب · أحمد'),t('الآن')],[t('منشور مجدول · إنستجرام'),'18:00'],[t('صفقة جديدة · 48,000 ﷼'),'✓']]; for($r=0;$r<2;$r++) foreach($feed as $f): ?>
-              <div class="glass-row rounded-xl px-3 py-2 flex items-center gap-2"><span class="w-7 h-7 rounded-lg bg-white/10 grid place-items-center text-cyan-300"><?= $ic('M3 21h18M5 21V10m14 11V10M9 21v-6h6v6M2 10l10-6 10 6z','w-3.5 h-3.5') ?></span><span class="flex-1 text-[12px] text-white truncate"><?= e($f[0]) ?></span><b class="text-[11px] text-lime-300"><?= e($f[1]) ?></b></div>
-            <?php endforeach; ?>
-          </div>
-        </div>
-        <div class="depth-sm glass-row rounded-xl px-3 py-2 mt-2 flex items-center gap-2"><span class="w-7 h-7 rounded-lg bg-white/10 grid place-items-center text-white"><?= $ic('M21 12a8 8 0 01-11.6 7.1L3 21l1.9-6.4A8 8 0 1121 12z','w-3.5 h-3.5') ?></span><span class="text-[12px]" style="color:rgba(226,232,240,.8)"><?= e(t('الوكيل الذكي يكتب ردًّا')) ?></span><span class="typing ms-auto inline-flex gap-1"><span></span><span></span><span></span></span></div>
+        <div class="h-1 bg-white/10"><div id="hcBar" class="h-full transition-all duration-500" style="width:16%;background:linear-gradient(90deg,#2563eb,#06b6d4,#84cc16)"></div></div>
+        <div id="hcBody" class="p-4 space-y-3 overflow-y-auto" style="min-height:300px;max-height:360px"></div>
+        <div id="hcChips" class="px-4 pb-4 pt-1 flex flex-wrap gap-2"></div>
       </div>
+      <p class="mt-3 text-center text-xs" style="color:rgba(226,232,240,.5)"><?= e(t('٦ أسئلة سريعة · بدون تسجيل')) ?></p>
     </div>
   </div>
   <div class="hero-fade"></div>
@@ -608,6 +626,63 @@ html{scroll-behavior:smooth}
     var rt; window.addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(resize, 200); });
     resize(); frame();
   }
+
+  /* ---- 13ب) محادثة الهيرو التفاعلية ---- */
+  (function () {
+    var box = doc.getElementById('heroChat'); if (!box) return;
+    var body = doc.getElementById('hcBody'), chips = doc.getElementById('hcChips'), bar = doc.getElementById('hcBar'), stepEl = doc.getElementById('hcStep');
+    var flow = []; try { flow = JSON.parse(box.getAttribute('data-flow') || '[]'); } catch (e) {}
+    var total = flow.length + 1, step = 0, answers = [];
+    var lblBot = box.getAttribute('data-l-bot'), href = box.getAttribute('data-href');
+    function scrollDown() { body.scrollTop = body.scrollHeight; }
+    function setProg() { if (stepEl) stepEl.textContent = Math.min(step + 1, total); if (bar) bar.style.width = ((step + 1) / total * 100) + '%'; }
+    function botMsg(text, cb) {
+      var typ = doc.createElement('div'); typ.className = 'hc-msg hc-bot';
+      typ.innerHTML = '<div class="bub inline-flex items-center gap-2 py-3"><span class="typing inline-flex gap-1"><span></span><span></span><span></span></span></div>';
+      body.appendChild(typ); scrollDown();
+      var wait = reduce ? 0 : 650;
+      setTimeout(function () {
+        typ.remove();
+        var m = doc.createElement('div'); m.className = 'hc-msg hc-bot';
+        m.innerHTML = '<div><span class="block text-[10px] mb-1 ms-1" style="color:rgba(226,232,240,.55)">' + lblBot + '</span><div class="bub">' + text + '</div></div>';
+        body.appendChild(m); scrollDown(); cb && cb();
+      }, wait);
+    }
+    function youMsg(text) { var m = doc.createElement('div'); m.className = 'hc-msg hc-you'; m.innerHTML = '<div class="bub">' + text + '</div>'; body.appendChild(m); scrollDown(); }
+    function esc(s) { var d = doc.createElement('div'); d.textContent = s; return d.innerHTML; }
+    function renderChips(opts, onPick) {
+      chips.innerHTML = '';
+      opts.forEach(function (o, i) { var c = doc.createElement('button'); c.type = 'button'; c.className = 'hc-chip'; c.style.animationDelay = (i * 60) + 'ms'; c.textContent = o; c.addEventListener('click', function () { onPick(o); }); chips.appendChild(c); });
+    }
+    function ask() {
+      setProg();
+      if (step >= flow.length) { finish(); return; }
+      var cur = flow[step];
+      botMsg(esc(cur.q), function () {
+        renderChips(cur.a, function (choice) {
+          answers.push(choice); youMsg(esc(choice)); chips.innerHTML = ''; step++; setProg(); setTimeout(ask, reduce ? 0 : 450);
+        });
+      });
+    }
+    function finish() {
+      if (stepEl) stepEl.textContent = total; if (bar) bar.style.width = '100%';
+      botMsg(esc(box.getAttribute('data-done')), function () {
+        chips.innerHTML = '';
+        var a = doc.createElement('a'); a.href = href + (href.indexOf('?') < 0 ? '?' : '&') + 'from=hero';
+        a.className = 'btn-shine mag inline-flex items-center gap-2 rounded-xl font-bold px-6 py-3 text-sm text-white shadow-xl';
+        a.style.background = 'linear-gradient(90deg,#2563eb,#06b6d4)';
+        a.innerHTML = esc(box.getAttribute('data-cta')) + '<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+        chips.appendChild(a);
+        if (!reduce) a.addEventListener('mousemove', function (e) { var r = a.getBoundingClientRect(); a.style.transform = 'translate(' + ((e.clientX - r.left) / r.width - .5) * 8 + 'px,' + ((e.clientY - r.top) / r.height - .5) * 8 + 'px)'; });
+        a.addEventListener('mouseleave', function () { a.style.transform = ''; });
+      });
+    }
+    // ابدأ عند الظهور
+    if ('IntersectionObserver' in window && !reduce) {
+      var started = false, io = new IntersectionObserver(function (es) { es.forEach(function (en) { if (en.isIntersecting && !started) { started = true; ask(); } }); }, { threshold: 0.3 });
+      io.observe(box);
+    } else { ask(); }
+  })();
 
   /* ---- 14) تايم-لاين المحادثة الحيّة ---- */
   (function () {
