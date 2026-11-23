@@ -384,6 +384,12 @@
   // Fabric بيرسم العربي مكسور لو الخط لسه ما اتحمّلش؛ نعيد قياس كل نص بعد تحميل الخطوط
   function fcRefreshText() { if (!fc) return; fc.getObjects().forEach(function (o) { if (o.type === 'textbox' || o.type === 'i-text' || o.type === 'text') { o.set('dirty', true); if (o.initDimensions) o.initDimensions(); } }); fc.requestRenderAll(); }
   function fcEnsureFonts() { if (!document.fonts || !document.fonts.load) return Promise.resolve(); return Promise.all(['900 64px Cairo', '700 64px Cairo', '400 64px Cairo', '800 64px Alexandria', '700 64px Tajawal'].map(function (f) { return document.fonts.load(f).catch(function () {}); })); }
+  // خصائص المستند القابل للإعادة (بدون مراجع دائرية مثل dzKickRef)
+  var DOC_PROPS = ['dzLogo', 'dzBg', 'dzKick', 'dzHead', 'dzBw', 'dzSrc', 'dzBl', 'dzKw', 'selectable', 'evented', 'editable', 'direction', 'splitByGrapheme'];
+  // تصدير التصميم: صورة PNG + مستند JSON قابل للإعادة، بعد ضمان تحميل الخطوط (عشان العربي ما يطلعش مكسور)
+  function fcExport(cb) { if (!fc) { cb(null, null); return; } fc.discardActiveObject(); var z = fc.getZoom(); fc.setZoom(1); fc.setDimensions({ width: FW, height: FH });
+    var fin = function () { fcRefreshText(); fc.renderAll(); var data = fc.toDataURL({ format: 'png', multiplier: 1 }); var doc = ''; try { doc = JSON.stringify(fc.toJSON(DOC_PROPS)); } catch (e) {} fc.setZoom(z); fcFit(); cb(data, doc); };
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(fin).catch(fin); else fin(); }
   function tOpen(id) {
     if (!tMod) return; if (!window.fabric) { toast(T.err, 'error'); return; }
     var it = items.find(function (i) { return i.id === id; }); if (!it) return;
@@ -393,6 +399,11 @@
       // الكتابة المباشرة على العربي بتتكسر في Fabric، فالدبل-كليك على النص يودّي لخانة الكتابة الجانبية
       fc.on('mouse:dblclick', function (e) { var t = e && e.target; if (t && t.type === 'textbox') { fc.setActiveObject(t); fcTxtSync(); var inp = $('#dz-txt'); if (inp) { inp.disabled = false; try { inp.focus(); inp.select(); } catch (x) {} } } }); }
     fc.clear(); fc.setBackgroundImage(null, fc.renderAll.bind(fc)); fcFit();
+    // لو في مستند تصميم محفوظ (تعديل يدوي سابق) نفتحه كما هو بكل طبقاته بدل ما نعيد البناء — عشان ما «يرجعش»
+    if (it.has_doc) { post({ action: 'getdoc', id: id }).then(function (j) { if (j && j.ok && j.doc) { fc.loadFromJSON(j.doc, function () { fcFit(); fcEnsureFonts().then(function () { fcRefreshText(); fc.requestRenderAll(); }); if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { fcRefreshText(); fc.requestRenderAll(); }); fc.requestRenderAll(); }); } else tBuildFresh(it); }).catch(function () { tBuildFresh(it); }); return; }
+    tBuildFresh(it);
+  }
+  function tBuildFresh(it) {
     var acc = (P && P.accent) || '#10b981';
     var rawId = (it.media_raw || [])[0] || (it.media_ids || [])[0];
     // الصورة كاملة (full-bleed) كخلفية
@@ -441,9 +452,7 @@
     var dsz = $('#dz-size'); if (dsz) dsz.addEventListener('input', function () { var o = fcActive(); if (o && o.set && o.type === 'textbox') { o.set('fontSize', +this.value); if (o.initDimensions) o.initDimensions(); fc.requestRenderAll(); var lbl = $('#dz-size-v'); if (lbl) lbl.textContent = this.value; } });
     $('#it-save').addEventListener('click', function () {
       if (!fc) return; var id = +tMod.dataset.id, btn = this; btn.disabled = true; var old = btn.textContent; btn.textContent = T.ilBusy;
-      fc.discardActiveObject(); var z = fc.getZoom(); fc.setZoom(1); fc.setDimensions({ width: FW, height: FH }); fc.renderAll();
-      var data = fc.toDataURL({ format: 'png', multiplier: 1 }); fc.setZoom(z); fcFit();
-      post({ action: 'savecanvas', id: id, img: data }).then(function (j) { btn.disabled = false; btn.textContent = old; if (!j.ok) return toast(T.err, 'error'); tClose(); toast(T.itSaved); load(); }).catch(function () { btn.disabled = false; btn.textContent = old; toast(T.offline, 'error'); });
+      fcExport(function (data, doc) { post({ action: 'savecanvas', id: id, img: data, doc: doc }).then(function (j) { btn.disabled = false; btn.textContent = old; if (!j.ok) return toast(T.err, 'error'); tClose(); toast(T.itSaved); load(); }).catch(function () { btn.disabled = false; btn.textContent = old; toast(T.offline, 'error'); }); });
     });
     var itAll = $('#it-all');
     if (itAll) itAll.addEventListener('click', function () {
@@ -453,13 +462,12 @@
       var main = heads.sort(function (a, b) { return (b.fontSize || 0) - (a.fontSize || 0); })[0];
       var sty = {};
       if (main) { sty.txt_scale = Math.round(((main.fontSize || 80) * (main.scaleY || 1)) / (FW * 0.085) * 100); if (main.fill && typeof main.fill === 'string') sty.txt_accent = main.fill; sty.txt_align = main.textAlign || 'right'; sty.txt_y = Math.round((main.top || 0) / FH * 100); }
-      // احفظ الكانفاس الحالي أولاً ثم طبّق الستايل على الكل
-      fc.discardActiveObject(); var z = fc.getZoom(); fc.setZoom(1); fc.setDimensions({ width: FW, height: FH }); fc.renderAll();
-      var data = fc.toDataURL({ format: 'png', multiplier: 1 }); fc.setZoom(z); fcFit();
-      // الكل أولاً (يعيد تركيب كل الصور بالنمط المشترك)، ثم احفظ تصميم المنشور الحالي يدويًا فوقه
-      post({ action: 'retxt_all', id: id, txt: JSON.stringify(sty) }).then(function () {
-        return post({ action: 'savecanvas', id: id, img: data });
-      }).then(function (j) { btn.disabled = false; btn.textContent = old; if (!j || !j.ok) return toast(T.err, 'error'); tClose(); toast(T.itSaved); load(); }).catch(function () { btn.disabled = false; btn.textContent = old; toast(T.offline, 'error'); });
+      // الكل أولاً (يعيد تركيب كل الصور بالنمط المشترك)، ثم احفظ تصميم المنشور الحالي يدويًا فوقه (صورة + مستند)
+      fcExport(function (data, doc) {
+        post({ action: 'retxt_all', id: id, txt: JSON.stringify(sty) }).then(function () {
+          return post({ action: 'savecanvas', id: id, img: data, doc: doc });
+        }).then(function (j) { btn.disabled = false; btn.textContent = old; if (!j || !j.ok) return toast(T.err, 'error'); tClose(); toast(T.itSaved); load(); }).catch(function () { btn.disabled = false; btn.textContent = old; toast(T.offline, 'error'); });
+      });
     });
   }
   paintProg({}); load(); loop();

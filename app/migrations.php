@@ -1358,4 +1358,8 @@ return [
     '081_cp_item_txt' => [
         "ALTER TABLE cp_items ADD COLUMN txt_opts TEXT NULL",
     ],
+    // مستند التصميم القابل للإعادة (Fabric JSON) + قفل التعديل اليدوي: لا يُدهس عند إعادة التركيب
+    '082_cp_item_design_doc' => [
+        "ALTER TABLE cp_items ADD COLUMN design_doc MEDIUMTEXT NULL",
+    ],
 ];

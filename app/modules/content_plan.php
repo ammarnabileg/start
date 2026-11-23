@@ -53,6 +53,7 @@ function cpl_item_row(array $r): array
     $r['txt_opts'] = json_decode((string)($r['txt_opts'] ?? ''), true) ?: null;
     $mids = array_values(array_filter(array_map('intval', (array)json_decode((string)($r['media_ids'] ?? ''), true)))); if (!$mids && !empty($r['media_id'])) $mids = [(int)$r['media_id']]; $r['media_ids'] = $mids;
     $r['id'] = (int)$r['id']; $r['plan_id'] = (int)$r['plan_id']; $r['seq'] = (int)$r['seq']; $r['media_id'] = $r['media_id'] !== null ? (int)$r['media_id'] : null;
+    $r['has_doc'] = !empty($r['design_doc']) ? 1 : 0; unset($r['design_doc']); // لا نرسل المستند الكامل في القائمة (ثقيل) — فقط وجوده
     return $r;
 }
 
@@ -695,7 +696,8 @@ function cpl_jobs_finalize(int $itemId, string $kind): void
     $heads = cpl_media_headlines($it, $kind, count($raw)); // نطبع العنوان بنفسنا (عربي سليم)
     if ($kind === 'image' && !empty($tov['headline'])) $heads[0] = (string)$tov['headline']; // عنوان معدّل يدويًا
     $raw = array_values($raw); $stamped = []; foreach ($raw as $i => $m) $stamped[] = cpl_compose_media($p, $m, (string)($heads[$i] ?? ''), $lopts, $tov);
-    db()->prepare('UPDATE cp_items SET fmt = ?, media_raw = ?, media_ids = ?, media_id = ? WHERE id = ?')->execute([$kind, json_encode($raw), json_encode(array_values($stamped)), $stamped[0], $itemId]);
+    // صورة جديدة اتولّدت = أساس جديد، فنلغي مستند التصميم اليدوي القديم (ما بقاش ينطبق على الصورة الجديدة)
+    db()->prepare('UPDATE cp_items SET fmt = ?, media_raw = ?, media_ids = ?, media_id = ?, design_doc = NULL WHERE id = ?')->execute([$kind, json_encode($raw), json_encode(array_values($stamped)), $stamped[0], $itemId]);
 }
 
 /** العنوان اللي بيتطبع على كل وسيط: صورة = عنوان المنشور، كاروسيل = عنوان كل شريحة، فيديو = بدون */
@@ -743,19 +745,23 @@ function cpl_restamp_text(int $itemId, array $in): ?array
     return cpl_recompose($itemId);
 }
 
-/** يحفظ تصميمًا عدّله المستخدم في المحرّر المدمج (Fabric) كصورة ناتجة للمنشور (يُبقي الصورة الخام للتعديل لاحقًا). */
-function cpl_save_canvas(int $itemId, string $dataUrl): ?array
+/** يحفظ تصميمًا عدّله المستخدم في المحرّر المدمج (Fabric) كصورة ناتجة + مستند تصميم JSON قابل للإعادة.
+ *  وجود design_doc يقفل المنشور: لا تعيد دوال التركيب دهسه (الصورة الخام تبقى للرجوع). */
+function cpl_save_canvas(int $itemId, string $dataUrl, ?string $doc = null): ?array
 {
     $it = cpl_item($itemId); if (!$it) return null;
     if (!preg_match('~^data:image/(png|jpe?g);base64,~', $dataUrl)) return null;
     $bytes = base64_decode(substr($dataUrl, strpos($dataUrl, ',') + 1), true);
     if ($bytes === false || strlen($bytes) < 400 || strlen($bytes) > 15 * 1048576) return null;
     $wid = (int)ws('id');
+    // تحقّق من صلاحية مستند التصميم (JSON صالح وبحجم معقول) قبل تخزينه
+    $docSave = null;
+    if (is_string($doc) && $doc !== '' && strlen($doc) <= 4 * 1048576) { $dec = json_decode($doc, true); if (is_array($dec) && isset($dec['objects'])) $docSave = json_encode($dec, JSON_UNESCAPED_UNICODE); }
     $tmp = tempnam(sys_get_temp_dir(), 'cpc') . '.png'; file_put_contents($tmp, $bytes);
     try { $row = media_store_path($wid, $tmp, 'dz-' . (int)($it['seq'] ?? 0) . '-' . substr(md5(microtime(true) . random_int(0, 9999)), 0, 6) . '.png', 'image/png', media_ai_folder()); }
     catch (Throwable $e) { @unlink($tmp); return null; }
     @unlink($tmp); $mid = (int)$row['id'];
-    db()->prepare('UPDATE cp_items SET media_ids = ?, media_id = ? WHERE id = ? AND workspace_id = ?')->execute([json_encode([$mid]), $mid, $itemId, $wid]);
+    db()->prepare('UPDATE cp_items SET media_ids = ?, media_id = ?, design_doc = ? WHERE id = ? AND workspace_id = ?')->execute([json_encode([$mid]), $mid, $docSave, $itemId, $wid]);
     return cpl_item($itemId);
 }
 
@@ -774,10 +780,12 @@ function cpl_restamp_text_all(int $planId, array $in): int
     return $n;
 }
 
-/** يعيد تركيب صور المنشور من النسخ الخام بإعدادات اللوجو والنص المحفوظة على المنشور. */
-function cpl_recompose(int $itemId): ?array
+/** يعيد تركيب صور المنشور من النسخ الخام بإعدادات اللوجو والنص المحفوظة على المنشور.
+ *  يحترم قفل التعديل اليدوي: لو في مستند تصميم محفوظ (design_doc) لا يدهسه إلا بطلب صريح ($force). */
+function cpl_recompose(int $itemId, bool $force = false): ?array
 {
     $it = cpl_item($itemId); if (!$it) return null;
+    if (!$force) { $st = db()->prepare('SELECT design_doc FROM cp_items WHERE id = ? AND workspace_id = ?'); $st->execute([$itemId, (int)ws('id')]); if (trim((string)$st->fetchColumn()) !== '') return $it; } // تعديل يدوي مقفول
     $raw = $it['media_raw'] ?: $it['media_ids']; if (!$raw) return $it;
     $p = cpl_plan($it['plan_id']); if (!$p) return $it;
     $lopts = $it['logo'] ?: null; $tov = is_array($it['txt_opts']) ? $it['txt_opts'] : [];
