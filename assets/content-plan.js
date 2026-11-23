@@ -371,7 +371,15 @@
     tMod.classList.remove('hidden'); document.body.style.overflow = 'hidden';
   }
   function tClose() { if (tMod) { tMod.classList.add('hidden'); document.body.style.overflow = ''; } }
+  var tPrevT = null, tPrevReq = 0;
+  function tPreview() { if (!tMod || tMod.classList.contains('hidden')) return;
+    var id = +tMod.dataset.id; var my = ++tPrevReq;
+    var txt = { headline: tVal('t_head'), txt_pos: tVal('t_pos'), txt_size: tVal('t_size'), txt_variant: tVal('t_variant'), txt_accent: tVal('t_accent') };
+    post({ action: 'txtprev', id: id, txt: JSON.stringify(txt) }).then(function (j) { if (my !== tPrevReq || !j || !j.ok || !j.url) return; var th = $('#it-thumb'); if (th) th.style.backgroundImage = 'url("' + j.url + '")'; }).catch(function () {});
+  }
+  function tPreviewDebounced() { clearTimeout(tPrevT); tPrevT = setTimeout(tPreview, 350); }
   if (tMod) {
+    tMod.addEventListener('input', tPreviewDebounced); tMod.addEventListener('change', tPreviewDebounced);
     tMod.addEventListener('click', function (e) { if (e.target === tMod || e.target.closest('[data-tclose]')) tClose(); });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !tMod.classList.contains('hidden')) tClose(); });
     $('#it-save').addEventListener('click', function () { var id = +tMod.dataset.id; var btn = this; btn.disabled = true; var old = btn.textContent; btn.textContent = T.ilBusy;

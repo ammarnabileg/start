@@ -1000,7 +1000,7 @@ function cpl_draw_hline($im, int $size, string $font, string $line, string $key,
 
 /** يطبع العنوان على الصورة بنفسنا (عربي سليم مضمون) — محرّك تخطيط يختار مكان النص (فوق/تحت + يمين/شمال/كامل)
  *  حسب أهدأ منطقة في كل صورة، وقالبًا احترافيًا مختلفًا لكل منشور (كلمة مفتاحية ملوّنة جوّه السطر). */
-function cpl_stamp_text(array $p, int $mid, string $headline, array $ov = []): int
+function cpl_stamp_text(array $p, int $mid, string $headline, array $ov = [], bool $preview = false): int
 {
     $headline = trim($headline); if ($headline === '') return $mid;
     // الكلمة المفتاحية: الموديل بيعلّمها بـ«» — نستخرجها ونشيل العلامات. لو مفيش، ناخد آخر كلمة.
@@ -1054,7 +1054,11 @@ function cpl_stamp_text(array $p, int $mid, string $headline, array $ov = []): i
 
     $white = imagecolorallocate($im, 255, 255, 255);
     $shadow = imagecolorallocatealpha($im, 0, 0, 0, 62);
-    [$ar, $ag, $ab] = cpl_accent_rgb($p); $acc = imagecolorallocate($im, $ar, $ag, $ab);
+    // لون التمييز: تعديل المنشور ($to) له الأولوية، وإلا من هوية الشركة
+    $cAcc = (string)($to['txt_accent'] ?? '');
+    if (preg_match('/^#?([0-9a-fA-F]{6})$/', $cAcc, $cm)) { $ar = hexdec(substr($cm[1], 0, 2)); $ag = hexdec(substr($cm[1], 2, 2)); $ab = hexdec(substr($cm[1], 4, 2)); }
+    else { [$ar, $ag, $ab] = cpl_accent_rgb($p); }
+    $acc = imagecolorallocate($im, $ar, $ag, $ab);
     $lum = 0.299 * $ar + 0.587 * $ag + 0.114 * $ab; $onAcc = $lum > 150 ? imagecolorallocate($im, 12, 16, 24) : $white;
     // المحاذاة الأفقية: RTL يتحاذى لليمين، LTR لليسار — وداخل العمود المختار
     $alignRight = $rtl;
@@ -1073,8 +1077,29 @@ function cpl_stamp_text(array $p, int $mid, string $headline, array $ov = []): i
         cpl_round_box($im, (int)$kx1, $uy, (int)$kx2, $uy + $uh, (int)round($uh / 2), $acc);
     }
     $tmp = tempnam(sys_get_temp_dir(), 'cpt') . '.png'; imagepng($im, $tmp); imagedestroy($im);
+    if ($preview) { $GLOBALS['__cpl_prev'] = $tmp; return 0; } // معاينة: نرجّع المسار بدون حفظ في المكتبة
     try { $row = media_store_path($wid, $tmp, 'txt-' . preg_replace('/^(ai|logo|txt)-/', '', (string)$m['name']), 'image/png', media_ai_folder()); } catch (Throwable $e) { @unlink($tmp); return $mid; }
     @unlink($tmp); return (int)$row['id'];
+}
+
+/** معاينة حيّة: يطبع النص على الصورة الخام بالإعدادات المعطاة ويرجّع data URL مصغّر — بدون حفظ. */
+function cpl_text_preview(int $itemId, array $in): ?string
+{
+    $it = cpl_item($itemId); if (!$it) return null;
+    $raw = $it['media_raw'] ?: $it['media_ids']; if (!$raw) return null;
+    $p = cpl_plan($it['plan_id']); if (!$p) return null;
+    $ov = [];
+    foreach (['txt_pos', 'txt_size', 'txt_variant'] as $k) if (isset($in[$k])) $ov[$k] = (string)$in[$k];
+    if (isset($in['txt_accent']) && preg_match('/^#?[0-9a-fA-F]{6}$/', (string)$in['txt_accent']) && strtolower(ltrim((string)$in['txt_accent'], '#')) !== '10b981') $ov['txt_accent'] = '#' . ltrim((string)$in['txt_accent'], '#');
+    $head = array_key_exists('headline', $in) ? trim((string)$in['headline']) : (string)($it['headline'] ?? '');
+    unset($GLOBALS['__cpl_prev']);
+    cpl_stamp_text($p, (int)$raw[0], $head, $ov, true);
+    $path = $GLOBALS['__cpl_prev'] ?? ''; unset($GLOBALS['__cpl_prev']); if (!$path || !is_file($path)) return null;
+    // تصغير للنقل السريع (≈560 عرض)
+    $im = @imagecreatefrompng($path);
+    if ($im) { $w = imagesx($im); $h = imagesy($im); $nw = 560; $nh = (int)round($h * $nw / max(1, $w)); $sc = imagescale($im, $nw, $nh); if ($sc) { $t2 = tempnam(sys_get_temp_dir(), 'cpv') . '.png'; imagepng($sc, $t2, 7); imagedestroy($sc); imagedestroy($im); @unlink($path); $path = $t2; } else imagedestroy($im); }
+    $b64 = base64_encode((string)file_get_contents($path)); @unlink($path);
+    return 'data:image/png;base64,' . $b64;
 }
 
 /** يركّب نسخة العرض من الصورة الخام: نطبع العنوان بنفسنا ثم اللوجو فوقه. */
