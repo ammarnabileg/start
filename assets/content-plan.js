@@ -260,8 +260,7 @@
     var rawId = (it.media_raw || [])[0] || ms[0];
     return '<div class="mt-3 rounded-xl border border-ink-200 p-3"><div class="flex flex-wrap items-center gap-2 mb-2"><b class="text-xs text-ink-500">' + esc(fm) + '</b>' + chips
       + (canTxt || canLogo ? '<span class="flex-1"></span>' : '')
-      + (canTxt ? '<a href="' + esc(designerUrl(rawId, it.headline)) + '" class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold bg-brand-600 text-[#fff] hover:bg-brand-700">🎨 ' + esc(T.openDesigner) + '</a>' : '')
-      + (canTxt ? '<button type="button" data-itxt-open class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs bg-ink-100 text-ink-700 hover:bg-ink-200">✏️ ' + esc(T.itAdj) + '</button>' : '')
+      + (canTxt ? '<button type="button" data-itxt-open class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold bg-brand-600 text-[#fff] hover:bg-brand-700">🎨 ' + esc(T.itAdj) + '</button>' : '')
       + (canLogo ? '<button type="button" data-ilogo-open class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs bg-ink-100 text-ink-700 hover:bg-ink-200">🏷 ' + esc(T.ilAdj) + '</button>' : '') + '</div>'
       + (ms.length ? '<div class="flex flex-wrap gap-2">' + ms.map(function (m) { return it.fmt === 'video' ? '<video src="' + esc(murl(m)) + '" controls preload="metadata" playsinline class="w-36 h-48 rounded-lg bg-ink-900 border border-ink-200 object-cover"></video>' : '<a href="' + esc(murl(m)) + '" target="_blank"><img src="' + esc(murl(m, 1)) + '" class="w-24 h-32 object-cover rounded-lg border border-ink-200" alt=""></a>'; }).join('') + '</div>' : '') + '</div>';
   }
@@ -361,55 +360,42 @@
       post({ action: 'logo', id: iState.id, logo: JSON.stringify(lopts) }).then(function (j) { btn.disabled = false; btn.textContent = old;
         if (!j.ok) return toast(T.err, 'error'); iClose(); toast(T.ilSaved); load(); }).catch(function () { btn.disabled = false; btn.textContent = old; toast(T.offline, 'error'); }); });
   }
-  /* ---------- محرر النص لكل صورة ---------- */
-  var tMod = $('#cp-itxt');
-  function tVal(n) { return ((tMod && tMod.querySelector('[name=' + n + ']')) || {}).value; }
-  function tSet(n, v) { var s = tMod && tMod.querySelector('[name=' + n + ']'); if (s) s.value = v; }
-  function tAlign() { var r = tMod && tMod.querySelector('[name=t_align]:checked'); return r ? r.value : 'auto'; }
-  function tSetRadio(n, v) { var r = tMod && tMod.querySelector('[name=' + n + '][value="' + v + '"]'); if (r) r.checked = true; }
-  function tScaleLabel() { var b = $('#t-scale-v'); if (b) b.textContent = (tVal('t_scale') || 100) + '%'; }
-  function tPayload(withHead) { var o = { txt_pos: tVal('t_pos'), txt_scale: +tVal('t_scale') || 100, txt_align: tAlign(), txt_variant: tVal('t_variant'), txt_accent: tVal('t_accent'), txt_y: (tMod && tMod.dataset.ty !== '' && tMod.dataset.ty != null) ? +tMod.dataset.ty : '' }; if (withHead) o.headline = tVal('t_head'); return o; }
-  function tOpen(id) { if (!tMod) return; var it = items.find(function (i) { return i.id === id; }); if (!it) return;
-    tMod.dataset.id = id; var to = it.txt_opts || {};
-    tSet('t_head', String(to.headline != null ? to.headline : (it.headline || '')).replace(/[«»]/g, ''));
-    tSet('t_pos', to.txt_pos || 'auto'); tSet('t_variant', to.txt_variant || 'auto');
-    tSet('t_scale', to.txt_scale || 100); tSetRadio('t_align', to.txt_align || 'auto'); tScaleLabel();
-    tMod.dataset.ty = (to.txt_y != null) ? to.txt_y : '';
-    tSet('t_accent', to.txt_accent || '#10b981');
-    var th = $('#it-thumb'), m = (it.media_ids || [])[0]; if (th) th.style.backgroundImage = m ? 'url("' + esc(murl(m, 1)) + '")' : '';
-    tMod.classList.remove('hidden'); document.body.style.overflow = 'hidden';
-    tPreview(); // معاينة فورية تعكس الإعدادات الحالية
+  /* ---------- محرّر التصميم المدمج (Fabric) داخل البوب أب ---------- */
+  var tMod = $('#cp-itxt'), fc = null, FW = 1080, FH = 1350, FONTS = ['Cairo', 'Alexandria', 'Tajawal', 'Almarai', 'Changa'];
+  function fcFit() { if (!fc) return; var el = $('#it-canvas'); var dw = (el.parentNode.clientWidth) || 420; fc.setZoom(dw / FW); fc.setDimensions({ width: dw, height: Math.round(dw * FH / FW) }); }
+  function fcActive() { return fc && fc.getActiveObject(); }
+  function tOpen(id) {
+    if (!tMod) return; if (!window.fabric) { toast(T.err, 'error'); return; }
+    var it = items.find(function (i) { return i.id === id; }); if (!it) return;
+    tMod.dataset.id = id; tMod.classList.remove('hidden'); document.body.style.overflow = 'hidden';
+    if (!fc) fc = new fabric.Canvas('it-canvas', { backgroundColor: '#0b1220', preserveObjectStacking: true, allowTouchScrolling: false });
+    fc.clear(); fc.setBackgroundImage(null, fc.renderAll.bind(fc)); fcFit();
+    var rawId = (it.media_raw || [])[0] || (it.media_ids || [])[0];
+    if (rawId) fabric.Image.fromURL(murl(rawId), function (im) { if (!im || !im.width) return; var k = Math.max(FW / im.width, FH / im.height); im.set({ scaleX: k, scaleY: k, originX: 'center', originY: 'center', left: FW / 2, top: FH / 2 }); fc.setBackgroundImage(im, fc.renderAll.bind(fc)); }, { crossOrigin: 'anonymous' });
+    var head = String(it.headline || '').replace(/[«»]/g, '') || 'عنوان';
+    var tb = new fabric.Textbox(head, { left: FW * 0.08, top: FH * 0.07, width: FW * 0.84, fontSize: Math.round(FW * 0.085), fill: '#ffffff', fontWeight: '900', fontFamily: 'Cairo', textAlign: 'right', direction: 'rtl' });
+    fc.add(tb); fc.setActiveObject(tb); fc.requestRenderAll();
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (fc) fc.requestRenderAll(); });
   }
   function tClose() { if (tMod) { tMod.classList.add('hidden'); document.body.style.overflow = ''; } }
-  var tPrevT = null, tPrevReq = 0;
-  function tPreview() { if (!tMod || tMod.classList.contains('hidden')) return;
-    var id = +tMod.dataset.id; var my = ++tPrevReq;
-    post({ action: 'txtprev', id: id, txt: JSON.stringify(tPayload(true)) }).then(function (j) { if (my !== tPrevReq || !j || !j.ok || !j.url) return; var th = $('#it-thumb'); if (th) th.style.backgroundImage = 'url("' + j.url + '")'; }).catch(function () {});
-  }
-  function tPreviewDebounced() { tScaleLabel(); clearTimeout(tPrevT); tPrevT = setTimeout(tPreview, 350); }
   if (tMod) {
-    tMod.addEventListener('input', tPreviewDebounced); tMod.addEventListener('change', tPreviewDebounced);
-    // اختيار مكان من القائمة يلغي السحب الحرّ
-    var tp = tMod.querySelector('[name=t_pos]'); if (tp) tp.addEventListener('change', function () { tMod.dataset.ty = ''; });
-    // سحب النص لأعلى/أسفل على الصورة
-    var th = $('#it-thumb'), tDrag = false;
-    function thY(e) { var r = th.getBoundingClientRect(); var y = Math.min(92, Math.max(2, Math.round((e.clientY - r.top) / r.height * 100))); tMod.dataset.ty = y; tPreviewDebounced(); }
-    if (th) {
-      th.addEventListener('pointerdown', function (e) { e.preventDefault(); tDrag = true; th.setPointerCapture(e.pointerId); thY(e); });
-      th.addEventListener('pointermove', function (e) { if (tDrag) thY(e); });
-      th.addEventListener('pointerup', function () { tDrag = false; });
-      th.addEventListener('pointercancel', function () { tDrag = false; });
-    }
-    tMod.addEventListener('click', function (e) { if (e.target === tMod || e.target.closest('[data-tclose]')) tClose(); });
+    window.addEventListener('resize', function () { if (!tMod.classList.contains('hidden')) fcFit(); });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !tMod.classList.contains('hidden')) tClose(); });
-    $('#it-save').addEventListener('click', function () { var id = +tMod.dataset.id; var btn = this; btn.disabled = true; var old = btn.textContent; btn.textContent = T.ilBusy;
-      post({ action: 'retxt', id: id, txt: JSON.stringify(tPayload(true)) }).then(function (j) { btn.disabled = false; btn.textContent = old;
-        if (!j.ok) return toast(T.err, 'error'); tClose(); toast(T.itSaved); load(); }).catch(function () { btn.disabled = false; btn.textContent = old; toast(T.offline, 'error'); }); });
-    $('#it-all').addEventListener('click', function () { var btn = this;
-      (window.fxAsk ? fxAsk(T.itAllAsk) : Promise.resolve(confirm(T.itAllAsk))).then(function (ok) { if (!ok) return;
-        btn.disabled = true; var old = btn.textContent; btn.textContent = T.ilBusy;
-        post({ action: 'retxt_all', txt: JSON.stringify(tPayload(false)) }).then(function (j) { btn.disabled = false; btn.textContent = old;
-          if (!j.ok) return toast(T.err, 'error'); tClose(); toast(fmt(T.itAllDone, j.n)); load(); }).catch(function () { btn.disabled = false; btn.textContent = old; toast(T.offline, 'error'); }); }); });
+    tMod.addEventListener('click', function (e) {
+      if (e.target === tMod || e.target.closest('[data-tclose]')) return tClose();
+      var b = e.target.closest('[data-dz]'); if (!b || !fc) return; var cmd = b.dataset.dz, o = fcActive();
+      if (cmd === 'addtext') { var nt = new fabric.Textbox('نص جديد', { left: FW * 0.12, top: FH * 0.42, width: FW * 0.6, fontSize: Math.round(FW * 0.06), fill: ($('#dz-color') || {}).value || '#ffffff', fontFamily: 'Cairo', fontWeight: '700', textAlign: 'right', direction: 'rtl' }); fc.add(nt); fc.setActiveObject(nt); fc.requestRenderAll(); }
+      else if (cmd === 'del' && o) { fc.remove(o); fc.requestRenderAll(); }
+      else if (cmd === 'bold' && o && o.set) { o.set('fontWeight', (o.fontWeight === '900' || o.fontWeight === 'bold') ? '400' : '900'); fc.requestRenderAll(); }
+      else if (cmd === 'font' && o && o.set) { var i = (FONTS.indexOf(o.fontFamily) + 1) % FONTS.length; o.set('fontFamily', FONTS[i]); fc.requestRenderAll(); toast(FONTS[i], 'info'); }
+    });
+    var dc = $('#dz-color'); if (dc) dc.addEventListener('input', function () { var o = fcActive(); if (o && o.set) { o.set('fill', this.value); fc.requestRenderAll(); } });
+    $('#it-save').addEventListener('click', function () {
+      if (!fc) return; var id = +tMod.dataset.id, btn = this; btn.disabled = true; var old = btn.textContent; btn.textContent = T.ilBusy;
+      fc.discardActiveObject(); var z = fc.getZoom(); fc.setZoom(1); fc.setDimensions({ width: FW, height: FH }); fc.renderAll();
+      var data = fc.toDataURL({ format: 'png', multiplier: 1 }); fc.setZoom(z); fcFit();
+      post({ action: 'savecanvas', id: id, img: data }).then(function (j) { btn.disabled = false; btn.textContent = old; if (!j.ok) return toast(T.err, 'error'); tClose(); toast(T.itSaved); load(); }).catch(function () { btn.disabled = false; btn.textContent = old; toast(T.offline, 'error'); });
+    });
   }
   paintProg({}); load(); loop();
 })();

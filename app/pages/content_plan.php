@@ -60,6 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($a === 'retxt') { $it = cpl_item((int)($_POST['id'] ?? 0)); if (!$it || $it['plan_id'] !== $pid) $J(['ok' => false], 404); session_write_close(); $r = cpl_restamp_text($it['id'], (array)json_decode((string)($_POST['txt'] ?? '{}'), true)); $J(['ok' => true, 'item' => $r]); }
         if ($a === 'txtprev') { $it = cpl_item((int)($_POST['id'] ?? 0)); if (!$it || $it['plan_id'] !== $pid) $J(['ok' => false], 404); session_write_close(); $url = cpl_text_preview($it['id'], (array)json_decode((string)($_POST['txt'] ?? '{}'), true)); $J(['ok' => (bool)$url, 'url' => $url]); }
         if ($a === 'retxt_all') { session_write_close(); @set_time_limit(300); $n = cpl_restamp_text_all($pid, (array)json_decode((string)($_POST['txt'] ?? '{}'), true)); $J(['ok' => true, 'n' => $n]); }
+        if ($a === 'savecanvas') { $it = cpl_item((int)($_POST['id'] ?? 0)); if (!$it || $it['plan_id'] !== $pid) $J(['ok' => false], 404); session_write_close(); $r = cpl_save_canvas($it['id'], (string)($_POST['img'] ?? '')); $J(['ok' => (bool)$r, 'item' => $r]); }
         if ($a === 'set') { $ids = array_map('intval', (array)json_decode((string)($_POST['ids'] ?? '[]'), true)); $J(['ok' => true, 'n' => cpl_set_status($ids, (string)($_POST['status'] ?? ''))]); }
         if ($a === 'save') { $it = cpl_item((int)($_POST['id'] ?? 0)); if (!$it || $it['plan_id'] !== $pid) $J(['ok' => false, 'error' => t('طلب غير صحيح.')], 404); cpl_save_item($it['id'], (array)json_decode((string)($_POST['f'] ?? '{}'), true)); $J(['ok' => true, 'item' => cpl_item($it['id'])]); }
         if ($a === 'regen') {
@@ -86,7 +87,7 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
         'uploading' => t('جارٍ رفع الصور…'), 'imported' => t('تم تحديث %s منشور من الملف (تخطّينا %s).'), 'needGoal' => t('اكتب هدف الحملة.'), 'draftRestored' => t('استرجعنا المسودة التي لم تُرسل.'), 'refMax' => t('حتى 12 صورة.'), 'uploaded' => t('تم رفع الصور.'), 'sum' => ['goal' => t('الهدف'), 'count' => t('عدد المنشورات'), 'aud' => t('الجمهور'), 'svc' => t('الخدمات'), 'lang' => t('اللغة'), 'dial' => t('اللهجة'), 'tone' => t('النبرة'), 'cta' => t('الدعوة للإجراء'), 'refs' => t('صور مرجعية'), 'logo' => t('اللوجو'), 'none' => t('—'), 'on' => t('مركّب'), 'off' => t('بدون'), 'li' => 'LinkedIn', 'x' => 'X', 'img' => t('الصور'), 'vo' => t('الصوت')], 'langN' => ['ar' => t('عربي'), 'en' => 'English', 'both' => t('عربي + English'), 'ar_en' => t('عربي + إنجليزي'), 'en_ar' => t('إنجليزي + عربي'), 'none' => t('بدون نص')], 'dialEx' => ['msa' => t('مثال: نساعد فرق المشتريات على تقليل وقت التوريد دون التضحية بالجودة.'), 'saudi' => t('مثال: نساعد فريق المشتريات يختصر وقت التوريد بدون ما يضحّي بالجودة.'), 'gulf' => t('مثال: نساعد فريق المشتريات يختصر وقت التوريد من دون ما يتأثر المستوى.'), 'emirati' => t('مثال: نساعد فريق المشتريات يختصر وقت التوريد بدون ما تتأثر الجودة.'), 'kuwaiti' => t('مثال: نساعد فريق المشتريات يختصر وقت التوريد بدون ما تنزل الجودة.'), 'egyptian' => t('مثال: بنساعد فريق المشتريات يختصر وقت التوريد من غير ما الجودة تتأثر.'), 'levantine' => t('مثال: منساعد فريق المشتريات يختصر وقت التوريد بدون ما تتأثر الجودة.'), 'maghrebi' => t('مثال: نعاونو فريق المشتريات باش يختصر وقت التوريد بلا ما تنقص الجودة.'), 'white' => t('مثال: نساعد فريق المشتريات يختصر وقت التوريد بدون ما تتأثر الجودة.'), 'other' => t('اكتب اللهجة أو الأسلوب الذي تريده في الخانة.')], 'fSel' => t('%s محدد'), 'genAsk' => t('توليد %s لـ %s منشور؟ يُخصم من رصيد مزوّد الصور/الفيديو.'), 'genOne' => t('توليد'), 'kImage' => t('صورة'), 'kVideo' => t('فيديو'), 'kCarousel' => t('كاروسيل (5 صور)'), 'genAdded' => t('بدأ التوليد: %s مهمة. يكمل في الخلفية حتى لو أغلقت الصفحة.'), 'genNone' => t('لا شيء جديد للتوليد (ربما قيد التوليد بالفعل، أو لا يوجد كاروسيل).'),
         'jBusy' => t('جارٍ التوليد'), 'jDone' => t('جاهز'), 'jFail' => t('فشل'), 'toBankOne' => t('إرسال للمخزون'), 'fmtText' => t('نص فقط'), 'useFmt' => t('اضغط لاستخدام هذا الشكل في النشر'), 'inUse' => t('المستخدم في النشر'), 'sent' => t('أُرسل %s منشور للمخزون.'), 'logT' => t('سجل التنفيذ المباشر'), 'srcBg' => t('خلفية'), 'srcPage' => t('الصفحة'), 'elapsed' => t('%s ثانية'), 'busyBg' => t('خطوة تعمل في الخلفية، ننتظرها'), 'pdfPages' => t('جارٍ تحويل صفحات PDF إلى صور…'), 'qc' => t('فحص الجودة:'), 'cats' => array_map('t', cpl_categories()),
         'ilAdj' => t('اضبط اللوجو'), 'ilTitle' => t('ضبط اللوجو على هذه الصورة'), 'ilHint' => t('اسحب اللوجو لأي مكان — حتى خارج حدود الصورة. الخط المتقطع = المنطقة الآمنة.'), 'ilSize' => t('الحجم'), 'ilOp' => t('الشفافية'), 'ilColor' => t('لون اللوجو'), 'ilPlate' => t('خلفية خلف اللوجو'), 'ilSave' => t('حفظ'), 'ilSaved' => t('تم تحديث اللوجو على الصورة.'), 'ilNone' => t('لا يوجد لوجو في ملف الشركة.'), 'ilBusy' => t('جارٍ إعادة التركيب…'),
-        'itAdj' => t('اضبط سريع'), 'openDesigner' => t('افتح في المصمم'), 'itSaved' => t('تم تحديث النص على الصورة.'), 'itAllAsk' => t('تطبيق المكان والحجم والنمط واللون على كل التصاميم؟ (يبقى نصّ كل منشور كما هو)'), 'itAllDone' => t('تم تطبيق الإعدادات على %s تصميم.'),
+        'itAdj' => t('صمّم'), 'itSaved' => t('تم حفظ التصميم ✓'), 'itAllAsk' => t('تطبيق المكان والحجم والنمط واللون على كل التصاميم؟ (يبقى نصّ كل منشور كما هو)'), 'itAllDone' => t('تم تطبيق الإعدادات على %s تصميم.'),
         'ilTint' => ['orig' => t('الأصلي'), 'white' => t('أبيض'), 'black' => t('أسود')], 'ilPlateV' => ['none' => t('بدون'), 'light' => t('فاتحة'), 'dark' => t('داكنة')],
     ];
     
@@ -139,33 +140,18 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
     </div>
     <div id="cp-itxt" class="hidden fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm grid place-items-center p-4" dir="rtl">
       <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[92vh] overflow-auto">
-        <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-ink-100 sticky top-0 bg-white z-10"><b class="text-ink-900"><?= e($T['itAdj']) ?></b><div class="flex gap-2"><button type="button" data-tclose class="btn-ghost !py-1.5 !px-3 text-sm whitespace-nowrap"><?= e(t('إلغاء')) ?></button><button type="button" id="it-all" class="btn-ghost !py-1.5 !px-3 text-sm whitespace-nowrap"><?= e(t('تطبيق على الكل')) ?></button><button type="button" id="it-save" class="btn-primary !py-1.5 !px-4 text-sm whitespace-nowrap"><?= e(t('حفظ')) ?></button></div></div>
-        <div class="p-4 flex flex-col sm:flex-row items-stretch gap-4">
-          <div class="shrink-0 self-center sm:self-start">
-            <div id="it-thumb" class="w-64 max-w-[78vw] aspect-[4/5] rounded-xl border border-ink-200 bg-contain bg-no-repeat bg-center bg-ink-900 select-none touch-none cursor-ns-resize"></div>
-            <p class="text-[11px] text-ink-400 text-center mt-1"><?= e(t('اسحب لأعلى/أسفل لتحريك النص على الصورة')) ?></p>
+        <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-ink-100 sticky top-0 bg-white z-10"><b class="text-ink-900"><?= e(t('محرّر التصميم')) ?></b><div class="flex gap-2"><button type="button" data-tclose class="btn-ghost !py-1.5 !px-3 text-sm whitespace-nowrap"><?= e(t('إلغاء')) ?></button><button type="button" id="it-save" class="btn-primary !py-1.5 !px-4 text-sm whitespace-nowrap"><?= e(t('حفظ')) ?></button></div></div>
+        <div class="p-3">
+          <div class="flex flex-wrap items-center gap-1.5 mb-3 text-sm">
+            <button type="button" data-dz="addtext" class="btn-ghost !py-1.5 !px-3">➕ <?= e(t('نص')) ?></button>
+            <label class="inline-flex items-center gap-1 rounded-xl border border-ink-200 px-2 py-1 cursor-pointer"><?= e(t('لون')) ?> <input type="color" id="dz-color" value="#ffffff" class="w-6 h-6 border-0 bg-transparent p-0 cursor-pointer"></label>
+            <button type="button" data-dz="bold" class="btn-ghost !py-1.5 !px-3 font-black">B</button>
+            <button type="button" data-dz="font" class="btn-ghost !py-1.5 !px-3"><?= e(t('الخط')) ?></button>
+            <button type="button" data-dz="del" class="btn-ghost !py-1.5 !px-3 text-red-600">🗑</button>
+            <span class="text-[11px] text-ink-400 w-full sm:w-auto"><?= e(t('اسحب النص وكبّره بالمقابض · دبل-كليك لتعديل الكتابة')) ?></span>
           </div>
-          <div class="space-y-3 text-sm min-w-0 flex-1">
-            <label class="block"><span class="text-xs text-ink-500"><?= e(t('نص العنوان')) ?></span>
-              <textarea name="t_head" rows="3" class="input !py-2" dir="auto" placeholder="<?= e(t('اكتب العنوان… ضع «» حول الكلمة المميّزة')) ?>"></textarea>
-              <span class="text-[11px] text-ink-400"><?= e(t('الكلمة الموضوعة بين «» تُلوَّن. مثال: «راقب» الشبكة')) ?></span></label>
-            <label class="block"><span class="text-xs text-ink-500 flex justify-between"><span><?= e(t('حجم النص')) ?></span><b id="t-scale-v" class="tabular-nums">100%</b></span>
-              <input type="range" name="t_scale" min="50" max="180" value="100" class="w-full accent-brand-600"></label>
-            <div><span class="text-xs text-ink-500 block mb-1"><?= e(t('المحاذاة')) ?></span>
-              <div class="grid grid-cols-4 gap-1.5" dir="ltr">
-                <?php foreach (['right' => '⇥', 'center' => '≡', 'left' => '⇤', 'auto' => t('تلقائي')] as $av => $al): ?>
-                <label class="cursor-pointer"><input type="radio" name="t_align" value="<?= e($av) ?>" class="peer sr-only"<?= $av === 'auto' ? ' checked' : '' ?>><span class="flex items-center justify-center h-9 rounded-lg border border-ink-200 text-sm hover:border-brand-300 peer-checked:border-brand-500 peer-checked:bg-brand-50"><?= e($al) ?></span></label>
-                <?php endforeach; ?>
-              </div></div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <label class="block"><span class="text-xs text-ink-500 block mb-1"><?= e(t('مكان النص')) ?></span>
-                <select name="t_pos" class="input !py-2 w-full"><option value="auto"><?= e(t('تلقائي')) ?></option><option value="top"><?= e(t('فوق')) ?></option><option value="bottom"><?= e(t('تحت')) ?></option></select></label>
-              <label class="block"><span class="text-xs text-ink-500 block mb-1"><?= e(t('نمط التمييز')) ?></span>
-                <select name="t_variant" class="input !py-2 w-full"><option value="auto"><?= e(t('تلقائي')) ?></option><option value="color"><?= e(t('كلمة ملوّنة')) ?></option><option value="underline"><?= e(t('كلمة + خط تحتها')) ?></option><option value="box"><?= e(t('خلفية ملوّنة')) ?></option></select></label>
-              <label class="block sm:col-span-2"><span class="text-xs text-ink-500 block mb-1"><?= e(t('لون التمييز')) ?></span>
-                <input type="color" name="t_accent" value="#10b981" class="h-10 w-full rounded-lg border border-ink-200 p-0.5 bg-white cursor-pointer"></label>
-            </div>
-            <p class="text-[11px] text-ink-400"><?= e(t('تتحدّث المعاينة فورًا، وتُطبَّق على الصورة بعد الحفظ.')) ?></p>
+          <div class="mx-auto" style="width:min(86vw,440px)">
+            <canvas id="it-canvas" class="rounded-xl border border-ink-200 w-full touch-none bg-ink-900"></canvas>
           </div>
         </div>
       </div>
@@ -438,6 +424,7 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
     <?php $cfg['media'] = url('media'); ?><script>window.CP = <?= json_encode($cfg, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;</script>
     <?php if (!$plan): ?><script src="assets/extract.js?v=<?= e(APP_VERSION) ?>"></script><?php endif; ?>
     <?php if (!$plan): ?><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&family=Alexandria:wght@400;700&family=Tajawal:wght@400;700&family=Almarai:wght@400;700&family=Changa:wght@400;700&family=El+Messiri:wght@400;700&family=Reem+Kufi:wght@400;700&family=Amiri:wght@400;700&family=Lateef&family=IBM+Plex+Sans+Arabic:wght@400;700&display=swap" rel="stylesheet"><?php endif; ?>
+    <?php if ($plan): ?><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&family=Alexandria:wght@400;700;800&display=swap" rel="stylesheet"><script src="assets/vendor/fabric-5.3.0.min.js"></script><?php endif; ?>
     <script src="assets/content-plan.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
 });

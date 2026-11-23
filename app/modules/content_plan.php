@@ -740,6 +740,22 @@ function cpl_restamp_text(int $itemId, array $in): ?array
     return cpl_recompose($itemId);
 }
 
+/** يحفظ تصميمًا عدّله المستخدم في المحرّر المدمج (Fabric) كصورة ناتجة للمنشور (يُبقي الصورة الخام للتعديل لاحقًا). */
+function cpl_save_canvas(int $itemId, string $dataUrl): ?array
+{
+    $it = cpl_item($itemId); if (!$it) return null;
+    if (!preg_match('~^data:image/(png|jpe?g);base64,~', $dataUrl)) return null;
+    $bytes = base64_decode(substr($dataUrl, strpos($dataUrl, ',') + 1), true);
+    if ($bytes === false || strlen($bytes) < 400 || strlen($bytes) > 15 * 1048576) return null;
+    $wid = (int)ws('id');
+    $tmp = tempnam(sys_get_temp_dir(), 'cpc') . '.png'; file_put_contents($tmp, $bytes);
+    try { $row = media_store_path($wid, $tmp, 'dz-' . (int)($it['seq'] ?? 0) . '-' . substr(md5(microtime(true) . random_int(0, 9999)), 0, 6) . '.png', 'image/png', media_ai_folder()); }
+    catch (Throwable $e) { @unlink($tmp); return null; }
+    @unlink($tmp); $mid = (int)$row['id'];
+    db()->prepare('UPDATE cp_items SET media_ids = ?, media_id = ? WHERE id = ? AND workspace_id = ?')->execute([json_encode([$mid]), $mid, $itemId, $wid]);
+    return cpl_item($itemId);
+}
+
 /** يطبّق إعدادات النص (مكان/حجم/نمط/لون — بدون العنوان) على كل صور الخطة ويعيد تركيبها. يرجّع العدد. */
 function cpl_restamp_text_all(int $planId, array $in): int
 {
