@@ -386,6 +386,12 @@
       var txt = { headline: tVal('t_head'), txt_pos: tVal('t_pos'), txt_size: tVal('t_size'), txt_variant: tVal('t_variant'), txt_accent: tVal('t_accent') };
       post({ action: 'retxt', id: id, txt: JSON.stringify(txt) }).then(function (j) { btn.disabled = false; btn.textContent = old;
         if (!j.ok) return toast(T.err, 'error'); tClose(); toast(T.itSaved); load(); }).catch(function () { btn.disabled = false; btn.textContent = old; toast(T.offline, 'error'); }); });
+    $('#it-all').addEventListener('click', function () { var btn = this;
+      (window.fxAsk ? fxAsk(T.itAllAsk) : Promise.resolve(confirm(T.itAllAsk))).then(function (ok) { if (!ok) return;
+        btn.disabled = true; var old = btn.textContent; btn.textContent = T.ilBusy;
+        var txt = { txt_pos: tVal('t_pos'), txt_size: tVal('t_size'), txt_variant: tVal('t_variant'), txt_accent: tVal('t_accent') };
+        post({ action: 'retxt_all', txt: JSON.stringify(txt) }).then(function (j) { btn.disabled = false; btn.textContent = old;
+          if (!j.ok) return toast(T.err, 'error'); tClose(); toast(fmt(T.itAllDone, j.n)); load(); }).catch(function () { btn.disabled = false; btn.textContent = old; toast(T.offline, 'error'); }); }); });
   }
   paintProg({}); load(); loop();
 })();

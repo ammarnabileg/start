@@ -734,6 +734,21 @@ function cpl_restamp_text(int $itemId, array $in): ?array
     return cpl_recompose($itemId);
 }
 
+/** يطبّق إعدادات النص (مكان/حجم/نمط/لون — بدون العنوان) على كل صور الخطة ويعيد تركيبها. يرجّع العدد. */
+function cpl_restamp_text_all(int $planId, array $in): int
+{
+    $p = cpl_plan($planId); if (!$p) return 0;
+    unset($in['headline']); // العنوان خاص بكل منشور؛ «الكل» يشارك الإعدادات فقط
+    $st = db()->prepare('SELECT id FROM cp_items WHERE plan_id = ? AND workspace_id = ? AND fmt = "image"'); $st->execute([$planId, (int)ws('id')]);
+    $n = 0;
+    foreach ($st->fetchAll(PDO::FETCH_COLUMN) as $iid) {
+        $it = cpl_item((int)$iid); if (!$it) continue;
+        $raw = $it['media_raw'] ?: $it['media_ids']; if (!$raw) continue;
+        cpl_restamp_text((int)$iid, $in); $n++;
+    }
+    return $n;
+}
+
 /** يعيد تركيب صور المنشور من النسخ الخام بإعدادات اللوجو والنص المحفوظة على المنشور. */
 function cpl_recompose(int $itemId): ?array
 {
