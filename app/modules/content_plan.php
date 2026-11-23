@@ -315,7 +315,7 @@ function cpl_do_outline(array $p): void
     $sys = "CONTENT_PLAN_OUTLINE_JSON\n" . cpl_rules($p) . "\n\nSTEP 1 OF 2: STRATEGY. Plan {$n} distinct posts (topics only, no copy yet). Cover the strategic mix across the plan and prioritize services by their commercial importance in the KB."
         . "\nReturn ONLY JSON: {\"topics\":[{\"title\":\"the strong, distinctive hook\",\"angle\":\"one sentence: the specific insight or argument of this post\",\"category\":\"" . implode('|', array_keys(cpl_categories())) . "\",\"service\":\"the relevant product/service exactly as named in the KB\",\"audience\":\"the specific decision-maker this post targets\",\"objective\":\"awareness|engagement|consideration|leads|conversion\"}]} with exactly {$n} items, ordered as a smart publishing sequence. No two topics may share the same hook or argument.";
     cpl_log((int)$p['id'], t('تخطيط %s موضوع بالاستراتيجية من ملف الشركة والهدف… (قد يستغرق دقيقة أو أكثر)', $n)); $to = microtime(true);
-    $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => cpl_brief($p)]], min(8000, 400 + $n * 110), 'compose');
+    $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => cpl_brief($p)]], min(8000, 400 + $n * 110), 'cp_plan');
     $j = kb_parse_json((string)($r['text'] ?? '')); $topics = array_values(array_filter((array)($j['topics'] ?? []), 'is_array'));
     if (!$topics) throw new RuntimeException(t('لم يُرجع الذكاء الاصطناعي مواضيع صالحة. حاول مرة أخرى.'));
     $topics = array_slice($topics, 0, $n);
@@ -405,7 +405,7 @@ function cpl_do_fix(array $p, array $it): void
     $sys = "CONTENT_FIX_JSON\n" . cpl_rules($p) . "\n\nQUALITY FIX: the post below failed these measurable checks: " . implode('; ', $it['qc'])
         . ".\nRewrite ONLY the sections needed so every check passes (LinkedIn 130-220 words with hashtags, X max 280 characters with hashtags, headline 2-6 words, image prompt 120-200 words, video prompt complete, carousel exactly 5 slides Hook/Problem/Insight/Solution/CTA, no placeholders; for a duplicate topic or headline, choose a clearly different angle, headline and visual concept). Keep everything that already passes, keep the facts, never invent new ones."
         . "\nReturn ONLY JSON with the corrected fields among: {\"linkedin\",\"x\",\"headline\",\"image_prompt\",\"video_prompt\",\"carousel\":[{\"role\",\"title\",\"body\",\"visual\",\"layout\"}],\"title\",\"angle\"}.";
-    $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => cpl_brief($p) . "\n\nPost to fix:\n" . json_encode($cur, JSON_UNESCAPED_UNICODE)]], 6000, 'compose');
+    $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => cpl_brief($p) . "\n\nPost to fix:\n" . json_encode($cur, JSON_UNESCAPED_UNICODE)]], 6000, 'cp_edit');
     $j = kb_parse_json((string)($r['text'] ?? '')); if (!$j) throw new RuntimeException(t('رد التصحيح غير صالح. سنعيد المحاولة.'));
     $f = []; foreach (['linkedin' => 6000, 'x' => 600, 'headline' => 120, 'image_prompt' => 6000, 'video_prompt' => 8000] as $k => $mx) if (trim((string)($j[$k] ?? '')) !== '') $f[$k] = mb_substr(in_array($k, ['linkedin', 'x', 'headline'], true) ? ai_strip_dashes(trim((string)$j[$k])) : trim((string)$j[$k]), 0, $mx);
     if ($f) { $set = []; $a = []; foreach ($f as $k => $v) { $set[] = "$k = ?"; $a[] = $v; } $a[] = $it['id']; db()->prepare('UPDATE cp_items SET ' . implode(', ', $set) . ' WHERE id = ?')->execute($a); }
@@ -427,7 +427,7 @@ function cpl_regen_field(int $itemId, string $field): ?array
     $ctx = ['topic' => $it['topic'], 'current_headline' => $it['headline'], 'current_linkedin' => $it['linkedin'], 'current_x' => $it['x']];
     $sys = "CONTENT_FIELD_JSON\n" . cpl_rules($p) . "\n\nRegenerate ONLY {$label} for this post — a fresh, clearly different, better version. Keep it consistent with the topic, audience, language and brand. Do NOT change anything else."
         . "\nReturn ONLY JSON: {\"" . $field . "\":\"...\"}.";
-    $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => cpl_brief($p) . "\n\nPost context:\n" . json_encode($ctx, JSON_UNESCAPED_UNICODE)]], 1500, 'compose');
+    $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => cpl_brief($p) . "\n\nPost context:\n" . json_encode($ctx, JSON_UNESCAPED_UNICODE)]], 1500, 'cp_edit');
     $j = kb_parse_json((string)($r['text'] ?? '')); $v = trim((string)($j[$field] ?? '')); if ($v === '') return null;
     if (in_array($field, ['headline', 'linkedin', 'x'], true)) $v = ai_strip_dashes($v);
     $v = mb_substr($v, 0, $allow[$field]);
