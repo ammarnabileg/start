@@ -446,8 +446,8 @@
   function fcBBox(o) { var w = (o.width || 0) * (o.scaleX || 1), h = (o.height || 0) * (o.scaleY || 1); var l = o.left || 0, t = o.top || 0; if (o.originX === 'center') l -= w / 2; if (o.originY === 'center') t -= h / 2; return { l: l, t: t, r: l + w, b: t + h, w: w, h: h }; }
   // يعيد ملاءمة كل النصوص داخل حدود الصورة؛ يرجّع { severe:[], warn:[] }
   function fcFitAll() { if (!fc) return { severe: [], warn: [] }; var mg = FW * 0.04, severe = [], warn = [];
+    // ملاحظة: لا نعيد تشغيل layoutHead هنا (كان يرجّع العنوان لمكانه التلقائي ويضيّع تحريك المستخدم). نكتفي بالقنص داخل الحدود.
     fc.getObjects().forEach(function (o) {
-      if (o.dzHead && typeof layoutHead === 'function') layoutHead(o);
       if (o.type !== 'textbox' && o.type !== 'i-text' && o.type !== 'text') return;
       var eff = (o.fontSize || 0) * (o.scaleY || 1);
       // اقنص داخل الحدود
