@@ -497,7 +497,9 @@
         var gx = null, gy = null;
         xT.forEach(function (s) { if (gx === null && Math.abs(c.x - s[0]) < th) { gx = s[0]; _guides.push({ x: s[1] }); } });
         yT.forEach(function (s) { if (gy === null && Math.abs(c.y - s[0]) < th) { gy = s[0]; _guides.push({ y: s[1] }); } });
-        if (gx !== null || gy !== null) { o.setPositionByOrigin(new fabric.Point(gx !== null ? gx : c.x, gy !== null ? gy : c.y), 'center', 'center'); o.setCoords(); } });
+        if (gx !== null || gy !== null) { o.setPositionByOrigin(new fabric.Point(gx !== null ? gx : c.x, gy !== null ? gy : c.y), 'center', 'center'); o.setCoords(); }
+        // شريط الهوية يتبع العنوان أثناء التحريك (فوق حافته مباشرة)
+        if (o.dzHead && o.dzKickRef) { o.dzKickRef.set({ top: o.top - FW * 0.04, left: (o.dzBl || 0) + (o.dzBw || o.width) - (o.dzKw || FW * 0.14) }); o.dzKickRef.setCoords(); } });
       fc.on('mouse:up', function () { if (_guides.length) { _guides = []; fc.requestRenderAll(); } });
       fc.on('after:render', function () { if (!_guides.length) return; var ctx = fc.getContext(), z = fc.getZoom(); ctx.save(); ctx.strokeStyle = '#22d3ee'; ctx.lineWidth = 1; ctx.setLineDash([6, 4]);
         _guides.forEach(function (g) { ctx.beginPath(); if (g.x != null) { ctx.moveTo(g.x * z, 0); ctx.lineTo(g.x * z, FH * z); } else { ctx.moveTo(0, g.y * z); ctx.lineTo(FW * z, g.y * z); } ctx.stroke(); }); ctx.restore(); });
@@ -505,33 +507,41 @@
       fc.on('mouse:dblclick', function (e) { var t = e && e.target; if (t && t.type === 'textbox') { fc.setActiveObject(t); fcTxtSync(); var inp = $('#dz-txt'); if (inp) { inp.disabled = false; try { inp.focus(); inp.select(); } catch (x) {} } } }); }
     fc.clear(); fc.setBackgroundImage(null, fc.renderAll.bind(fc)); fcFit();
     // لو في مستند تصميم محفوظ (تعديل يدوي سابق) نفتحه كما هو بكل طبقاته بدل ما نعيد البناء — عشان ما «يرجعش»
-    if (it.has_doc) { post({ action: 'getdoc', id: id }).then(function (j) { if (j && j.ok && j.doc) { fc.loadFromJSON(j.doc, function () { fcFit(); fcEnsureFonts().then(function () { fcRefreshText(); fc.requestRenderAll(); }); if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { fcRefreshText(); fc.requestRenderAll(); }); fc.requestRenderAll(); tAfterLoad(); }); } else tBuildFresh(it); }).catch(function () { tBuildFresh(it); }); return; }
+    if (it.has_doc) { post({ action: 'getdoc', id: id }).then(function (j) { if (j && j.ok && j.doc) { fc.loadFromJSON(j.doc, function () { fcFit(); tNormalize(); fcEnsureFonts().then(function () { fcRefreshText(); tNormalize(); fc.requestRenderAll(); }); if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { fcRefreshText(); fc.requestRenderAll(); }); fc.requestRenderAll(); tAfterLoad(); }); } else tBuildFresh(it); }).catch(function () { tBuildFresh(it); }); return; }
     tBuildFresh(it);
   }
+  // إعدادات عنصر «تحريك المكان فقط»: بلا تكبير/تدوير، مقبض تحريك فقط
+  var MOVE_ONLY = { lockScalingX: true, lockScalingY: true, lockRotation: true, lockSkewingX: true, lockSkewingY: true, hasControls: false, hasBorders: true, editable: false };
+  // بعد تحميل مستند محفوظ: النص واللوجو «تحريك فقط»، والخلفية/التدرّج/الشريط مقفولة
+  function tNormalize() { if (!fc) return; var kick = null; fc.getObjects().forEach(function (x) { if (x.dzKick) kick = x; });
+    fc.getObjects().forEach(function (o) {
+      if (o.dzHead || o.dzLogo) { o.set(MOVE_ONLY); if (o.dzHead) { o.dzKickRef = kick; o.dzBw = o.dzBw || o.width; o.dzBl = (o.dzBl != null) ? o.dzBl : o.left; o.dzKw = o.dzKw || FW * 0.14; } }
+      else if (o.dzHero || o.dzBg || o.dzKick) { o.set({ selectable: false, evented: false }); }
+      o.setCoords && o.setCoords(); }); fc.requestRenderAll(); }
   function tBuildFresh(it) {
     var acc = (P && P.accent) || '#10b981';
     var rawId = (it.media_raw || [])[0] || (it.media_ids || [])[0];
-    // الصورة كاملة (full-bleed) كعنصر في الخلف — قابلة للاختيار والقص التفاعلي
-    if (rawId) fabric.Image.fromURL(murl(rawId), function (im) { if (!im || !im.width) return; var k = Math.max(FW / im.width, FH / im.height); im.set({ scaleX: k, scaleY: k, originX: 'center', originY: 'center', left: FW / 2, top: FH / 2, dzHero: true }); fc.add(im); im.sendToBack(); fc.requestRenderAll(); });
-    // تدرّج داكن من الأسفل لإبراز النص (نفس روح قالب full)
+    // الصورة في الخلف — مقفولة (لا تتحرك)
+    if (rawId) fabric.Image.fromURL(murl(rawId), function (im) { if (!im || !im.width) return; var k = Math.max(FW / im.width, FH / im.height); im.set({ scaleX: k, scaleY: k, originX: 'center', originY: 'center', left: FW / 2, top: FH / 2, dzHero: true, selectable: false, evented: false }); fc.add(im); im.sendToBack(); fc.requestRenderAll(); });
+    // تدرّج داكن من الأسفل — مقفول
     var scrim = new fabric.Rect({ left: 0, top: FH * 0.40, width: FW, height: FH * 0.60, selectable: false, evented: false, dzBg: true });
     scrim.set('fill', new fabric.Gradient({ type: 'linear', coords: { x1: 0, y1: 0, x2: 0, y2: FH * 0.60 }, colorStops: [{ offset: 0, color: 'rgba(6,10,18,0)' }, { offset: 0.55, color: 'rgba(6,10,18,0.55)' }, { offset: 1, color: 'rgba(6,10,18,0.92)' }] }));
     fc.add(scrim);
-    // العنوان أسفل الصورة — قابل للتعديل. العناوين الطويلة تُلفّ لأسطر داخل عرض المربع (Fabric لا يلفّ العربي RTL فنلفّه بأنفسنا)
     var head0 = String(it.headline || '').replace(/[«»]/g, '').replace(/\s+/g, ' ').trim() || 'عنوان';
     var bw = FW * 0.86, bl = FW * 0.07;
     var fs = head0.split(' ').length >= 4 ? 0.075 : 0.088;
     var kw = FW * 0.14;
-    var kick = new fabric.Rect({ left: bl + bw - kw, top: FH * 0.70, width: kw, height: Math.round(FW * 0.013), rx: 4, ry: 4, fill: acc, dzKick: true });
+    // شريط لون الهوية — مقفول (يتحرك تلقائيًا مع العنوان)
+    var kick = new fabric.Rect({ left: bl + bw - kw, top: FH * 0.70, width: kw, height: Math.round(FW * 0.013), rx: 4, ry: 4, fill: acc, dzKick: true, selectable: false, evented: false });
     fc.add(kick);
-    var tb = new fabric.Textbox(head0, { left: bl, top: FH * 0.72, width: bw, fontSize: Math.round(FW * fs), fill: '#ffffff', fontWeight: '900', fontFamily: 'Cairo', textAlign: 'right', direction: 'rtl', splitByGrapheme: false, editable: false });
-    tb.dzHead = true; tb.dzBw = bw; tb.dzSrc = head0; tb.dzKickRef = kick; tb.dzBl = bl; tb.dzKw = kw;
-    fc.add(tb); fc.setActiveObject(tb); fcTxtSync(); fc.requestRenderAll();
-    setTimeout(fcFocusTxt, 60);
+    // العنوان — تحريك المكان فقط
+    var tb = new fabric.Textbox(head0, { left: bl, top: FH * 0.72, width: bw, fontSize: Math.round(FW * fs), fill: '#ffffff', fontWeight: '900', fontFamily: 'Cairo', textAlign: 'right', direction: 'rtl', splitByGrapheme: false });
+    tb.set(MOVE_ONLY); tb.dzHead = true; tb.dzBw = bw; tb.dzSrc = head0; tb.dzKickRef = kick; tb.dzBl = bl; tb.dzKw = kw; tb.dzKickDY = tb.top - kick.top;
+    fc.add(tb); fc.setActiveObject(tb); fc.requestRenderAll();
     fcEnsureFonts().then(function () { fcRefreshText(); layoutHead(tb); fc.requestRenderAll(); });
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { fcRefreshText(); layoutHead(tb); fc.requestRenderAll(); });
-    // اللوجو كطبقة قابلة للتحريك/التحجيم مع النص
-    if (P && P.logo) fabric.Image.fromURL(P.logo, function (lg) { if (!lg || !lg.width) return; var k = (FW * 0.20) / lg.width; lg.set({ scaleX: k, scaleY: k, left: FW * 0.74, top: FH * 0.035 }); lg.dzLogo = true; fc.add(lg); fc.requestRenderAll(); });
+    // اللوجو — تحريك المكان فقط
+    if (P && P.logo) fabric.Image.fromURL(P.logo, function (lg) { if (!lg || !lg.width) return; var k = (FW * 0.20) / lg.width; lg.set({ scaleX: k, scaleY: k, left: FW * 0.74, top: FH * 0.035, dzLogo: true }); lg.set(MOVE_ONLY); fc.add(lg); fc.requestRenderAll(); });
     tAfterLoad();
   }
   function tClose() { if (tMod) { tMod.classList.add('hidden'); document.body.style.overflow = ''; } }
@@ -579,10 +589,8 @@
       var inField = /^(input|textarea|select)$/i.test((e.target && e.target.tagName) || '');
       if ((e.ctrlKey || e.metaKey) && k === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
       if ((e.ctrlKey || e.metaKey) && k === 'y') { e.preventDefault(); redo(); return; }
-      if ((e.ctrlKey || e.metaKey) && k === 'd') { e.preventDefault(); var o = fcActive(); if (o && o.clone) o.clone(function (c) { c.set({ left: (o.left || 0) + 24, top: (o.top || 0) + 24 }); if (o.dzLogo) c.dzLogo = true; fc.add(c); fc.setActiveObject(c); fcTxtSync(); fc.requestRenderAll(); histSnapSoon(); }); return; }
       if (inField) return; // لا نتدخل أثناء الكتابة في الخانات
       var o = fcActive(); if (!o) return;
-      if (k === 'delete' || k === 'backspace') { e.preventDefault(); fc.remove(o); fcTxtSync(); fc.requestRenderAll(); histSnapSoon(); return; }
       var step = e.shiftKey ? 10 : 1, moved = false;
       if (k === 'arrowleft') { o.set('left', (o.left || 0) - step); moved = true; } else if (k === 'arrowright') { o.set('left', (o.left || 0) + step); moved = true; }
       else if (k === 'arrowup') { o.set('top', (o.top || 0) - step); moved = true; } else if (k === 'arrowdown') { o.set('top', (o.top || 0) + step); moved = true; }

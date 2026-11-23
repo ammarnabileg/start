@@ -159,95 +159,31 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
         </div>
       </div>
     </div>
+    <!-- محرّر بسيط: تحريك النص واللوجو فقط -->
     <div id="cp-itxt" class="hidden fixed inset-0 z-[70] bg-ink-900 flex flex-col sm:flex-row" dir="rtl">
-      <!-- الكانفس (يمين) -->
       <div class="order-1 flex-1 min-h-0 grid place-items-center p-3 overflow-auto">
         <div id="it-cwrap" style="width:min(92%,440px);max-height:88vh">
           <canvas id="it-canvas" class="rounded-xl shadow-2xl touch-none"></canvas>
         </div>
       </div>
-      <!-- الأدوات (شمال) -->
       <div class="order-2 w-full sm:w-80 shrink-0 bg-white sm:h-full overflow-auto flex flex-col">
-        <div class="flex items-center justify-between gap-2 px-4 py-3 border-b border-ink-100 sticky top-0 bg-white z-10">
-          <b class="text-ink-900"><?= e(t('محرّر التصميم')) ?></b>
-          <div class="flex items-center gap-1">
-            <select id="dz-vers" class="input !mt-0 !py-1 !w-auto text-xs hidden" title="<?= e(t('نسخة سابقة')) ?>"><option value=""><?= e(t('⟲ نسخة سابقة')) ?></option></select>
-            <button type="button" data-dz="undo" class="rounded-lg bg-ink-50 border border-ink-200 px-2 py-1.5" title="<?= e(t('تراجع')) ?> (Ctrl+Z)">↶</button>
-            <button type="button" data-dz="redo" class="rounded-lg bg-ink-50 border border-ink-200 px-2 py-1.5" title="<?= e(t('إعادة')) ?> (Ctrl+Y)">↷</button>
-            <button type="button" data-dz="zout" class="rounded-lg bg-ink-50 border border-ink-200 px-2 py-1.5" title="<?= e(t('تصغير')) ?>">−</button>
-            <button type="button" data-dz="zfit" id="dz-zoom" class="rounded-lg bg-ink-50 border border-ink-200 px-1.5 py-1.5 text-[11px] tabular-nums w-11" title="<?= e(t('ملاءمة')) ?>">100%</button>
-            <button type="button" data-dz="zin" class="rounded-lg bg-ink-50 border border-ink-200 px-2 py-1.5" title="<?= e(t('تكبير')) ?>">+</button>
-            <button type="button" data-tclose class="btn-ghost !py-1.5 !px-3 text-sm"><?= e(t('✕ إغلاق')) ?></button>
-          </div>
+        <div class="flex items-center justify-between gap-2 px-4 py-3 border-b border-ink-100">
+          <b class="text-ink-900"><?= e(t('تحريك العناصر')) ?></b>
+          <button type="button" data-tclose class="btn-ghost !py-1.5 !px-3 text-sm"><?= e(t('✕ إغلاق')) ?></button>
         </div>
-        <div class="p-3 space-y-3 text-sm">
-          <div>
-            <span class="text-xs font-semibold text-brand-700 flex items-center gap-1 mb-1">✍️ <?= e(t('نص العنصر المحدد — اكتب هنا')) ?></span>
-            <textarea id="dz-txt" dir="auto" rows="3" class="input !py-2 w-full resize-y leading-relaxed text-base" placeholder="<?= e(t('اضغط على أي نص في التصميم ثم اكتب هنا · Enter = سطر جديد')) ?>" disabled></textarea>
+        <div class="p-4 space-y-3 text-sm flex-1">
+          <div class="rounded-xl bg-brand-50 border border-brand-200 p-3 text-brand-800 leading-relaxed">
+            <b class="block mb-1">✋ <?= e(t('اسحب لتحريك المكان')) ?></b>
+            <?= e(t('اسحب النص أو اللوجو بالماوس (أو بأسهم لوحة المفاتيح) لتغيير مكانه على الصورة. تحريك المكان فقط — بلا تغيير الحجم.')) ?>
           </div>
-          <div>
-            <span class="text-xs text-ink-500 block mb-1"><?= e(t('العناصر')) ?></span>
-            <div class="flex flex-wrap items-center gap-1">
-              <button type="button" data-dz="addtext" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5 hover:border-brand-400">➕ <?= e(t('نص')) ?></button>
-              <button type="button" data-dz="dup" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5" title="<?= e(t('نسخة')) ?>">⧉</button>
-              <button type="button" data-dz="front" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5" title="<?= e(t('للأمام')) ?>">⬆</button>
-              <button type="button" data-dz="back" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5" title="<?= e(t('للخلف')) ?>">⬇</button>
-              <button type="button" data-dz="lock" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5" title="<?= e(t('قفل/فتح')) ?>">🔒</button>
-              <button type="button" data-dz="hide" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5" title="<?= e(t('إظهار/إخفاء')) ?>">👁</button>
-              <button type="button" data-dz="group" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5" title="<?= e(t('تجميع')) ?>">⊞</button>
-              <button type="button" data-dz="ungroup" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5" title="<?= e(t('فك التجميع')) ?>">⊟</button>
-              <button type="button" data-dz="del" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5 text-red-600" title="<?= e(t('حذف')) ?>">🗑</button>
-            </div>
-          </div>
-          <div class="grid grid-cols-2 gap-2">
-            <label class="inline-flex items-center justify-between gap-1 rounded-lg bg-ink-50 border border-ink-200 px-2 py-1.5 cursor-pointer"><span class="text-xs text-ink-600"><?= e(t('اللون')) ?></span><input type="color" id="dz-color" value="#ffffff" class="w-7 h-7 border-0 bg-transparent p-0 cursor-pointer"></label>
-            <button type="button" data-dz="bold" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5 font-black"><?= e(t('غامق')) ?> B</button>
-            <select id="dz-font-sel" class="rounded-lg bg-ink-50 border border-ink-200 px-2 py-1.5 col-span-2 text-sm"><?php foreach (['Cairo', 'Alexandria', 'Tajawal', 'Almarai', 'Changa', 'Reem Kufi'] as $fn): ?><option value="<?= e($fn) ?>"><?= e($fn) ?></option><?php endforeach; ?></select>
-          </div>
-          <label class="block"><span class="text-xs text-ink-500 flex justify-between"><span><?= e(t('حجم النص المحدد')) ?></span><b id="dz-size-v" class="tabular-nums"></b></span>
-            <input type="range" id="dz-size" min="20" max="200" value="80" class="w-full accent-brand-600"></label>
-          <div><span class="text-xs text-ink-500 block mb-1"><?= e(t('محاذاة النص')) ?></span>
-            <div class="grid grid-cols-3 gap-1.5" dir="ltr">
-              <button type="button" data-dz="al-right" class="rounded-lg bg-ink-50 border border-ink-200 py-1.5">⇥</button>
-              <button type="button" data-dz="al-center" class="rounded-lg bg-ink-50 border border-ink-200 py-1.5">≡</button>
-              <button type="button" data-dz="al-left" class="rounded-lg bg-ink-50 border border-ink-200 py-1.5">⇤</button>
-            </div></div>
-          <label class="block"><span class="text-xs text-ink-500 flex justify-between"><span><?= e(t('تباعد الأسطر')) ?></span><b id="dz-lh-v" class="tabular-nums"></b></span>
-            <input type="range" id="dz-lh" min="0.8" max="2.4" step="0.05" value="1.3" class="w-full accent-brand-600"></label>
-          <label class="block"><span class="text-xs text-ink-500 flex justify-between"><span><?= e(t('تباعد الحروف')) ?></span><b id="dz-ls-v" class="tabular-nums"></b></span>
-            <input type="range" id="dz-ls" min="-100" max="600" step="10" value="0" class="w-full accent-brand-600"></label>
-          <label class="block"><span class="text-xs text-ink-500 flex justify-between"><span><?= e(t('الشفافية')) ?></span><b id="dz-op-v" class="tabular-nums"></b></span>
-            <input type="range" id="dz-op" min="10" max="100" step="5" value="100" class="w-full accent-brand-600"></label>
-          <div><span class="text-xs text-ink-500 block mb-1"><?= e(t('محاذاة داخل الصورة')) ?></span>
-            <div class="grid grid-cols-6 gap-1" dir="ltr">
-              <button type="button" data-dz="ca-left" class="rounded-lg bg-ink-50 border border-ink-200 py-1.5 text-xs" title="<?= e(t('يسار')) ?>">⇤</button>
-              <button type="button" data-dz="ca-cx" class="rounded-lg bg-ink-50 border border-ink-200 py-1.5 text-xs" title="<?= e(t('وسط أفقي')) ?>">⇔</button>
-              <button type="button" data-dz="ca-right" class="rounded-lg bg-ink-50 border border-ink-200 py-1.5 text-xs" title="<?= e(t('يمين')) ?>">⇥</button>
-              <button type="button" data-dz="ca-top" class="rounded-lg bg-ink-50 border border-ink-200 py-1.5 text-xs" title="<?= e(t('أعلى')) ?>">⤒</button>
-              <button type="button" data-dz="ca-cy" class="rounded-lg bg-ink-50 border border-ink-200 py-1.5 text-xs" title="<?= e(t('وسط رأسي')) ?>">⇕</button>
-              <button type="button" data-dz="ca-bottom" class="rounded-lg bg-ink-50 border border-ink-200 py-1.5 text-xs" title="<?= e(t('أسفل')) ?>">⤓</button>
-            </div></div>
-          <div><span class="text-xs text-ink-500 block mb-1"><?= e(t('عناصر وأشكال')) ?></span>
-            <div class="flex flex-wrap gap-1.5">
-              <button type="button" data-dz="sh-rect" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5" title="<?= e(t('مستطيل')) ?>">▭</button>
-              <button type="button" data-dz="sh-circle" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5" title="<?= e(t('دائرة')) ?>">⬤</button>
-              <button type="button" data-dz="sh-line" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5" title="<?= e(t('خط')) ?>">▬</button>
-              <button type="button" data-dz="flip-h" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5" title="<?= e(t('قلب أفقي')) ?>">⇋</button>
-              <button type="button" data-dz="flip-v" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5" title="<?= e(t('قلب رأسي')) ?>">⤯</button>
-              <button type="button" data-dz="crop" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5" title="<?= e(t('قص الصورة')) ?>">✂️</button>
-              <button type="button" data-dz="replace-img" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5" title="<?= e(t('استبدل الصورة')) ?>">🖼</button>
-            </div></div>
-          <div id="dz-cropbar" class="hidden rounded-xl bg-cyan-50 border border-cyan-300 p-2 flex items-center gap-2">
-            <span class="text-xs text-cyan-800 flex-1"><?= e(t('اسحب المقابض لتحديد القص')) ?></span>
-            <button type="button" data-dz="crop-x" class="btn-ghost !py-1 !px-2 text-xs"><?= e(t('إلغاء')) ?></button>
-            <button type="button" data-dz="crop-ok" class="btn-primary !py-1 !px-3 text-xs"><?= e(t('تطبيق القص')) ?></button>
-          </div>
-          <p class="text-[11px] text-ink-400"><?= e(t('اسحب أي عنصر وكبّره بالمقابض · أسهم لوحة المفاتيح للتحريك · Delete للحذف · Ctrl+D نسخة')) ?></p>
-          <input type="file" id="dz-img-in" accept="image/*" class="hidden">
+          <ul class="text-xs text-ink-500 space-y-1 list-disc ps-4">
+            <li><?= e(t('اضغط على النص واسحبه لأي مكان.')) ?></li>
+            <li><?= e(t('اضغط على اللوجو واسحبه لأي مكان.')) ?></li>
+            <li><?= e(t('خطوط زرقاء تظهر للمحاذاة للمنتصف.')) ?></li>
+          </ul>
         </div>
-        <div class="mt-auto p-3 border-t border-ink-100 bg-white sticky bottom-0 flex gap-2">
-          <button type="button" id="it-all" class="btn-ghost flex-1 !py-2 text-sm"><?= e(t('حفظ على الكل')) ?></button>
-          <button type="button" id="it-save" class="btn-primary flex-1 !py-2 text-sm"><?= e(t('حفظ')) ?></button>
+        <div class="mt-auto p-3 border-t border-ink-100 bg-white sticky bottom-0">
+          <button type="button" id="it-save" class="btn-primary w-full !py-2.5 text-sm"><?= e(t('حفظ')) ?></button>
         </div>
       </div>
     </div>
