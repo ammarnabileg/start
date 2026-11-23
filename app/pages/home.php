@@ -205,6 +205,17 @@ html{scroll-behavior:smooth}
 .cta{position:relative;overflow:hidden;background:linear-gradient(120deg,#1d4ed8,#2563eb,#06b6d4,#1d4ed8);background-size:220% 220%;animation:mesh 10s ease infinite}
 @keyframes mesh{0%,100%{background-position:0 50%}50%{background-position:100% 50%}}
 
+/* 18ب) عرض المحادثة الحيّة */
+.chat-wrap{background:radial-gradient(60% 60% at 70% 20%,rgba(37,99,235,.08),transparent),linear-gradient(180deg,#f8fafc,#eef2f7)}
+.msg{opacity:0;transform:translateY(14px) scale(.98);transition:opacity .5s cubic-bezier(.22,1,.36,1),transform .5s cubic-bezier(.22,1,.36,1)}
+.msg.show{opacity:1;transform:none}
+.bub{max-width:82%;border-radius:18px;padding:10px 13px;font-size:14px;line-height:1.6;box-shadow:0 8px 24px -16px rgba(15,23,42,.4)}
+.bub-in{background:#fff;border:1px solid #e2e8f0;color:#1e293b;border-start-start-radius:6px}
+.bub-out{background:linear-gradient(135deg,#2563eb,#06b6d4);color:#fff;border-start-end-radius:6px}
+.chip-deal{opacity:0;transform:translateY(10px);transition:opacity .5s,transform .5s cubic-bezier(.34,1.56,.64,1)}
+.chip-deal.show{opacity:1;transform:none}
+.typwrap{opacity:0;transition:opacity .3s}.typwrap.show{opacity:1}
+
 /* 19) زر العودة للأعلى */
 .totop{position:fixed;inset-block-end:22px;inset-inline-end:22px;z-index:40;opacity:0;transform:translateY(16px) scale(.9);pointer-events:none;transition:opacity .3s,transform .3s}
 .totop.on{opacity:1;transform:none;pointer-events:auto}
@@ -302,8 +313,40 @@ html{scroll-behavior:smooth}
   </div>
 </section>
 
+<!-- ============ محادثة حيّة (الوكيل الذكي) ============ -->
+<section id="live" class="chat-wrap border-b border-ink-100 scroll-mt-20">
+  <div class="max-w-6xl mx-auto px-4 py-20 grid lg:grid-cols-2 gap-12 items-center">
+    <div data-reveal="right">
+      <span class="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-brand-50 text-brand-700 text-xs font-semibold px-3 py-1"><span class="w-1.5 h-1.5 rounded-full bg-lime-500 pulse"></span><?= e(t('شغّال الآن')) ?></span>
+      <h2 class="mt-5 text-3xl sm:text-4xl font-extrabold text-ink-900"><?= e(t('الوكيل الذكي يرد على عميلك… ويحوّله لصفقة')) ?></h2>
+      <p class="mt-4 text-ink-600 leading-relaxed"><?= e(t('رسالة على أي قناة تدخل صندوقًا واحدًا، يرد عليها الوكيل من ملف شركتك فقط، ويحوّل للموظف عند الحاجة — وكل محادثة تُسجَّل في ملف العميل.')) ?></p>
+      <ul class="mt-6 space-y-3">
+        <?php foreach ([[t('رد فوري من ملف شركتك'), t('بلا معلومات مختلقة، وبلغة شركتك.')], [t('تحويل ذكي للموظف'), t('عند الأسئلة الحسّاسة أو طلب عرض سعر.')], [t('تتحوّل لصفقة تلقائيًا'), t('مع إسناد للموظف وتسجيل في ملف العميل.')]] as $b): ?>
+          <li class="flex items-start gap-3"><span class="w-7 h-7 rounded-lg bg-lime-100 text-lime-700 grid place-items-center shrink-0 mt-0.5"><?= $ic('M20 6L9 17l-5-5', 'w-4 h-4') ?></span><span><b class="block text-sm font-semibold text-ink-900"><?= e($b[0]) ?></b><span class="block text-sm text-ink-600"><?= e($b[1]) ?></span></span></li>
+        <?php endforeach; ?>
+      </ul>
+    </div>
+    <div data-reveal="left" class="min-w-0">
+      <div class="rounded-3xl border border-ink-200 bg-white shadow-2xl shadow-brand-900/10 overflow-hidden mx-auto" style="max-width:420px" id="chatDemo">
+        <div class="flex items-center gap-3 px-4 py-3 text-white" style="background:linear-gradient(135deg,#0b1430,#1d4ed8)">
+          <span class="w-9 h-9 rounded-full bg-white/15 grid place-items-center"><?= $ic('M21 12a8 8 0 01-11.6 7.1L3 21l1.9-6.4A8 8 0 1121 12z', 'w-4 h-4') ?></span>
+          <div class="flex-1 min-w-0"><div class="text-sm font-bold"><?= e(t('صندوق الرسائل الموحّد')) ?></div><div class="text-[11px]" style="color:rgba(255,255,255,.7)"><?= e(t('واتساب · إنستجرام · تيك توك · X')) ?></div></div>
+          <span class="inline-flex items-center gap-1 text-[10px]"><span class="w-1.5 h-1.5 rounded-full bg-lime-400 pulse"></span><?= e(t('مباشر')) ?></span>
+        </div>
+        <div class="p-4 space-y-3" style="background:#f1f5f9;min-height:330px">
+          <div class="msg flex justify-start" data-seq="0"><div><span class="block text-[10px] text-ink-400 mb-1 ms-1"><?= e(t('عميل · واتساب')) ?></span><div class="bub bub-in"><?= e(t('السلام عليكم، عندكم توريد أثاث مكاتب لـ50 موظف؟')) ?></div></div></div>
+          <div class="typwrap flex justify-end" data-typ="1"><div class="bub bub-out inline-flex items-center gap-2 py-3"><span class="typing inline-flex gap-1"><span></span><span></span><span></span></span></div></div>
+          <div class="msg flex justify-end" data-seq="2"><div><span class="block text-[10px] text-ink-400 mb-1 text-end me-1"><?= e(t('الوكيل الذكي')) ?></span><div class="bub bub-out"><?= e(t('وعليكم السلام 👋 أيوه عندنا باقات أثاث مكاتب جاهزة. أرسل لك عرض سعر مطابق لعددكم؟')) ?></div></div></div>
+          <div class="msg flex justify-start" data-seq="3"><div><div class="bub bub-in"><?= e(t('أيوه من فضلك')) ?></div></div></div>
+          <div class="chip-deal flex justify-center pt-1" data-chip="4"><div class="inline-flex items-center gap-2 rounded-full bg-lime-50 border border-lime-200 text-lime-800 text-xs font-semibold px-3 py-1.5"><?= $ic('M20 6L9 17l-5-5', 'w-4 h-4') ?><?= e(t('تحوّلت لصفقة · عرض 48,000 ﷼ · أُسندت لأحمد')) ?></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ============ أرقام المنصة ============ -->
-<section class="max-w-6xl mx-auto px-4 pt-20" id="live">
+<section class="max-w-6xl mx-auto px-4 pt-20">
   <div data-reveal class="grid grid-cols-2 lg:grid-cols-4 gap-6 text-center">
     <?php foreach ($stats as $si => $st): ?>
       <div data-reveal data-reveal-delay="<?= $si * 90 ?>" class="rounded-3xl border border-ink-100 bg-ink-50/60 p-6">
@@ -565,6 +608,31 @@ html{scroll-behavior:smooth}
     var rt; window.addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(resize, 200); });
     resize(); frame();
   }
+
+  /* ---- 14) تايم-لاين المحادثة الحيّة ---- */
+  (function () {
+    var box = doc.getElementById('chatDemo'); if (!box) return;
+    var seq = $all('[data-seq]', box), typ = $all('[data-typ]', box), chip = $all('[data-chip]', box);
+    function reset() { seq.forEach(function (e) { e.classList.remove('show'); }); typ.forEach(function (e) { e.classList.remove('show'); }); chip.forEach(function (e) { e.classList.remove('show'); }); }
+    function showAll() { seq.forEach(function (e) { e.classList.add('show'); }); chip.forEach(function (e) { e.classList.add('show'); }); }
+    var timers = [];
+    function play() {
+      timers.forEach(clearTimeout); timers = []; reset();
+      function at(ms, fn) { timers.push(setTimeout(fn, ms)); }
+      at(300, function () { seq[0] && seq[0].classList.add('show'); });
+      at(1100, function () { typ[0] && typ[0].classList.add('show'); });
+      at(2500, function () { typ[0] && typ[0].classList.remove('show'); seq[1] && seq[1].classList.add('show'); });
+      at(3400, function () { seq[2] && seq[2].classList.add('show'); });
+      at(4300, function () { chip[0] && chip[0].classList.add('show'); });
+      at(8000, play); /* إعادة تلقائية */
+    }
+    if (reduce) { showAll(); return; }
+    if ('IntersectionObserver' in window) {
+      var started = false;
+      var o = new IntersectionObserver(function (es) { es.forEach(function (en) { if (en.isIntersecting && !started) { started = true; play(); } }); }, { threshold: 0.4 });
+      o.observe(box);
+    } else { play(); }
+  })();
 
   window.addEventListener('scroll', onScroll, { passive: true }); onScroll();
 })();
