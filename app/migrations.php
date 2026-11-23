@@ -1367,4 +1367,8 @@ return [
         "ALTER TABLE ai_usage ADD COLUMN ref VARCHAR(40) NULL",
         "ALTER TABLE ai_usage ADD INDEX idx_ref (ref)",
     ],
+    // سجل نسخ مستند التصميم (آخر نسخ محفوظة) للرجوع إليها دون فقدان
+    '084_cp_item_doc_hist' => [
+        "ALTER TABLE cp_items ADD COLUMN design_doc_hist MEDIUMTEXT NULL",
+    ],
 ];

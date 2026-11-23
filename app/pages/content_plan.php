@@ -69,6 +69,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($a === 'savecanvas') { $it = cpl_item((int)($_POST['id'] ?? 0)); if (!$it || $it['plan_id'] !== $pid) $J(['ok' => false], 404); session_write_close(); $r = cpl_save_canvas($it['id'], (string)($_POST['img'] ?? ''), isset($_POST['doc']) ? (string)$_POST['doc'] : null); $J(['ok' => (bool)$r, 'item' => $r]); }
         if ($a === 'getdoc') { $it = cpl_item((int)($_POST['id'] ?? 0)); if (!$it || $it['plan_id'] !== $pid) $J(['ok' => false], 404); $st = db()->prepare('SELECT design_doc FROM cp_items WHERE id = ? AND workspace_id = ?'); $st->execute([$it['id'], $wid]); $doc = (string)($st->fetchColumn() ?: ''); $J(['ok' => true, 'doc' => $doc !== '' ? json_decode($doc, true) : null]); }
         if ($a === 'refield') { $it = cpl_item((int)($_POST['id'] ?? 0)); if (!$it || $it['plan_id'] !== $pid) $J(['ok' => false], 404); session_write_close(); @set_time_limit(120); $r = cpl_regen_field($it['id'], (string)($_POST['field'] ?? '')); $J(['ok' => (bool)$r, 'item' => $r]); }
+        if ($a === 'docvers') { $it = cpl_item((int)($_POST['id'] ?? 0)); if (!$it || $it['plan_id'] !== $pid) $J(['ok' => false], 404); $st = db()->prepare('SELECT design_doc_hist FROM cp_items WHERE id = ? AND workspace_id = ?'); $st->execute([$it['id'], $wid]); $h = json_decode((string)($st->fetchColumn() ?: ''), true); $out = []; if (is_array($h)) foreach ($h as $i => $v) $out[] = ['i' => $i, 't' => (int)($v['t'] ?? 0)]; $J(['ok' => true, 'versions' => $out]); }
+        if ($a === 'docver') { $it = cpl_item((int)($_POST['id'] ?? 0)); if (!$it || $it['plan_id'] !== $pid) $J(['ok' => false], 404); $i = (int)($_POST['i'] ?? -1); $st = db()->prepare('SELECT design_doc_hist FROM cp_items WHERE id = ? AND workspace_id = ?'); $st->execute([$it['id'], $wid]); $h = json_decode((string)($st->fetchColumn() ?: ''), true); $doc = (is_array($h) && isset($h[$i]['doc'])) ? json_decode((string)$h[$i]['doc'], true) : null; $J(['ok' => (bool)$doc, 'doc' => $doc]); }
         if ($a === 'set') { $ids = array_map('intval', (array)json_decode((string)($_POST['ids'] ?? '[]'), true)); $J(['ok' => true, 'n' => cpl_set_status($ids, (string)($_POST['status'] ?? ''))]); }
         if ($a === 'save') { $it = cpl_item((int)($_POST['id'] ?? 0)); if (!$it || $it['plan_id'] !== $pid) $J(['ok' => false, 'error' => t('طلب غير صحيح.')], 404); cpl_save_item($it['id'], (array)json_decode((string)($_POST['f'] ?? '{}'), true)); $J(['ok' => true, 'item' => cpl_item($it['id'])]); }
         if ($a === 'regen') {
@@ -99,7 +101,7 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
         'itAdj' => t('صمّم'), 'itReDo' => t('أعد التصميم'), 'itSaved' => t('تم حفظ التصميم ✓'),
         'layoutErr' => t('يوجد نص خارج حدود التصميم. قصّر النص أو كبّر المربع أو حرّكه للداخل قبل الحفظ.'), 'layoutWarn' => t('تنبيه: حجم بعض النصوص صغير وقد يصعب قراءته.'),
         'draftBack' => t('تم استرجاع آخر تعديل غير محفوظ.'), 'lkOn' => t('مقفول'), 'lkOff' => t('مفتوح'), 'reField' => t('إعادة توليد هذا الحقل فقط'),
-        'brandNoLogo' => t('تنبيه: التصميم بدون شعار الشركة.'), 'noMatch' => t('لا نتائج مطابقة للبحث.'),
+        'brandNoLogo' => t('تنبيه: التصميم بدون شعار الشركة.'), 'noMatch' => t('لا نتائج مطابقة للبحث.'), 'verLabel' => t('⟲ نسخة سابقة'), 'verLoaded' => t('تم تحميل النسخة — احفظ لاعتمادها'),
         'calc' => t('جارٍ الحساب…'), 'costNone' => t('لا توجد بيانات تكلفة لهذه الحملة بعد (تظهر مع التوليد القادم).'), 'costTotal' => t('الإجمالي'), 'costPer' => t('لكل منشور معتمد'), 'costText' => t('النصوص'), 'costMedia' => t('الصور/الفيديو'), 'costTask' => t('المهمة'), 'costProv' => t('المزوّد'), 'costCost' => t('التكلفة'), 'itAllAsk' => t('تطبيق المكان والحجم والنمط واللون على كل التصاميم؟ (يبقى نصّ كل منشور كما هو)'), 'itAllDone' => t('تم تطبيق الإعدادات على %s تصميم.'),
         'ilTint' => ['orig' => t('الأصلي'), 'white' => t('أبيض'), 'black' => t('أسود')], 'ilPlateV' => ['none' => t('بدون'), 'light' => t('فاتحة'), 'dark' => t('داكنة')],
     ];
@@ -169,6 +171,7 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
         <div class="flex items-center justify-between gap-2 px-4 py-3 border-b border-ink-100 sticky top-0 bg-white z-10">
           <b class="text-ink-900"><?= e(t('محرّر التصميم')) ?></b>
           <div class="flex items-center gap-1">
+            <select id="dz-vers" class="input !mt-0 !py-1 !w-auto text-xs hidden" title="<?= e(t('نسخة سابقة')) ?>"><option value=""><?= e(t('⟲ نسخة سابقة')) ?></option></select>
             <button type="button" data-dz="undo" class="rounded-lg bg-ink-50 border border-ink-200 px-2 py-1.5" title="<?= e(t('تراجع')) ?> (Ctrl+Z)">↶</button>
             <button type="button" data-dz="redo" class="rounded-lg bg-ink-50 border border-ink-200 px-2 py-1.5" title="<?= e(t('إعادة')) ?> (Ctrl+Y)">↷</button>
             <button type="button" data-tclose class="btn-ghost !py-1.5 !px-3 text-sm"><?= e(t('✕ إغلاق')) ?></button>

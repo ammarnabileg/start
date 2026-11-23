@@ -454,6 +454,9 @@
     var it = items.find(function (i) { return i.id === id; }); if (!it) return;
     tMod.dataset.id = id; tMod.classList.remove('hidden'); document.body.style.overflow = 'hidden';
     draftKey = 'cpdz_' + (C.wid || '') + '_' + id;
+    // سجل النسخ السابقة
+    var vsel = $('#dz-vers'); if (vsel) { vsel.classList.add('hidden'); vsel.innerHTML = '<option value="">' + esc(T.verLabel || '⟲ نسخة سابقة') + '</option>';
+      if (it.n_vers > 0) post({ action: 'docvers', id: id }).then(function (j) { if (j && j.ok && (j.versions || []).length) { j.versions.forEach(function (v) { var d = v.t ? new Date(v.t * 1000) : null; var lab = d ? (d.getMonth() + 1) + '/' + d.getDate() + ' ' + d.getHours() + ':' + ('0' + d.getMinutes()).slice(-2) : ('#' + v.i); vsel.innerHTML += '<option value="' + v.i + '">' + esc(lab) + '</option>'; }); vsel.classList.remove('hidden'); } }).catch(function () {}); }
     if (!fc) { fc = new fabric.Canvas('it-canvas', { backgroundColor: '#0b1220', preserveObjectStacking: true, allowTouchScrolling: false });
       fc.on('selection:created', fcTxtSync); fc.on('selection:updated', fcTxtSync); fc.on('selection:cleared', fcTxtSync);
       fc.on('object:modified', histSnapSoon); fc.on('object:added', function () { if (!histLock) histSnapSoon(); }); fc.on('object:removed', function () { if (!histLock) histSnapSoon(); });
@@ -515,6 +518,7 @@
       else if (cmd === 'hide' && o && o.set) { o.set('visible', o.visible === false); fc.discardActiveObject(); fcTxtSync(); fc.requestRenderAll(); histSnapSoon(); }
     });
     document.addEventListener('keydown', function (e) { if (tMod.classList.contains('hidden')) return; var k = (e.key || '').toLowerCase(); if ((e.ctrlKey || e.metaKey) && k === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); } else if ((e.ctrlKey || e.metaKey) && k === 'y') { e.preventDefault(); redo(); } });
+    var vsel2 = $('#dz-vers'); if (vsel2) vsel2.addEventListener('change', function () { var i = this.value; if (i === '') return; var id = +tMod.dataset.id; post({ action: 'docver', id: id, i: i }).then(function (j) { if (j && j.ok && j.doc) { histApply(j.doc); setTimeout(histSnap, 500); toast(T.verLoaded || 'تم تحميل النسخة — احفظ لاعتمادها', 'info'); } }).catch(function () { toast(T.offline, 'error'); }); this.value = ''; });
     var dc = $('#dz-color'); if (dc) dc.addEventListener('input', function () { var o = fcActive(); if (o && o.set) { o.set('fill', this.value); fc.requestRenderAll(); } });
     var dsz = $('#dz-size'); if (dsz) dsz.addEventListener('input', function () { var o = fcActive(); if (o && o.set && o.type === 'textbox') { o.set('fontSize', +this.value); if (o.initDimensions) o.initDimensions(); fc.requestRenderAll(); var lbl = $('#dz-size-v'); if (lbl) lbl.textContent = this.value; } });
     $('#it-save').addEventListener('click', function () {

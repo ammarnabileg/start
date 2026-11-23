@@ -54,6 +54,7 @@ function cpl_item_row(array $r): array
     $mids = array_values(array_filter(array_map('intval', (array)json_decode((string)($r['media_ids'] ?? ''), true)))); if (!$mids && !empty($r['media_id'])) $mids = [(int)$r['media_id']]; $r['media_ids'] = $mids;
     $r['id'] = (int)$r['id']; $r['plan_id'] = (int)$r['plan_id']; $r['seq'] = (int)$r['seq']; $r['media_id'] = $r['media_id'] !== null ? (int)$r['media_id'] : null;
     $r['has_doc'] = !empty($r['design_doc']) ? 1 : 0; unset($r['design_doc']); // لا نرسل المستند الكامل في القائمة (ثقيل) — فقط وجوده
+    $hh = json_decode((string)($r['design_doc_hist'] ?? ''), true); $r['n_vers'] = is_array($hh) ? count($hh) : 0; unset($r['design_doc_hist']);
     return $r;
 }
 
@@ -819,7 +820,15 @@ function cpl_save_canvas(int $itemId, string $dataUrl, ?string $doc = null): ?ar
     try { $row = media_store_path($wid, $tmp, 'dz-' . (int)($it['seq'] ?? 0) . '-' . substr(md5(microtime(true) . random_int(0, 9999)), 0, 6) . '.png', 'image/png', media_ai_folder()); }
     catch (Throwable $e) { @unlink($tmp); return null; }
     @unlink($tmp); $mid = (int)$row['id'];
-    db()->prepare('UPDATE cp_items SET media_ids = ?, media_id = ?, design_doc = ? WHERE id = ? AND workspace_id = ?')->execute([json_encode([$mid]), $mid, $docSave, $itemId, $wid]);
+    // سجل النسخ: ندفع النسخة السابقة إلى التاريخ قبل الكتابة (نحتفظ بآخر 8)
+    if ($docSave !== null) {
+        $cur = db()->prepare('SELECT design_doc, design_doc_hist FROM cp_items WHERE id = ? AND workspace_id = ?'); $cur->execute([$itemId, $wid]); $cr = $cur->fetch() ?: [];
+        $prev = (string)($cr['design_doc'] ?? ''); $hist = json_decode((string)($cr['design_doc_hist'] ?? ''), true); if (!is_array($hist)) $hist = [];
+        if ($prev !== '' && $prev !== $docSave) { array_unshift($hist, ['t' => time(), 'doc' => $prev]); $hist = array_slice($hist, 0, 8); }
+        db()->prepare('UPDATE cp_items SET media_ids = ?, media_id = ?, design_doc = ?, design_doc_hist = ? WHERE id = ? AND workspace_id = ?')->execute([json_encode([$mid]), $mid, $docSave, json_encode($hist, JSON_UNESCAPED_UNICODE), $itemId, $wid]);
+    } else {
+        db()->prepare('UPDATE cp_items SET media_ids = ?, media_id = ?, design_doc = ? WHERE id = ? AND workspace_id = ?')->execute([json_encode([$mid]), $mid, $docSave, $itemId, $wid]);
+    }
     return cpl_item($itemId);
 }
 
