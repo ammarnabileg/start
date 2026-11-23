@@ -54,6 +54,20 @@ $faq = [[t('من أين تأتي بيانات المنافسات؟'), t('من م
     [t('هل أحتاج كل الخدمات؟'), t('لا. فعّل ما تحتاجه فقط، وتختفي باقي الأقسام من القائمة.')],
     [t('هل تدعم العربية والإنجليزية؟'), t('نعم، الواجهة كاملة بالعربية الفصحى والإنجليزية، مع وضع فاتح وداكن.')],
     [t('هل بياناتي آمنة؟'), t('كل شركة لها مساحة منفصلة، والصلاحيات لكل موظف حسب دوره، والمفاتيح محفوظة مشفّرة.')]];
+$svcCount = array_sum(array_map(function ($g) { return count($g[2]); }, $groups));
+$stats = [
+    [count($groups), '', t('أقسام متكاملة')],
+    [$svcCount, '+', t('خدمة في منصة واحدة')],
+    [9, '', t('منصات نشر وتواصل')],
+    [10000, '', t('صفحة من موقعك تُقرأ')],
+];
+$replaces = [t('أداة جدولة'), t('أداة تصميم'), t('نظام CRM'), t('صندوق رسائل'), t('أداة إعلانات'), t('مراقبة منافسين'), t('قراءة منافسات'), t('لوحة تحليلات'), t('واتساب API'), t('صفحات هبوط'), t('ردود تلقائية'), t('قاعدة معرفة')];
+// مواضع عُقد المخطط الدائري (بيضاوي حول المركز)
+$cx = 300; $cy = 205; $rx = 212; $ry = 150; $diag = [];
+foreach ($groups as $gi => $g) {
+    $ang = deg2rad(-90 + 60 * $gi);
+    $diag[] = [round($cx + $rx * cos($ang), 1), round($cy + $ry * sin($ang), 1), $g[0], $g[1]];
+}
 ?><!doctype html>
 <?= html_open() ?>
 <head>
@@ -94,7 +108,25 @@ details.lp-q summary::-webkit-details-marker{display:none}details.lp-q[open] .lp
 .lp-ic{transition:transform .35s cubic-bezier(.34,1.56,.64,1)}
 /* عوم لطيف لبطاقة الهيرو */
 .lp-float{animation:heroFloat 6s ease-in-out infinite}@keyframes heroFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
-@media (prefers-reduced-motion:reduce){.lp-blob,.lp-shine,.lp-marquee,.lp-pulse,.lp-float{animation:none!important}[data-reveal]{opacity:1;transform:none;transition:none}}
+/* كانفاس شبكة النقاط خلف الهيرو */
+.lp-net{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;opacity:.55}
+.dark .lp-net{opacity:.4}
+/* مخطط الأقسام الدائري (SVG) */
+.lp-diag .lp-spoke{stroke-dashoffset:1;transition:stroke-dashoffset 1.1s cubic-bezier(.22,1,.36,1)}
+.lp-diag.in .lp-spoke{stroke-dashoffset:0}
+.lp-diag .lp-node{opacity:0;transform:translateY(10px) scale(.7);transform-box:fill-box;transform-origin:center;transition:opacity .55s ease,transform .55s cubic-bezier(.34,1.56,.64,1)}
+.lp-diag.in .lp-node{opacity:1;transform:none}
+.lp-diag .lp-node:hover{transform:scale(1.08)}
+.lp-nlabel{fill:#334155;font-size:13px;font-weight:700}
+.dark .lp-nlabel{fill:#cbd5e1}
+.lp-hub{animation:hubPulse 3s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes hubPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
+/* شرائح الأدوات المستبدلة */
+.lp-strike{position:relative;transition:color .4s,border-color .4s,background .4s}
+.lp-strike::after{content:"";position:absolute;inset-inline-start:12%;inset-inline-end:12%;top:50%;height:2px;background:currentColor;transform:scaleX(0);transform-origin:inline-start;transition:transform .5s cubic-bezier(.22,1,.36,1)}
+[data-reveal].in .lp-strike::after{transform:scaleX(1)}
+[data-reveal].in .lp-strike{color:#94a3b8}
+@media (prefers-reduced-motion:reduce){.lp-blob,.lp-shine,.lp-marquee,.lp-pulse,.lp-float,.lp-hub{animation:none!important}[data-reveal],.lp-diag .lp-node{opacity:1;transform:none;transition:none}.lp-diag .lp-spoke{stroke-dashoffset:0}.lp-net{display:none}.lp-strike::after{transform:scaleX(1)}}
 </style>
 </head>
 <body class="bg-white text-ink-800 antialiased">
@@ -110,6 +142,7 @@ details.lp-q summary::-webkit-details-marker{display:none}details.lp-q[open] .lp
 
 <section class="relative overflow-hidden">
   <div class="absolute inset-0 lp-grid opacity-60"></div><div class="absolute inset-0 lp-glow"></div>
+  <canvas class="lp-net" aria-hidden="true"></canvas>
   <span class="lp-blob b1"></span><span class="lp-blob b2"></span><span class="lp-blob b3"></span>
   <div class="relative max-w-6xl mx-auto px-4 pt-14 pb-20 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
     <div class="lp-in min-w-0">
@@ -151,6 +184,20 @@ details.lp-q summary::-webkit-details-marker{display:none}details.lp-q[open] .lp
   </div>
 </section>
 
+<section class="max-w-6xl mx-auto px-4 pt-16">
+  <div data-reveal class="relative overflow-hidden rounded-[2rem] px-6 py-10 sm:px-12" style="background:linear-gradient(135deg,#1d4ed8,#2563eb 55%,#06b6d4);color:#fff">
+    <div class="absolute inset-0 lp-grid opacity-15"></div><span class="lp-blob b1" style="opacity:.3"></span><span class="lp-blob b2" style="opacity:.3"></span>
+    <div class="relative grid grid-cols-2 lg:grid-cols-4 gap-8 text-center">
+      <?php foreach ($stats as $si => $st): ?>
+        <div data-reveal data-reveal-delay="<?= $si * 90 ?>">
+          <div class="text-4xl sm:text-5xl font-extrabold tracking-tight"><span class="lp-count" data-to="<?= $st[0] ?>"<?= $st[0] >= 1000 ? ' data-format="comma"' : '' ?>>0</span><?= $st[1] ?></div>
+          <div class="mt-2 text-sm" style="color:rgba(255,255,255,.82)"><?= e($st[2]) ?></div>
+        </div>
+      <?php endforeach; ?>
+    </div>
+  </div>
+</section>
+
 <section id="features" class="max-w-6xl mx-auto px-4 py-20 scroll-mt-20">
   <div data-reveal class="text-center max-w-2xl mx-auto"><h2 class="text-3xl font-extrabold text-ink-900"><?= e(t('كل خدمات شركتك في منصة واحدة')) ?></h2><p class="mt-3 text-ink-600"><?= e(t('من أول فرصة إلى المحتوى والنشر والتواصل والنتائج، دون التنقل بين أدوات متفرقة.')) ?></p></div>
   <div class="mt-10 flex flex-wrap justify-center gap-2" role="tablist">
@@ -174,6 +221,61 @@ details.lp-q summary::-webkit-details-marker{display:none}details.lp-q[open] .lp
     panes.forEach(function (p) { p.classList.toggle('hidden', p.dataset.lpp !== k); }); }
   tabs.forEach(function (t) { t.addEventListener('click', function () { on(t.dataset.lpt); }); }); on('0'); })();
 </script>
+
+<section class="relative overflow-hidden border-y border-ink-100 bg-white">
+  <div class="absolute inset-0 lp-grid opacity-50"></div>
+  <div class="relative max-w-6xl mx-auto px-4 py-20 grid lg:grid-cols-2 gap-12 items-center">
+    <div data-reveal>
+      <span class="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-brand-50 text-brand-700 text-xs font-semibold px-3 py-1"><?= e(t('منظومة واحدة')) ?></span>
+      <h2 class="mt-5 text-3xl font-extrabold text-ink-900"><?= e(t('ستة أقسام تدور حول مركز واحد: شركتك')) ?></h2>
+      <p class="mt-4 text-ink-600 leading-relaxed"><?= e(t('كل قسم يغذّي الباقي من نفس ملف الشركة ونفس البيانات: الفرص تتحوّل لعملاء، والعملاء لمحتوى ونشر، والنشر لرسائل ونتائج — بلا نسخ ولصق بين أدوات متفرقة.')) ?></p>
+      <ul class="mt-6 space-y-3">
+        <?php foreach ($groups as $g): ?>
+          <li class="flex items-center gap-3 text-sm text-ink-700"><span class="w-8 h-8 rounded-xl bg-brand-50 text-brand-600 grid place-items-center shrink-0"><?= $ic($g[0], 'w-4 h-4') ?></span><b class="font-semibold"><?= e($g[1]) ?></b></li>
+        <?php endforeach; ?>
+      </ul>
+    </div>
+    <div data-reveal class="lp-diag min-w-0">
+      <svg viewBox="0 0 600 410" class="w-full h-auto" role="img" aria-label="<?= e(t('مخطط الأقسام حول المنصة')) ?>">
+        <defs>
+          <linearGradient id="lpHub" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2563eb"/><stop offset="1" stop-color="#06b6d4"/></linearGradient>
+          <radialGradient id="lpNode" cx=".5" cy=".4" r=".7"><stop offset="0" stop-color="#eff6ff"/><stop offset="1" stop-color="#dbeafe"/></radialGradient>
+        </defs>
+        <?php foreach ($diag as $di => $d): ?>
+          <line class="lp-spoke" x1="<?= $cx ?>" y1="<?= $cy ?>" x2="<?= $d[0] ?>" y2="<?= $d[1] ?>" pathLength="1" stroke-dasharray="1" stroke="#93c5fd" stroke-width="2" stroke-linecap="round" style="transition-delay:<?= $di * 90 ?>ms"></line>
+        <?php endforeach; ?>
+        <g class="lp-hub"><circle cx="<?= $cx ?>" cy="<?= $cy ?>" r="50" fill="url(#lpHub)"/><circle cx="<?= $cx ?>" cy="<?= $cy ?>" r="50" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="2"/><text x="<?= $cx ?>" y="<?= $cy + 6 ?>" text-anchor="middle" fill="#fff" font-size="17" font-weight="800"><?= e(t('شركتك')) ?></text></g>
+        <?php foreach ($diag as $di => $d): $ly = $d[1] <= $cy ? $d[1] + 52 : $d[1] - 44; ?>
+          <g class="lp-node" style="transition-delay:<?= $di * 90 + 420 ?>ms">
+            <circle cx="<?= $d[0] ?>" cy="<?= $d[1] ?>" r="34" fill="url(#lpNode)" stroke="#bfdbfe" stroke-width="1.5"/>
+            <svg x="<?= $d[0] - 15 ?>" y="<?= $d[1] - 15 ?>" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="<?= $d[2] ?>"/></svg>
+            <text class="lp-nlabel" x="<?= $d[0] ?>" y="<?= $ly ?>" text-anchor="middle"><?= e($d[3]) ?></text>
+          </g>
+        <?php endforeach; ?>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<section class="max-w-6xl mx-auto px-4 py-20">
+  <div data-reveal class="text-center max-w-2xl mx-auto">
+    <h2 class="text-3xl font-extrabold text-ink-900"><?= e(t('منصّة واحدة تغني عن أدوات كثيرة')) ?></h2>
+    <p class="mt-3 text-ink-600"><?= e(t('بدل اشتراكات متفرّقة لا تتكلّم مع بعضها — كل شيء في مكان واحد، بنفس البيانات والفريق.')) ?></p>
+  </div>
+  <div class="mt-10 grid lg:grid-cols-[1fr_auto_auto] gap-6 items-center">
+    <div data-reveal class="flex flex-wrap gap-2.5 justify-center lg:justify-start">
+      <?php foreach ($replaces as $ri => $rp): ?>
+        <span data-reveal data-reveal-delay="<?= $ri * 45 ?>" class="lp-strike inline-flex items-center rounded-xl border border-ink-200 bg-ink-50 px-3.5 py-2 text-sm font-medium text-ink-600"><?= e($rp) ?></span>
+      <?php endforeach; ?>
+    </div>
+    <div data-reveal data-reveal-delay="200" class="hidden lg:grid place-items-center text-brand-400"><?= $ic('M5 12h14M13 6l6 6-6 6', 'w-9 h-9') ?></div>
+    <div data-reveal data-reveal-delay="300" class="lp-card rounded-3xl p-6 text-center text-white shadow-2xl shadow-brand-900/20 mx-auto" style="background:linear-gradient(135deg,#1d4ed8,#06b6d4)">
+      <span class="lp-ic inline-grid w-14 h-14 rounded-2xl bg-white/15 place-items-center mx-auto mb-3"><?= $ic('M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z', 'w-7 h-7') ?></span>
+      <div class="text-xl font-extrabold"><?= e($siteName) ?></div>
+      <div class="mt-1 text-sm" style="color:rgba(255,255,255,.85)"><?= e(t('اشتراك واحد · حساب واحد')) ?></div>
+    </div>
+  </div>
+</section>
 
 <section id="how" class="bg-ink-50/60 border-y border-ink-100 scroll-mt-20">
   <div class="max-w-6xl mx-auto px-4 py-20">
@@ -225,13 +327,14 @@ details.lp-q summary::-webkit-details-marker{display:none}details.lp-q[open] .lp
   }
   // عدّاد الأرقام في بطاقة الهيرو
   var counts = document.querySelectorAll('.lp-count');
+  function fmt(el, n) { return el.getAttribute('data-format') === 'comma' ? n.toLocaleString('en-US') : String(n); }
   function run(el) {
-    var to = parseInt(el.getAttribute('data-to') || '0', 10), dur = 1100, t0 = null;
-    if (reduce) { el.textContent = to; return; }
+    var to = parseInt(el.getAttribute('data-to') || '0', 10), dur = 1200, t0 = null;
+    if (reduce) { el.textContent = fmt(el, to); return; }
     function tick(ts) {
       if (t0 === null) t0 = ts;
       var p = Math.min((ts - t0) / dur, 1), eased = 1 - Math.pow(1 - p, 3);
-      el.textContent = Math.round(to * eased);
+      el.textContent = fmt(el, Math.round(to * eased));
       if (p < 1) requestAnimationFrame(tick);
     }
     requestAnimationFrame(tick);
@@ -243,6 +346,37 @@ details.lp-q summary::-webkit-details-marker{display:none}details.lp-q[open] .lp
       entries.forEach(function (en) { if (en.isIntersecting) { run(en.target); co.unobserve(en.target); } });
     }, { threshold: 0.6 });
     counts.forEach(function (el) { co.observe(el); });
+  }
+  // كانفاس: شبكة نقاط متصلة في الهيرو
+  var cv = document.querySelector('.lp-net');
+  if (cv && !reduce && cv.getContext) {
+    var ctx = cv.getContext('2d'), DPR = Math.min(window.devicePixelRatio || 1, 2), W = 0, H = 0, pts = [], raf = 0;
+    function resize() {
+      var r = cv.getBoundingClientRect(); W = r.width; H = r.height;
+      cv.width = W * DPR; cv.height = H * DPR; ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      var n = Math.max(18, Math.min(46, Math.round(W * H / 20000)));
+      pts = []; for (var i = 0; i < n; i++) pts.push({ x: Math.random() * W, y: Math.random() * H, vx: (Math.random() - 0.5) * 0.28, vy: (Math.random() - 0.5) * 0.28 });
+    }
+    function frame() {
+      ctx.clearRect(0, 0, W, H);
+      for (var i = 0; i < pts.length; i++) {
+        var a = pts[i]; a.x += a.vx; a.y += a.vy;
+        if (a.x < 0 || a.x > W) a.vx *= -1; if (a.y < 0 || a.y > H) a.vy *= -1;
+        for (var j = i + 1; j < pts.length; j++) {
+          var b = pts[j], dx = a.x - b.x, dy = a.y - b.y, d2 = dx * dx + dy * dy;
+          if (d2 < 15000) { ctx.globalAlpha = (1 - d2 / 15000) * 0.5; ctx.strokeStyle = '#2563eb'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+        }
+      }
+      ctx.globalAlpha = 0.85; ctx.fillStyle = '#06b6d4';
+      for (var k = 0; k < pts.length; k++) { ctx.beginPath(); ctx.arc(pts[k].x, pts[k].y, 1.8, 0, 6.283); ctx.fill(); }
+      ctx.globalAlpha = 1; raf = requestAnimationFrame(frame);
+    }
+    var vis = true;
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) { cancelAnimationFrame(raf); vis = false; } else if (!vis) { vis = true; raf = requestAnimationFrame(frame); }
+    });
+    var rt; window.addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(resize, 200); });
+    resize(); frame();
   }
 })();
 </script>
