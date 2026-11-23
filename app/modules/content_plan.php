@@ -161,6 +161,8 @@ function cpl_master(array $p): string
 function cpl_rules(array $p): string
 {
     $o = cpl_opts($p);
+    // خطة المحتوى تحقن أسلوب الكتابة بنفسها حسب خيار الخطة؛ نوقف الحقن العام (ai_with_style) لتجنّب التكرار
+    $GLOBALS['ai_no_humanize_style'] = true;
     $ar = 'Arabic' . ($o['dialect'] !== '' ? ' (' . $o['dialect'] . ' dialect — use this dialect, NOT Modern Standard Arabic)' : ' (clear Modern Standard Arabic unless the KB shows another brand voice)');
     $nm = function ($k) use ($o, $ar) { $v = $o[$k] ?? $o['lang']; return [
         'ar' => 'ONLY ' . $ar . ' (no English words except unavoidable technical/brand terms)',
@@ -336,8 +338,18 @@ function cpl_do_posts(array $p): void
     if (!$rows) { db()->prepare('UPDATE cp_plans SET status = "review", stage = "done" WHERE id = ?')->execute([(int)$p['id']]); cpl_log((int)$p['id'], t('اكتملت الخطة. جاهزة للمراجعة والموافقة.'), 'ok'); return; }
     $list = []; foreach ($rows as $r) { $t = json_decode((string)$r['topic'], true) ?: []; $list[] = ['n' => (int)$r['seq']] + array_intersect_key($t, array_flip(['title', 'angle', 'category', 'service', 'audience', 'objective'])); }
     $st2 = db()->prepare('SELECT seq, headline FROM cp_items WHERE plan_id = ? AND linkedin IS NOT NULL ORDER BY seq'); $st2->execute([(int)$p['id']]); $used = array_filter(array_column($st2->fetchAll(), 'headline'));
-    $sys = "CONTENT_PLAN_JSON\n" . cpl_rules($p) . "\n\nSTEP 2 OF 2: write the complete posts for the topics given, all six sections each, finished and usable."
-        . "\nReturn ONLY JSON: {\"posts\":[{\"n\":1,\"linkedin\":\"130-220 words\",\"x\":\"max 280 characters incl. hashtags\",\"headline\":\"2-6 word poster headline that is GRAMMATICALLY CORRECT, natural and fluent in the headline language — read it aloud; it must sound like a real professional ad line a native copywriter wrote, never an awkward literal or machine-translated phrasing (e.g. write «راقب شبكتك قبل أن تتوقف» not «راقب الشبكة قبل لا يوقف الخط»). Wrap the SINGLE most important word (one word only, the punchy keyword) in «» guillemets — this word will be coloured as an accent, so pick the word that carries the message\",\"image_prompt\":\"150-220 words English for a HIGH-END ADVERTISING / CREATIVE-AGENCY poster (think award-winning social campaign, not a plain stock photo). Describe: a single powerful hero subject (a real expressive person in a candid decisive moment, OR one striking hero object / premium 3D element) as the clear focal point; a cinematic, dramatic, premium scene with depth — moody dark or rich brand-colored environment, strong directional key light plus a coloured rim/accent glow in the brand colour, volumetric light, reflections and premium materials; professional composition with the subject offset and deliberate EMPTY NEGATIVE SPACE in the upper area kept calm and darker for the headline to be added later; shallow depth of field, sharp focus on the subject, cinematic colour grade, fine film grain, photoreal and tactile — never flat, generic, bright-and-empty or AI-plastic. State the exact brand accent colour and mood. Output 4:5 1080x1350. End with the avoid list.\",\"video_prompt\":\"an 8-second vertical 9:16 cinematic video prompt in professional English: ONE clear simple visual idea with smooth natural camera motion and believable real action that shows the post's concept. NO on-screen text, NO captions or subtitles, NO titles or headlines, NO UI/dashboard/chart text, NO readable screens, NO logos, NO brand names, NO watermarks, NO call-to-action text and NO end card — any text the video model draws comes out as broken gibberish, so keep every screen and surface abstract and out of focus. Photoreal, realistic humans with correct hands, natural lighting; end on a clean calm frame with empty space\",\"carousel\":[{\"role\":\"Hook|Problem|Insight|Solution|CTA\",\"title\":\"on-slide headline\",\"body\":\"on-slide supporting copy\",\"visual\":\"visual concept and composition\",\"layout\":\"layout instructions\"}]}]} one object per topic with the same n; carousel has exactly 5 slides in the order Hook, Problem, Insight, Solution, CTA."
+    // بناء المخطط حسب المطلوب فقط: لا نطلب من الموديل video_prompt أو carousel لو المستخدم مش عايزهم (توفير توكنز فعلي)
+    $o = cpl_opts($p);
+    $fld = [];
+    $fld[] = '"linkedin":"130-220 words"';
+    $fld[] = '"x":"max 280 characters incl. hashtags"';
+    $fld[] = '"headline":"2-6 word poster headline that is GRAMMATICALLY CORRECT, natural and fluent in the headline language — read it aloud; it must sound like a real professional ad line a native copywriter wrote, never an awkward literal or machine-translated phrasing (e.g. write «راقب شبكتك قبل أن تتوقف» not «راقب الشبكة قبل لا يوقف الخط»). Wrap the SINGLE most important word (one word only, the punchy keyword) in «» guillemets — this word will be coloured as an accent, so pick the word that carries the message"';
+    $fld[] = '"image_prompt":"150-220 words English for a HIGH-END ADVERTISING / CREATIVE-AGENCY poster (think award-winning social campaign, not a plain stock photo). Describe: a single powerful hero subject (a real expressive person in a candid decisive moment, OR one striking hero object / premium 3D element) as the clear focal point; a cinematic, dramatic, premium scene with depth — moody dark or rich brand-colored environment, strong directional key light plus a coloured rim/accent glow in the brand colour, volumetric light, reflections and premium materials; professional composition with the subject offset and deliberate EMPTY NEGATIVE SPACE in the upper area kept calm and darker for the headline to be added later; shallow depth of field, sharp focus on the subject, cinematic colour grade, fine film grain, photoreal and tactile — never flat, generic, bright-and-empty or AI-plastic. State the exact brand accent colour and mood. Output 4:5 1080x1350. End with the avoid list."';
+    if (!empty($o['video'])) $fld[] = '"video_prompt":"an 8-second vertical 9:16 cinematic video prompt in professional English: ONE clear simple visual idea with smooth natural camera motion and believable real action that shows the post\'s concept. NO on-screen text, NO captions or subtitles, NO titles or headlines, NO UI/dashboard/chart text, NO readable screens, NO logos, NO brand names, NO watermarks, NO call-to-action text and NO end card — any text the video model draws comes out as broken gibberish, so keep every screen and surface abstract and out of focus. Photoreal, realistic humans with correct hands, natural lighting; end on a clean calm frame with empty space"';
+    if (!empty($o['carousel'])) $fld[] = '"carousel":[{"role":"Hook|Problem|Insight|Solution|CTA","title":"on-slide headline","body":"on-slide supporting copy","visual":"visual concept and composition","layout":"layout instructions"}]';
+    $schema = 'Return ONLY JSON: {"posts":[{"n":1,' . implode(',', $fld) . '}]} one object per topic with the same n'
+        . (!empty($o['carousel']) ? '; carousel has exactly 5 slides in the order Hook, Problem, Insight, Solution, CTA' : '; do NOT include video_prompt or carousel — they were not requested') . '.';
+    $sys = "CONTENT_PLAN_JSON\n" . cpl_rules($p) . "\n\nSTEP 2 OF 2: write the complete posts for the topics given, every requested section finished and usable.\n" . $schema
         . ($used ? "\nHeadlines and visual concepts already used in this plan (do not repeat them): " . implode(' | ', array_slice($used, -40)) : '');
     $seqs = array_column($list, 'n'); cpl_log((int)$p['id'], t('كتابة المنشور %s بالأقسام الستة…', implode(' و', $seqs))); $tw = microtime(true);
     // ميزانية توكنز سخية: موديلات التفكير بتستهلك جزء كبير على التفكير قبل إخراج الـ JSON،
@@ -379,6 +391,26 @@ function cpl_do_fix(array $p, array $it): void
     $left = $after ? $after['qc'] : [];
     cpl_log($id, $left ? t('بعد التصحيح (%s ثانية) ما زال في المنشور %s: %s', round(microtime(true) - $tf), $it['seq'], implode(' · ', $left)) : t('تم تصحيح المنشور %s في %s ثانية، واجتاز فحص الجودة.', $it['seq'], round(microtime(true) - $tf)), $left ? 'warn' : 'ok');
     if ($left && (int)$it['fix_tries'] + 1 >= 2) cpl_log($id, t('توقفنا عن تصحيح المنشور %s بعد محاولتين؛ راجعه يدويًا (الملاحظات ظاهرة على الكارت).', $it['seq']), 'warn');
+}
+
+/** إعادة توليد حقل واحد فقط (عنوان/LinkedIn/X/برومبت صورة) دون المساس ببقية المنشور — توفير استهلاك. */
+function cpl_regen_field(int $itemId, string $field): ?array
+{
+    $allow = ['headline' => 120, 'linkedin' => 6000, 'x' => 600, 'image_prompt' => 6000];
+    if (!isset($allow[$field])) return null;
+    $it = cpl_item($itemId); if (!$it) return null; $p = cpl_plan($it['plan_id']); if (!$p) return null;
+    $label = ['headline' => 'the poster headline (2-6 words)', 'linkedin' => 'the LinkedIn caption (130-220 words with hashtags)', 'x' => 'the X/Twitter post (max 280 chars incl. hashtags)', 'image_prompt' => 'the English image prompt (150-220 words)'][$field];
+    $ctx = ['topic' => $it['topic'], 'current_headline' => $it['headline'], 'current_linkedin' => $it['linkedin'], 'current_x' => $it['x']];
+    $sys = "CONTENT_FIELD_JSON\n" . cpl_rules($p) . "\n\nRegenerate ONLY {$label} for this post — a fresh, clearly different, better version. Keep it consistent with the topic, audience, language and brand. Do NOT change anything else."
+        . "\nReturn ONLY JSON: {\"" . $field . "\":\"...\"}.";
+    $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => cpl_brief($p) . "\n\nPost context:\n" . json_encode($ctx, JSON_UNESCAPED_UNICODE)]], 1500, 'compose');
+    $j = kb_parse_json((string)($r['text'] ?? '')); $v = trim((string)($j[$field] ?? '')); if ($v === '') return null;
+    if (in_array($field, ['headline', 'linkedin', 'x'], true)) $v = ai_strip_dashes($v);
+    $v = mb_substr($v, 0, $allow[$field]);
+    db()->prepare("UPDATE cp_items SET $field = ? WHERE id = ? AND workspace_id = ?")->execute([$v, $itemId, (int)ws('id')]);
+    // لو العنوان اتغيّر وفي صورة بلا تعديل يدوي مقفول، نعيد تركيبها لتعكس العنوان الجديد
+    if ($field === 'headline' && (string)$it['fmt'] === 'image') cpl_recompose($itemId);
+    return cpl_item($itemId);
 }
 
 /** فحص الجودة (QUALITY CONTROL في البرومبت) لكل منشور: أرقام قابلة للقياس فقط، ومش بيحكم على الإبداع */

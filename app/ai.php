@@ -270,6 +270,8 @@ function ai_strip_dashes(string $t): string
 
 function ai_with_style(array $messages, string $task): array
 {
+    // جهة الاستدعاء تتولّى حقن أسلوب الكتابة بنفسها (مثل خطة المحتوى عبر cpl_rules) — نتجنّب الحقن المزدوج
+    if (!empty($GLOBALS['ai_no_humanize_style'])) return $messages;
     if (!in_array($task, ['assistant', 'compose', 'reply', 'reply_fast', 'analyze', 'ads_copy', 'ads_builder', 'ads_advisor', 'reviews'], true)) return $messages;
     if (setting('ai_humanize_' . (int)ws('id'), '1') !== '1') return $messages;
     $r = ai_humanize_rules();
