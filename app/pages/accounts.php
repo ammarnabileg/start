@@ -138,6 +138,8 @@ if ($fx) {
         $apiError = $ex->getMessage();
     }
 }
+// توحيد مفاتيح المنصة (جوجل بيزنس بيجي أحيانًا باسم gmb) عشان الإحصاء والربط يتعرفوا عليها
+foreach ($accounts as &$__a) { if (isset($__a['platform'])) $__a['platform'] = plat_canon((string)$__a['platform']); } unset($__a);
 
 render(t('الحسابات المربوطة'), 'accounts', function () use ($z, $fx, $accounts, $apiError, $connectable) {
     if (!$z && !$fx) { no_api_box(); return; }

@@ -3,6 +3,19 @@
  * أيقونات المنصات (Simple Icons، رخصة CC0) بلون كل منصة.
  * platform_icon('facebook') بيرجع أيقونة صغيرة جاهزة للعرض.
  */
+/** يوحّد مفاتيح المنصة اللي بتيجي من المزوّد بأسماء مختلفة (جوجل بيزنس، X) للمفتاح القياسي في المنصة. */
+function plat_canon(string $p): string
+{
+    $p = strtolower(trim($p));
+    static $m = [
+        'gmb' => 'googlebusiness', 'google_my_business' => 'googlebusiness', 'google-my-business' => 'googlebusiness',
+        'googlemybusiness' => 'googlebusiness', 'google_business' => 'googlebusiness', 'google-business' => 'googlebusiness',
+        'google_business_profile' => 'googlebusiness', 'gbp' => 'googlebusiness', 'mybusiness' => 'googlebusiness',
+        'x' => 'twitter', 'youtube_shorts' => 'youtube',
+    ];
+    return $m[$p] ?? $p;
+}
+
 function platform_icons(): array
 {
     return [
