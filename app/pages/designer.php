@@ -172,11 +172,12 @@ if (!empty($kit['colors'])) $brand = $kit['colors'];
 if (!$brand) $brand = ['#2563eb', '#0f172a', '#f59e0b'];
 // صورة جاية من استوديو الصور أو من المكتبة (نفس الموقع بس، عشان التصدير يشتغل)
 $img = (string)($_GET['img'] ?? ''); if (!preg_match('~^index\.php\?p=(ai_task&img=[\w.-]+|media&file=\d+)$~', $img)) $img = '';
+$cpItem = (int)($_GET['cpitem'] ?? 0); $cpPlan = (int)($_GET['cpplan'] ?? 0); // محرّر مدمج لخطة المحتوى: الحفظ يرجع للمنشور
 
 $kitOut = $kit + ['colors' => [], 'head' => '', 'body' => '', 'logo' => '', 'auto' => false, 'fonts' => []];
 if ($kitOut['logo'] === '' && function_exists('kb_logo') && ($kl = kb_logo($wid))) { $kitOut['logo'] = 'index.php?p=media&file=' . (int)$kl['id']; if (!isset($kit['auto'])) $kitOut['auto'] = true; } // شعار قاعدة المعرفة يتحط تلقائيًا في القوالب
 $kitOut['fonts'] = array_map(function ($f) { return ['name' => (string)$f['name'], 'url' => url('designer', ['font' => (string)$f['file']])]; }, array_filter((array)$kitOut['fonts'], function ($f) { return is_array($f) && !empty($f['file']); }));
-render(t('المصمم'), 'designer', function () use ($brand, $co, $img, $kbd, $kitOut) {
+render(t('المصمم'), 'designer', function () use ($brand, $co, $img, $kbd, $kitOut, $cpItem, $cpPlan) {
     $fonts = ['Cairo', 'Tajawal', 'Almarai', 'Alexandria', 'Changa', 'El Messiri', 'Lalezar', 'Amiri', 'Reem Kufi', 'Inter', 'Poppins', 'Playfair Display'];
     ?>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&family=Tajawal:wght@400;700;900&family=Almarai:wght@400;700;800&family=Changa:wght@400;700&family=El+Messiri:wght@400;700&family=Lalezar&family=Amiri:wght@400;700&family=Reem+Kufi:wght@400;700&family=Inter:wght@400;700;900&family=Poppins:wght@400;700;900&family=Playfair+Display:wght@400;700&display=swap">
@@ -206,7 +207,11 @@ render(t('المصمم'), 'designer', function () use ($brand, $co, $img, $kbd, 
           <button type="button" class="dz-mi" data-exp="all">PNG × <?= e(t('كل الصفحات')) ?></button>
           <button type="button" class="dz-mi" data-exp="pdf">PDF <small><?= e(t('كل الصفحات في ملف واحد')) ?></small></button></div></div>
       </div>
+<?php if ($cpItem): ?>
+      <button type="button" id="dz-cpsave" class="btn-primary !py-1.5 !px-4 !text-sm" style="background:#16a34a"><?= ui_icon('check', 'w-4 h-4') ?><?= e(t('حفظ للمنشور')) ?></button>
+<?php else: ?>
       <button type="button" class="btn-primary !py-1.5 !px-3 !text-sm" data-cmd="post"><?= ui_icon('megaphone', 'w-4 h-4') ?><?= e(t('انشره')) ?></button>
+<?php endif; ?>
     </div>
     <div class="dz-body">
       <!-- لوحة الأدوات -->
@@ -359,7 +364,7 @@ render(t('المصمم'), 'designer', function () use ($brand, $co, $img, $kbd, 
       </aside>
     </div>
   </div>
-  <script>window.DZ = <?= json_encode(['kitEdit' => can('settings.manage') || is_ws_owner(), 'ws' => (int)ws('id'), 'uid' => (int)(current_user()['id'] ?? 0), 'tl' => ['a1' => t('عرض رئيسي'), 'offer' => t('عرض خاص'), 'learnMore' => t('اعرف المزيد'), 'a2' => t('خدمة مميزة'), 'service' => t('خدماتنا'), 'a3' => t('لماذا نحن'), 'whyUs' => t('لماذا يختارنا عملاؤنا؟'), 'a4' => t('حلولنا'), 'solutions' => t('حلول متكاملة لأعمالك'), 'a5' => t('رسالتنا'), 'a6' => t('رأي عميل'), 'clientQuote' => t('تعاملنا معهم كان تجربة مختلفة: احترافية في التنفيذ، والتزام بالمواعيد، ونتائج واضحة.'), 'clientName' => t('اسم العميل · المنصب، الشركة'), 'a7' => t('معلومة تهمّك'), 'insight' => t('معلومة تهمّك'), 'a8' => t('أسئلة شائعة'), 'faq' => t('أسئلة شائعة'), 'faqH' => t('إجابات سريعة على أهم أسئلتكم'), 'a9' => t('ندوة أو فعالية'), 'webinar' => t('ندوة عبر الإنترنت'), 'eventDate' => t('الخميس 10 أكتوبر · 7:00 مساءً'), 'eventWhere' => t('أونلاين عبر Zoom · الدخول مجاني'), 'register' => t('سجّل الآن'), 'a10' => t('نحن نوظّف'), 'hiring' => t('نحن نوظّف'), 'joinTeam' => t('انضم إلى فريق يصنع الفرق. نبحث عن كفاءات شغوفة بالتميّز.'), 'role1' => t('مهندس أمن سيبراني'), 'role2' => t('أخصائي مبيعات B2B'), 'role3' => t('مدير مشاريع'), 'apply' => t('قدّم الآن'), 'a11' => t('ستوري احترافية'), 'a12' => t('غلاف كاروسيل'), 'swipe' => t('اسحب للمزيد'), 'a13' => t('شريحة كاروسيل'), 'a14' => t('رقم وإنجاز'), 'stat' => t('مشروع ناجح لعملاء في القطاعين الحكومي والخاص'), 'a15' => t('بانر لينكدإن'), 'a16' => t('تهنئة بمناسبة'), 'greet' => t('كل عام وأنتم بخير'), 'greetSub' => t('نتمنى لكم ولعائلاتكم أيامًا مليئة بالخير والنجاح'), 'a17' => t('إعلان بصورة'), 'a18' => t('مزايا الخدمة'), 'features' => t('لماذا هذه الخدمة؟'), 'a19' => t('خطوات العمل'), 'steps' => t('كيف نعمل معك؟'), 'st1' => t('نفهم احتياجك'), 'st2' => t('نصمم الحل'), 'st3' => t('ننفذ ونتابع'), 'contact' => t('تواصل معنا'), 'a20' => t('كلمة القيادة'), 'ceo' => t('الرئيس التنفيذي'), 'a21' => t('عدّ تنازلي'), 'soon' => t('قريبًا'), 'days' => t('يوم'), 'hours' => t('ساعة'), 'mins' => t('دقيقة'), 'a22' => t('إعلان ستوري'), 'news' => t('جديدنا'), 'a23' => t('رمضان والعيد'), 'ramadan' => t('رمضان كريم'), 'ramadanSub' => t('أعاده الله علينا وعليكم بالخير واليُمن والبركات'), 'a24' => t('إعلان أنيق'), 'announce' => t('إعلان'), 'a25' => t('المشكلة والحل'), 'psH' => t('من التحدي إلى النتيجة'), 'problem' => t('التحدي'), 'problemT' => t('أنظمة متفرقة، ومخاطر غير مرئية، وقرارات بلا بيانات واضحة.'), 'solution' => t('الحل'), 'solutionT' => t('منصة موحّدة تمنحك رؤية كاملة وتحكمًا فوريًا.'), 'a26' => t('ختام كاروسيل'), 'likedIt' => t('أعجبك المحتوى؟'), 'follow' => t('تابعنا لمزيد من الحلول والنصائح، وشاركه مع فريقك.'), 'vSwap' => t('ألوان معكوسة'), 'vInv' => t('فاتح / داكن'), 'vAlt' => t('نسخة بديلة'), 'vStory' => t('ستوري'), 'vTall' => t('طولي')], 'kit' => $kitOut, 'pexels' => (bool)connector('pexels'), 'connectUrl' => url('connectors'), 'icons' => ui_icon_paths(), 'hf' => (bool)connector('higgsfield') || (function_exists('img_provider') && img_provider() !== ''), 'kb' => $kbd, 'csrf' => csrf_token(), 'url' => url('designer'), 'brand' => $brand, 'company' => (string)($co['name'] ?? ''), 'tagline' => (string)($co['tagline'] ?? ''), 'img' => $img,
+  <script>window.DZ = <?= json_encode(['kitEdit' => can('settings.manage') || is_ws_owner(), 'ws' => (int)ws('id'), 'uid' => (int)(current_user()['id'] ?? 0), 'tl' => ['a1' => t('عرض رئيسي'), 'offer' => t('عرض خاص'), 'learnMore' => t('اعرف المزيد'), 'a2' => t('خدمة مميزة'), 'service' => t('خدماتنا'), 'a3' => t('لماذا نحن'), 'whyUs' => t('لماذا يختارنا عملاؤنا؟'), 'a4' => t('حلولنا'), 'solutions' => t('حلول متكاملة لأعمالك'), 'a5' => t('رسالتنا'), 'a6' => t('رأي عميل'), 'clientQuote' => t('تعاملنا معهم كان تجربة مختلفة: احترافية في التنفيذ، والتزام بالمواعيد، ونتائج واضحة.'), 'clientName' => t('اسم العميل · المنصب، الشركة'), 'a7' => t('معلومة تهمّك'), 'insight' => t('معلومة تهمّك'), 'a8' => t('أسئلة شائعة'), 'faq' => t('أسئلة شائعة'), 'faqH' => t('إجابات سريعة على أهم أسئلتكم'), 'a9' => t('ندوة أو فعالية'), 'webinar' => t('ندوة عبر الإنترنت'), 'eventDate' => t('الخميس 10 أكتوبر · 7:00 مساءً'), 'eventWhere' => t('أونلاين عبر Zoom · الدخول مجاني'), 'register' => t('سجّل الآن'), 'a10' => t('نحن نوظّف'), 'hiring' => t('نحن نوظّف'), 'joinTeam' => t('انضم إلى فريق يصنع الفرق. نبحث عن كفاءات شغوفة بالتميّز.'), 'role1' => t('مهندس أمن سيبراني'), 'role2' => t('أخصائي مبيعات B2B'), 'role3' => t('مدير مشاريع'), 'apply' => t('قدّم الآن'), 'a11' => t('ستوري احترافية'), 'a12' => t('غلاف كاروسيل'), 'swipe' => t('اسحب للمزيد'), 'a13' => t('شريحة كاروسيل'), 'a14' => t('رقم وإنجاز'), 'stat' => t('مشروع ناجح لعملاء في القطاعين الحكومي والخاص'), 'a15' => t('بانر لينكدإن'), 'a16' => t('تهنئة بمناسبة'), 'greet' => t('كل عام وأنتم بخير'), 'greetSub' => t('نتمنى لكم ولعائلاتكم أيامًا مليئة بالخير والنجاح'), 'a17' => t('إعلان بصورة'), 'a18' => t('مزايا الخدمة'), 'features' => t('لماذا هذه الخدمة؟'), 'a19' => t('خطوات العمل'), 'steps' => t('كيف نعمل معك؟'), 'st1' => t('نفهم احتياجك'), 'st2' => t('نصمم الحل'), 'st3' => t('ننفذ ونتابع'), 'contact' => t('تواصل معنا'), 'a20' => t('كلمة القيادة'), 'ceo' => t('الرئيس التنفيذي'), 'a21' => t('عدّ تنازلي'), 'soon' => t('قريبًا'), 'days' => t('يوم'), 'hours' => t('ساعة'), 'mins' => t('دقيقة'), 'a22' => t('إعلان ستوري'), 'news' => t('جديدنا'), 'a23' => t('رمضان والعيد'), 'ramadan' => t('رمضان كريم'), 'ramadanSub' => t('أعاده الله علينا وعليكم بالخير واليُمن والبركات'), 'a24' => t('إعلان أنيق'), 'announce' => t('إعلان'), 'a25' => t('المشكلة والحل'), 'psH' => t('من التحدي إلى النتيجة'), 'problem' => t('التحدي'), 'problemT' => t('أنظمة متفرقة، ومخاطر غير مرئية، وقرارات بلا بيانات واضحة.'), 'solution' => t('الحل'), 'solutionT' => t('منصة موحّدة تمنحك رؤية كاملة وتحكمًا فوريًا.'), 'a26' => t('ختام كاروسيل'), 'likedIt' => t('أعجبك المحتوى؟'), 'follow' => t('تابعنا لمزيد من الحلول والنصائح، وشاركه مع فريقك.'), 'vSwap' => t('ألوان معكوسة'), 'vInv' => t('فاتح / داكن'), 'vAlt' => t('نسخة بديلة'), 'vStory' => t('ستوري'), 'vTall' => t('طولي')], 'kit' => $kitOut, 'pexels' => (bool)connector('pexels'), 'connectUrl' => url('connectors'), 'icons' => ui_icon_paths(), 'hf' => (bool)connector('higgsfield') || (function_exists('img_provider') && img_provider() !== ''), 'kb' => $kbd, 'csrf' => csrf_token(), 'url' => url('designer'), 'brand' => $brand, 'company' => (string)($co['name'] ?? ''), 'tagline' => (string)($co['tagline'] ?? ''), 'img' => $img, 'cpitem' => $cpItem, 'cpplan' => $cpPlan, 'cpurl' => url('content_plan'),
     'title' => mb_substr((string)($_GET['title'] ?? ''), 0, 120), 'text' => mb_substr((string)($_GET['text'] ?? ''), 0, 160), 'fonts' => $fonts,
     'L' => ['h1' => t('عنوان كبير'), 'h2' => t('عنوان فرعي'), 'p' => t('اكتب النص هنا'), 'cta' => t('اطلب الآن'), 'quote' => t('«خدمة ممتازة وسرعة في التنفيذ»'), 'quoteBy' => t('— عميل سعيد'), 'company' => t('اسم الشركة'),
       'saved' => t('اتحفظ في المكتبة ✓'), 'saving' => t('بنحفظ…'), 'err' => t('حصلت مشكلة.'), 'draft' => t('مسودة محفوظة'), 'restore' => t('لديك تصميم لم يُحفظ من آخر مرة. هل تريد إكماله؟'), 'replace' => t('سيحل القالب محل التصميم الحالي على اللوحة.'),
@@ -404,4 +409,27 @@ render(t('المصمم'), 'designer', function () use ($brand, $co, $img, $kbd, 
   <script src="assets/designer-tpl.js?v=<?= e(APP_VERSION) ?>" defer></script>
   <script src="assets/designer-tools.js?v=<?= e(APP_VERSION) ?>" defer></script>
   <script src="assets/designer-kit.js?v=<?= e(APP_VERSION) ?>" defer></script>
+<?php if ($cpItem): ?>
+  <script>/* محرّر مدمج لخطة المحتوى: تحميل اللوجو تلقائيًا + حفظ التصميم على المنشور */
+  (function(){
+    function boot(){
+      var X = window.DZX; if (!X) { return setTimeout(boot, 200); }
+      // اللوجو تلقائيًا فوق التصميم (لو مش موجود في القالب)
+      try { if (window.DZ.kit && window.DZ.kit.logo) { var cmd = document.querySelector('[data-cmd="addlogo"]'); if (cmd) setTimeout(function(){ cmd.click(); }, 900); } } catch(e){}
+    }
+    document.addEventListener('dz:ready', boot); if (window.DZX) boot();
+    var btn = document.getElementById('dz-cpsave');
+    if (btn) btn.addEventListener('click', function(){
+      var X = window.DZX; if (!X) return; btn.disabled = true; var old = btn.innerHTML; btn.textContent = '...';
+      var data = X.exportURL();
+      var fd = new FormData(); fd.append('_csrf', window.DZ.csrf); fd.append('action','savecanvas'); fd.append('id', window.DZ.cpitem); fd.append('img', data);
+      fetch(window.DZ.cpurl + '&plan=' + window.DZ.cpplan, { method:'POST', body: fd, credentials:'same-origin' })
+        .then(function(r){ return r.json(); }).then(function(j){ btn.disabled=false; btn.innerHTML=old;
+          if (!j.ok) { if(window.fxToast) fxToast(window.DZX.L.err||'خطأ','error'); return; }
+          if(window.fxToast) fxToast('تم الحفظ ✓'); try{ window.parent.postMessage({ dzSaved:true }, '*'); }catch(e){} })
+        .catch(function(){ btn.disabled=false; btn.innerHTML=old; if(window.fxToast) fxToast('تعذّر الحفظ','error'); });
+    });
+  })();
+  </script>
+<?php endif; ?>
 <?php }, ['full' => true]);
