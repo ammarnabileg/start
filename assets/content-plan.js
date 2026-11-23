@@ -246,6 +246,7 @@
   }
   var jobs = {};
   function murl(id, th) { return C.media + (C.media.indexOf('?') >= 0 ? '&' : '?') + 'file=' + id + (th ? '&thumb=1' : ''); }
+  function designerUrl(mid, head) { return 'index.php?p=designer&img=' + encodeURIComponent('index.php?p=media&file=' + mid) + '&title=' + encodeURIComponent(String(head || '').replace(/[«»]/g, '')); }
   function mediaHtml(it) {
     var js = jobs[it.id] || {}, chips = '';
     ['image', 'video', 'carousel'].forEach(function (k) { var j = js[k]; if (!j) return; var lab = T['k' + k[0].toUpperCase() + k.slice(1)], bad = j.failed && !j.done && !j.busy;
@@ -256,8 +257,10 @@
     if (!chips && !ms.length) return '';
     var canLogo = ms.length && it.fmt && it.fmt !== 'video' && P && P.has_logo;
     var canTxt = ms.length && it.fmt === 'image';
+    var rawId = (it.media_raw || [])[0] || ms[0];
     return '<div class="mt-3 rounded-xl border border-ink-200 p-3"><div class="flex flex-wrap items-center gap-2 mb-2"><b class="text-xs text-ink-500">' + esc(fm) + '</b>' + chips
       + (canTxt || canLogo ? '<span class="flex-1"></span>' : '')
+      + (canTxt ? '<a href="' + esc(designerUrl(rawId, it.headline)) + '" class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold bg-brand-600 text-[#fff] hover:bg-brand-700">🎨 ' + esc(T.openDesigner) + '</a>' : '')
       + (canTxt ? '<button type="button" data-itxt-open class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs bg-ink-100 text-ink-700 hover:bg-ink-200">✏️ ' + esc(T.itAdj) + '</button>' : '')
       + (canLogo ? '<button type="button" data-ilogo-open class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs bg-ink-100 text-ink-700 hover:bg-ink-200">🏷 ' + esc(T.ilAdj) + '</button>' : '') + '</div>'
       + (ms.length ? '<div class="flex flex-wrap gap-2">' + ms.map(function (m) { return it.fmt === 'video' ? '<video src="' + esc(murl(m)) + '" controls preload="metadata" playsinline class="w-36 h-48 rounded-lg bg-ink-900 border border-ink-200 object-cover"></video>' : '<a href="' + esc(murl(m)) + '" target="_blank"><img src="' + esc(murl(m, 1)) + '" class="w-24 h-32 object-cover rounded-lg border border-ink-200" alt=""></a>'; }).join('') + '</div>' : '') + '</div>';

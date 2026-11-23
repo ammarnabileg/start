@@ -295,7 +295,7 @@
   /* ---------- البداية ---------- */
   var draft = null; try { draft = localStorage.getItem(KEY); } catch (e) {}
   function start() {
-    if (C.img) { setSize('1080x1080'); addImg(C.img); }
+    if (C.img) { setSize('1080x1350'); addImg(C.img); if (C.title) { var _ti = C.title; setTimeout(function () { try { T(_ti, { top: H * 0.06, fontSize: W * 0.085, fill: '#ffffff', fontWeight: 900, width: W * 0.86 }); } catch (e) {} }, 700); } }
     else if (C.title || C.text) { useTplNow(6); }
     else if (draft) { window.dzAsk(L.restore, { title: L.restoreT, ok: L.cont, cancel: L.fresh, icon: '✎' }).then(function (ok) { if (ok) load(draft, function () { hist = [draft]; }); else { try { localStorage.removeItem(KEY); } catch (e) {} useTplNow(0); } }); return; }
     else { useTplNow(0); }
