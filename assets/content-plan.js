@@ -293,7 +293,9 @@
     if (b) { var st = b.dataset.bulk; return setSt(ids, st).then(function () { if (st === 'approved') toast(fmt(T.sent, ids.length)); }); }
     if (e.target.closest('#cp-fx')) { sel = {}; return paint(); }
     var g = e.target.closest('[data-gen]'); if (!g) return; var k = g.dataset.gen, lab = T['k' + k[0].toUpperCase() + k.slice(1)];
-    (window.fxAsk ? fxAsk(fmt(T.genAsk, lab, ids.length)) : Promise.resolve(confirm(fmt(T.genAsk, lab, ids.length)))).then(function (ok) { if (!ok) return;
+    // الكاروسيل = 5 صور لكل منشور؛ نؤكّد بوضوح على إجمالي الصور والتكلفة قبل التوليد المكلف
+    var msg = k === 'carousel' ? fmt(T.genAskCar || 'سيولّد الكاروسيل 5 صور لكل منشور = %s صورة إجمالاً، وتُخصم من رصيد مزوّد الصور. متابعة؟', ids.length * 5, ids.length) : fmt(T.genAsk, lab, ids.length);
+    (window.fxAsk ? fxAsk(msg) : Promise.resolve(confirm(msg))).then(function (ok) { if (!ok) return;
       post({ action: 'gen', ids: JSON.stringify(ids), kind: k }).then(function (j) { if (!j.ok) return toast(j.error || T.err, 'error'); if (!j.n) return toast(T.genNone, 'info'); toast(fmt(T.genAdded, j.n)); jobs = j.jobs.items || {}; paint(); genLoop(); }).catch(function () { toast(T.offline, 'error'); }); });
   });
   list.addEventListener('change', function (e) { if (!e.target.classList.contains('cp-sel')) return; var id = e.target.closest('article').dataset.id; if (e.target.checked) sel[id] = 1; else delete sel[id]; paint(); });
@@ -519,6 +521,29 @@
         }).then(function (j) { btn.disabled = false; btn.textContent = old; if (!j || !j.ok) return toast(T.err, 'error'); clearDraft(); tClose(); toast(T.itSaved); load(); }).catch(function () { btn.disabled = false; btn.textContent = old; toast(T.offline, 'error'); });
       });
     });
+  }
+  // ====== لوحة التكلفة (P1.4) — من بيانات ai_usage الحقيقية ======
+  var costBtn = $('#cp-cost-btn'), costMod = $('#cp-cost');
+  function costClose() { if (costMod) costMod.classList.add('hidden'); }
+  if (costBtn && costMod) {
+    costBtn.addEventListener('click', function () {
+      costMod.classList.remove('hidden'); var body = $('#cp-cost-body'); if (body) body.textContent = T.calc || 'جارٍ الحساب…';
+      post({ action: 'cost' }).then(function (j) {
+        if (!j.ok || !j.cost) { if (body) body.textContent = T.err; return; }
+        var c = j.cost; if (!c.has_data) { if (body) body.innerHTML = '<p class="text-ink-500">' + esc(T.costNone || 'لا توجد بيانات تكلفة لهذه الحملة بعد.') + '</p>'; return; }
+        var usd = function (n) { return n == null ? '—' : '$' + Number(n).toFixed(3); };
+        var rows = (c.by || []).map(function (r) { return '<tr class="border-t border-ink-100"><td class="py-1">' + esc(r.task) + '</td><td class="py-1 text-ink-400">' + esc(r.provider) + '</td><td class="py-1 text-center">' + r.n + '</td><td class="py-1 text-end tabular-nums">' + usd(r.cost) + '</td></tr>'; }).join('');
+        body.innerHTML =
+          '<div class="grid grid-cols-2 gap-2 mb-3">'
+          + '<div class="rounded-xl bg-ink-50 p-3"><div class="text-xs text-ink-500">' + esc(T.costTotal || 'الإجمالي') + '</div><div class="text-lg font-bold tabular-nums">' + usd(c.total) + '</div></div>'
+          + '<div class="rounded-xl bg-ink-50 p-3"><div class="text-xs text-ink-500">' + esc(T.costPer || 'لكل منشور معتمد') + '</div><div class="text-lg font-bold tabular-nums">' + usd(c.per_approved) + '</div></div>'
+          + '<div class="rounded-xl bg-ink-50 p-3"><div class="text-xs text-ink-500">' + esc(T.costText || 'النصوص') + '</div><div class="font-semibold tabular-nums">' + usd(c.text) + '</div></div>'
+          + '<div class="rounded-xl bg-ink-50 p-3"><div class="text-xs text-ink-500">' + esc(T.costMedia || 'الصور/الفيديو') + '</div><div class="font-semibold tabular-nums">' + usd(c.media) + '</div></div>'
+          + '</div>'
+          + '<table class="w-full text-xs"><thead><tr class="text-ink-400"><th class="text-start font-medium">' + esc(T.costTask || 'المهمة') + '</th><th class="text-start font-medium">' + esc(T.costProv || 'المزوّد') + '</th><th>#</th><th class="text-end font-medium">' + esc(T.costCost || 'التكلفة') + '</th></tr></thead><tbody>' + rows + '</tbody></table>';
+      }).catch(function () { if (body) body.textContent = T.offline; });
+    });
+    costMod.addEventListener('click', function (e) { if (e.target === costMod || e.target.closest('[data-cost-x]')) costClose(); });
   }
   paintProg({}); load(); loop();
 })();

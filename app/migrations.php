@@ -1362,4 +1362,9 @@ return [
     '082_cp_item_design_doc' => [
         "ALTER TABLE cp_items ADD COLUMN design_doc MEDIUMTEXT NULL",
     ],
+    // وسم استهلاك الذكاء بمرجع (مثل plan:123) لحساب التكلفة لكل حملة/منشور من بيانات ai_usage الحقيقية
+    '083_ai_usage_ref' => [
+        "ALTER TABLE ai_usage ADD COLUMN ref VARCHAR(40) NULL",
+        "ALTER TABLE ai_usage ADD INDEX idx_ref (ref)",
+    ],
 ];

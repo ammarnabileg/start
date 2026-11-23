@@ -163,6 +163,7 @@ function cpl_rules(array $p): string
     $o = cpl_opts($p);
     // خطة المحتوى تحقن أسلوب الكتابة بنفسها حسب خيار الخطة؛ نوقف الحقن العام (ai_with_style) لتجنّب التكرار
     $GLOBALS['ai_no_humanize_style'] = true;
+    $GLOBALS['ai_usage_ref'] = 'plan:' . (int)$p['id']; // لنسب تكلفة الذكاء لهذه الحملة
     $ar = 'Arabic' . ($o['dialect'] !== '' ? ' (' . $o['dialect'] . ' dialect — use this dialect, NOT Modern Standard Arabic)' : ' (clear Modern Standard Arabic unless the KB shows another brand voice)');
     $nm = function ($k) use ($o, $ar) { $v = $o[$k] ?? $o['lang']; return [
         'ar' => 'ONLY ' . $ar . ' (no English words except unavoidable technical/brand terms)',
@@ -237,6 +238,22 @@ function cpl_status(array $p): array
     $st = db()->prepare('SELECT COUNT(*) total, SUM(linkedin IS NOT NULL) ready FROM cp_items WHERE plan_id = ?'); $st->execute([(int)$p['id']]); $c = $st->fetch();
     $h = db()->prepare('SELECT COUNT(*) FROM cp_items WHERE plan_id = ? AND humanized = 1'); $h->execute([(int)$p['id']]);
     return ['id' => (int)$p['id'], 'status' => $p['status'], 'stage' => $p['stage'], 'count' => (int)$p['cnt'], 'topics' => (int)$c['total'], 'ready' => (int)$c['ready'], 'human' => (int)$h->fetchColumn(), 'hz' => !empty(cpl_opts($p)['humanize']), 'error' => (string)($p['error'] ?? ''), 'log' => json_decode((string)($p['log'] ?? ''), true) ?: []];
+}
+
+/** تكلفة الذكاء الفعلية لهذه الحملة من بيانات ai_usage الحقيقية (موسومة بـ plan:ID). لا أرقام مخترعة. */
+function cpl_cost(int $planId): array
+{
+    $wid = (int)ws('id');
+    $st = db()->prepare("SELECT task, provider, COUNT(*) n, COALESCE(SUM(cost),0) c, COALESCE(SUM(tokens_in),0) ti, COALESCE(SUM(tokens_out),0) too FROM ai_usage WHERE workspace_id = ? AND ref = ? GROUP BY task, provider ORDER BY c DESC");
+    $st->execute([$wid, 'plan:' . $planId]); $rows = $st->fetchAll();
+    $total = 0.0; $byTask = []; $text = 0.0; $media = 0.0;
+    foreach ($rows as $r) { $c = (float)$r['c']; $total += $c;
+        $isMedia = stripos($r['task'], 'image') !== false || stripos($r['task'], 'video') !== false || stripos($r['task'], 'img') !== false;
+        if ($isMedia) $media += $c; else $text += $c;
+        $byTask[] = ['task' => (string)$r['task'], 'provider' => (string)$r['provider'], 'n' => (int)$r['n'], 'cost' => round($c, 4)]; }
+    $ap = (int)db()->query('SELECT COUNT(*) FROM cp_items WHERE plan_id = ' . (int)$planId . " AND status IN ('approved','scheduled','queued','published')")->fetchColumn();
+    return ['has_data' => !empty($rows), 'total' => round($total, 4), 'text' => round($text, 4), 'media' => round($media, 4),
+        'approved' => $ap, 'per_approved' => $ap ? round($total / $ap, 4) : null, 'by' => $byTask, 'currency' => 'USD'];
 }
 
 function cpl_do_visual(array $p): void
@@ -1359,6 +1376,7 @@ function cpl_compose_media(array $p, int $rawMid, string $headline, ?array $lopt
 /** تنفيذ مهمة واحدة (أو متابعة فيديو شغال). بيرجع true لو عمل حاجة */
 function cpl_jobs_tick(int $planId): bool
 {
+    $GLOBALS['ai_usage_ref'] = 'plan:' . $planId; // نسب تكلفة الصور/الفيديو لهذه الحملة
     $lk = 'cplj_' . $planId; if (!db()->query('SELECT GET_LOCK(' . db()->quote($lk) . ', 0)')->fetchColumn()) return false;
     try {
         @set_time_limit(330); $p = cpl_plan($planId); if (!$p) return false; $wid = (int)ws('id');
@@ -1404,6 +1422,7 @@ function cpl_jobs_tick(int $planId): bool
  */
 function cpl_jobs_burst(int $planId, int $concurrency = 5): int
 {
+    $GLOBALS['ai_usage_ref'] = 'plan:' . $planId;
     if (img_provider() !== 'openai' || !function_exists('img_openai_batch')) return cpl_jobs_tick($planId) ? 1 : 0;
     $lk = 'cplj_' . $planId; if (!db()->query('SELECT GET_LOCK(' . db()->quote($lk) . ', 0)')->fetchColumn()) return 0;
     try {

@@ -216,8 +216,9 @@ function ai_log_usage(int $wid, string $task, string $provider, string $model, a
         elseif ($in || $out) $cost = round(($in * 5 + $out * 15) / 1e6, 6);
     }
     try {
-        db()->prepare("INSERT INTO ai_usage (workspace_id, user_id, task, provider, model, tokens_in, tokens_out, cost) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-            ->execute([$wid, (int)(current_user()['id'] ?? 0) ?: null, mb_substr($task, 0, 40), $provider, mb_substr($model, 0, 160), $in, $out, $cost]);
+        $ref = isset($GLOBALS['ai_usage_ref']) ? mb_substr((string)$GLOBALS['ai_usage_ref'], 0, 40) : null;
+        db()->prepare("INSERT INTO ai_usage (workspace_id, user_id, task, provider, model, tokens_in, tokens_out, cost, ref) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+            ->execute([$wid, (int)(current_user()['id'] ?? 0) ?: null, mb_substr($task, 0, 40), $provider, mb_substr($model, 0, 160), $in, $out, $cost, $ref]);
     } catch (Throwable $e) {
     }
     return $cost;
