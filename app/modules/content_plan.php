@@ -150,6 +150,13 @@ function cpl_ref_images(array $p, int $wid, int $max = 4): array
 
 /** جودة توليد صور الخطة (high افتراضيًا للتصميمات بمستوى الوكالات؛ يقدر صاحب الخطة يخفّضها لتوفير الكريدت). */
 function cpl_img_quality(array $p): string { $q = (string)(cpl_opts($p)['img_q'] ?? 'high'); return in_array($q, ['low', 'medium', 'high'], true) ? $q : 'high'; }
+/** تكلفة الصورة الواحدة المقدّرة بالدولار — فقط عندما يكون السعر معروفًا (OpenAI). غير ذلك null (لا نخترع أرقامًا). */
+function cpl_img_unit_cost(array $p): ?float
+{
+    if (!function_exists('img_provider') || img_provider() !== 'openai' || !function_exists('img_openai_cost')) return null;
+    $size = cpl_aspect($p) === '1:1' ? '1024x1024' : '1024x1536';
+    return round(img_openai_cost(cpl_img_quality($p), $size), 4);
+}
 
 /** البرومبت الأساسي = برومبت المستخدم بالحرف (app/prompts/content_plan.md) + إعدادات الخطة. قسم HTML اتشال لأن السيستم هو اللي بيعرض ويصدّر. */
 function cpl_master(array $p): string
@@ -1377,6 +1384,9 @@ function cpl_jobs_tick(int $planId): bool
     $lk = 'cplj_' . $planId; if (!db()->query('SELECT GET_LOCK(' . db()->quote($lk) . ', 0)')->fetchColumn()) return false;
     try {
         @set_time_limit(330); $p = cpl_plan($planId); if (!$p) return false; $wid = (int)ws('id');
+        // استرداد المهام العالقة: صورة/كاروسيل بقيت "running" أكثر من 8 دقائق (السيرفر مات وسط النداء) — نعيدها للطابور بحد محاولات، وإلا نفشلها (بدل خصم صامت بلا نتيجة)
+        db()->prepare('UPDATE cp_jobs SET status = "queued" WHERE plan_id = ? AND status = "running" AND kind <> "video" AND tries < 2 AND updated_at < (NOW() - INTERVAL 8 MINUTE)')->execute([$planId]);
+        db()->prepare('UPDATE cp_jobs SET status = "failed", error = "timed out" WHERE plan_id = ? AND status = "running" AND kind <> "video" AND tries >= 2 AND updated_at < (NOW() - INTERVAL 8 MINUTE)')->execute([$planId]);
         // الفيديوهات الشغالة: متابعة
         $st = db()->prepare('SELECT * FROM cp_jobs WHERE plan_id = ? AND status = "running" AND kind = "video" ORDER BY id LIMIT 3'); $st->execute([$planId]);
         foreach ($st->fetchAll() as $j) {

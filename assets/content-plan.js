@@ -302,6 +302,8 @@
     var g = e.target.closest('[data-gen]'); if (!g) return; var k = g.dataset.gen, lab = T['k' + k[0].toUpperCase() + k.slice(1)];
     // الكاروسيل = 5 صور لكل منشور؛ نؤكّد بوضوح على إجمالي الصور والتكلفة قبل التوليد المكلف
     var msg = k === 'carousel' ? fmt(T.genAskCar || 'سيولّد الكاروسيل 5 صور لكل منشور = %s صورة إجمالاً، وتُخصم من رصيد مزوّد الصور. متابعة؟', ids.length * 5, ids.length) : fmt(T.genAsk, lab, ids.length);
+    // تقدير تكلفة مشروط بتوفّر سعر حقيقي فقط (لا أرقام مخترعة)
+    if ((k === 'image' || k === 'carousel') && P && P.imgPrice) { var imgs = ids.length * (k === 'carousel' ? 5 : 1); msg += ' ' + fmt(T.estCost || '(تكلفة تقديرية ≈ $%s)', (imgs * P.imgPrice).toFixed(2)); }
     (window.fxAsk ? fxAsk(msg) : Promise.resolve(confirm(msg))).then(function (ok) { if (!ok) return;
       post({ action: 'gen', ids: JSON.stringify(ids), kind: k }).then(function (j) { if (!j.ok) return toast(j.error || T.err, 'error'); if (!j.n) return toast(T.genNone, 'info'); toast(fmt(T.genAdded, j.n)); jobs = j.jobs.items || {}; paint(); genLoop(); }).catch(function () { toast(T.offline, 'error'); }); });
   });
