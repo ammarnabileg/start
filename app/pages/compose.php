@@ -397,7 +397,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && !$apiError) {
         } elseif ($old['mode'] === 'draft') {
             $payload['isDraft'] = true;
         } elseif ($old['mode'] === 'queue') {
-            $payload['queuedFromProfile'] = $profileId;
+            // الطابور لازم يكون متعرّف بمواعيد في Zernio، وإلا بيرجّع 403. نتحقق الأول ونوجّه المستخدم بدل الخطأ الخام.
+            if (!$profileId) {
+                $errors[] = t('الشركة دي لسه مش مربوطة بخدمة النشر، فمش ممكن استخدام الطابور.');
+            } else {
+                $qs = null;
+                try { $qs = pub_queues($z, (string)$profileId); } catch (Throwable $e) { $qs = null; }
+                if ($qs === null) {
+                    $errors[] = t('تعذّر قراءة مواعيد الطابور الآن. حاول تاني بعد دقائق، أو اختر «جدولة» لوقت محدد.');
+                } elseif (!$qs) {
+                    $errors[] = t('مفيش مواعيد محددة للطابور لهذه الشركة لسه. حدّد مواعيد النشر الثابتة أول من «مواعيد الطابور»، وبعدين ضيف منشورك للطابور — أو اختر «جدولة» لوقت محدد.');
+                } else {
+                    $payload['queuedFromProfile'] = $profileId;
+                }
+            }
         } else {
             $dt = DateTime::createFromFormat('Y-m-d\TH:i', $old['when'], new DateTimeZone(site_timezone()));
             if (!$dt) {
