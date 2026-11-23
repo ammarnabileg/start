@@ -20,6 +20,8 @@
       if (W.querySelector('[name=style]:checked')) d.style = W.querySelector('[name=style]:checked').value;
       if (W.querySelector('[name=img_q]:checked')) d.img_q = W.querySelector('[name=img_q]:checked').value;
       if (W.querySelector('[name=aspect]:checked')) d.aspect = W.querySelector('[name=aspect]:checked').value;
+      if (W.querySelector('[name=design_mode]:checked')) d.design_mode = W.querySelector('[name=design_mode]:checked').value;
+      if (W.querySelector('[name=layout]:checked')) d.layout = W.querySelector('[name=layout]:checked').value;
       ['goal', 'count', 'name', 'tone', 'cta', 'audience', 'about', 'avoid', 'dialect_other', 'lang_all', 'lang_li', 'lang_x', 'lang_img', 'lang_vo', 'dialect_k', 'txt_pos', 'txt_size', 'txt_variant', 'txt_accent'].forEach(function (n) { if (W[n]) d[n] = W[n].value; }); d.video = W.video.checked; d.carousel = W.carousel.checked; d.humanize = W.humanize.checked; d.qc = W.qc ? W.qc.checked : true;
       if (W.font) d.font = (W.querySelector('[name=font]:checked') || {}).value || 'auto';
       if (W.logo_w) { ['logo_x', 'logo_y', 'logo_w', 'logo_op'].forEach(function (n) { d[n] = +W[n].value; }); ['logo_tint', 'logo_plate'].forEach(function (n) { d[n] = (W.querySelector('[name=' + n + ']:checked') || {}).value; }); d.logo_on = W.logo_on.checked; } return d; }
@@ -36,8 +38,13 @@
       if (dr.style) $$('[name=style]', W).forEach(function (x) { x.checked = x.value === dr.style; });
       if (dr.img_q) $$('[name=img_q]', W).forEach(function (x) { x.checked = x.value === dr.img_q; });
       if (dr.aspect) $$('[name=aspect]', W).forEach(function (x) { x.checked = x.value === dr.aspect; });
+      if (dr.design_mode) $$('[name=design_mode]', W).forEach(function (x) { x.checked = x.value === dr.design_mode; });
+      if (dr.layout) $$('[name=layout]', W).forEach(function (x) { x.checked = x.value === dr.layout; });
       toast(T.draftRestored, 'info');
     }
+    // إظهار/إخفاء اختيار القالب حسب طريقة الإخراج (قوالب فقط)
+    function syncDMode() { var lw = $('#cp-layout-wrap'); if (!lw) return; var m = (W.querySelector('[name=design_mode]:checked') || {}).value; lw.style.display = m === 'layout' ? '' : 'none'; }
+    $$('[name=design_mode]', W).forEach(function (x) { x.addEventListener('change', syncDMode); }); syncDMode();
     // معاينة اللوجو التفاعلية: سحب، أماكن جاهزة، حجم، شفافية، لون، خلفية. نفس معادلات السيرفر بالظبط (cpl_logo_box)
     var bgIx = 0;
     function lbox(bw, bh, ar) { var w = +W.logo_w.value / 100 * bw, h = w / ar, mh = 0.18 * bh; if (h > mh) { h = mh; w = h * ar; }

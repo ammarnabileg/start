@@ -83,6 +83,8 @@ function cpl_create(array $in): int
         'img_q' => in_array($in['img_q'] ?? '', ['medium', 'high'], true) ? (string)$in['img_q'] : 'high',
         'style' => array_key_exists((string)($in['style'] ?? 'auto'), cpl_styles()) ? (string)$in['style'] : 'auto',
         'aspect' => in_array($in['aspect'] ?? '', ['4:5', '1:1', '9:16', '16:9'], true) ? (string)$in['aspect'] : '4:5',
+        'design_mode' => in_array($in['design_mode'] ?? '', ['photo', 'layout', 'ai'], true) ? (string)$in['design_mode'] : 'photo',
+        'layout' => array_key_exists((string)($in['layout'] ?? 'auto'), cpl_layouts()) ? (string)$in['layout'] : 'auto',
         'txt_pos' => in_array($in['txt_pos'] ?? '', ['auto', 'top', 'bottom'], true) ? (string)$in['txt_pos'] : 'auto',
         'txt_size' => in_array($in['txt_size'] ?? '', ['s', 'm', 'l'], true) ? (string)$in['txt_size'] : 'm',
         'txt_scale' => isset($in['txt_scale']) ? max(50, min(180, (int)$in['txt_scale'])) : 100,
@@ -100,7 +102,8 @@ function cpl_create(array $in): int
 }
 
 function cpl_opts(array $p): array { return (json_decode((string)$p['opts'], true) ?: []) + ['lang' => 'ar', 'dialect' => '', 'audience' => '', 'services' => [], 'tone' => '', 'cta' => '', 'avoid' => '', 'about' => '', 'font' => 'auto', 'video' => true, 'carousel' => true, 'humanize' => true, 'qc' => true, 'img_q' => 'high', 'style' => 'auto', 'products' => [], 'aspect' => '4:5',
-    'txt_pos' => 'auto', 'txt_size' => 'm', 'txt_variant' => 'auto', 'txt_accent' => '', 'txt_scale' => 100, 'txt_align' => 'auto', 'txt_y' => null]; }
+    'txt_pos' => 'auto', 'txt_size' => 'm', 'txt_variant' => 'auto', 'txt_accent' => '', 'txt_scale' => 100, 'txt_align' => 'auto', 'txt_y' => null,
+    'design_mode' => 'photo', 'layout' => 'auto']; }
 
 /** نسبة/حجم الصورة المختارة للخطة (4:5 طولي افتراضيًا). */
 function cpl_aspect(array $p): string { $a = (string)(cpl_opts($p)['aspect'] ?? '4:5'); return in_array($a, ['4:5', '1:1', '9:16', '16:9'], true) ? $a : '4:5'; }
@@ -808,6 +811,18 @@ function cpl_job_prompt(array $p, array $it, array $j): string
     $styleTxt = ''; $st = (string)($o['style'] ?? 'auto'); $styles = cpl_styles();
     if ($st !== 'auto' && !empty($styles[$st][1])) $styleTxt = "\n" . $styles[$st][1];
     $rules = "\nBRAND ACCENT COLOUR: use {$accHex} as the single signature accent of the whole series — the rim/edge light, the coloured glow and any highlight should be this exact colour, used with restraint over a mostly dark, moody, premium base so every post feels like one cohesive campaign.\nLOOK & FEEL — HIGH-END CREATIVE-AGENCY POSTER (mandatory): this must look like a premium, award-winning advertising campaign visual, NOT a plain stock photo. One strong hero subject as a clear focal point; cinematic dramatic lighting with a coloured rim/accent glow in the brand colour; a moody, rich, premium environment with real depth, volumetric light, reflections and tactile premium materials; deliberate composition with the subject offset and the upper area kept calm/darker as negative space for the headline; shallow depth of field, cinematic colour grade, subtle film grain. Make it striking and scroll-stopping. Never flat, bright-and-empty, generic, cluttered or AI-plastic.\nFULL-BLEED: one complete, edge-to-edge photographic image that fills the entire 1080x1350 frame; do NOT add or leave any solid colour band, gradient bar, letterbox, flat panel, or cropped colour strip, and no borders or margins of flat colour, UNLESS the supplied reference designs clearly use such a band (then match them). Maximum photographic quality: sharp focus, rich detail, correct exposure, natural depth of field, professional colour grading; not flat, not AI-plastic.\nIf the image shows people: make them look like real, candid photographed humans, not AI renders. Add authentic, specific features: natural asymmetric faces, real skin texture with pores and subtle blemishes, flyaway hair, correct hands with five fingers, natural eye catchlights and gaze, believable clothing fit and wrinkles, and lived-in environment detail. No waxy skin, no plastic smoothness, no uncanny symmetry, no extra fingers.\nCRITICAL — NO TEXT AND NO LOGOS ANYWHERE: do NOT render any text, letters, words, headline, caption, numbers, labels, signage copy, logo, brand name, wordmark or watermark ANYWHERE in the image — this includes on clothing, uniforms, hard hats, badges, lanyards, ID cards, device/tablet/monitor screens, machines, equipment, cabinets, packaging, walls, posters, vehicles and any surface. People's uniforms and chest areas must be PLAIN with no company name, no made-up logo and no emblem. Device and monitor screens must show abstract graphics only, never readable text or a logo. The headline and the real company logo are added afterwards by the system, so output a purely visual photograph with NO typography and NO brand marks of any kind. Any text or logo the model invents will be wrong and must not appear.\nLEAVE CLEAN SPACE (VARY IT): keep EITHER the top ~30% OR the bottom ~30% of the frame calmer, simpler and a little darker (sky, wall, shadow, shallow background) as uncluttered negative space where the headline will be placed later — choose whichever side suits this composition and vary it across the series so the text position is not always the same. Keep the " . cpl_logo_corner($p) . " corner area (about 260x160px) clean for the logo. Keep the main subject and every key element at least 100px (about 9%) inside each edge; nothing touches or is cropped by an edge.";
+    if ($j['kind'] === 'image' && (string)($o['design_mode'] ?? 'photo') === 'ai') {
+        // نمط (ب): الموديل يولّد التصميم كامل متكامل (نص + أشكال + تخطيط داخل الصورة نفسها)
+        $hl = trim((string)($it['headline'] ?? '')); $hl = trim(str_replace(['«', '»'], '', $hl));
+        $langImg = ((string)($o['lang_img'] ?? $o['lang'] ?? 'ar') === 'en') ? 'English' : 'Arabic';
+        $corner = cpl_logo_corner($p);
+        $rulesAI = "\n\n=== PRODUCE A COMPLETE, FINISHED SOCIAL-MEDIA POSTER DESIGN (not a bare photo) ===\n"
+            . "Design a polished, award-winning creative-agency social post, 4:5 1080x1350, as ONE finished graphic composition: a deliberate layout with a hero image AND integrated graphic design around it — clean typographic hierarchy, brand-coloured shapes/panels/bars, generous spacing, a clear grid. It must look like a professional designer built it in a design tool, cohesive and premium.\n"
+            . "HEADLINE — render this EXACT {$langImg} text prominently as the main headline, spelled 100% correctly with perfect letterforms and correct letter-joining, in a bold modern typeface, high contrast and easy to read: \"{$hl}\".\n"
+            . ($langImg === 'Arabic' ? "The headline is ARABIC: render fully-connected, correctly-shaped right-to-left Arabic letters — never broken, mirrored, disconnected or Latin-looking glyphs. If you cannot render Arabic perfectly, keep the letters crisp and correct rather than decorative.\n" : "")
+            . "Use {$accHex} as the signature brand accent across shapes, the headline highlight and graphic elements, over a mostly dark, premium base. Keep the {$corner} corner (about 260x160px) clean and empty for the real logo to be placed afterwards. No other text, no body paragraphs, no fake logos, no watermarks, no gibberish text anywhere — only the single headline above. Photoreal hero imagery, correct human hands and faces, no AI-plastic look.";
+        return $it['image_prompt'] . ($vis !== '' ? "\n\nBrand visual DNA: " . mb_substr($vis, 0, 1200) : '') . $styleTxt . $rulesAI;
+    }
     if ($j['kind'] === 'image') return $it['image_prompt'] . ($vis !== '' ? "\n\nBrand visual DNA: " . mb_substr($vis, 0, 1200) : '') . $styleTxt . $rules;
     if ($j['kind'] === 'video') return $it['video_prompt']
         . "\n\n=== CINEMATIC LOOK — shoot it like a premium ad film ===\n"
@@ -1127,6 +1142,133 @@ function cpl_stamp_text(array $p, int $mid, string $headline, array $ov = [], bo
     @unlink($tmp); return (int)$row['id'];
 }
 
+/* ============================ محرّك قوالب التخطيط (تصميم متكامل بالهوية) ============================ */
+
+/** قائمة القوالب المتاحة (مفتاح ⇦ اسم عربي). auto = نوّع تلقائيًا لكل منشور. */
+function cpl_layouts(): array
+{
+    return ['auto' => t('تلقائي (تنويع)'), 'brand_footer' => t('شريط سفلي بالهوية'), 'top_band' => t('شريط علوي بالهوية'),
+        'side_card' => t('بطاقة جانبية'), 'overlay_panel' => t('لوحة زجاجية'), 'arch' => t('قوس علوي')];
+}
+
+/** يلوّن تدرّجًا رأسيًا بين لونين في مستطيل. */
+function cpl_grad_v($im, int $x, int $y, int $w, int $h, array $c1, array $c2): void
+{
+    for ($i = 0; $i < $h; $i++) { $t = $h > 1 ? $i / ($h - 1) : 0;
+        $r = (int)round($c1[0] + ($c2[0] - $c1[0]) * $t); $g = (int)round($c1[1] + ($c2[1] - $c1[1]) * $t); $b = (int)round($c1[2] + ($c2[2] - $c1[2]) * $t);
+        imagefilledrectangle($im, $x, $y + $i, $x + $w, $y + $i, imagecolorallocate($im, $r, $g, $b)); }
+}
+
+/** يقص صورة (cover) داخل مستطيل الوجهة مع حواف دائرية اختيارية وتعتيم اختياري، ويركّبها على $im. */
+function cpl_place_photo($im, $src, int $dx, int $dy, int $dw, int $dh, int $radius = 0, float $darken = 0.0): void
+{
+    if ($dw < 2 || $dh < 2) return; $sw = imagesx($src); $sh = imagesy($src); if ($sw < 2 || $sh < 2) return;
+    $srcAR = $sw / $sh; $dstAR = $dw / $dh; // cover: نملأ الوجهة ونقصّ الزيادة
+    if ($srcAR > $dstAR) { $ch = $sh; $cw = (int)round($sh * $dstAR); $sx = (int)round(($sw - $cw) / 2); $sy = 0; }
+    else { $cw = $sw; $ch = (int)round($sw / $dstAR); $sx = 0; $sy = (int)round(($sh - $ch) / 2); }
+    $tile = imagecreatetruecolor($dw, $dh); imagealphablending($tile, false); imagesavealpha($tile, true);
+    imagecopyresampled($tile, $src, 0, 0, $sx, $sy, $dw, $dh, $cw, $ch);
+    if ($darken > 0.001) { imagealphablending($tile, true); $a = (int)round(127 * (1 - min(0.95, $darken))); imagefilledrectangle($tile, 0, 0, $dw, $dh, imagecolorallocatealpha($tile, 0, 0, 0, $a)); imagealphablending($tile, false); }
+    if ($radius > 0) { $r = min($radius, (int)($dw / 2), (int)($dh / 2)); $tr = imagecolorallocatealpha($tile, 0, 0, 0, 127);
+        foreach ([[0, 0, $r, $r], [$dw - $r, 0, $dw - $r - 1, $r], [0, $dh - $r, $r, $dh - $r - 1], [$dw - $r, $dh - $r, $dw - $r - 1, $dh - $r - 1]] as [$ox, $oy, $ccx, $ccy]) {
+            for ($yy = 0; $yy < $r; $yy++) for ($xx = 0; $xx < $r; $xx++) { $px = $ox + $xx; $py = $oy + $yy; $d = sqrt(($px - $ccx) * ($px - $ccx) + ($py - $ccy) * ($py - $ccy)); if ($d > $r) imagesetpixel($tile, $px, $py, $tr); } } }
+    imagealphablending($im, true); imagecopy($im, $tile, $dx, $dy, 0, 0, $dw, $dh); imagedestroy($tile);
+}
+
+/** يرسم كتلة العنوان (شريط هوية + أسطر ملفوفة مع تلوين الكلمة المفتاحية) داخل عمود، ويرجّع ارتفاع الكتلة. */
+function cpl_draw_title_block($im, string $font, string $headline, string $key, int $size, int $colLeft, int $colRight, int $yTop, string $align, int $white, int $acc, int $onAcc, bool $rtl, int $maxLines, bool $kicker = true): int
+{
+    $colW = $colRight - $colLeft; $lines = null; $min = max(14, (int)round($size * 0.5));
+    for ($s = $size; $s >= $min; $s -= 2) { $w = cpl_wrap_lines($headline, $font, $s, $colW, $rtl); if (count($w) <= $maxLines) { $lines = $w; $size = $s; break; } }
+    if (!$lines) { $lines = array_slice(cpl_wrap_lines($headline, $font, $size, $colW, $rtl), 0, $maxLines); }
+    $lh = (int)round($size * ($rtl ? 1.5 : 1.4)); $y = $yTop + $size; $top0 = $yTop;
+    if ($kicker) { $barW = (int)round($size * 1.7); $barH = max(5, (int)round($size * 0.15)); $barY = $yTop - (int)round($size * 0.55);
+        $barX = $align === 'left' ? $colLeft : ($align === 'center' ? $colLeft + (int)round(($colW - $barW) / 2) : $colRight - $barW);
+        if ($barY > 2) cpl_round_box($im, $barX, $barY, $barX + $barW, $barY + $barH, (int)round($barH / 2), $acc); }
+    $shadow = imagecolorallocatealpha($im, 0, 0, 0, 80);
+    foreach ($lines as $ln) { cpl_draw_hline($im, $size, $font, $ln, $key, $rtl, $colLeft, $colRight, $y, $white, $acc, $onAcc, $shadow, false, $align); $y += $lh; }
+    return $y - $top0;
+}
+
+/** يركّب تصميمًا متكاملًا بالهوية (قالب تخطيط) حول الصورة الخام. يرجّع media id (أو $rawMid لو فشل). */
+function cpl_render_layout(array $p, int $rawMid, string $headline, array $ov = [], bool $preview = false): int
+{
+    $headline = trim($headline); if ($headline === '') return $rawMid;
+    $key = ''; if (preg_match('/«\s*(.+?)\s*»/u', $headline, $kk)) $key = trim($kk[1]);
+    $headline = trim(preg_replace(['/\s*[|｜]\s*/u', '/\s+/u'], [' ', ' '], str_replace(['«', '»'], '', $headline)));
+    if ($key === '') { $pp = preg_split('/\s+/u', $headline); $lastW = (string)end($pp); if (mb_strlen($lastW) >= 2) $key = $lastW; }
+    $wid = (int)ws('id'); $m = media_get($wid, $rawMid); if (!$m || !function_exists('imagettftext')) return $rawMid;
+    $font = cpl_font_file($p); if (!is_file($font)) return $rawMid;
+    $src = @imagecreatefromstring((string)file_get_contents(media_file_path($wid, $m))); if (!$src) return $rawMid;
+    if (!imageistruecolor($src)) imagepalettetotruecolor($src);
+    $to = $ov + cpl_opts($p);
+    // المقاس الناتج من نسبة الخطة
+    $ar = cpl_aspect($p); [$W, $H] = ['4:5' => [1080, 1350], '1:1' => [1080, 1080], '9:16' => [1080, 1920], '16:9' => [1350, 760]][$ar] ?? [1080, 1350];
+    $rtl = (bool)preg_match('/[\x{0600}-\x{06FF}]/u', $headline);
+    // لون الهوية
+    $cAcc = (string)($to['txt_accent'] ?? '');
+    if (preg_match('/^#?([0-9a-fA-F]{6})$/', $cAcc, $cm)) { $ar2 = hexdec(substr($cm[1], 0, 2)); $ag = hexdec(substr($cm[1], 2, 2)); $ab = hexdec(substr($cm[1], 4, 2)); }
+    else { [$ar2, $ag, $ab] = cpl_accent_rgb($p); }
+    $accRGB = [$ar2, $ag, $ab]; $lum = 0.299 * $ar2 + 0.587 * $ag + 0.114 * $ab;
+    // خلفية داكنة مشتقة من لون الهوية (نسخة غامقة جدًا) — تحافظ على التناسق
+    $dark = [max(8, (int)round($ar2 * 0.16) + 8), max(10, (int)round($ag * 0.16) + 10), max(14, (int)round($ab * 0.16) + 16)];
+    // اختيار القالب
+    $lay = (string)($to['layout'] ?? 'auto'); $keys = array_keys(cpl_layouts()); $keys = array_values(array_filter($keys, fn($k) => $k !== 'auto'));
+    if (!in_array($lay, $keys, true)) { $lay = $keys[(crc32($headline . '|' . $rawMid) % count($keys) + count($keys)) % count($keys)]; }
+
+    $im = imagecreatetruecolor($W, $H); imagealphablending($im, true); imagesavealpha($im, true);
+    $white = imagecolorallocate($im, 255, 255, 255);
+    $acc = imagecolorallocate($im, $ar2, $ag, $ab); $onAcc = $lum > 150 ? imagecolorallocate($im, 12, 16, 24) : $white;
+    $align = (string)($to['txt_align'] ?? 'auto'); if (!in_array($align, ['right', 'left', 'center'], true)) $align = $rtl ? 'right' : 'left';
+    $mg = (int)round($W * 0.075);
+
+    if ($lay === 'brand_footer') { // صورة فوق + شريط هوية سفلي بالعنوان
+        $footH = (int)round($H * 0.30); $phH = $H - $footH;
+        cpl_place_photo($im, $src, 0, 0, $W, $phH, 0, 0.12);
+        cpl_grad_v($im, 0, $phH, $W, $footH, [$ar2, $ag, $ab], [max(0, (int)($ar2 * 0.7)), max(0, (int)($ag * 0.7)), max(0, (int)($ab * 0.7))]);
+        $col1 = $align === 'left' ? $mg : ($W - $mg); // عمود كامل
+        $size = (int)round($W * 0.07);
+        cpl_draw_title_block($im, $font, $headline, $key, $size, $mg, $W - $mg, $phH + (int)round($footH * 0.30), $align, $onAcc, $onAcc === $white ? $white : $white, $onAcc, $rtl, 3, false);
+    } elseif ($lay === 'top_band') { // شريط علوي بالهوية + صورة تحت بحواف علوية دائرية
+        $bandH = (int)round($H * 0.34);
+        cpl_grad_v($im, 0, 0, $W, $bandH, [$ar2, $ag, $ab], [max(0, (int)($ar2 * 0.72)), max(0, (int)($ag * 0.72)), max(0, (int)($ab * 0.72))]);
+        cpl_place_photo($im, $src, 0, $bandH, $W, $H - $bandH, 0, 0.05);
+        $size = (int)round($W * 0.068);
+        cpl_draw_title_block($im, $font, $headline, $key, $size, $mg, $W - $mg, (int)round($bandH * 0.30), $align, $onAcc, $onAcc === $white ? $white : $white, $onAcc, $rtl, 3, false);
+    } elseif ($lay === 'side_card') { // خلفية هوية + بطاقة صورة جانبية + العنوان في العمود الآخر
+        cpl_grad_v($im, 0, 0, $W, $H, $dark, [max(0, $dark[0] - 4), max(0, $dark[1] - 4), max(2, $dark[2] + 10)]);
+        $cardW = (int)round($W * 0.52); $cardH = (int)round($H * 0.62); $cardY = (int)round(($H - $cardH) / 2);
+        $cardX = $rtl ? $mg : ($W - $mg - $cardW); // البطاقة في جهة، النص في الجهة التانية
+        cpl_place_photo($im, $src, $cardX, $cardY, $cardW, $cardH, (int)round($W * 0.045), 0.0);
+        $tx0 = $rtl ? ($cardX + $cardW + (int)round($W * 0.04)) : $mg; $tx1 = $rtl ? ($W - $mg) : ($cardX - (int)round($W * 0.04));
+        $size = (int)round($W * 0.06);
+        cpl_draw_title_block($im, $font, $headline, $key, $size, $tx0, $tx1, $cardY + (int)round($cardH * 0.12), $align, $white, $acc, $onAcc, $rtl, 5, true);
+    } elseif ($lay === 'overlay_panel') { // صورة كاملة + لوحة زجاجية بالعنوان أسفل
+        cpl_place_photo($im, $src, 0, 0, $W, $H, 0, 0.08);
+        $panH = (int)round($H * 0.30); $panY = $H - $panH - $mg; $panX = $mg; $panW = $W - 2 * $mg; $rad = (int)round($W * 0.04);
+        // لوحة شبه شفافة داكنة
+        cpl_round_box($im, $panX, $panY, $panX + $panW, $panY + $panH, $rad, imagecolorallocatealpha($im, $dark[0], $dark[1], $dark[2], 38));
+        // شريط لون هوية على الحافة الابتدائية
+        $edge = (int)round($W * 0.012); if ($rtl) cpl_round_box($im, $panX + $panW - $edge, $panY + $rad, $panX + $panW, $panY + $panH - $rad, (int)round($edge / 2), $acc);
+        else cpl_round_box($im, $panX, $panY + $rad, $panX + $edge, $panY + $panH - $rad, (int)round($edge / 2), $acc);
+        $size = (int)round($W * 0.058); $pad = (int)round($W * 0.045);
+        cpl_draw_title_block($im, $font, $headline, $key, $size, $panX + $pad, $panX + $panW - $pad, $panY + (int)round($panH * 0.26), $align, $white, $acc, $onAcc, $rtl, 3, true);
+    } else { // arch: خلفية هوية داكنة + صورة بقوس علوي + عنوان أسفل
+        cpl_grad_v($im, 0, 0, $W, $H, $dark, [max(0, $dark[0] - 3), max(0, $dark[1] - 2), max(4, $dark[2] + 12)]);
+        $pad = $mg; $phW = $W - 2 * $pad; $phH = (int)round($H * 0.56); $phY = $pad;
+        // قوس: نرسم الصورة بحواف دائرية كبيرة أعلى
+        cpl_place_photo($im, $src, $pad, $phY, $phW, $phH, (int)round($phW * 0.5), 0.0);
+        // الحواف السفلية مش لازم تبقى قوس — نعيد رسم النص تحت
+        $size = (int)round($W * 0.066);
+        cpl_draw_title_block($im, $font, $headline, $key, $size, $pad, $W - $pad, $phY + $phH + (int)round($H * 0.05), $align, $white, $acc, $onAcc, $rtl, 3, true);
+    }
+    imagedestroy($src);
+    $tmp = tempnam(sys_get_temp_dir(), 'cpL') . '.png'; imagepng($im, $tmp); imagedestroy($im);
+    if ($preview) { $GLOBALS['__cpl_prev'] = $tmp; return 0; }
+    try { $row = media_store_path($wid, $tmp, 'lay-' . preg_replace('/^(ai|logo|txt|lay)-/', '', (string)$m['name']), 'image/png', media_ai_folder()); } catch (Throwable $e) { @unlink($tmp); return $rawMid; }
+    @unlink($tmp); return (int)$row['id'];
+}
+
 /** معاينة حيّة: يطبع النص على الصورة الخام بالإعدادات المعطاة ويرجّع data URL مصغّر — بدون حفظ. */
 function cpl_text_preview(int $itemId, array $in): ?string
 {
@@ -1138,9 +1280,12 @@ function cpl_text_preview(int $itemId, array $in): ?string
     if (isset($in['txt_scale'])) $ov['txt_scale'] = max(50, min(180, (int)$in['txt_scale']));
     if (isset($in['txt_y']) && is_numeric($in['txt_y'])) $ov['txt_y'] = max(2, min(92, (int)$in['txt_y']));
     if (isset($in['txt_accent']) && preg_match('/^#?[0-9a-fA-F]{6}$/', (string)$in['txt_accent']) && strtolower(ltrim((string)$in['txt_accent'], '#')) !== '10b981') $ov['txt_accent'] = '#' . ltrim((string)$in['txt_accent'], '#');
+    if (isset($in['layout'])) $ov['layout'] = (string)$in['layout'];
     $head = array_key_exists('headline', $in) ? trim((string)$in['headline']) : (string)($it['headline'] ?? '');
+    $mode = (string)(($in['design_mode'] ?? null) ?: cpl_opts($p)['design_mode'] ?? 'photo');
     unset($GLOBALS['__cpl_prev']);
-    cpl_stamp_text($p, (int)$raw[0], $head, $ov, true);
+    if ($mode === 'layout') { $ov['design_mode'] = 'layout'; cpl_render_layout($p, (int)$raw[0], $head, $ov, true); }
+    else cpl_stamp_text($p, (int)$raw[0], $head, $ov, true);
     $path = $GLOBALS['__cpl_prev'] ?? ''; unset($GLOBALS['__cpl_prev']); if (!$path || !is_file($path)) return null;
     // تصغير للنقل السريع (≈560 عرض)
     $im = @imagecreatefrompng($path);
@@ -1152,7 +1297,10 @@ function cpl_text_preview(int $itemId, array $in): ?string
 /** يركّب نسخة العرض من الصورة الخام: نطبع العنوان بنفسنا ثم اللوجو فوقه. */
 function cpl_compose_media(array $p, int $rawMid, string $headline, ?array $lopts = null, array $tov = []): int
 {
-    $mid = cpl_stamp_text($p, $rawMid, $headline, $tov);
+    $mode = (string)(($tov['design_mode'] ?? null) ?: cpl_opts($p)['design_mode'] ?? 'photo');
+    if ($mode === 'ai') $mid = $rawMid; // التصميم اتولّد كامل بالذكاء — بلا تركيب نص فوقه
+    elseif ($mode === 'layout') $mid = cpl_render_layout($p, $rawMid, $headline, $tov);
+    else $mid = cpl_stamp_text($p, $rawMid, $headline, $tov);
     return cpl_stamp_logo($p, $mid, $lopts);
 }
 

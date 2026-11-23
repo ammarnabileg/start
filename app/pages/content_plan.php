@@ -269,7 +269,40 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
         <div class="flex flex-wrap gap-2 mt-2"><label class="btn-ghost !py-1.5 cursor-pointer"><input id="cp-ref-in" type="file" accept="image/*,application/pdf,.pdf" multiple class="hidden"><?= ui_icon('upload', 'w-4 h-4') ?><?= e(t('أضف صورًا أو PDF')) ?></label><button type="button" id="cp-ref-lib" class="btn-ghost !py-1.5"><?= ui_icon('image', 'w-4 h-4') ?><?= e(t('اختر من مكتبة الوسائط')) ?></button></div>
       </div>
       <div>
-        <span class="label"><?= e(t('نمط التصميم')) ?></span>
+        <span class="label"><?= e(t('طريقة إخراج التصميم')) ?></span>
+        <p class="text-xs text-ink-500 mb-2"><?= e(t('أهم اختيار: كيف يخرج شكل المنشور النهائي.')) ?></p>
+        <?php $dmodes = [
+          'layout' => ['🎨', t('قوالب تخطيط'), t('تصميم متكامل بالهوية (خلفية + أشكال + نص منظّم) — الأقرب لشغل الوكالات.')],
+          'photo' => ['🖼️', t('صورة + نص'), t('صورة سينمائية يُطبع عليها العنوان واللوجو — نظيف وبسيط.')],
+          'ai' => ['✨', t('تصميم بالذكاء (تجريبي)'), t('الذكاء يولّد التصميم كاملًا بالنص داخله — قد يكسر النص العربي أحيانًا.')],
+        ]; ?>
+        <div class="grid sm:grid-cols-3 gap-2" id="cp-dmode">
+          <?php foreach ($dmodes as $mk => [$mi, $ml, $md]): ?>
+          <label class="cursor-pointer"><input type="radio" name="design_mode" value="<?= e($mk) ?>" class="peer sr-only" <?= $mk === 'layout' ? 'checked' : '' ?>>
+            <span class="block h-full rounded-xl border border-ink-200 p-3 transition hover:border-brand-300 peer-checked:border-brand-500 peer-checked:bg-brand-50">
+              <span class="text-xl"><?= $mi ?></span>
+              <b class="block text-sm text-ink-900 mt-1"><?= e($ml) ?></b>
+              <span class="block text-xs text-ink-500 mt-0.5 leading-snug"><?= e($md) ?></span>
+            </span>
+          </label>
+          <?php endforeach; ?>
+        </div>
+        <div id="cp-layout-wrap" class="mt-3">
+          <span class="label !text-sm"><?= e(t('القالب')) ?></span>
+          <div class="flex gap-2 overflow-x-auto pb-1" id="cp-layouts">
+            <?php foreach (cpl_layouts() as $lk => $ll): ?>
+            <label class="shrink-0 cursor-pointer"><input type="radio" name="layout" value="<?= e($lk) ?>" class="peer sr-only" <?= $lk === 'auto' ? 'checked' : '' ?>>
+              <span class="flex flex-col items-center gap-1 w-24 rounded-xl border border-ink-200 p-1.5 transition hover:border-brand-300 peer-checked:border-brand-500 peer-checked:bg-brand-50">
+                <span class="w-full h-14 rounded-lg relative overflow-hidden bg-ink-900 grid place-items-center text-[9px] text-white/70"><?= $lk === 'auto' ? '✨' : e($ll) ?></span>
+                <span class="text-[11px] font-semibold text-center leading-tight"><?= e($ll) ?></span>
+              </span>
+            </label>
+            <?php endforeach; ?>
+          </div>
+        </div>
+      </div>
+      <div>
+        <span class="label"><?= e(t('نمط التصميم (ستايل الصورة)')) ?></span>
         <p class="text-xs text-ink-500 mb-2"><?= e(t('اختر نمطًا جاهزًا، أو ارفع تصاميم مرجعية بالأعلى، أو اتركها تلقائية.')) ?></p>
         <?php $styleBg = [
           'auto' => 'linear-gradient(135deg,#6366f1,#0ea5a4)',
