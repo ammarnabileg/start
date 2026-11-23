@@ -386,21 +386,58 @@
   function fcEnsureFonts() { if (!document.fonts || !document.fonts.load) return Promise.resolve(); return Promise.all(['900 64px Cairo', '700 64px Cairo', '400 64px Cairo', '800 64px Alexandria', '700 64px Tajawal'].map(function (f) { return document.fonts.load(f).catch(function () {}); })); }
   // خصائص المستند القابل للإعادة (بدون مراجع دائرية مثل dzKickRef)
   var DOC_PROPS = ['dzLogo', 'dzBg', 'dzKick', 'dzHead', 'dzBw', 'dzSrc', 'dzBl', 'dzKw', 'selectable', 'evented', 'editable', 'direction', 'splitByGrapheme'];
-  // تصدير التصميم: صورة PNG + مستند JSON قابل للإعادة، بعد ضمان تحميل الخطوط (عشان العربي ما يطلعش مكسور)
-  function fcExport(cb) { if (!fc) { cb(null, null); return; } fc.discardActiveObject(); var z = fc.getZoom(); fc.setZoom(1); fc.setDimensions({ width: FW, height: FH });
-    var fin = function () { fcRefreshText(); fc.renderAll(); var data = fc.toDataURL({ format: 'png', multiplier: 1 }); var doc = ''; try { doc = JSON.stringify(fc.toJSON(DOC_PROPS)); } catch (e) {} fc.setZoom(z); fcFit(); cb(data, doc); };
+  var MIN_READ = 30; // أصغر حجم خط مقروء (في فضاء 1080)
+  // يحسب الإطار الفعلي لعنصر (بعد المقياس) — زاوية 0 في محررنا
+  function fcBBox(o) { var w = (o.width || 0) * (o.scaleX || 1), h = (o.height || 0) * (o.scaleY || 1); var l = o.left || 0, t = o.top || 0; if (o.originX === 'center') l -= w / 2; if (o.originY === 'center') t -= h / 2; return { l: l, t: t, r: l + w, b: t + h, w: w, h: h }; }
+  // يعيد ملاءمة كل النصوص داخل حدود الصورة؛ يرجّع { severe:[], warn:[] }
+  function fcFitAll() { if (!fc) return { severe: [], warn: [] }; var mg = FW * 0.04, severe = [], warn = [];
+    fc.getObjects().forEach(function (o) {
+      if (o.dzHead && typeof layoutHead === 'function') layoutHead(o);
+      if (o.type !== 'textbox' && o.type !== 'i-text' && o.type !== 'text') return;
+      var eff = (o.fontSize || 0) * (o.scaleY || 1);
+      // اقنص داخل الحدود
+      var bb = fcBBox(o);
+      if (bb.w < FW && bb.l < mg) { o.set('left', (o.left || 0) + (mg - bb.l)); }
+      bb = fcBBox(o); if (bb.w < FW && bb.r > FW - mg) { o.set('left', (o.left || 0) - (bb.r - (FW - mg))); }
+      bb = fcBBox(o); if (bb.h < FH && bb.t < mg) { o.set('top', (o.top || 0) + (mg - bb.t)); }
+      bb = fcBBox(o); if (bb.h < FH && bb.b > FH - mg) { o.set('top', (o.top || 0) - (bb.b - (FH - mg))); }
+      if (o.setCoords) o.setCoords();
+      bb = fcBBox(o);
+      var out = bb.l < -2 || bb.t < -2 || bb.r > FW + 2 || bb.b > FH + 2; // خارج حدود الصورة فعلاً = خطأ خطير
+      if (out) severe.push(o); else if (eff && eff < MIN_READ) warn.push(o); // داخل الحدود لكن صغير جدًا = تحذير
+    });
+    fc.requestRenderAll(); return { severe: severe, warn: warn };
+  }
+  // تصدير التصميم: صورة PNG + مستند JSON، بعد ضمان تحميل الخطوط + فحص التخطيط (يمنع عند خطأ خطير)
+  function fcExport(cb) { if (!fc) { cb(null, null, { severe: [], warn: [] }); return; } fc.discardActiveObject(); var z = fc.getZoom(); fc.setZoom(1); fc.setDimensions({ width: FW, height: FH });
+    var fin = function () { fcRefreshText(); var issues = fcFitAll(); fc.renderAll(); var data = fc.toDataURL({ format: 'png', multiplier: 1 }); var doc = ''; try { doc = JSON.stringify(fc.toJSON(DOC_PROPS)); } catch (e) {} fc.setZoom(z); fcFit(); cb(data, doc, issues); };
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(fin).catch(fin); else fin(); }
+  // ====== سجل التراجع/الإعادة + الحفظ التلقائي للمسودة ======
+  var hist = [], histIx = -1, histLock = false, draftKey = null, snapT = null;
+  function histSnap() { if (!fc || histLock) return; var s; try { s = JSON.stringify(fc.toJSON(DOC_PROPS)); } catch (e) { return; } if (hist[histIx] === s) return; hist = hist.slice(0, histIx + 1); hist.push(s); if (hist.length > 40) hist.shift(); histIx = hist.length - 1; if (hist.length > 1) autosaveDraft(s); }
+  // بعد تحميل التصميم: جهّز السجل، واسترجع آخر مسودة غير محفوظة إن وُجدت (بعد انقطاع)
+  function tAfterLoad() { histInit(); setTimeout(function () { var d = readDraft(); if (d && d.s) { histApply(d.s); setTimeout(histSnap, 500); toast(T.draftBack || 'تم استرجاع آخر تعديل غير محفوظ', 'info'); } }, 500); }
+  function histSnapSoon() { clearTimeout(snapT); snapT = setTimeout(histSnap, 350); }
+  function histApply(s) { if (!s) return; histLock = true; fc.loadFromJSON(s, function () { fcFit(); fcEnsureFonts().then(function () { fcRefreshText(); fc.requestRenderAll(); }); fc.requestRenderAll(); histLock = false; }); }
+  function histInit() { hist = []; histIx = -1; setTimeout(function () { histSnap(); }, 300); }
+  function undo() { if (histIx > 0) { histIx--; histApply(hist[histIx]); } }
+  function redo() { if (histIx < hist.length - 1) { histIx++; histApply(hist[histIx]); } }
+  function autosaveDraft(s) { if (!draftKey) return; try { localStorage.setItem(draftKey, JSON.stringify({ t: Date.now(), s: s })); } catch (e) {} }
+  function clearDraft() { if (!draftKey) return; try { localStorage.removeItem(draftKey); } catch (e) {} }
+  function readDraft() { if (!draftKey) return null; try { var d = JSON.parse(localStorage.getItem(draftKey) || 'null'); return d && d.s ? d : null; } catch (e) { return null; } }
   function tOpen(id) {
     if (!tMod) return; if (!window.fabric) { toast(T.err, 'error'); return; }
     var it = items.find(function (i) { return i.id === id; }); if (!it) return;
     tMod.dataset.id = id; tMod.classList.remove('hidden'); document.body.style.overflow = 'hidden';
+    draftKey = 'cpdz_' + (C.wid || '') + '_' + id;
     if (!fc) { fc = new fabric.Canvas('it-canvas', { backgroundColor: '#0b1220', preserveObjectStacking: true, allowTouchScrolling: false });
       fc.on('selection:created', fcTxtSync); fc.on('selection:updated', fcTxtSync); fc.on('selection:cleared', fcTxtSync);
+      fc.on('object:modified', histSnapSoon); fc.on('object:added', function () { if (!histLock) histSnapSoon(); }); fc.on('object:removed', function () { if (!histLock) histSnapSoon(); });
       // الكتابة المباشرة على العربي بتتكسر في Fabric، فالدبل-كليك على النص يودّي لخانة الكتابة الجانبية
       fc.on('mouse:dblclick', function (e) { var t = e && e.target; if (t && t.type === 'textbox') { fc.setActiveObject(t); fcTxtSync(); var inp = $('#dz-txt'); if (inp) { inp.disabled = false; try { inp.focus(); inp.select(); } catch (x) {} } } }); }
     fc.clear(); fc.setBackgroundImage(null, fc.renderAll.bind(fc)); fcFit();
     // لو في مستند تصميم محفوظ (تعديل يدوي سابق) نفتحه كما هو بكل طبقاته بدل ما نعيد البناء — عشان ما «يرجعش»
-    if (it.has_doc) { post({ action: 'getdoc', id: id }).then(function (j) { if (j && j.ok && j.doc) { fc.loadFromJSON(j.doc, function () { fcFit(); fcEnsureFonts().then(function () { fcRefreshText(); fc.requestRenderAll(); }); if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { fcRefreshText(); fc.requestRenderAll(); }); fc.requestRenderAll(); }); } else tBuildFresh(it); }).catch(function () { tBuildFresh(it); }); return; }
+    if (it.has_doc) { post({ action: 'getdoc', id: id }).then(function (j) { if (j && j.ok && j.doc) { fc.loadFromJSON(j.doc, function () { fcFit(); fcEnsureFonts().then(function () { fcRefreshText(); fc.requestRenderAll(); }); if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { fcRefreshText(); fc.requestRenderAll(); }); fc.requestRenderAll(); tAfterLoad(); }); } else tBuildFresh(it); }).catch(function () { tBuildFresh(it); }); return; }
     tBuildFresh(it);
   }
   function tBuildFresh(it) {
@@ -427,6 +464,7 @@
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { fcRefreshText(); layoutHead(tb); fc.requestRenderAll(); });
     // اللوجو كطبقة قابلة للتحريك/التحجيم مع النص
     if (P && P.logo) fabric.Image.fromURL(P.logo, function (lg) { if (!lg || !lg.width) return; var k = (FW * 0.20) / lg.width; lg.set({ scaleX: k, scaleY: k, left: FW * 0.74, top: FH * 0.035 }); lg.dzLogo = true; fc.add(lg); fc.requestRenderAll(); });
+    tAfterLoad();
   }
   function tClose() { if (tMod) { tMod.classList.add('hidden'); document.body.style.overflow = ''; } }
   if (tMod) {
@@ -447,12 +485,21 @@
       else if (cmd === 'al-right' && o && o.set) { o.set('textAlign', 'right'); fc.requestRenderAll(); }
       else if (cmd === 'al-center' && o && o.set) { o.set('textAlign', 'center'); fc.requestRenderAll(); }
       else if (cmd === 'al-left' && o && o.set) { o.set('textAlign', 'left'); fc.requestRenderAll(); }
+      else if (cmd === 'undo') { undo(); }
+      else if (cmd === 'redo') { redo(); }
+      else if (cmd === 'lock' && o && o.set) { var lk = !o.dzLocked; o.dzLocked = lk; o.set({ lockMovementX: lk, lockMovementY: lk, lockScalingX: lk, lockScalingY: lk, lockRotation: lk, hasControls: !lk }); fc.requestRenderAll(); toast(lk ? (T.lkOn || 'مقفول') : (T.lkOff || 'مفتوح'), 'info'); histSnapSoon(); }
+      else if (cmd === 'hide' && o && o.set) { o.set('visible', o.visible === false); fc.discardActiveObject(); fcTxtSync(); fc.requestRenderAll(); histSnapSoon(); }
     });
+    document.addEventListener('keydown', function (e) { if (tMod.classList.contains('hidden')) return; var k = (e.key || '').toLowerCase(); if ((e.ctrlKey || e.metaKey) && k === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); } else if ((e.ctrlKey || e.metaKey) && k === 'y') { e.preventDefault(); redo(); } });
     var dc = $('#dz-color'); if (dc) dc.addEventListener('input', function () { var o = fcActive(); if (o && o.set) { o.set('fill', this.value); fc.requestRenderAll(); } });
     var dsz = $('#dz-size'); if (dsz) dsz.addEventListener('input', function () { var o = fcActive(); if (o && o.set && o.type === 'textbox') { o.set('fontSize', +this.value); if (o.initDimensions) o.initDimensions(); fc.requestRenderAll(); var lbl = $('#dz-size-v'); if (lbl) lbl.textContent = this.value; } });
     $('#it-save').addEventListener('click', function () {
       if (!fc) return; var id = +tMod.dataset.id, btn = this; btn.disabled = true; var old = btn.textContent; btn.textContent = T.ilBusy;
-      fcExport(function (data, doc) { post({ action: 'savecanvas', id: id, img: data, doc: doc }).then(function (j) { btn.disabled = false; btn.textContent = old; if (!j.ok) return toast(T.err, 'error'); tClose(); toast(T.itSaved); load(); }).catch(function () { btn.disabled = false; btn.textContent = old; toast(T.offline, 'error'); }); });
+      fcExport(function (data, doc, iss) {
+        if (iss && iss.severe && iss.severe.length) { btn.disabled = false; btn.textContent = old; toast(T.layoutErr, 'error'); return; }
+        if (iss && iss.warn && iss.warn.length) toast(T.layoutWarn, 'info');
+        post({ action: 'savecanvas', id: id, img: data, doc: doc }).then(function (j) { btn.disabled = false; btn.textContent = old; if (!j.ok) return toast(T.err, 'error'); clearDraft(); tClose(); toast(T.itSaved); load(); }).catch(function () { btn.disabled = false; btn.textContent = old; toast(T.offline, 'error'); });
+      });
     });
     var itAll = $('#it-all');
     if (itAll) itAll.addEventListener('click', function () {
@@ -463,10 +510,11 @@
       var sty = {};
       if (main) { sty.txt_scale = Math.round(((main.fontSize || 80) * (main.scaleY || 1)) / (FW * 0.085) * 100); if (main.fill && typeof main.fill === 'string') sty.txt_accent = main.fill; sty.txt_align = main.textAlign || 'right'; sty.txt_y = Math.round((main.top || 0) / FH * 100); }
       // الكل أولاً (يعيد تركيب كل الصور بالنمط المشترك)، ثم احفظ تصميم المنشور الحالي يدويًا فوقه (صورة + مستند)
-      fcExport(function (data, doc) {
+      fcExport(function (data, doc, iss) {
+        if (iss && iss.severe && iss.severe.length) { btn.disabled = false; btn.textContent = old; toast(T.layoutErr, 'error'); return; }
         post({ action: 'retxt_all', id: id, txt: JSON.stringify(sty) }).then(function () {
           return post({ action: 'savecanvas', id: id, img: data, doc: doc });
-        }).then(function (j) { btn.disabled = false; btn.textContent = old; if (!j || !j.ok) return toast(T.err, 'error'); tClose(); toast(T.itSaved); load(); }).catch(function () { btn.disabled = false; btn.textContent = old; toast(T.offline, 'error'); });
+        }).then(function (j) { btn.disabled = false; btn.textContent = old; if (!j || !j.ok) return toast(T.err, 'error'); clearDraft(); tClose(); toast(T.itSaved); load(); }).catch(function () { btn.disabled = false; btn.textContent = old; toast(T.offline, 'error'); });
       });
     });
   }

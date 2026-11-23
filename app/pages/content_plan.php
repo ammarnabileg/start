@@ -89,7 +89,9 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
         'uploading' => t('جارٍ رفع الصور…'), 'imported' => t('تم تحديث %s منشور من الملف (تخطّينا %s).'), 'needGoal' => t('اكتب هدف الحملة.'), 'draftRestored' => t('استرجعنا المسودة التي لم تُرسل.'), 'refMax' => t('حتى 12 صورة.'), 'uploaded' => t('تم رفع الصور.'), 'sum' => ['goal' => t('الهدف'), 'count' => t('عدد المنشورات'), 'aud' => t('الجمهور'), 'svc' => t('الخدمات'), 'lang' => t('اللغة'), 'dial' => t('اللهجة'), 'tone' => t('النبرة'), 'cta' => t('الدعوة للإجراء'), 'refs' => t('صور مرجعية'), 'logo' => t('اللوجو'), 'none' => t('—'), 'on' => t('مركّب'), 'off' => t('بدون'), 'li' => 'LinkedIn', 'x' => 'X', 'img' => t('الصور'), 'vo' => t('الصوت')], 'langN' => ['ar' => t('عربي'), 'en' => 'English', 'both' => t('عربي + English'), 'ar_en' => t('عربي + إنجليزي'), 'en_ar' => t('إنجليزي + عربي'), 'none' => t('بدون نص')], 'dialEx' => ['msa' => t('مثال: نساعد فرق المشتريات على تقليل وقت التوريد دون التضحية بالجودة.'), 'saudi' => t('مثال: نساعد فريق المشتريات يختصر وقت التوريد بدون ما يضحّي بالجودة.'), 'gulf' => t('مثال: نساعد فريق المشتريات يختصر وقت التوريد من دون ما يتأثر المستوى.'), 'emirati' => t('مثال: نساعد فريق المشتريات يختصر وقت التوريد بدون ما تتأثر الجودة.'), 'kuwaiti' => t('مثال: نساعد فريق المشتريات يختصر وقت التوريد بدون ما تنزل الجودة.'), 'egyptian' => t('مثال: بنساعد فريق المشتريات يختصر وقت التوريد من غير ما الجودة تتأثر.'), 'levantine' => t('مثال: منساعد فريق المشتريات يختصر وقت التوريد بدون ما تتأثر الجودة.'), 'maghrebi' => t('مثال: نعاونو فريق المشتريات باش يختصر وقت التوريد بلا ما تنقص الجودة.'), 'white' => t('مثال: نساعد فريق المشتريات يختصر وقت التوريد بدون ما تتأثر الجودة.'), 'other' => t('اكتب اللهجة أو الأسلوب الذي تريده في الخانة.')], 'fSel' => t('%s محدد'), 'genAsk' => t('توليد %s لـ %s منشور؟ يُخصم من رصيد مزوّد الصور/الفيديو.'), 'genOne' => t('توليد'), 'kImage' => t('صورة'), 'kVideo' => t('فيديو'), 'kCarousel' => t('كاروسيل (5 صور)'), 'genAdded' => t('بدأ التوليد: %s مهمة. يكمل في الخلفية حتى لو أغلقت الصفحة.'), 'genNone' => t('لا شيء جديد للتوليد (ربما قيد التوليد بالفعل، أو لا يوجد كاروسيل).'),
         'jBusy' => t('جارٍ التوليد'), 'jDone' => t('جاهز'), 'jFail' => t('فشل'), 'toBankOne' => t('إرسال للمخزون'), 'fmtText' => t('نص فقط'), 'useFmt' => t('اضغط لاستخدام هذا الشكل في النشر'), 'inUse' => t('المستخدم في النشر'), 'sent' => t('أُرسل %s منشور للمخزون.'), 'logT' => t('سجل التنفيذ المباشر'), 'srcBg' => t('خلفية'), 'srcPage' => t('الصفحة'), 'elapsed' => t('%s ثانية'), 'busyBg' => t('خطوة تعمل في الخلفية، ننتظرها'), 'pdfPages' => t('جارٍ تحويل صفحات PDF إلى صور…'), 'qc' => t('فحص الجودة:'), 'cats' => array_map('t', cpl_categories()),
         'ilAdj' => t('اضبط اللوجو'), 'ilTitle' => t('ضبط اللوجو على هذه الصورة'), 'ilHint' => t('اسحب اللوجو لأي مكان — حتى خارج حدود الصورة. الخط المتقطع = المنطقة الآمنة.'), 'ilSize' => t('الحجم'), 'ilOp' => t('الشفافية'), 'ilColor' => t('لون اللوجو'), 'ilPlate' => t('خلفية خلف اللوجو'), 'ilSave' => t('حفظ'), 'ilSaved' => t('تم تحديث اللوجو على الصورة.'), 'ilNone' => t('لا يوجد لوجو في ملف الشركة.'), 'ilBusy' => t('جارٍ إعادة التركيب…'),
-        'itAdj' => t('صمّم'), 'itReDo' => t('أعد التصميم'), 'itSaved' => t('تم حفظ التصميم ✓'), 'itAllAsk' => t('تطبيق المكان والحجم والنمط واللون على كل التصاميم؟ (يبقى نصّ كل منشور كما هو)'), 'itAllDone' => t('تم تطبيق الإعدادات على %s تصميم.'),
+        'itAdj' => t('صمّم'), 'itReDo' => t('أعد التصميم'), 'itSaved' => t('تم حفظ التصميم ✓'),
+        'layoutErr' => t('يوجد نص خارج حدود التصميم. قصّر النص أو كبّر المربع أو حرّكه للداخل قبل الحفظ.'), 'layoutWarn' => t('تنبيه: حجم بعض النصوص صغير وقد يصعب قراءته.'),
+        'draftBack' => t('تم استرجاع آخر تعديل غير محفوظ.'), 'lkOn' => t('مقفول'), 'lkOff' => t('مفتوح'), 'itAllAsk' => t('تطبيق المكان والحجم والنمط واللون على كل التصاميم؟ (يبقى نصّ كل منشور كما هو)'), 'itAllDone' => t('تم تطبيق الإعدادات على %s تصميم.'),
         'ilTint' => ['orig' => t('الأصلي'), 'white' => t('أبيض'), 'black' => t('أسود')], 'ilPlateV' => ['none' => t('بدون'), 'light' => t('فاتحة'), 'dark' => t('داكنة')],
     ];
     
@@ -151,7 +153,11 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
       <div class="order-2 w-full sm:w-80 shrink-0 bg-white sm:h-full overflow-auto flex flex-col">
         <div class="flex items-center justify-between gap-2 px-4 py-3 border-b border-ink-100 sticky top-0 bg-white z-10">
           <b class="text-ink-900"><?= e(t('محرّر التصميم')) ?></b>
-          <button type="button" data-tclose class="btn-ghost !py-1.5 !px-3 text-sm"><?= e(t('✕ إغلاق')) ?></button>
+          <div class="flex items-center gap-1">
+            <button type="button" data-dz="undo" class="rounded-lg bg-ink-50 border border-ink-200 px-2 py-1.5" title="<?= e(t('تراجع')) ?> (Ctrl+Z)">↶</button>
+            <button type="button" data-dz="redo" class="rounded-lg bg-ink-50 border border-ink-200 px-2 py-1.5" title="<?= e(t('إعادة')) ?> (Ctrl+Y)">↷</button>
+            <button type="button" data-tclose class="btn-ghost !py-1.5 !px-3 text-sm"><?= e(t('✕ إغلاق')) ?></button>
+          </div>
         </div>
         <div class="p-3 space-y-3 text-sm">
           <div>
@@ -165,6 +171,8 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
               <button type="button" data-dz="dup" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5" title="<?= e(t('نسخة')) ?>">⧉</button>
               <button type="button" data-dz="front" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5" title="<?= e(t('للأمام')) ?>">⬆</button>
               <button type="button" data-dz="back" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5" title="<?= e(t('للخلف')) ?>">⬇</button>
+              <button type="button" data-dz="lock" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5" title="<?= e(t('قفل/فتح')) ?>">🔒</button>
+              <button type="button" data-dz="hide" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5" title="<?= e(t('إظهار/إخفاء')) ?>">👁</button>
               <button type="button" data-dz="del" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5 text-red-600" title="<?= e(t('حذف')) ?>">🗑</button>
             </div>
           </div>
