@@ -391,8 +391,9 @@
         if (!j.ok) return toast(T.err, 'error'); iClose(); toast(T.ilSaved); load(); }).catch(function () { btn.disabled = false; btn.textContent = old; toast(T.offline, 'error'); }); });
   }
   /* ---------- محرّر التصميم المدمج (Fabric) داخل البوب أب ---------- */
-  var tMod = $('#cp-itxt'), fc = null, FW = 1080, FH = 1350, FONTS = ['Cairo', 'Alexandria', 'Tajawal'];
-  function fcFit() { if (!fc) return; var wrap = $('#it-cwrap'); var dw = (wrap && wrap.clientWidth) || 420; fc.setZoom(dw / FW); fc.setDimensions({ width: dw, height: Math.round(dw * FH / FW) }); }
+  var tMod = $('#cp-itxt'), fc = null, FW = 1080, FH = 1350, FONTS = ['Cairo', 'Alexandria', 'Tajawal'], uZoom = 1;
+  function fcFit() { if (!fc) return; var wrap = $('#it-cwrap'); var dw = (wrap && wrap.clientWidth) || 420; var z = (dw / FW) * uZoom; fc.setZoom(z); fc.setDimensions({ width: Math.round(FW * z), height: Math.round(FH * z) }); var zl = $('#dz-zoom'); if (zl) zl.textContent = Math.round(uZoom * 100) + '%'; }
+  function fcZoom(d) { uZoom = Math.max(0.3, Math.min(3, d === 0 ? 1 : uZoom * d)); fcFit(); }
   function fcActive() { return fc && fc.getActiveObject(); }
   // لفّ العنوان الطويل لأسطر تملأ عرض المربع (Fabric لا يلفّ العربي RTL تلقائيًا) مع تصغير الحجم إن لزم
   function cpMeasure(px) { var c = cpMeasure._c || (cpMeasure._c = document.createElement('canvas').getContext('2d')); c.font = '900 ' + px + 'px Cairo, Alexandria, sans-serif'; return c; }
@@ -452,7 +453,7 @@
   function tOpen(id) {
     if (!tMod) return; if (!window.fabric) { toast(T.err, 'error'); return; }
     var it = items.find(function (i) { return i.id === id; }); if (!it) return;
-    tMod.dataset.id = id; tMod.classList.remove('hidden'); document.body.style.overflow = 'hidden';
+    tMod.dataset.id = id; tMod.classList.remove('hidden'); document.body.style.overflow = 'hidden'; uZoom = 1;
     draftKey = 'cpdz_' + (C.wid || '') + '_' + id;
     // سجل النسخ السابقة
     var vsel = $('#dz-vers'); if (vsel) { vsel.classList.add('hidden'); vsel.innerHTML = '<option value="">' + esc(T.verLabel || '⟲ نسخة سابقة') + '</option>';
@@ -460,6 +461,13 @@
     if (!fc) { fc = new fabric.Canvas('it-canvas', { backgroundColor: '#0b1220', preserveObjectStacking: true, allowTouchScrolling: false });
       fc.on('selection:created', fcTxtSync); fc.on('selection:updated', fcTxtSync); fc.on('selection:cleared', fcTxtSync);
       fc.on('object:modified', histSnapSoon); fc.on('object:added', function () { if (!histLock) histSnapSoon(); }); fc.on('object:removed', function () { if (!histLock) histSnapSoon(); });
+      // محاذاة ذكية: التصاق لمنتصف الصورة والهوامش الآمنة أثناء السحب
+      fc.on('object:moving', function (e) { var o = e.target; if (!o || !o.getCenterPoint) return; var th = 14, mg = FW * 0.07, c = o.getCenterPoint(), gx = null, gy = null;
+        var snaps = [FW / 2, mg + (o.getScaledWidth ? o.getScaledWidth() / 2 : 0), FW - mg - (o.getScaledWidth ? o.getScaledWidth() / 2 : 0)];
+        if (Math.abs(c.x - FW / 2) < th) { gx = FW / 2; }
+        var snapsY = [FH / 2, mg + (o.getScaledHeight ? o.getScaledHeight() / 2 : 0), FH - mg - (o.getScaledHeight ? o.getScaledHeight() / 2 : 0)];
+        if (Math.abs(c.y - FH / 2) < th) { gy = FH / 2; }
+        if (gx !== null || gy !== null) { o.setPositionByOrigin(new fabric.Point(gx !== null ? gx : c.x, gy !== null ? gy : c.y), 'center', 'center'); o.setCoords(); } });
       // الكتابة المباشرة على العربي بتتكسر في Fabric، فالدبل-كليك على النص يودّي لخانة الكتابة الجانبية
       fc.on('mouse:dblclick', function (e) { var t = e && e.target; if (t && t.type === 'textbox') { fc.setActiveObject(t); fcTxtSync(); var inp = $('#dz-txt'); if (inp) { inp.disabled = false; try { inp.focus(); inp.select(); } catch (x) {} } } }); }
     fc.clear(); fc.setBackgroundImage(null, fc.renderAll.bind(fc)); fcFit();
@@ -514,6 +522,11 @@
       else if (cmd === 'al-left' && o && o.set) { o.set('textAlign', 'left'); fc.requestRenderAll(); }
       else if (cmd === 'undo') { undo(); }
       else if (cmd === 'redo') { redo(); }
+      else if (cmd === 'zin') { fcZoom(1.2); }
+      else if (cmd === 'zout') { fcZoom(1 / 1.2); }
+      else if (cmd === 'zfit') { fcZoom(0); }
+      else if (cmd === 'group') { var a = fc.getActiveObject(); if (a && a.type === 'activeSelection' && a.toGroup) { a.toGroup(); fc.requestRenderAll(); histSnapSoon(); } else toast(T.grpHint || 'اختر عنصرين أو أكثر', 'info'); }
+      else if (cmd === 'ungroup') { var g = fc.getActiveObject(); if (g && g.type === 'group' && g.toActiveSelection) { g.toActiveSelection(); fc.requestRenderAll(); histSnapSoon(); } }
       else if (cmd === 'lock' && o && o.set) { var lk = !o.dzLocked; o.dzLocked = lk; o.set({ lockMovementX: lk, lockMovementY: lk, lockScalingX: lk, lockScalingY: lk, lockRotation: lk, hasControls: !lk }); fc.requestRenderAll(); toast(lk ? (T.lkOn || 'مقفول') : (T.lkOff || 'مفتوح'), 'info'); histSnapSoon(); }
       else if (cmd === 'hide' && o && o.set) { o.set('visible', o.visible === false); fc.discardActiveObject(); fcTxtSync(); fc.requestRenderAll(); histSnapSoon(); }
     });

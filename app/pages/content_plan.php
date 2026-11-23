@@ -174,6 +174,9 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
             <select id="dz-vers" class="input !mt-0 !py-1 !w-auto text-xs hidden" title="<?= e(t('نسخة سابقة')) ?>"><option value=""><?= e(t('⟲ نسخة سابقة')) ?></option></select>
             <button type="button" data-dz="undo" class="rounded-lg bg-ink-50 border border-ink-200 px-2 py-1.5" title="<?= e(t('تراجع')) ?> (Ctrl+Z)">↶</button>
             <button type="button" data-dz="redo" class="rounded-lg bg-ink-50 border border-ink-200 px-2 py-1.5" title="<?= e(t('إعادة')) ?> (Ctrl+Y)">↷</button>
+            <button type="button" data-dz="zout" class="rounded-lg bg-ink-50 border border-ink-200 px-2 py-1.5" title="<?= e(t('تصغير')) ?>">−</button>
+            <button type="button" data-dz="zfit" id="dz-zoom" class="rounded-lg bg-ink-50 border border-ink-200 px-1.5 py-1.5 text-[11px] tabular-nums w-11" title="<?= e(t('ملاءمة')) ?>">100%</button>
+            <button type="button" data-dz="zin" class="rounded-lg bg-ink-50 border border-ink-200 px-2 py-1.5" title="<?= e(t('تكبير')) ?>">+</button>
             <button type="button" data-tclose class="btn-ghost !py-1.5 !px-3 text-sm"><?= e(t('✕ إغلاق')) ?></button>
           </div>
         </div>
@@ -191,6 +194,8 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
               <button type="button" data-dz="back" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5" title="<?= e(t('للخلف')) ?>">⬇</button>
               <button type="button" data-dz="lock" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5" title="<?= e(t('قفل/فتح')) ?>">🔒</button>
               <button type="button" data-dz="hide" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5" title="<?= e(t('إظهار/إخفاء')) ?>">👁</button>
+              <button type="button" data-dz="group" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5" title="<?= e(t('تجميع')) ?>">⊞</button>
+              <button type="button" data-dz="ungroup" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5" title="<?= e(t('فك التجميع')) ?>">⊟</button>
               <button type="button" data-dz="del" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5 text-red-600" title="<?= e(t('حذف')) ?>">🗑</button>
             </div>
           </div>
