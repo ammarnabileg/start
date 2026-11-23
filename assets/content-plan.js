@@ -502,6 +502,8 @@
       fcExport(function (data, doc, iss) {
         if (iss && iss.severe && iss.severe.length) { btn.disabled = false; btn.textContent = old; toast(T.layoutErr, 'error'); return; }
         if (iss && iss.warn && iss.warn.length) toast(T.layoutWarn, 'info');
+        // تحذير التزام بالهوية: الشركة لها شعار لكن التصميم بدون طبقة شعار
+        if (P && P.has_logo && fc && !fc.getObjects().some(function (o) { return o.dzLogo; })) toast(T.brandNoLogo || 'تنبيه: التصميم بدون شعار الشركة.', 'info');
         post({ action: 'savecanvas', id: id, img: data, doc: doc }).then(function (j) { btn.disabled = false; btn.textContent = old; if (!j.ok) return toast(T.err, 'error'); clearDraft(); tClose(); toast(T.itSaved); load(); }).catch(function () { btn.disabled = false; btn.textContent = old; toast(T.offline, 'error'); });
       });
     });
