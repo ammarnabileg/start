@@ -369,6 +369,7 @@
     tSet('t_accent', to.txt_accent || '#10b981');
     var th = $('#it-thumb'), m = (it.media_ids || [])[0]; if (th) th.style.backgroundImage = m ? 'url("' + esc(murl(m, 1)) + '")' : '';
     tMod.classList.remove('hidden'); document.body.style.overflow = 'hidden';
+    tPreview(); // معاينة فورية تعكس الإعدادات الحالية
   }
   function tClose() { if (tMod) { tMod.classList.add('hidden'); document.body.style.overflow = ''; } }
   var tPrevT = null, tPrevReq = 0;

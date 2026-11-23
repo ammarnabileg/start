@@ -139,24 +139,24 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
     </div>
     <div id="cp-itxt" class="hidden fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm grid place-items-center p-4" dir="rtl">
       <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[92vh] overflow-auto">
-        <div class="flex items-center justify-between gap-3 px-5 py-3 border-b border-ink-100 sticky top-0 bg-white z-10"><b class="text-ink-900"><?= e($T['itAdj']) ?></b><div class="flex gap-2"><button type="button" data-tclose class="btn-ghost !py-1.5"><?= e(t('إلغاء')) ?></button><button type="button" id="it-all" class="btn-ghost !py-1.5" title="<?= e(t('طبّق المكان والحجم والنمط واللون على كل التصاميم (ما عدا النص)')) ?>"><?= e(t('طبّق على الكل')) ?></button><button type="button" id="it-save" class="btn-primary !py-1.5"><?= e(t('حفظ')) ?></button></div></div>
-        <div class="p-5 flex flex-wrap items-start gap-5">
-          <div id="it-thumb" class="w-40 aspect-[4/5] rounded-xl border border-ink-200 bg-cover bg-center bg-ink-900 shrink-0"></div>
+        <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-ink-100 sticky top-0 bg-white z-10"><b class="text-ink-900"><?= e($T['itAdj']) ?></b><div class="flex gap-2"><button type="button" data-tclose class="btn-ghost !py-1.5 !px-3 text-sm whitespace-nowrap"><?= e(t('إلغاء')) ?></button><button type="button" id="it-all" class="btn-ghost !py-1.5 !px-3 text-sm whitespace-nowrap"><?= e(t('تطبيق على الكل')) ?></button><button type="button" id="it-save" class="btn-primary !py-1.5 !px-4 text-sm whitespace-nowrap"><?= e(t('حفظ')) ?></button></div></div>
+        <div class="p-4 flex flex-col sm:flex-row items-stretch gap-4">
+          <div id="it-thumb" class="w-44 aspect-[4/5] rounded-xl border border-ink-200 bg-contain bg-no-repeat bg-center bg-ink-900 shrink-0 self-center sm:self-start"></div>
           <div class="space-y-3 text-sm min-w-0 flex-1">
             <label class="block"><span class="text-xs text-ink-500"><?= e(t('نص العنوان')) ?></span>
-              <textarea name="t_head" rows="2" class="input !py-2" dir="auto" placeholder="<?= e(t('اكتب العنوان… ضع «» حول الكلمة المميّزة')) ?>"></textarea>
+              <textarea name="t_head" rows="3" class="input !py-2" dir="auto" placeholder="<?= e(t('اكتب العنوان… ضع «» حول الكلمة المميّزة')) ?>"></textarea>
               <span class="text-[11px] text-ink-400"><?= e(t('الكلمة اللي جوه «» بتتلوّن. مثال: «راقب» الشبكة')) ?></span></label>
-            <div class="grid grid-cols-2 gap-3">
-              <label class="block"><span class="text-xs text-ink-500"><?= e(t('مكان النص')) ?></span>
-                <select name="t_pos" class="input !py-2"><option value="auto"><?= e(t('تلقائي')) ?></option><option value="top"><?= e(t('فوق')) ?></option><option value="bottom"><?= e(t('تحت')) ?></option></select></label>
-              <label class="block"><span class="text-xs text-ink-500"><?= e(t('حجم النص')) ?></span>
-                <select name="t_size" class="input !py-2"><option value="s"><?= e(t('صغير')) ?></option><option value="m"><?= e(t('متوسط')) ?></option><option value="l"><?= e(t('كبير')) ?></option></select></label>
-              <label class="block"><span class="text-xs text-ink-500"><?= e(t('نمط التمييز')) ?></span>
-                <select name="t_variant" class="input !py-2"><option value="auto"><?= e(t('تلقائي')) ?></option><option value="color"><?= e(t('كلمة ملوّنة')) ?></option><option value="underline"><?= e(t('+ خط تحتها')) ?></option><option value="box"><?= e(t('خلفية ملوّنة')) ?></option></select></label>
-              <label class="block"><span class="text-xs text-ink-500"><?= e(t('لون التمييز')) ?></span>
-                <input type="color" name="t_accent" value="#10b981" class="h-9 w-full rounded-lg border border-ink-200 p-0.5 bg-white cursor-pointer"></label>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label class="block"><span class="text-xs text-ink-500 block mb-1"><?= e(t('مكان النص')) ?></span>
+                <select name="t_pos" class="input !py-2 w-full"><option value="auto"><?= e(t('تلقائي')) ?></option><option value="top"><?= e(t('فوق')) ?></option><option value="bottom"><?= e(t('تحت')) ?></option></select></label>
+              <label class="block"><span class="text-xs text-ink-500 block mb-1"><?= e(t('حجم النص')) ?></span>
+                <select name="t_size" class="input !py-2 w-full"><option value="s"><?= e(t('صغير')) ?></option><option value="m"><?= e(t('متوسط')) ?></option><option value="l"><?= e(t('كبير')) ?></option></select></label>
+              <label class="block"><span class="text-xs text-ink-500 block mb-1"><?= e(t('نمط التمييز')) ?></span>
+                <select name="t_variant" class="input !py-2 w-full"><option value="auto"><?= e(t('تلقائي')) ?></option><option value="color"><?= e(t('كلمة ملوّنة')) ?></option><option value="underline"><?= e(t('كلمة + خط تحتها')) ?></option><option value="box"><?= e(t('خلفية ملوّنة')) ?></option></select></label>
+              <label class="block"><span class="text-xs text-ink-500 block mb-1"><?= e(t('لون التمييز')) ?></span>
+                <input type="color" name="t_accent" value="#10b981" class="h-10 w-full rounded-lg border border-ink-200 p-0.5 bg-white cursor-pointer"></label>
             </div>
-            <p class="text-[11px] text-ink-400"><?= e(t('بعد الحفظ تُعاد طباعة النص على الصورة بالإعدادات الجديدة.')) ?></p>
+            <p class="text-[11px] text-ink-400"><?= e(t('المعاينة بتتحدّث لحظيًا. بعد الحفظ تُطبّق على الصورة.')) ?></p>
           </div>
         </div>
       </div>
