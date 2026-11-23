@@ -141,7 +141,10 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
       <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[92vh] overflow-auto">
         <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-ink-100 sticky top-0 bg-white z-10"><b class="text-ink-900"><?= e($T['itAdj']) ?></b><div class="flex gap-2"><button type="button" data-tclose class="btn-ghost !py-1.5 !px-3 text-sm whitespace-nowrap"><?= e(t('إلغاء')) ?></button><button type="button" id="it-all" class="btn-ghost !py-1.5 !px-3 text-sm whitespace-nowrap"><?= e(t('تطبيق على الكل')) ?></button><button type="button" id="it-save" class="btn-primary !py-1.5 !px-4 text-sm whitespace-nowrap"><?= e(t('حفظ')) ?></button></div></div>
         <div class="p-4 flex flex-col sm:flex-row items-stretch gap-4">
-          <div id="it-thumb" class="w-44 aspect-[4/5] rounded-xl border border-ink-200 bg-contain bg-no-repeat bg-center bg-ink-900 shrink-0 self-center sm:self-start"></div>
+          <div class="shrink-0 self-center sm:self-start">
+            <div id="it-thumb" class="w-64 max-w-[78vw] aspect-[4/5] rounded-xl border border-ink-200 bg-contain bg-no-repeat bg-center bg-ink-900 select-none touch-none cursor-ns-resize"></div>
+            <p class="text-[11px] text-ink-400 text-center mt-1"><?= e(t('اسحب لأعلى/أسفل لتحريك النص على الصورة')) ?></p>
+          </div>
           <div class="space-y-3 text-sm min-w-0 flex-1">
             <label class="block"><span class="text-xs text-ink-500"><?= e(t('نص العنوان')) ?></span>
               <textarea name="t_head" rows="3" class="input !py-2" dir="auto" placeholder="<?= e(t('اكتب العنوان… ضع «» حول الكلمة المميّزة')) ?>"></textarea>

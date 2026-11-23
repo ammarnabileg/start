@@ -87,6 +87,7 @@ function cpl_create(array $in): int
         'txt_size' => in_array($in['txt_size'] ?? '', ['s', 'm', 'l'], true) ? (string)$in['txt_size'] : 'm',
         'txt_scale' => isset($in['txt_scale']) ? max(50, min(180, (int)$in['txt_scale'])) : 100,
         'txt_align' => in_array($in['txt_align'] ?? '', ['auto', 'right', 'center', 'left'], true) ? (string)$in['txt_align'] : 'auto',
+        'txt_y' => (isset($in['txt_y']) && is_numeric($in['txt_y'])) ? max(2, min(92, (int)$in['txt_y'])) : null,
         'txt_variant' => in_array($in['txt_variant'] ?? '', ['auto', 'box', 'underline', 'color'], true) ? (string)$in['txt_variant'] : 'auto',
         'txt_accent' => (preg_match('/^#?[0-9a-fA-F]{6}$/', (string)($in['txt_accent'] ?? '')) && strtolower(ltrim((string)$in['txt_accent'], '#')) !== '10b981') ? ('#' . ltrim((string)$in['txt_accent'], '#')) : '',
         'products' => array_slice(array_values(array_filter(array_map('intval', (array)($in['products'] ?? [])), function ($id) use ($wid) { $m = media_get($wid, $id); return $id > 0 && $m && empty($m['deleted_at']) && media_kind((string)$m['mime']) === 'image'; })), 0, 6),
@@ -99,7 +100,7 @@ function cpl_create(array $in): int
 }
 
 function cpl_opts(array $p): array { return (json_decode((string)$p['opts'], true) ?: []) + ['lang' => 'ar', 'dialect' => '', 'audience' => '', 'services' => [], 'tone' => '', 'cta' => '', 'avoid' => '', 'about' => '', 'font' => 'auto', 'video' => true, 'carousel' => true, 'humanize' => true, 'qc' => true, 'img_q' => 'high', 'style' => 'auto', 'products' => [], 'aspect' => '4:5',
-    'txt_pos' => 'auto', 'txt_size' => 'm', 'txt_variant' => 'auto', 'txt_accent' => '', 'txt_scale' => 100, 'txt_align' => 'auto']; }
+    'txt_pos' => 'auto', 'txt_size' => 'm', 'txt_variant' => 'auto', 'txt_accent' => '', 'txt_scale' => 100, 'txt_align' => 'auto', 'txt_y' => null]; }
 
 /** نسبة/حجم الصورة المختارة للخطة (4:5 طولي افتراضيًا). */
 function cpl_aspect(array $p): string { $a = (string)(cpl_opts($p)['aspect'] ?? '4:5'); return in_array($a, ['4:5', '1:1', '9:16', '16:9'], true) ? $a : '4:5'; }
@@ -732,6 +733,7 @@ function cpl_restamp_text(int $itemId, array $in): ?array
     if (isset($in['txt_size']) && in_array($in['txt_size'], ['s', 'm', 'l'], true)) $tov['txt_size'] = $in['txt_size'];
     if (isset($in['txt_scale'])) $tov['txt_scale'] = max(50, min(180, (int)$in['txt_scale']));
     if (isset($in['txt_align']) && in_array($in['txt_align'], ['auto', 'right', 'center', 'left'], true)) $tov['txt_align'] = $in['txt_align'];
+    if (array_key_exists('txt_y', $in)) $tov['txt_y'] = ($in['txt_y'] === '' || $in['txt_y'] === null) ? null : max(2, min(92, (int)$in['txt_y']));
     if (isset($in['txt_variant']) && in_array($in['txt_variant'], ['auto', 'box', 'underline', 'color'], true)) $tov['txt_variant'] = $in['txt_variant'];
     if (isset($in['txt_accent'])) { $a = (string)$in['txt_accent']; $tov['txt_accent'] = (preg_match('/^#?[0-9a-fA-F]{6}$/', $a) && strtolower(ltrim($a, '#')) !== '10b981') ? ('#' . ltrim($a, '#')) : ''; }
     db()->prepare('UPDATE cp_items SET txt_opts = ? WHERE id = ? AND workspace_id = ?')->execute([json_encode($tov, JSON_UNESCAPED_UNICODE), $itemId, (int)ws('id')]);
@@ -1056,6 +1058,12 @@ function cpl_stamp_text(array $p, int $mid, string $headline, array $ov = [], bo
     $vmap = ['box' => 0, 'underline' => 1, 'color' => 2];
     $variant = isset($vmap[$to['txt_variant'] ?? 'auto']) ? $vmap[$to['txt_variant']] : (crc32($headline . '|' . $mid) % 3 + 3) % 3;
     $top = $zone === 'bottom' ? max((int)round($H * 0.40), $H - (int)round($H * 0.08) - $blockH) : (int)round($H * 0.08);
+    // موضع رأسي حرّ (سحب على الصورة): نسبة من ارتفاع الصورة لأعلى كتلة النص
+    if (isset($to['txt_y']) && is_numeric($to['txt_y'])) {
+        $top = (int)round($H * max(2, min(92, (float)$to['txt_y'])) / 100);
+        $top = max((int)round($H * 0.02), min($H - $blockH - (int)round($H * 0.02), $top));
+        $zone = ($top + $blockH / 2) > $H * 0.5 ? 'bottom' : 'top';
+    }
     imagealphablending($im, true); imagesavealpha($im, true);
 
     // --- سكريم متدرّج ناعم (smoothstep) بلا حد أفقي حاد — يسيب الصورة «تتنفّس» ---
@@ -1108,6 +1116,7 @@ function cpl_text_preview(int $itemId, array $in): ?string
     $ov = [];
     foreach (['txt_pos', 'txt_size', 'txt_variant', 'txt_align'] as $k) if (isset($in[$k])) $ov[$k] = (string)$in[$k];
     if (isset($in['txt_scale'])) $ov['txt_scale'] = max(50, min(180, (int)$in['txt_scale']));
+    if (isset($in['txt_y']) && is_numeric($in['txt_y'])) $ov['txt_y'] = max(2, min(92, (int)$in['txt_y']));
     if (isset($in['txt_accent']) && preg_match('/^#?[0-9a-fA-F]{6}$/', (string)$in['txt_accent']) && strtolower(ltrim((string)$in['txt_accent'], '#')) !== '10b981') $ov['txt_accent'] = '#' . ltrim((string)$in['txt_accent'], '#');
     $head = array_key_exists('headline', $in) ? trim((string)$in['headline']) : (string)($it['headline'] ?? '');
     unset($GLOBALS['__cpl_prev']);
