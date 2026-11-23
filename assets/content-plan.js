@@ -361,9 +361,12 @@
         if (!j.ok) return toast(T.err, 'error'); iClose(); toast(T.ilSaved); load(); }).catch(function () { btn.disabled = false; btn.textContent = old; toast(T.offline, 'error'); }); });
   }
   /* ---------- محرّر التصميم المدمج (Fabric) داخل البوب أب ---------- */
-  var tMod = $('#cp-itxt'), fc = null, FW = 1080, FH = 1350, FONTS = ['Cairo', 'Alexandria', 'Tajawal', 'Almarai', 'Changa'];
+  var tMod = $('#cp-itxt'), fc = null, FW = 1080, FH = 1350, FONTS = ['Cairo', 'Alexandria', 'Tajawal'];
   function fcFit() { if (!fc) return; var el = $('#it-canvas'); var dw = (el.parentNode.clientWidth) || 420; fc.setZoom(dw / FW); fc.setDimensions({ width: dw, height: Math.round(dw * FH / FW) }); }
   function fcActive() { return fc && fc.getActiveObject(); }
+  // Fabric بيرسم العربي مكسور لو الخط لسه ما اتحمّلش؛ نعيد قياس كل نص بعد تحميل الخطوط
+  function fcRefreshText() { if (!fc) return; fc.getObjects().forEach(function (o) { if (o.type === 'textbox' || o.type === 'i-text' || o.type === 'text') { o.set('dirty', true); if (o.initDimensions) o.initDimensions(); } }); fc.requestRenderAll(); }
+  function fcEnsureFonts() { if (!document.fonts || !document.fonts.load) return Promise.resolve(); return Promise.all(['900 64px Cairo', '700 64px Cairo', '400 64px Cairo', '800 64px Alexandria', '700 64px Tajawal'].map(function (f) { return document.fonts.load(f).catch(function () {}); })); }
   function tOpen(id) {
     if (!tMod) return; if (!window.fabric) { toast(T.err, 'error'); return; }
     var it = items.find(function (i) { return i.id === id; }); if (!it) return;
@@ -375,7 +378,8 @@
     var head = String(it.headline || '').replace(/[«»]/g, '') || 'عنوان';
     var tb = new fabric.Textbox(head, { left: FW * 0.08, top: FH * 0.07, width: FW * 0.84, fontSize: Math.round(FW * 0.085), fill: '#ffffff', fontWeight: '900', fontFamily: 'Cairo', textAlign: 'right', direction: 'rtl' });
     fc.add(tb); fc.setActiveObject(tb); fc.requestRenderAll();
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (fc) fc.requestRenderAll(); });
+    fcEnsureFonts().then(fcRefreshText);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(fcRefreshText);
   }
   function tClose() { if (tMod) { tMod.classList.add('hidden'); document.body.style.overflow = ''; } }
   if (tMod) {
@@ -387,7 +391,7 @@
       if (cmd === 'addtext') { var nt = new fabric.Textbox('نص جديد', { left: FW * 0.12, top: FH * 0.42, width: FW * 0.6, fontSize: Math.round(FW * 0.06), fill: ($('#dz-color') || {}).value || '#ffffff', fontFamily: 'Cairo', fontWeight: '700', textAlign: 'right', direction: 'rtl' }); fc.add(nt); fc.setActiveObject(nt); fc.requestRenderAll(); }
       else if (cmd === 'del' && o) { fc.remove(o); fc.requestRenderAll(); }
       else if (cmd === 'bold' && o && o.set) { o.set('fontWeight', (o.fontWeight === '900' || o.fontWeight === 'bold') ? '400' : '900'); fc.requestRenderAll(); }
-      else if (cmd === 'font' && o && o.set) { var i = (FONTS.indexOf(o.fontFamily) + 1) % FONTS.length; o.set('fontFamily', FONTS[i]); fc.requestRenderAll(); toast(FONTS[i], 'info'); }
+      else if (cmd === 'font' && o && o.set) { var i = (FONTS.indexOf(o.fontFamily) + 1) % FONTS.length; o.set('fontFamily', FONTS[i]); fc.requestRenderAll(); toast(FONTS[i], 'info'); if (document.fonts && document.fonts.load) document.fonts.load('700 64px ' + FONTS[i]).then(fcRefreshText).catch(function () {}); }
     });
     var dc = $('#dz-color'); if (dc) dc.addEventListener('input', function () { var o = fcActive(); if (o && o.set) { o.set('fill', this.value); fc.requestRenderAll(); } });
     $('#it-save').addEventListener('click', function () {

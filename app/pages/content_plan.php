@@ -424,7 +424,7 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
     <?php $cfg['media'] = url('media'); ?><script>window.CP = <?= json_encode($cfg, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;</script>
     <?php if (!$plan): ?><script src="assets/extract.js?v=<?= e(APP_VERSION) ?>"></script><?php endif; ?>
     <?php if (!$plan): ?><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&family=Alexandria:wght@400;700&family=Tajawal:wght@400;700&family=Almarai:wght@400;700&family=Changa:wght@400;700&family=El+Messiri:wght@400;700&family=Reem+Kufi:wght@400;700&family=Amiri:wght@400;700&family=Lateef&family=IBM+Plex+Sans+Arabic:wght@400;700&display=swap" rel="stylesheet"><?php endif; ?>
-    <?php if ($plan): ?><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&family=Alexandria:wght@400;700;800&display=swap" rel="stylesheet"><script src="assets/vendor/fabric-5.3.0.min.js"></script><?php endif; ?>
+    <?php if ($plan): ?><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&family=Alexandria:wght@400;700;800&family=Tajawal:wght@400;700&display=swap" rel="stylesheet"><script src="assets/vendor/fabric-5.3.0.min.js"></script><?php endif; ?>
     <script src="assets/content-plan.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
 });
