@@ -152,7 +152,10 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
           <button type="button" data-tclose class="btn-ghost !py-1.5 !px-3 text-sm"><?= e(t('✕ إغلاق')) ?></button>
         </div>
         <div class="p-3 space-y-3 text-sm">
-          <input id="dz-txt" type="text" dir="auto" class="input !py-2 w-full" placeholder="<?= e(t('اختر نصًا من اللوحة وعدّل كتابته…')) ?>" disabled>
+          <div>
+            <span class="text-xs font-semibold text-brand-700 flex items-center gap-1 mb-1">✍️ <?= e(t('نص العنصر المحدد — اكتب هنا')) ?></span>
+            <textarea id="dz-txt" dir="auto" rows="3" class="input !py-2 w-full resize-y leading-relaxed text-base" placeholder="<?= e(t('اضغط على أي نص في التصميم ثم اكتب هنا · Enter = سطر جديد')) ?>" disabled></textarea>
+          </div>
           <div>
             <span class="text-xs text-ink-500 block mb-1"><?= e(t('العناصر')) ?></span>
             <div class="flex flex-wrap items-center gap-1">

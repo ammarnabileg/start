@@ -364,6 +364,7 @@
   function fcFit() { if (!fc) return; var wrap = $('#it-cwrap'); var dw = (wrap && wrap.clientWidth) || 420; fc.setZoom(dw / FW); fc.setDimensions({ width: dw, height: Math.round(dw * FH / FW) }); }
   function fcActive() { return fc && fc.getActiveObject(); }
   // خانة النص الخارجية (التعديل المباشر بيبوّظ تحديد العربي في Fabric)
+  function fcFocusTxt() { var inp = $('#dz-txt'); if (inp && !inp.disabled) { try { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); } catch (e) {} } }
   function fcTxtSync() { var inp = $('#dz-txt'); var o = fcActive(); if (inp) { if (o && o.type === 'textbox') { inp.disabled = false; inp.value = o.text || ''; } else { inp.value = ''; inp.disabled = true; } } var sz = $('#dz-size'), szv = $('#dz-size-v'); if (sz) { var fs = (o && o.type === 'textbox') ? Math.round((o.fontSize || 80) * (o.scaleY || 1)) : 80; sz.value = fs; if (szv) szv.textContent = fs; } var dc = $('#dz-color'); if (dc && o && o.fill && typeof o.fill === 'string' && o.fill[0] === '#') dc.value = o.fill; }
   // Fabric بيرسم العربي مكسور لو الخط لسه ما اتحمّلش؛ نعيد قياس كل نص بعد تحميل الخطوط
   function fcRefreshText() { if (!fc) return; fc.getObjects().forEach(function (o) { if (o.type === 'textbox' || o.type === 'i-text' || o.type === 'text') { o.set('dirty', true); if (o.initDimensions) o.initDimensions(); } }); fc.requestRenderAll(); }
@@ -373,13 +374,16 @@
     var it = items.find(function (i) { return i.id === id; }); if (!it) return;
     tMod.dataset.id = id; tMod.classList.remove('hidden'); document.body.style.overflow = 'hidden';
     if (!fc) { fc = new fabric.Canvas('it-canvas', { backgroundColor: '#0b1220', preserveObjectStacking: true, allowTouchScrolling: false });
-      fc.on('selection:created', fcTxtSync); fc.on('selection:updated', fcTxtSync); fc.on('selection:cleared', fcTxtSync); }
+      fc.on('selection:created', fcTxtSync); fc.on('selection:updated', fcTxtSync); fc.on('selection:cleared', fcTxtSync);
+      // الكتابة المباشرة على العربي بتتكسر في Fabric، فالدبل-كليك على النص يودّي لخانة الكتابة الجانبية
+      fc.on('mouse:dblclick', function (e) { var t = e && e.target; if (t && t.type === 'textbox') { fc.setActiveObject(t); fcTxtSync(); var inp = $('#dz-txt'); if (inp) { inp.disabled = false; try { inp.focus(); inp.select(); } catch (x) {} } } }); }
     fc.clear(); fc.setBackgroundImage(null, fc.renderAll.bind(fc)); fcFit();
     var rawId = (it.media_raw || [])[0] || (it.media_ids || [])[0];
     if (rawId) fabric.Image.fromURL(murl(rawId), function (im) { if (!im || !im.width) return; var k = Math.max(FW / im.width, FH / im.height); im.set({ scaleX: k, scaleY: k, originX: 'center', originY: 'center', left: FW / 2, top: FH / 2 }); fc.setBackgroundImage(im, fc.renderAll.bind(fc)); });
     var head = String(it.headline || '').replace(/[«»]/g, '') || 'عنوان';
     var tb = new fabric.Textbox(head, { left: FW * 0.08, top: FH * 0.07, width: FW * 0.84, fontSize: Math.round(FW * 0.085), fill: '#ffffff', fontWeight: '900', fontFamily: 'Cairo', textAlign: 'right', direction: 'rtl', editable: false });
     fc.add(tb); fc.setActiveObject(tb); fcTxtSync(); fc.requestRenderAll();
+    setTimeout(fcFocusTxt, 60);
     fcEnsureFonts().then(fcRefreshText);
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(fcRefreshText);
     // اللوجو كطبقة قابلة للتحريك/التحجيم مع النص
