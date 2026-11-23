@@ -267,6 +267,7 @@
     var rawId = (it.media_raw || [])[0] || ms[0];
     return '<div class="mt-3 rounded-xl border border-ink-200 p-3"><div class="flex flex-wrap items-center gap-2 mb-2"><b class="text-xs text-ink-500">' + esc(fm) + '</b>' + chips
       + (canTxt || canLogo ? '<span class="flex-1"></span>' : '')
+      + (canTxt ? '<button type="button" data-redesign class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold bg-ink-100 text-ink-700 hover:bg-ink-200" title="' + esc(T.itReDo || '') + '">↻ ' + esc(T.itReDo || '') + '</button>' : '')
       + (canTxt ? '<button type="button" data-itxt-open class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold bg-brand-600 text-[#fff] hover:bg-brand-700">🎨 ' + esc(T.itAdj) + '</button>' : '') + '</div>'
       + (ms.length ? '<div class="flex flex-wrap gap-2">' + ms.map(function (m) { return it.fmt === 'video' ? '<video src="' + esc(murl(m)) + '" controls preload="metadata" playsinline class="w-36 h-48 rounded-lg bg-ink-900 border border-ink-200 object-cover"></video>' : '<a href="' + esc(murl(m)) + '" target="_blank"><img src="' + esc(murl(m, 1)) + '" class="w-24 h-32 object-cover rounded-lg border border-ink-200" alt=""></a>'; }).join('') + '</div>' : '') + '</div>';
   }
@@ -302,6 +303,7 @@
     if ((b = e.target.closest('[data-st]'))) return setSt([id], b.dataset.st);
     if ((b = e.target.closest('[data-copy]'))) { navigator.clipboard.writeText(it[b.dataset.copy] || '').then(function () { toast(T.copied); }); return; }
     if (e.target.closest('[data-ilogo-open]')) { iOpen(id); return; }
+    if ((b = e.target.closest('[data-redesign]'))) { b.disabled = true; var ob = b.textContent; b.textContent = '…'; post({ action: 'redesign', id: id }).then(function (j) { b.disabled = false; b.textContent = ob; if (!j.ok) return toast(j.error || T.err, 'error'); if (j.item) Object.assign(it, j.item); toast(T.itSaved); load(); }).catch(function () { b.disabled = false; b.textContent = ob; toast(T.offline, 'error'); }); return; }
     if (e.target.closest('[data-itxt-open]')) { tOpen(id); return; }
     if ((b = e.target.closest('[data-fmt]'))) { post({ action: 'usefmt', id: id, kind: b.dataset.fmt }).then(function () { load(); }); return; }
     if ((b = e.target.closest('[data-gen1]'))) { var k = b.dataset.gen1, lab = T['k' + k[0].toUpperCase() + k.slice(1)];
