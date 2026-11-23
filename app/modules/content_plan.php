@@ -85,6 +85,8 @@ function cpl_create(array $in): int
         'aspect' => in_array($in['aspect'] ?? '', ['4:5', '1:1', '9:16', '16:9'], true) ? (string)$in['aspect'] : '4:5',
         'txt_pos' => in_array($in['txt_pos'] ?? '', ['auto', 'top', 'bottom'], true) ? (string)$in['txt_pos'] : 'auto',
         'txt_size' => in_array($in['txt_size'] ?? '', ['s', 'm', 'l'], true) ? (string)$in['txt_size'] : 'm',
+        'txt_scale' => isset($in['txt_scale']) ? max(50, min(180, (int)$in['txt_scale'])) : 100,
+        'txt_align' => in_array($in['txt_align'] ?? '', ['auto', 'right', 'center', 'left'], true) ? (string)$in['txt_align'] : 'auto',
         'txt_variant' => in_array($in['txt_variant'] ?? '', ['auto', 'box', 'underline', 'color'], true) ? (string)$in['txt_variant'] : 'auto',
         'txt_accent' => (preg_match('/^#?[0-9a-fA-F]{6}$/', (string)($in['txt_accent'] ?? '')) && strtolower(ltrim((string)$in['txt_accent'], '#')) !== '10b981') ? ('#' . ltrim((string)$in['txt_accent'], '#')) : '',
         'products' => array_slice(array_values(array_filter(array_map('intval', (array)($in['products'] ?? [])), function ($id) use ($wid) { $m = media_get($wid, $id); return $id > 0 && $m && empty($m['deleted_at']) && media_kind((string)$m['mime']) === 'image'; })), 0, 6),
@@ -97,7 +99,7 @@ function cpl_create(array $in): int
 }
 
 function cpl_opts(array $p): array { return (json_decode((string)$p['opts'], true) ?: []) + ['lang' => 'ar', 'dialect' => '', 'audience' => '', 'services' => [], 'tone' => '', 'cta' => '', 'avoid' => '', 'about' => '', 'font' => 'auto', 'video' => true, 'carousel' => true, 'humanize' => true, 'qc' => true, 'img_q' => 'high', 'style' => 'auto', 'products' => [], 'aspect' => '4:5',
-    'txt_pos' => 'auto', 'txt_size' => 'm', 'txt_variant' => 'auto', 'txt_accent' => '']; }
+    'txt_pos' => 'auto', 'txt_size' => 'm', 'txt_variant' => 'auto', 'txt_accent' => '', 'txt_scale' => 100, 'txt_align' => 'auto']; }
 
 /** نسبة/حجم الصورة المختارة للخطة (4:5 طولي افتراضيًا). */
 function cpl_aspect(array $p): string { $a = (string)(cpl_opts($p)['aspect'] ?? '4:5'); return in_array($a, ['4:5', '1:1', '9:16', '16:9'], true) ? $a : '4:5'; }
@@ -728,6 +730,8 @@ function cpl_restamp_text(int $itemId, array $in): ?array
     if (array_key_exists('headline', $in)) { $h = trim((string)$in['headline']); $tov['headline'] = mb_substr($h, 0, 160); }
     if (isset($in['txt_pos']) && in_array($in['txt_pos'], ['auto', 'top', 'bottom'], true)) $tov['txt_pos'] = $in['txt_pos'];
     if (isset($in['txt_size']) && in_array($in['txt_size'], ['s', 'm', 'l'], true)) $tov['txt_size'] = $in['txt_size'];
+    if (isset($in['txt_scale'])) $tov['txt_scale'] = max(50, min(180, (int)$in['txt_scale']));
+    if (isset($in['txt_align']) && in_array($in['txt_align'], ['auto', 'right', 'center', 'left'], true)) $tov['txt_align'] = $in['txt_align'];
     if (isset($in['txt_variant']) && in_array($in['txt_variant'], ['auto', 'box', 'underline', 'color'], true)) $tov['txt_variant'] = $in['txt_variant'];
     if (isset($in['txt_accent'])) { $a = (string)$in['txt_accent']; $tov['txt_accent'] = (preg_match('/^#?[0-9a-fA-F]{6}$/', $a) && strtolower(ltrim($a, '#')) !== '10b981') ? ('#' . ltrim($a, '#')) : ''; }
     db()->prepare('UPDATE cp_items SET txt_opts = ? WHERE id = ? AND workspace_id = ?')->execute([json_encode($tov, JSON_UNESCAPED_UNICODE), $itemId, (int)ws('id')]);
@@ -976,14 +980,15 @@ function cpl_region_score($im, int $x0, int $y0, int $x1, int $y1): float
 
 /** يرسم سطر عنوان مع تلوين الكلمة المفتاحية جوّه السطر (آمن للعربي: الحروف ما بتتوصلش عبر المسافات).
  *  لو $boxKey يرسم خلفية بلون الهوية خلف الكلمة، وإلا يلوّنها بلون الهوية. يرجّع [x1,x2,y] لحدود الكلمة أو null. */
-function cpl_draw_hline($im, int $size, string $font, string $line, string $key, bool $rtl, int $colLeft, int $colRight, int $y, int $white, int $acc, int $onAcc, int $shadow, bool $boxKey): ?array
+function cpl_draw_hline($im, int $size, string $font, string $line, string $key, bool $rtl, int $colLeft, int $colRight, int $y, int $white, int $acc, int $onAcc, int $shadow, bool $boxKey, string $align = 'right'): ?array
 {
     $line = trim($line); if ($line === '') return null;
     $off = -1;
     if ($key !== '' && preg_match('/(?<![^\s])' . preg_quote($key, '/') . '(?![^\s])/u', $line, $mm, PREG_OFFSET_CAPTURE)) $off = (int)$mm[0][1];
+    $ax = function (int $wd) use ($align, $colLeft, $colRight) { if ($align === 'left') return $colLeft; if ($align === 'center') return $colLeft + (int)round((($colRight - $colLeft) - $wd) / 2); return $colRight - $wd; };
     if ($off < 0) { // مفيش كلمة مفتاحية في السطر: أبيض عادي
         $sh = $rtl ? cpl_ar_shape($line) : $line; $bb = imagettfbbox($size, 0, $font, $sh); $tw = abs($bb[2] - $bb[0]);
-        $x = $rtl ? ($colRight - $tw) : $colLeft;
+        $x = $ax($tw);
         imagettftext($im, $size, 0, $x, $y, $white, $font, $sh);
         return null;
     }
@@ -991,7 +996,7 @@ function cpl_draw_hline($im, int $size, string $font, string $line, string $key,
     $segs = []; if ($before !== '') $segs[] = [$before . ' ', 'w']; $segs[] = [$key, 'k']; if ($after !== '') $segs[] = [' ' . $after, 'w'];
     $meas = []; $tot = 0;
     foreach ($segs as [$txt, $role]) { $sh = $rtl ? cpl_ar_shape($txt) : $txt; $bb = imagettfbbox($size, 0, $font, $sh); $w = abs($bb[2] - $bb[0]); $meas[] = [$sh, $role, $w]; $tot += $w; }
-    $x = $rtl ? ($colRight - $tot) : $colLeft; $order = $rtl ? array_reverse($meas) : $meas;
+    $x = $ax($tot); $order = $rtl ? array_reverse($meas) : $meas;
     $keyX1 = null; $keyX2 = null;
     foreach ($order as [$sh, $role, $w]) {
         if ($role === 'k') { $keyX1 = $x; $keyX2 = $x + $w;
@@ -1040,7 +1045,7 @@ function cpl_stamp_text(array $p, int $mid, string $headline, array $ov = [], bo
     $colRight = $colLeft + $colW;
 
     // --- قياس الخط ولفّ الأسطر داخل العمود المختار (الحجم من الإعدادات) ---
-    $szMul = ['s' => 0.86, 'm' => 1.0, 'l' => 1.16][$to['txt_size'] ?? 'm'] ?? 1.0;
+    $szMul = isset($to['txt_scale']) ? max(50, min(180, (int)$to['txt_scale'])) / 100 : (['s' => 0.86, 'm' => 1.0, 'l' => 1.16][$to['txt_size'] ?? 'm'] ?? 1.0);
     $size = (int)round($W * ($anchor === 'full' ? 0.072 : 0.064) * $szMul); $lines = null; $min = max(12, (int)round($W * 0.028));
     $maxLines = $anchor === 'full' ? 3 : 4;
     for (; $size >= $min; $size -= 2) { $w = cpl_wrap_lines($headline, $font, $size, $colW, $rtl); if (count($w) <= $maxLines) { $lines = $w; break; } }
@@ -1072,14 +1077,14 @@ function cpl_stamp_text(array $p, int $mid, string $headline, array $ov = [], bo
     else { [$ar, $ag, $ab] = cpl_accent_rgb($p); }
     $acc = imagecolorallocate($im, $ar, $ag, $ab);
     $lum = 0.299 * $ar + 0.587 * $ag + 0.114 * $ab; $onAcc = $lum > 150 ? imagecolorallocate($im, 12, 16, 24) : $white;
-    // المحاذاة الأفقية: RTL يتحاذى لليمين، LTR لليسار — وداخل العمود المختار
-    $alignRight = $rtl;
-    $xOf = function (int $tw) use ($alignRight, $colLeft, $colRight) { return $alignRight ? ($colRight - $tw) : $colLeft; };
+    // المحاذاة الأفقية: من الإعدادات (يمين/وسط/يسار) أو تلقائي حسب اتجاه النص
+    $align = (string)($to['txt_align'] ?? 'auto');
+    if (!in_array($align, ['right', 'left', 'center'], true)) $align = $rtl ? 'right' : 'left';
     $y = $top + $size;
     // الكلمة المفتاحية تتلوّن جوّه السطر: قالب 0 = خلفية بلون الهوية، قالب 1/2 = نص ملوّن (مع خط تحتها في 1)
     $boxKey = $variant === 0; $keySpan = null;
     foreach ($lines as $ln) {
-        $sp = cpl_draw_hline($im, $size, $font, $ln, $key, $rtl, $colLeft, $colRight, $y, $white, $acc, $onAcc, $shadow, $boxKey);
+        $sp = cpl_draw_hline($im, $size, $font, $ln, $key, $rtl, $colLeft, $colRight, $y, $white, $acc, $onAcc, $shadow, $boxKey, $align);
         if ($sp && !$keySpan) $keySpan = $sp;
         $y += $lh;
     }
@@ -1101,7 +1106,8 @@ function cpl_text_preview(int $itemId, array $in): ?string
     $raw = $it['media_raw'] ?: $it['media_ids']; if (!$raw) return null;
     $p = cpl_plan($it['plan_id']); if (!$p) return null;
     $ov = [];
-    foreach (['txt_pos', 'txt_size', 'txt_variant'] as $k) if (isset($in[$k])) $ov[$k] = (string)$in[$k];
+    foreach (['txt_pos', 'txt_size', 'txt_variant', 'txt_align'] as $k) if (isset($in[$k])) $ov[$k] = (string)$in[$k];
+    if (isset($in['txt_scale'])) $ov['txt_scale'] = max(50, min(180, (int)$in['txt_scale']));
     if (isset($in['txt_accent']) && preg_match('/^#?[0-9a-fA-F]{6}$/', (string)$in['txt_accent']) && strtolower(ltrim((string)$in['txt_accent'], '#')) !== '10b981') $ov['txt_accent'] = '#' . ltrim((string)$in['txt_accent'], '#');
     $head = array_key_exists('headline', $in) ? trim((string)$in['headline']) : (string)($it['headline'] ?? '');
     unset($GLOBALS['__cpl_prev']);

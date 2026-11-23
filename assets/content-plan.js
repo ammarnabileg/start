@@ -362,10 +362,15 @@
   var tMod = $('#cp-itxt');
   function tVal(n) { return ((tMod && tMod.querySelector('[name=' + n + ']')) || {}).value; }
   function tSet(n, v) { var s = tMod && tMod.querySelector('[name=' + n + ']'); if (s) s.value = v; }
+  function tAlign() { var r = tMod && tMod.querySelector('[name=t_align]:checked'); return r ? r.value : 'auto'; }
+  function tSetRadio(n, v) { var r = tMod && tMod.querySelector('[name=' + n + '][value="' + v + '"]'); if (r) r.checked = true; }
+  function tScaleLabel() { var b = $('#t-scale-v'); if (b) b.textContent = (tVal('t_scale') || 100) + '%'; }
+  function tPayload(withHead) { var o = { txt_pos: tVal('t_pos'), txt_scale: +tVal('t_scale') || 100, txt_align: tAlign(), txt_variant: tVal('t_variant'), txt_accent: tVal('t_accent') }; if (withHead) o.headline = tVal('t_head'); return o; }
   function tOpen(id) { if (!tMod) return; var it = items.find(function (i) { return i.id === id; }); if (!it) return;
     tMod.dataset.id = id; var to = it.txt_opts || {};
     tSet('t_head', String(to.headline != null ? to.headline : (it.headline || '')).replace(/[«»]/g, ''));
-    tSet('t_pos', to.txt_pos || 'auto'); tSet('t_size', to.txt_size || 'm'); tSet('t_variant', to.txt_variant || 'auto');
+    tSet('t_pos', to.txt_pos || 'auto'); tSet('t_variant', to.txt_variant || 'auto');
+    tSet('t_scale', to.txt_scale || 100); tSetRadio('t_align', to.txt_align || 'auto'); tScaleLabel();
     tSet('t_accent', to.txt_accent || '#10b981');
     var th = $('#it-thumb'), m = (it.media_ids || [])[0]; if (th) th.style.backgroundImage = m ? 'url("' + esc(murl(m, 1)) + '")' : '';
     tMod.classList.remove('hidden'); document.body.style.overflow = 'hidden';
@@ -375,23 +380,20 @@
   var tPrevT = null, tPrevReq = 0;
   function tPreview() { if (!tMod || tMod.classList.contains('hidden')) return;
     var id = +tMod.dataset.id; var my = ++tPrevReq;
-    var txt = { headline: tVal('t_head'), txt_pos: tVal('t_pos'), txt_size: tVal('t_size'), txt_variant: tVal('t_variant'), txt_accent: tVal('t_accent') };
-    post({ action: 'txtprev', id: id, txt: JSON.stringify(txt) }).then(function (j) { if (my !== tPrevReq || !j || !j.ok || !j.url) return; var th = $('#it-thumb'); if (th) th.style.backgroundImage = 'url("' + j.url + '")'; }).catch(function () {});
+    post({ action: 'txtprev', id: id, txt: JSON.stringify(tPayload(true)) }).then(function (j) { if (my !== tPrevReq || !j || !j.ok || !j.url) return; var th = $('#it-thumb'); if (th) th.style.backgroundImage = 'url("' + j.url + '")'; }).catch(function () {});
   }
-  function tPreviewDebounced() { clearTimeout(tPrevT); tPrevT = setTimeout(tPreview, 350); }
+  function tPreviewDebounced() { tScaleLabel(); clearTimeout(tPrevT); tPrevT = setTimeout(tPreview, 350); }
   if (tMod) {
     tMod.addEventListener('input', tPreviewDebounced); tMod.addEventListener('change', tPreviewDebounced);
     tMod.addEventListener('click', function (e) { if (e.target === tMod || e.target.closest('[data-tclose]')) tClose(); });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !tMod.classList.contains('hidden')) tClose(); });
     $('#it-save').addEventListener('click', function () { var id = +tMod.dataset.id; var btn = this; btn.disabled = true; var old = btn.textContent; btn.textContent = T.ilBusy;
-      var txt = { headline: tVal('t_head'), txt_pos: tVal('t_pos'), txt_size: tVal('t_size'), txt_variant: tVal('t_variant'), txt_accent: tVal('t_accent') };
-      post({ action: 'retxt', id: id, txt: JSON.stringify(txt) }).then(function (j) { btn.disabled = false; btn.textContent = old;
+      post({ action: 'retxt', id: id, txt: JSON.stringify(tPayload(true)) }).then(function (j) { btn.disabled = false; btn.textContent = old;
         if (!j.ok) return toast(T.err, 'error'); tClose(); toast(T.itSaved); load(); }).catch(function () { btn.disabled = false; btn.textContent = old; toast(T.offline, 'error'); }); });
     $('#it-all').addEventListener('click', function () { var btn = this;
       (window.fxAsk ? fxAsk(T.itAllAsk) : Promise.resolve(confirm(T.itAllAsk))).then(function (ok) { if (!ok) return;
         btn.disabled = true; var old = btn.textContent; btn.textContent = T.ilBusy;
-        var txt = { txt_pos: tVal('t_pos'), txt_size: tVal('t_size'), txt_variant: tVal('t_variant'), txt_accent: tVal('t_accent') };
-        post({ action: 'retxt_all', txt: JSON.stringify(txt) }).then(function (j) { btn.disabled = false; btn.textContent = old;
+        post({ action: 'retxt_all', txt: JSON.stringify(tPayload(false)) }).then(function (j) { btn.disabled = false; btn.textContent = old;
           if (!j.ok) return toast(T.err, 'error'); tClose(); toast(fmt(T.itAllDone, j.n)); load(); }).catch(function () { btn.disabled = false; btn.textContent = old; toast(T.offline, 'error'); }); }); });
   }
   paintProg({}); load(); loop();

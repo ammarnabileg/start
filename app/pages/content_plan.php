@@ -146,14 +146,20 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
             <label class="block"><span class="text-xs text-ink-500"><?= e(t('نص العنوان')) ?></span>
               <textarea name="t_head" rows="3" class="input !py-2" dir="auto" placeholder="<?= e(t('اكتب العنوان… ضع «» حول الكلمة المميّزة')) ?>"></textarea>
               <span class="text-[11px] text-ink-400"><?= e(t('الكلمة الموضوعة بين «» تُلوَّن. مثال: «راقب» الشبكة')) ?></span></label>
+            <label class="block"><span class="text-xs text-ink-500 flex justify-between"><span><?= e(t('حجم النص')) ?></span><b id="t-scale-v" class="tabular-nums">100%</b></span>
+              <input type="range" name="t_scale" min="50" max="180" value="100" class="w-full accent-brand-600"></label>
+            <div><span class="text-xs text-ink-500 block mb-1"><?= e(t('المحاذاة')) ?></span>
+              <div class="grid grid-cols-4 gap-1.5" dir="ltr">
+                <?php foreach (['right' => '⇥', 'center' => '≡', 'left' => '⇤', 'auto' => t('تلقائي')] as $av => $al): ?>
+                <label class="cursor-pointer"><input type="radio" name="t_align" value="<?= e($av) ?>" class="peer sr-only"<?= $av === 'auto' ? ' checked' : '' ?>><span class="flex items-center justify-center h-9 rounded-lg border border-ink-200 text-sm hover:border-brand-300 peer-checked:border-brand-500 peer-checked:bg-brand-50"><?= e($al) ?></span></label>
+                <?php endforeach; ?>
+              </div></div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <label class="block"><span class="text-xs text-ink-500 block mb-1"><?= e(t('مكان النص')) ?></span>
                 <select name="t_pos" class="input !py-2 w-full"><option value="auto"><?= e(t('تلقائي')) ?></option><option value="top"><?= e(t('فوق')) ?></option><option value="bottom"><?= e(t('تحت')) ?></option></select></label>
-              <label class="block"><span class="text-xs text-ink-500 block mb-1"><?= e(t('حجم النص')) ?></span>
-                <select name="t_size" class="input !py-2 w-full"><option value="s"><?= e(t('صغير')) ?></option><option value="m"><?= e(t('متوسط')) ?></option><option value="l"><?= e(t('كبير')) ?></option></select></label>
               <label class="block"><span class="text-xs text-ink-500 block mb-1"><?= e(t('نمط التمييز')) ?></span>
                 <select name="t_variant" class="input !py-2 w-full"><option value="auto"><?= e(t('تلقائي')) ?></option><option value="color"><?= e(t('كلمة ملوّنة')) ?></option><option value="underline"><?= e(t('كلمة + خط تحتها')) ?></option><option value="box"><?= e(t('خلفية ملوّنة')) ?></option></select></label>
-              <label class="block"><span class="text-xs text-ink-500 block mb-1"><?= e(t('لون التمييز')) ?></span>
+              <label class="block sm:col-span-2"><span class="text-xs text-ink-500 block mb-1"><?= e(t('لون التمييز')) ?></span>
                 <input type="color" name="t_accent" value="#10b981" class="h-10 w-full rounded-lg border border-ink-200 p-0.5 bg-white cursor-pointer"></label>
             </div>
             <p class="text-[11px] text-ink-400"><?= e(t('تتحدّث المعاينة فورًا، وتُطبَّق على الصورة بعد الحفظ.')) ?></p>
