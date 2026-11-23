@@ -302,7 +302,7 @@
     if ((b = e.target.closest('[data-st]'))) return setSt([id], b.dataset.st);
     if ((b = e.target.closest('[data-copy]'))) { navigator.clipboard.writeText(it[b.dataset.copy] || '').then(function () { toast(T.copied); }); return; }
     if (e.target.closest('[data-ilogo-open]')) { iOpen(id); return; }
-    if ((b = e.target.closest('[data-itxt-open]'))) { b.disabled = true; var ot = b.innerHTML; b.innerHTML = '…'; post({ action: 'redesign', id: id }).then(function (j) { b.disabled = false; b.innerHTML = ot; if (j && j.ok && j.item) Object.assign(it, j.item); tOpen(id); load(); }).catch(function () { b.disabled = false; b.innerHTML = ot; tOpen(id); }); return; }
+    if (e.target.closest('[data-itxt-open]')) { tOpen(id); return; }
     if ((b = e.target.closest('[data-fmt]'))) { post({ action: 'usefmt', id: id, kind: b.dataset.fmt }).then(function () { load(); }); return; }
     if ((b = e.target.closest('[data-gen1]'))) { var k = b.dataset.gen1, lab = T['k' + k[0].toUpperCase() + k.slice(1)];
       (window.fxAsk ? fxAsk(fmt(T.genAsk, lab, 1)) : Promise.resolve(confirm(fmt(T.genAsk, lab, 1)))).then(function (ok) { if (!ok) return;
@@ -393,16 +393,20 @@
     var scrim = new fabric.Rect({ left: 0, top: FH * 0.40, width: FW, height: FH * 0.60, selectable: false, evented: false, dzBg: true });
     scrim.set('fill', new fabric.Gradient({ type: 'linear', coords: { x1: 0, y1: 0, x2: 0, y2: FH * 0.60 }, colorStops: [{ offset: 0, color: 'rgba(6,10,18,0)' }, { offset: 0.55, color: 'rgba(6,10,18,0.55)' }, { offset: 1, color: 'rgba(6,10,18,0.92)' }] }));
     fc.add(scrim);
-    // شريط لون الهوية (kicker) فوق العنوان
-    var kick = new fabric.Rect({ left: FW * 0.70, top: FH * 0.70, width: FW * 0.14, height: Math.round(FW * 0.013), rx: 4, ry: 4, fill: acc, dzKick: true });
-    fc.add(kick);
-    // العنوان أسفل الصورة — قابل للتعديل من الخانة الجانبية
+    // العنوان أسفل الصورة — قابل للتعديل من الخانة الجانبية. الحجم يصغر تلقائيًا للعناوين الطويلة ليبقى داخل الصورة
     var head = String(it.headline || '').replace(/[«»]/g, '') || 'عنوان';
-    var tb = new fabric.Textbox(head, { left: FW * 0.08, top: FH * 0.72, width: FW * 0.84, fontSize: Math.round(FW * 0.082), fill: '#ffffff', fontWeight: '900', fontFamily: 'Cairo', textAlign: 'right', direction: 'rtl', editable: false });
+    var words = head.split(/\s+/).length, fs = words >= 6 ? 0.062 : (words >= 4 ? 0.07 : 0.082);
+    var bw = FW * 0.86, bl = FW * 0.07;
+    // شريط لون الهوية (kicker) فوق العنوان — على الحافة اليمنى
+    var kickY = FH * 0.70, kw = FW * 0.14;
+    var kick = new fabric.Rect({ left: bl + bw - kw, top: kickY, width: kw, height: Math.round(FW * 0.013), rx: 4, ry: 4, fill: acc, dzKick: true });
+    fc.add(kick);
+    var tb = new fabric.Textbox(head, { left: bl, top: FH * 0.72, width: bw, fontSize: Math.round(FW * fs), fill: '#ffffff', fontWeight: '900', fontFamily: 'Cairo', textAlign: 'right', direction: 'rtl', splitByGrapheme: false, editable: false });
     fc.add(tb); fc.setActiveObject(tb); fcTxtSync(); fc.requestRenderAll();
     setTimeout(fcFocusTxt, 60);
-    fcEnsureFonts().then(fcRefreshText);
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(fcRefreshText);
+    function fitHead() { if (!tb) return; if (tb.initDimensions) tb.initDimensions(); var over = (tb.top + tb.height) - FH * 0.96; if (over > 0 && tb.fontSize > 34) { tb.set({ fontSize: Math.max(34, tb.fontSize - 6), top: Math.max(FH * 0.52, tb.top - over) }); if (tb.initDimensions) tb.initDimensions(); } fc.requestRenderAll(); }
+    fcEnsureFonts().then(function () { fcRefreshText(); fitHead(); });
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { fcRefreshText(); fitHead(); });
     // اللوجو كطبقة قابلة للتحريك/التحجيم مع النص
     if (P && P.logo) fabric.Image.fromURL(P.logo, function (lg) { if (!lg || !lg.width) return; var k = (FW * 0.20) / lg.width; lg.set({ scaleX: k, scaleY: k, left: FW * 0.74, top: FH * 0.035 }); lg.dzLogo = true; fc.add(lg); fc.requestRenderAll(); });
   }
