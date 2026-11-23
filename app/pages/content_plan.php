@@ -94,7 +94,7 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
         'itAdj' => t('صمّم'), 'itReDo' => t('أعد التصميم'), 'itSaved' => t('تم حفظ التصميم ✓'),
         'layoutErr' => t('يوجد نص خارج حدود التصميم. قصّر النص أو كبّر المربع أو حرّكه للداخل قبل الحفظ.'), 'layoutWarn' => t('تنبيه: حجم بعض النصوص صغير وقد يصعب قراءته.'),
         'draftBack' => t('تم استرجاع آخر تعديل غير محفوظ.'), 'lkOn' => t('مقفول'), 'lkOff' => t('مفتوح'), 'reField' => t('إعادة توليد هذا الحقل فقط'),
-        'brandNoLogo' => t('تنبيه: التصميم بدون شعار الشركة.'),
+        'brandNoLogo' => t('تنبيه: التصميم بدون شعار الشركة.'), 'noMatch' => t('لا نتائج مطابقة للبحث.'),
         'calc' => t('جارٍ الحساب…'), 'costNone' => t('لا توجد بيانات تكلفة لهذه الحملة بعد (تظهر مع التوليد القادم).'), 'costTotal' => t('الإجمالي'), 'costPer' => t('لكل منشور معتمد'), 'costText' => t('النصوص'), 'costMedia' => t('الصور/الفيديو'), 'costTask' => t('المهمة'), 'costProv' => t('المزوّد'), 'costCost' => t('التكلفة'), 'itAllAsk' => t('تطبيق المكان والحجم والنمط واللون على كل التصاميم؟ (يبقى نصّ كل منشور كما هو)'), 'itAllDone' => t('تم تطبيق الإعدادات على %s تصميم.'),
         'ilTint' => ['orig' => t('الأصلي'), 'white' => t('أبيض'), 'black' => t('أسود')], 'ilPlateV' => ['none' => t('بدون'), 'light' => t('فاتحة'), 'dark' => t('داكنة')],
     ];
@@ -118,6 +118,11 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
     <div id="cp-bar" class="hidden sticky top-2 z-10 card p-2 mb-3 flex flex-wrap items-center gap-2 text-sm">
       <label class="flex items-center gap-1.5 px-2"><input type="checkbox" id="cp-all"><?= e($T['all']) ?></label>
       <select id="cp-f" class="input !mt-0 !py-1 !w-auto text-sm"><option value=""><?= e($T['f_all']) ?></option><?php foreach (['draft', 'approved', 'rejected'] as $s): ?><option value="<?= $s ?>"><?= e($T['s_' . $s]) ?></option><?php endforeach; ?><option value="qc"><?= e(t('يحتاج مراجعة (فحص الجودة)')) ?></option></select>
+      <input id="cp-q" type="search" class="input !mt-0 !py-1 !w-44 text-sm" placeholder="<?= e(t('بحث في المنشورات…')) ?>">
+      <div class="inline-flex rounded-lg border border-ink-200 overflow-hidden">
+        <button type="button" id="cp-v-list" class="px-2.5 py-1 text-sm bg-brand-50 text-brand-700" title="<?= e(t('قائمة')) ?>">☰</button>
+        <button type="button" id="cp-v-grid" class="px-2.5 py-1 text-sm" title="<?= e(t('شبكة')) ?>">▦</button>
+      </div>
       <span class="flex-1"></span>
 
       <a href="<?= e(url('content_bank')) ?>" id="cp-tobank" class="btn-ghost !py-1.5 hidden"></a>
