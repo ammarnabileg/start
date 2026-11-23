@@ -419,7 +419,28 @@
   function fcRefreshText() { if (!fc) return; fc.getObjects().forEach(function (o) { if (o.type === 'textbox' || o.type === 'i-text' || o.type === 'text') { o.set('dirty', true); if (o.initDimensions) o.initDimensions(); } }); fc.requestRenderAll(); }
   function fcEnsureFonts() { if (!document.fonts || !document.fonts.load) return Promise.resolve(); return Promise.all(['900 64px Cairo', '700 64px Cairo', '400 64px Cairo', '800 64px Alexandria', '700 64px Tajawal'].map(function (f) { return document.fonts.load(f).catch(function () {}); })); }
   // خصائص المستند القابل للإعادة (بدون مراجع دائرية مثل dzKickRef)
-  var DOC_PROPS = ['dzLogo', 'dzBg', 'dzKick', 'dzHead', 'dzBw', 'dzSrc', 'dzBl', 'dzKw', 'selectable', 'evented', 'editable', 'direction', 'splitByGrapheme'];
+  var DOC_PROPS = ['dzLogo', 'dzBg', 'dzKick', 'dzHead', 'dzHero', 'dzBw', 'dzSrc', 'dzBl', 'dzKw', 'cropX', 'cropY', 'selectable', 'evented', 'editable', 'direction', 'splitByGrapheme'];
+  // ====== قص تفاعلي بالماوس (Crop) ======
+  var cropState = null;
+  function cropBar(show) { var el = $('#dz-cropbar'); if (el) el.classList.toggle('hidden', !show); }
+  function enterCrop() { if (!fc || cropState) return; var o = fcActive(); var img = (o && o.type === 'image') ? o : null;
+    if (!img) { fc.getObjects().forEach(function (x) { if (!img && x.type === 'image' && x.dzHero) img = x; }); }
+    if (!img) { toast(T.cropPick || 'اختر صورة لقصّها', 'info'); return; }
+    var b = img.getBoundingRect(true, true);
+    var cr = new fabric.Rect({ left: b.left, top: b.top, width: b.width, height: b.height, fill: 'rgba(34,211,238,0.08)', stroke: '#22d3ee', strokeDashArray: [8, 5], strokeWidth: 2 / fc.getZoom(), cornerColor: '#22d3ee', cornerStrokeColor: '#0891b2', transparentCorners: false, cornerSize: 14, lockRotation: true, hasRotatingPoint: false, dzCropRect: true, excludeFromExport: true });
+    cr.setControlsVisibility && cr.setControlsVisibility({ mtr: false });
+    fc.add(cr); fc.setActiveObject(cr); cropState = { img: img }; cropBar(true); fc.requestRenderAll();
+  }
+  function applyCrop() { if (!cropState) return; var img = cropState.img, cr = null; fc.getObjects().forEach(function (x) { if (x.dzCropRect) cr = x; }); if (!cr) { cancelCrop(); return; }
+    var sx = img.scaleX || 1, sy = img.scaleY || 1, ibr = img.getBoundingRect(true, true);
+    var el = img._element || {}, maxW = el.naturalWidth || img.width, maxH = el.naturalHeight || img.height;
+    var ncx = (img.cropX || 0) + Math.max(0, (cr.left - ibr.left)) / sx;
+    var ncy = (img.cropY || 0) + Math.max(0, (cr.top - ibr.top)) / sy;
+    var nw = Math.min(cr.getScaledWidth() / sx, maxW - ncx), nh = Math.min(cr.getScaledHeight() / sy, maxH - ncy);
+    if (nw > 8 && nh > 8) { img.set({ cropX: Math.round(ncx), cropY: Math.round(ncy), width: Math.round(nw), height: Math.round(nh), originX: 'left', originY: 'top', left: cr.left, top: cr.top }); img.setCoords(); }
+    fc.remove(cr); cropState = null; cropBar(false); fc.requestRenderAll(); histSnapSoon();
+  }
+  function cancelCrop() { if (!cropState) return; fc.getObjects().forEach(function (x) { if (x.dzCropRect) fc.remove(x); }); cropState = null; cropBar(false); fc.requestRenderAll(); }
   var MIN_READ = 30; // أصغر حجم خط مقروء (في فضاء 1080)
   // يحسب الإطار الفعلي لعنصر (بعد المقياس) — زاوية 0 في محررنا
   function fcBBox(o) { var w = (o.width || 0) * (o.scaleX || 1), h = (o.height || 0) * (o.scaleY || 1); var l = o.left || 0, t = o.top || 0; if (o.originX === 'center') l -= w / 2; if (o.originY === 'center') t -= h / 2; return { l: l, t: t, r: l + w, b: t + h, w: w, h: h }; }
@@ -443,7 +464,7 @@
     fc.requestRenderAll(); return { severe: severe, warn: warn };
   }
   // تصدير التصميم: صورة PNG + مستند JSON، بعد ضمان تحميل الخطوط + فحص التخطيط (يمنع عند خطأ خطير)
-  function fcExport(cb) { if (!fc) { cb(null, null, { severe: [], warn: [] }); return; } fc.discardActiveObject(); var z = fc.getZoom(); fc.setZoom(1); fc.setDimensions({ width: FW, height: FH });
+  function fcExport(cb) { if (!fc) { cb(null, null, { severe: [], warn: [] }); return; } if (cropState) cancelCrop(); fc.discardActiveObject(); var z = fc.getZoom(); fc.setZoom(1); fc.setDimensions({ width: FW, height: FH });
     var fin = function () { fcRefreshText(); var issues = fcFitAll(); fc.renderAll(); var data = fc.toDataURL({ format: 'png', multiplier: 1 }); var doc = ''; try { doc = JSON.stringify(fc.toJSON(DOC_PROPS)); } catch (e) {} fc.setZoom(z); fcFit(); cb(data, doc, issues); };
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(fin).catch(fin); else fin(); }
   // ====== سجل التراجع/الإعادة + الحفظ التلقائي للمسودة ======
@@ -490,8 +511,8 @@
   function tBuildFresh(it) {
     var acc = (P && P.accent) || '#10b981';
     var rawId = (it.media_raw || [])[0] || (it.media_ids || [])[0];
-    // الصورة كاملة (full-bleed) كخلفية
-    if (rawId) fabric.Image.fromURL(murl(rawId), function (im) { if (!im || !im.width) return; var k = Math.max(FW / im.width, FH / im.height); im.set({ scaleX: k, scaleY: k, originX: 'center', originY: 'center', left: FW / 2, top: FH / 2 }); fc.setBackgroundImage(im, fc.renderAll.bind(fc)); });
+    // الصورة كاملة (full-bleed) كعنصر في الخلف — قابلة للاختيار والقص التفاعلي
+    if (rawId) fabric.Image.fromURL(murl(rawId), function (im) { if (!im || !im.width) return; var k = Math.max(FW / im.width, FH / im.height); im.set({ scaleX: k, scaleY: k, originX: 'center', originY: 'center', left: FW / 2, top: FH / 2, dzHero: true }); fc.add(im); im.sendToBack(); fc.requestRenderAll(); });
     // تدرّج داكن من الأسفل لإبراز النص (نفس روح قالب full)
     var scrim = new fabric.Rect({ left: 0, top: FH * 0.40, width: FW, height: FH * 0.60, selectable: false, evented: false, dzBg: true });
     scrim.set('fill', new fabric.Gradient({ type: 'linear', coords: { x1: 0, y1: 0, x2: 0, y2: FH * 0.60 }, colorStops: [{ offset: 0, color: 'rgba(6,10,18,0)' }, { offset: 0.55, color: 'rgba(6,10,18,0.55)' }, { offset: 1, color: 'rgba(6,10,18,0.92)' }] }));
@@ -548,6 +569,9 @@
       else if (cmd === 'sh-line') { var ln = new fabric.Rect({ left: FW * 0.2, top: FH * 0.5, width: FW * 0.6, height: Math.round(FW * 0.012), fill: acc0(), rx: 4, ry: 4 }); fc.add(ln); fc.setActiveObject(ln); fc.requestRenderAll(); histSnapSoon(); }
       else if (cmd === 'flip-h' && o) { o.set('flipX', !o.flipX); fc.requestRenderAll(); histSnapSoon(); }
       else if (cmd === 'flip-v' && o) { o.set('flipY', !o.flipY); fc.requestRenderAll(); histSnapSoon(); }
+      else if (cmd === 'crop') { enterCrop(); }
+      else if (cmd === 'crop-ok') { applyCrop(); }
+      else if (cmd === 'crop-x') { cancelCrop(); }
       else if (cmd === 'lock' && o && o.set) { var lk = !o.dzLocked; o.dzLocked = lk; o.set({ lockMovementX: lk, lockMovementY: lk, lockScalingX: lk, lockScalingY: lk, lockRotation: lk, hasControls: !lk }); fc.requestRenderAll(); toast(lk ? (T.lkOn || 'مقفول') : (T.lkOff || 'مفتوح'), 'info'); histSnapSoon(); }
       else if (cmd === 'hide' && o && o.set) { o.set('visible', o.visible === false); fc.discardActiveObject(); fcTxtSync(); fc.requestRenderAll(); histSnapSoon(); }
     });

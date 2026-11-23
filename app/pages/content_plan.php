@@ -101,7 +101,7 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
         'itAdj' => t('صمّم'), 'itReDo' => t('أعد التصميم'), 'itSaved' => t('تم حفظ التصميم ✓'),
         'layoutErr' => t('يوجد نص خارج حدود التصميم. قصّر النص أو كبّر المربع أو حرّكه للداخل قبل الحفظ.'), 'layoutWarn' => t('تنبيه: حجم بعض النصوص صغير وقد يصعب قراءته.'),
         'draftBack' => t('تم استرجاع آخر تعديل غير محفوظ.'), 'lkOn' => t('مقفول'), 'lkOff' => t('مفتوح'), 'reField' => t('إعادة توليد هذا الحقل فقط'),
-        'brandNoLogo' => t('تنبيه: التصميم بدون شعار الشركة.'), 'noMatch' => t('لا نتائج مطابقة للبحث.'), 'verLabel' => t('⟲ نسخة سابقة'), 'verLoaded' => t('تم تحميل النسخة — احفظ لاعتمادها'),
+        'brandNoLogo' => t('تنبيه: التصميم بدون شعار الشركة.'), 'noMatch' => t('لا نتائج مطابقة للبحث.'), 'verLabel' => t('⟲ نسخة سابقة'), 'verLoaded' => t('تم تحميل النسخة — احفظ لاعتمادها'), 'cropPick' => t('اختر صورة لقصّها'),
         'calc' => t('جارٍ الحساب…'), 'costNone' => t('لا توجد بيانات تكلفة لهذه الحملة بعد (تظهر مع التوليد القادم).'), 'costTotal' => t('الإجمالي'), 'costPer' => t('لكل منشور معتمد'), 'costText' => t('النصوص'), 'costMedia' => t('الصور/الفيديو'), 'costTask' => t('المهمة'), 'costProv' => t('المزوّد'), 'costCost' => t('التكلفة'), 'itAllAsk' => t('تطبيق المكان والحجم والنمط واللون على كل التصاميم؟ (يبقى نصّ كل منشور كما هو)'), 'itAllDone' => t('تم تطبيق الإعدادات على %s تصميم.'),
         'ilTint' => ['orig' => t('الأصلي'), 'white' => t('أبيض'), 'black' => t('أسود')], 'ilPlateV' => ['none' => t('بدون'), 'light' => t('فاتحة'), 'dark' => t('داكنة')],
     ];
@@ -234,8 +234,14 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
               <button type="button" data-dz="sh-line" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5" title="<?= e(t('خط')) ?>">▬</button>
               <button type="button" data-dz="flip-h" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5" title="<?= e(t('قلب أفقي')) ?>">⇋</button>
               <button type="button" data-dz="flip-v" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5" title="<?= e(t('قلب رأسي')) ?>">⤯</button>
+              <button type="button" data-dz="crop" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5" title="<?= e(t('قص الصورة')) ?>">✂️</button>
               <button type="button" data-dz="replace-img" class="rounded-lg bg-ink-50 border border-ink-200 px-2.5 py-1.5" title="<?= e(t('استبدل الصورة')) ?>">🖼</button>
             </div></div>
+          <div id="dz-cropbar" class="hidden rounded-xl bg-cyan-50 border border-cyan-300 p-2 flex items-center gap-2">
+            <span class="text-xs text-cyan-800 flex-1"><?= e(t('اسحب المقابض لتحديد القص')) ?></span>
+            <button type="button" data-dz="crop-x" class="btn-ghost !py-1 !px-2 text-xs"><?= e(t('إلغاء')) ?></button>
+            <button type="button" data-dz="crop-ok" class="btn-primary !py-1 !px-3 text-xs"><?= e(t('تطبيق القص')) ?></button>
+          </div>
           <p class="text-[11px] text-ink-400"><?= e(t('اسحب أي عنصر وكبّره بالمقابض · أسهم لوحة المفاتيح للتحريك · Delete للحذف · Ctrl+D نسخة')) ?></p>
           <input type="file" id="dz-img-in" accept="image/*" class="hidden">
         </div>
