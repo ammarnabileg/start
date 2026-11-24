@@ -635,6 +635,7 @@
     // العنوان — تحريك المكان فقط
     var tb = new fabric.Textbox(head0, { left: bl, top: FH * 0.72, width: bw, fontSize: Math.round(FW * fs), fill: '#ffffff', fontWeight: '900', fontFamily: 'Cairo', textAlign: 'right', direction: 'rtl', splitByGrapheme: false });
     tb.set(MOVE_ONLY); tb.dzHead = true; tb.dzBw = bw; tb.dzSrc = head0; tb.dzBl = bl;
+    if (P && P.txt_effect && P.txt_effect !== 'none') fcApplyFx(tb, P.txt_effect); // التأثير المختار وقت الإنشاء يُطبّق تلقائيًا
     fc.add(tb); fc.setActiveObject(tb); fc.requestRenderAll();
     fcEnsureFonts().then(function () { fcRefreshText(); layoutHead(tb); fc.requestRenderAll(); });
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { fcRefreshText(); layoutHead(tb); fc.requestRenderAll(); });
