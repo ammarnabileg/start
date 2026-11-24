@@ -269,6 +269,7 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
       </section>
       <section data-step="3" class="space-y-5 hidden">
         <div><h2 class="text-lg font-bold text-ink-900"><?= e(t('شكل التصميمات')) ?></h2><p class="text-sm text-ink-500"><?= e(t('ارفع تصميمات تعجبك وحدد مكان الشعار. كل ذلك اختياري.')) ?></p></div>
+      <div class="flex items-center gap-2 pt-1"><span class="text-base">🖼️</span><h3 class="text-base font-bold text-ink-900"><?= e(t('إعدادات الصور')) ?></h3><span class="h-px flex-1 bg-ink-100"></span></div>
       <div>
         <span class="label"><?= e(t('تصميمات مرجعية (اختياري، حتى 12 صورة أو صفحة PDF)')) ?></span>
         <p class="text-xs text-ink-500 mb-2"><?= e(t('نحلل أسلوبها (الألوان، الخطوط، التكوين) ونطبقه في كل برومبت، وتُرسل لموديل الصور كمرجع للأسلوب أثناء التوليد، بدون نسخ محتواها.')) ?> <?= $hasLogo ? e(t('الشعار موجود في ملف الشركة وسيُذكر موضعه في البرومبتات.')) : '' ?></p>
@@ -279,11 +280,10 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
         <span class="label"><?= e(t('طريقة إخراج التصميم')) ?></span>
         <p class="text-xs text-ink-500 mb-2"><?= e(t('أهم اختيار: كيف يخرج شكل المنشور النهائي.')) ?></p>
         <?php $dmodes = [
-          'layout' => ['🎨', t('قوالب تخطيط'), t('تصميم متكامل بالهوية (خلفية + أشكال + نص منظّم) — الأقرب لشغل الوكالات.')],
-          'photo' => ['🖼️', t('صورة + نص'), t('صورة سينمائية يُطبع عليها العنوان واللوجو — نظيف وبسيط.')],
-          'ai' => ['✨', t('تصميم بالذكاء (تجريبي)'), t('الذكاء يولّد التصميم كاملًا بالنص داخله — قد يكسر النص العربي أحيانًا.')],
+          'layout' => ['🎨', t('قوالب تخطيط'), t('الذكاء يولّد الخلفية، ونظامنا يركّب التصميم والنص بهوية شركتك — نص عربي مضبوط دائمًا، والأقرب لشغل الوكالات.')],
+          'ai' => ['✨', t('ذكاء اصطناعي'), t('الذكاء يولّد التصميم كاملًا بالنص داخله — أكثر تنوّعًا بصريًا، لكنه قد يكسر النص العربي أحيانًا (تجريبي).')],
         ]; ?>
-        <div class="grid sm:grid-cols-3 gap-2" id="cp-dmode">
+        <div class="grid sm:grid-cols-2 gap-2" id="cp-dmode">
           <?php foreach ($dmodes as $mk => [$mi, $ml, $md]): ?>
           <label class="cursor-pointer"><input type="radio" name="design_mode" value="<?= e($mk) ?>" class="peer sr-only" <?= $mk === 'layout' ? 'checked' : '' ?>>
             <span class="block h-full rounded-xl border border-ink-200 p-3 transition hover:border-brand-300 peer-checked:border-brand-500 peer-checked:bg-brand-50">
@@ -337,20 +337,6 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
         <p class="text-xs text-ink-500 mb-2"><?= e(t('إن كان لديك منتج (علبة، عبوة، جهاز…)، فارفع صوره ليظهر داخل كل تصميم بشكله الحقيقي.')) ?></p>
         <div id="cp-prods" class="flex flex-wrap gap-2"></div>
         <div class="flex flex-wrap gap-2 mt-2"><label class="btn-ghost !py-1.5 cursor-pointer"><input id="cp-prod-in" type="file" accept="image/*" multiple class="hidden"><?= ui_icon('upload', 'w-4 h-4') ?><?= e(t('أضف صور المنتج')) ?></label><button type="button" id="cp-prod-lib" class="btn-ghost !py-1.5"><?= ui_icon('image', 'w-4 h-4') ?><?= e(t('اختر من مكتبة الوسائط')) ?></button></div>
-      </div>
-      <?php $cpFonts = ['auto' => [t('تلقائي (من الريفرنس/الهوية)'), ''], 'Cairo' => ['Cairo', 'geometric humanist sans, clean and modern'], 'Alexandria' => ['Alexandria', 'clean modern geometric sans'], 'Tajawal' => ['Tajawal', 'modern geometric sans, friendly'], 'Almarai' => ['Almarai', 'neutral rounded sans, highly legible'], 'Changa' => ['Changa', 'bold condensed display'], 'El Messiri' => ['El Messiri', 'elegant contemporary with calligraphic touch'], 'Reem Kufi' => ['Reem Kufi', 'kufic geometric display'], 'Amiri' => ['Amiri', 'classic Naskh serif, editorial'], 'Lateef' => ['Lateef', 'traditional Arabic'], 'IBM Plex Sans Arabic' => ['IBM Plex Sans Arabic', 'technical corporate sans']]; ?>
-      <div id="cp-font-wrap">
-        <span class="label"><?= e(t('خط العناوين')) ?></span>
-        <p class="text-xs text-ink-500 mb-2"><?= e(t('يُستخدم كأسلوب للنص الذي نطبعه على الصور والشرائح.')) ?></p>
-        <div id="cp-fonts" class="flex gap-2 overflow-x-auto pb-1">
-          <?php foreach ($cpFonts as $fk => [$fl, $fd]): ?>
-          <label class="shrink-0 cursor-pointer"><input type="radio" name="font" value="<?= e($fk) ?>" class="peer sr-only" <?= $fk === 'auto' ? 'checked' : '' ?>>
-            <span class="flex flex-col items-center justify-center gap-1 w-28 h-20 rounded-xl border border-ink-200 px-2 text-center transition hover:border-brand-300 peer-checked:border-brand-500 peer-checked:bg-brand-50">
-              <span class="text-lg leading-tight truncate w-full" style="<?= $fk === 'auto' ? '' : 'font-family:\'' . e($fk) . '\',sans-serif' ?>"><?= $fk === 'auto' ? '✨' : e(t('تجربة')) ?></span>
-              <span class="text-[10px] text-ink-500 truncate w-full"><?= e($fl) ?></span>
-            </span></label>
-          <?php endforeach; ?>
-        </div>
       </div>
       <div>
         <span class="label"><?= e(t('جودة الصور')) ?></span>
@@ -417,6 +403,21 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
           </div>
         </div>
         <?php endif; ?>
+      </div>
+      <div id="cp-text-group" class="flex items-center gap-2 pt-2"><span class="text-base">🔤</span><h3 class="text-base font-bold text-ink-900"><?= e(t('إعدادات النص على التصميم')) ?></h3><span class="h-px flex-1 bg-ink-100"></span></div>
+      <?php $cpFonts = ['auto' => [t('تلقائي (من الريفرنس/الهوية)'), ''], 'Cairo' => ['Cairo', 'geometric humanist sans, clean and modern'], 'Alexandria' => ['Alexandria', 'clean modern geometric sans'], 'Tajawal' => ['Tajawal', 'modern geometric sans, friendly'], 'Almarai' => ['Almarai', 'neutral rounded sans, highly legible'], 'Changa' => ['Changa', 'bold condensed display'], 'El Messiri' => ['El Messiri', 'elegant contemporary with calligraphic touch'], 'Reem Kufi' => ['Reem Kufi', 'kufic geometric display'], 'Amiri' => ['Amiri', 'classic Naskh serif, editorial'], 'Lateef' => ['Lateef', 'traditional Arabic'], 'IBM Plex Sans Arabic' => ['IBM Plex Sans Arabic', 'technical corporate sans']]; ?>
+      <div id="cp-font-wrap">
+        <span class="label"><?= e(t('خط العناوين')) ?></span>
+        <p class="text-xs text-ink-500 mb-2"><?= e(t('يُستخدم كأسلوب للنص الذي نطبعه على الصور والشرائح (في وضع «قوالب تخطيط»).')) ?></p>
+        <div id="cp-fonts" class="flex gap-2 overflow-x-auto pb-1">
+          <?php foreach ($cpFonts as $fk => [$fl, $fd]): ?>
+          <label class="shrink-0 cursor-pointer"><input type="radio" name="font" value="<?= e($fk) ?>" class="peer sr-only" <?= $fk === 'auto' ? 'checked' : '' ?>>
+            <span class="flex flex-col items-center justify-center gap-1 w-28 h-20 rounded-xl border border-ink-200 px-2 text-center transition hover:border-brand-300 peer-checked:border-brand-500 peer-checked:bg-brand-50">
+              <span class="text-lg leading-tight truncate w-full" style="<?= $fk === 'auto' ? '' : 'font-family:\'' . e($fk) . '\',sans-serif' ?>"><?= $fk === 'auto' ? '✨' : e(t('تجربة')) ?></span>
+              <span class="text-[10px] text-ink-500 truncate w-full"><?= e($fl) ?></span>
+            </span></label>
+          <?php endforeach; ?>
+        </div>
       </div>
       </section>
       <section data-step="4" class="space-y-5 hidden">

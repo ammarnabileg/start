@@ -46,7 +46,9 @@
     function syncDMode() {
       var m = (W.querySelector('[name=design_mode]:checked') || {}).value || 'layout';
       var lw = $('#cp-layout-wrap'); if (lw) lw.style.display = m === 'layout' ? '' : 'none';
-      var fw = $('#cp-font-wrap'); if (fw) fw.style.display = m === 'ai' ? 'none' : '';
+      var hideText = m === 'ai'; // وضع الذكاء بيرسم النص بنفسه، فمجموعة إعدادات النص مالهاش لازمة
+      var fw = $('#cp-font-wrap'); if (fw) fw.style.display = hideText ? 'none' : '';
+      var tg = $('#cp-text-group'); if (tg) tg.style.display = hideText ? 'none' : '';
     }
     $$('[name=design_mode]', W).forEach(function (x) { x.addEventListener('change', syncDMode); }); syncDMode();
     // معاينة اللوجو التفاعلية: سحب، أماكن جاهزة، حجم، شفافية، لون، خلفية. نفس معادلات السيرفر بالظبط (cpl_logo_box)
