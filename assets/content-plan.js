@@ -127,7 +127,28 @@
       var langs = [d.lang_li, d.lang_x, d.lang_img, d.lang_vo]; var lg = langs.every(function (x) { return x === langs[0]; }) ? L[langs[0]] : [S.li + ': ' + L[d.lang_li], S.x + ': ' + L[d.lang_x], S.img + ': ' + L[d.lang_img], S.vo + ': ' + L[d.lang_vo]].join(' · ');
       var dsel = W.dialect_k, dn = d.dialect_k === 'other' ? d.dialect_other : (d.dialect_k && dsel ? dsel.options[dsel.selectedIndex].text : '');
       var rows = [[S.goal, v(d.goal), 0], [S.count, d.count, 0], [S.aud, v(d.audience), 1], [S.svc, v((d.services || []).join('، ')), 1], [S.lang, lg, 2], [S.dial, v(dn), 2], [S.tone, v(d.tone), 2], [S.cta, v(d.cta), 2], [S.refs, String((d.refs || []).length), 3], [S.logo, W.logo_w ? (d.logo_on ? S.on : S.off) : S.none, 3]];
-      $('#cp-sum').innerHTML = rows.map(function (r) { return '<div class="rounded-xl bg-ink-50 px-3 py-2"><dt class="text-xs text-ink-500 flex justify-between">' + esc(r[0]) + '<button type="button" data-go="' + r[2] + '" class="link text-xs">✎</button></dt><dd class="text-ink-900 break-words" dir="auto">' + esc(r[1]) + '</dd></div>'; }).join(''); }
+      $('#cp-sum').innerHTML = rows.map(function (r) { return '<div class="rounded-xl bg-ink-50 px-3 py-2"><dt class="text-xs text-ink-500 flex justify-between">' + esc(r[0]) + '<button type="button" data-go="' + r[2] + '" class="link text-xs">✎</button></dt><dd class="text-ink-900 break-words" dir="auto">' + esc(r[1]) + '</dd></div>'; }).join('');
+      previewMock(d);
+    }
+    // معاينة تقريبية مجّانية لشكل المنشور من الاختيارات (نمط + تأثير + خط + لوجو)
+    function previewMock(d) {
+      var box = $('#cp-preview'); if (!box) return;
+      var grad = '#1e293b', sel = W.querySelector('[name=style]:checked');
+      if (sel) { var lbl = sel.closest('label'), mk = lbl && lbl.querySelector('.cp-pmock'); if (mk && mk.style.background) grad = mk.style.background; }
+      var fam = (d.font && d.font !== 'auto') ? ("'" + d.font + "',sans-serif") : "'Cairo',sans-serif";
+      var head = String(d.goal || '').replace(/\s+/g, ' ').trim().split(' ').slice(0, 5).join(' ') || 'عنوان منشورك هنا';
+      var s = (typeof fxStyle === 'function') ? fxStyle(d.txt_effect || 'none') : { textShadow: '0 2px 10px rgba(0,0,0,.5)' };
+      var pl = (typeof P !== 'undefined' && P) ? P : (typeof C !== 'undefined' && C && C.plan) ? C.plan : null;
+      var logo = (pl && pl.logo) ? '<img src="' + esc(pl.logo) + '" style="position:absolute;top:7%;inset-inline-start:7%;height:12%;object-fit:contain">' : '';
+      var fxCss = 'text-shadow:' + (s.textShadow || '') + ';-webkit-text-stroke:' + (s.webkitTextStroke || '') + ';paint-order:' + (s.paintOrder || '') + ';';
+      var fill = s.gold ? 'background:linear-gradient(180deg,#fff7cc,#f5d142 42%,#c9971f 60%,#8a6a16);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;' : 'color:#fff;';
+      box.innerHTML = '<div style="font-family:' + fam + ';position:relative;width:230px;aspect-ratio:4/5;border-radius:16px;overflow:hidden;background:' + grad + ';box-shadow:0 10px 30px -12px rgba(0,0,0,.5)">'
+        + '<div style="position:absolute;inset:0;background:radial-gradient(60% 50% at 70% 24%,rgba(255,255,255,.16),transparent 70%)"></div>'
+        + '<div style="position:absolute;inset-inline:0;bottom:0;height:55%;background:linear-gradient(0deg,rgba(6,10,18,.82),transparent)"></div>'
+        + logo
+        + '<div style="position:absolute;inset-inline:9%;bottom:9%;text-align:right;font-weight:900;font-size:26px;line-height:1.4;' + fill + fxCss + '">' + esc(head) + '</div>'
+        + '</div>';
+    }
     var s0 = 0; try { s0 = +(sessionStorage.getItem(key + '_s') || 0); } catch (e) {} show(dr && dr.goal ? s0 : 0);
     function saveDraft() { lprev(); var d = collect(); d.refsFull = refs; d.prodsFull = prods; ls(key, d); }
     W.addEventListener('input', saveDraft); W.addEventListener('change', saveDraft);

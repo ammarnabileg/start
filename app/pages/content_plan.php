@@ -513,6 +513,10 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
       <section data-step="4" class="space-y-5 hidden">
         <div><h2 class="text-lg font-bold text-ink-900"><?= e(t('مراجعة قبل الكتابة')) ?></h2><p class="text-sm text-ink-500"><?= e(t('راجع اختياراتك. يمكنك العودة إلى أي خطوة من الأعلى.')) ?></p></div>
         <dl id="cp-sum" class="grid sm:grid-cols-2 gap-x-6 gap-y-2 text-sm"></dl>
+      <div class="rounded-2xl border border-ink-200 bg-ink-50/60 p-4">
+        <div class="flex items-center gap-2 mb-2"><span class="text-base">👁️</span><b class="text-sm text-ink-900"><?= e(t('معاينة تقريبية للشكل')) ?></b><span class="text-[11px] text-ink-400"><?= e(t('(مجّانية — قبل صرف أي كريدِت)')) ?></span></div>
+        <div id="cp-preview" class="grid place-items-center"></div>
+      </div>
       <div class="flex flex-wrap gap-4 text-sm">
         <label class="flex items-center gap-1.5"><input type="checkbox" name="video" checked><?= e(t('برومبت فيديو لكل منشور')) ?></label>
         <label class="flex items-center gap-1.5"><input type="checkbox" name="carousel" checked><?= e(t('كاروسيل 5 شرائح')) ?></label>
