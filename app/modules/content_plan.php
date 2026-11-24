@@ -1270,7 +1270,14 @@ function cpl_stamp_text(array $p, int $mid, string $headline, array $ov = [], bo
 
     // --- سكريم متدرّج ناعم (smoothstep) بلا حد أفقي حاد — يسيب الصورة «تتنفّس» ---
     $txtTop = $top - (int)round($size * 1.4); $txtBot = $top + $blockH;
-    $peak = 0.9; $span = max(1, $blockH + (int)round($size * 3.4));
+    // سطوع منطقة النص: كل ما كانت أفتح، نقوّي السكريم تلقائيًا ليبقى النص الأبيض مقروءًا على أي خلفية
+    $by0 = max(0, min($txtTop, $top)); $by1 = min($H - 1, $top + $blockH);
+    $lsum = 0.0; $lc = 0; $stY = max(1, (int)(($by1 - $by0) / 14)); $stX = max(1, (int)($W / 14));
+    for ($sy = $by0; $sy <= $by1; $sy += $stY) for ($sx = 0; $sx < $W; $sx += $stX) {
+        $rgb = imagecolorat($im, $sx, $sy); $lsum += 0.299 * (($rgb >> 16) & 255) + 0.587 * (($rgb >> 8) & 255) + 0.114 * ($rgb & 255); $lc++;
+    }
+    $zlum = $lc ? $lsum / $lc : 60.0;
+    $peak = max(0.80, min(0.97, 0.74 + ($zlum / 255) * 0.3)); $span = max(1, $blockH + (int)round($size * 3.4));
     for ($yy = 0; $yy < $H; $yy++) {
         if ($zone === 'top') { $d = $yy <= $txtBot ? 0.0 : ($yy - $txtBot) / $span; }
         else { $d = $yy >= $txtTop ? 0.0 : ($txtTop - $yy) / $span; }
