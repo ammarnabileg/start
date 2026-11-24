@@ -94,6 +94,7 @@ function cpl_create(array $in): int
         'txt_align' => in_array($in['txt_align'] ?? '', ['auto', 'right', 'center', 'left'], true) ? (string)$in['txt_align'] : 'auto',
         'txt_y' => (isset($in['txt_y']) && is_numeric($in['txt_y'])) ? max(2, min(92, (int)$in['txt_y'])) : null,
         'txt_variant' => in_array($in['txt_variant'] ?? '', ['auto', 'box', 'underline', 'color'], true) ? (string)$in['txt_variant'] : 'auto',
+        'txt_effect' => in_array($in['txt_effect'] ?? '', ['none', 'shadow', 'outline', '3d', 'glow'], true) ? (string)$in['txt_effect'] : 'none',
         'txt_accent' => (preg_match('/^#?[0-9a-fA-F]{6}$/', (string)($in['txt_accent'] ?? '')) && strtolower(ltrim((string)$in['txt_accent'], '#')) !== '10b981') ? ('#' . ltrim((string)$in['txt_accent'], '#')) : '',
         'products' => array_slice(array_values(array_filter(array_map('intval', (array)($in['products'] ?? [])), function ($id) use ($wid) { $m = media_get($wid, $id); return $id > 0 && $m && empty($m['deleted_at']) && media_kind((string)$m['mime']) === 'image'; })), 0, 6),
         'ref_presets' => array_values(array_unique(array_filter(array_map('strval', (array)($in['ref_presets'] ?? [])), function ($k) { return in_array($k, ['1', '2', '3', '4', '5'], true); }))),
@@ -106,7 +107,7 @@ function cpl_create(array $in): int
 }
 
 function cpl_opts(array $p): array { return (json_decode((string)$p['opts'], true) ?: []) + ['lang' => 'ar', 'dialect' => '', 'audience' => '', 'services' => [], 'tone' => '', 'cta' => '', 'avoid' => '', 'about' => '', 'font' => 'auto', 'video' => true, 'carousel' => true, 'humanize' => true, 'qc' => true, 'img_q' => 'high', 'style' => 'auto', 'products' => [], 'ref_presets' => [], 'aspect' => '4:5',
-    'txt_pos' => 'auto', 'txt_size' => 'm', 'txt_variant' => 'auto', 'txt_accent' => '', 'txt_scale' => 100, 'txt_align' => 'auto', 'txt_y' => null,
+    'txt_pos' => 'auto', 'txt_size' => 'm', 'txt_variant' => 'auto', 'txt_effect' => 'none', 'txt_accent' => '', 'txt_scale' => 100, 'txt_align' => 'auto', 'txt_y' => null,
     'design_mode' => 'layout', 'layout' => 'full', 'topics_first' => true]; }
 
 /** نسبة/حجم الصورة المختارة للخطة (4:5 طولي افتراضيًا). */
@@ -1098,6 +1099,30 @@ function cpl_region_score($im, int $x0, int $y0, int $x1, int $y1): float
 
 /** يرسم سطر عنوان مع تلوين الكلمة المفتاحية جوّه السطر (آمن للعربي: الحروف ما بتتوصلش عبر المسافات).
  *  لو $boxKey يرسم خلفية بلون الهوية خلف الكلمة، وإلا يلوّنها بلون الهوية. يرجّع [x1,x2,y] لحدود الكلمة أو null. */
+/** يرسم نصًّا بتأثير اختياري (ظل/حدود/ثري دي/نيون) مقروء من $GLOBALS['cpl_fx']. none = عادي. */
+function cpl_ttf_fx($im, int $size, int $x, int $y, int $color, string $font, string $text): void
+{
+    $fx = (string)($GLOBALS['cpl_fx'] ?? 'none');
+    if ($fx === 'none' || $fx === '') { imagettftext($im, $size, 0, $x, $y, $color, $font, $text); return; }
+    $acc = (array)($GLOBALS['cpl_fx_acc'] ?? [37, 99, 235]);
+    $s = max(2, (int)round($size * 0.055));
+    $ring = [[-$s, 0], [$s, 0], [0, -$s], [0, $s], [-$s, -$s], [$s, $s], [-$s, $s], [$s, -$s]];
+    if ($fx === 'shadow') {
+        imagettftext($im, $size, 0, $x + $s, $y + $s, imagecolorallocatealpha($im, 10, 12, 18, 65), $font, $text);
+    } elseif ($fx === 'outline') {
+        $oc = imagecolorallocate($im, 15, 17, 22);
+        foreach ($ring as [$dx, $dy]) imagettftext($im, $size, 0, $x + $dx, $y + $dy, $oc, $font, $text);
+    } elseif ($fx === '3d') {
+        for ($i = $s * 3; $i >= 1; $i--) imagettftext($im, $size, 0, $x + $i, $y + $i, imagecolorallocatealpha($im, 12, 14, 20, 38), $font, $text);
+        $oc = imagecolorallocate($im, 15, 17, 22);
+        foreach ([[-1, 0], [1, 0], [0, -1], [0, 1]] as [$dx, $dy]) imagettftext($im, $size, 0, $x + $dx, $y + $dy, $oc, $font, $text);
+    } elseif ($fx === 'glow') {
+        $g = imagecolorallocatealpha($im, (int)$acc[0], (int)$acc[1], (int)$acc[2], 80);
+        foreach ($ring as [$dx, $dy]) imagettftext($im, $size, 0, $x + $dx, $y + $dy, $g, $font, $text);
+    }
+    imagettftext($im, $size, 0, $x, $y, $color, $font, $text);
+}
+
 function cpl_draw_hline($im, int $size, string $font, string $line, string $key, bool $rtl, int $colLeft, int $colRight, int $y, int $white, int $acc, int $onAcc, int $shadow, bool $boxKey, string $align = 'right'): ?array
 {
     $line = trim($line); if ($line === '') return null;
@@ -1107,7 +1132,7 @@ function cpl_draw_hline($im, int $size, string $font, string $line, string $key,
     if ($off < 0) { // مفيش كلمة مفتاحية في السطر: أبيض عادي
         $sh = $rtl ? cpl_ar_shape($line) : $line; $bb = imagettfbbox($size, 0, $font, $sh); $tw = abs($bb[2] - $bb[0]);
         $x = $ax($tw);
-        imagettftext($im, $size, 0, $x, $y, $white, $font, $sh);
+        cpl_ttf_fx($im, $size, $x, $y, $white, $font, $sh);
         return null;
     }
     $before = rtrim(substr($line, 0, $off)); $after = ltrim(substr($line, $off + strlen($key)));
@@ -1123,10 +1148,10 @@ function cpl_draw_hline($im, int $size, string $font, string $line, string $key,
                 cpl_round_box($im, $x - $padx, $y - $size - $pady, $x + $w + $padx, $y + $pady, $rad, $acc);
                 imagettftext($im, $size, 0, $x, $y, $onAcc, $font, $sh);
             } else {
-                imagettftext($im, $size, 0, $x, $y, $acc, $font, $sh);
+                cpl_ttf_fx($im, $size, $x, $y, $acc, $font, $sh);
             }
         } else {
-            imagettftext($im, $size, 0, $x, $y, $white, $font, $sh);
+            cpl_ttf_fx($im, $size, $x, $y, $white, $font, $sh);
         }
         $x += $w;
     }
@@ -1208,6 +1233,7 @@ function cpl_stamp_text(array $p, int $mid, string $headline, array $ov = [], bo
     $y = $top + $size;
     // الكلمة المفتاحية تتلوّن جوّه السطر: قالب 0 = خلفية بلون الهوية، قالب 1/2 = نص ملوّن (مع خط تحتها في 1)
     $boxKey = $variant === 0; $keySpan = null;
+    $GLOBALS['cpl_fx'] = (string)($to['txt_effect'] ?? 'none'); $GLOBALS['cpl_fx_acc'] = [$ar, $ag, $ab];
     foreach ($lines as $ln) {
         $sp = cpl_draw_hline($im, $size, $font, $ln, $key, $rtl, $colLeft, $colRight, $y, $white, $acc, $onAcc, $shadow, $boxKey, $align);
         if ($sp && !$keySpan) $keySpan = $sp;
@@ -1290,6 +1316,7 @@ function cpl_render_layout(array $p, int $rawMid, string $headline, array $ov = 
     if (preg_match('/^#?([0-9a-fA-F]{6})$/', $cAcc, $cm)) { $ar2 = hexdec(substr($cm[1], 0, 2)); $ag = hexdec(substr($cm[1], 2, 2)); $ab = hexdec(substr($cm[1], 4, 2)); }
     else { [$ar2, $ag, $ab] = cpl_accent_rgb($p); }
     $accRGB = [$ar2, $ag, $ab]; $lum = 0.299 * $ar2 + 0.587 * $ag + 0.114 * $ab;
+    $GLOBALS['cpl_fx'] = (string)($to['txt_effect'] ?? 'none'); $GLOBALS['cpl_fx_acc'] = $accRGB;
     // خلفية داكنة مشتقة من لون الهوية (نسخة غامقة جدًا) — تحافظ على التناسق
     $dark = [max(8, (int)round($ar2 * 0.16) + 8), max(10, (int)round($ag * 0.16) + 10), max(14, (int)round($ab * 0.16) + 16)];
     // اختيار القالب
@@ -1368,7 +1395,7 @@ function cpl_text_preview(int $itemId, array $in): ?string
     $raw = $it['media_raw'] ?: $it['media_ids']; if (!$raw) return null;
     $p = cpl_plan($it['plan_id']); if (!$p) return null;
     $ov = [];
-    foreach (['txt_pos', 'txt_size', 'txt_variant', 'txt_align'] as $k) if (isset($in[$k])) $ov[$k] = (string)$in[$k];
+    foreach (['txt_pos', 'txt_size', 'txt_variant', 'txt_align', 'txt_effect'] as $k) if (isset($in[$k])) $ov[$k] = (string)$in[$k];
     if (isset($in['txt_scale'])) $ov['txt_scale'] = max(50, min(180, (int)$in['txt_scale']));
     if (isset($in['txt_y']) && is_numeric($in['txt_y'])) $ov['txt_y'] = max(2, min(92, (int)$in['txt_y']));
     if (isset($in['txt_accent']) && preg_match('/^#?[0-9a-fA-F]{6}$/', (string)$in['txt_accent']) && strtolower(ltrim((string)$in['txt_accent'], '#')) !== '10b981') $ov['txt_accent'] = '#' . ltrim((string)$in['txt_accent'], '#');

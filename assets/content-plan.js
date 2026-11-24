@@ -25,7 +25,7 @@
       if (W.querySelector('[name=aspect]:checked')) d.aspect = W.querySelector('[name=aspect]:checked').value;
       if (W.querySelector('[name=design_mode]:checked')) d.design_mode = W.querySelector('[name=design_mode]:checked').value;
       if (W.querySelector('[name=layout]:checked')) d.layout = W.querySelector('[name=layout]:checked').value;
-      ['goal', 'count', 'name', 'tone', 'cta', 'audience', 'about', 'avoid', 'dialect_other', 'lang_all', 'lang_li', 'lang_x', 'lang_img', 'lang_vo', 'dialect_k', 'txt_pos', 'txt_size', 'txt_variant', 'txt_accent'].forEach(function (n) { if (W[n]) d[n] = W[n].value; }); d.video = W.video.checked; d.carousel = W.carousel.checked; d.humanize = W.humanize.checked; d.qc = W.qc ? W.qc.checked : true;
+      ['goal', 'count', 'name', 'tone', 'cta', 'audience', 'about', 'avoid', 'dialect_other', 'lang_all', 'lang_li', 'lang_x', 'lang_img', 'lang_vo', 'dialect_k', 'txt_pos', 'txt_size', 'txt_variant', 'txt_effect', 'txt_accent'].forEach(function (n) { if (W[n]) d[n] = W[n].value; }); d.video = W.video.checked; d.carousel = W.carousel.checked; d.humanize = W.humanize.checked; d.qc = W.qc ? W.qc.checked : true;
       if (W.font) d.font = (W.font.value) || 'auto';
       if (W.logo_w) { ['logo_x', 'logo_y', 'logo_w', 'logo_op'].forEach(function (n) { d[n] = +W[n].value; }); ['logo_tint', 'logo_plate'].forEach(function (n) { d[n] = (W.querySelector('[name=' + n + ']:checked') || {}).value; }); d.logo_on = W.logo_on.checked; } return d; }
     var dr = ls(key);
@@ -33,6 +33,7 @@
       ['goal', 'count', 'name', 'tone', 'cta', 'audience', 'about', 'avoid', 'dialect_other', 'lang_all', 'lang_li', 'lang_x', 'lang_img', 'lang_vo', 'dialect_k', 'txt_pos', 'txt_size', 'txt_variant', 'txt_accent'].forEach(function (n) { if (dr[n] != null && W[n]) W[n].value = dr[n]; });
       W.video.checked = dr.video !== false; W.carousel.checked = dr.carousel !== false; W.humanize.checked = dr.humanize !== false;
       if (W.font && dr.font) W.font.value = dr.font;
+      if (W.txt_effect && dr.txt_effect) W.txt_effect.value = dr.txt_effect;
       if (W.logo_w) { ['logo_x', 'logo_y', 'logo_w', 'logo_op'].forEach(function (n) { if (dr[n] != null) W[n].value = dr[n]; }); ['logo_tint', 'logo_plate'].forEach(function (n) { if (dr[n]) $$('[name=' + n + ']', W).forEach(function (x) { x.checked = x.value === dr[n]; }); }); W.logo_on.checked = dr.logo_on !== false; }
       $$('[name=services]', W).forEach(function (x) { x.checked = (dr.services || []).indexOf(x.value) >= 0; });
       refs = dr.refsFull || []; paintRefs();
@@ -192,10 +193,26 @@
       });
     });
     syncPresets();
-    // معاينة خط العناوين الحيّة (select box)
-    var fsel = $('#cp-font-sel'), fprev = $('#cp-font-prev');
-    function fontPrev() { if (!fsel || !fprev) return; var o = fsel.options[fsel.selectedIndex], fam = o ? o.getAttribute('data-fam') : ''; fprev.style.fontFamily = fam ? ("'" + fam + "',sans-serif") : ''; }
-    if (fsel) { fsel.addEventListener('change', function () { fontPrev(); saveDraft(); }); fontPrev(); }
+    // معاينة خط العناوين + التأثير الحيّة
+    var fsel = $('#cp-font-sel'), fprev = $('#cp-font-prev'), fxsel = $('#cp-fx-sel');
+    function fxStyle(fx) {
+      switch (fx) {
+        case 'shadow': return { textShadow: '3px 3px 0 rgba(8,10,16,.6)', webkitTextStroke: '' };
+        case 'outline': return { textShadow: '', webkitTextStroke: '2px #0f1116' };
+        case '3d': return { textShadow: '1px 1px 0 #0b0d12,2px 2px 0 #0b0d12,3px 3px 0 #0b0d12,4px 4px 0 #0b0d12,6px 6px 8px rgba(0,0,0,.45)', webkitTextStroke: '' };
+        case 'glow': return { textShadow: '0 0 10px #60a5fa,0 0 20px #3b82f6,0 0 30px #2563eb', webkitTextStroke: '' };
+        default: return { textShadow: '', webkitTextStroke: '' };
+      }
+    }
+    function fontPrev() {
+      if (!fprev) return;
+      if (fsel) { var o = fsel.options[fsel.selectedIndex], fam = o ? o.getAttribute('data-fam') : ''; fprev.style.fontFamily = fam ? ("'" + fam + "',sans-serif") : ''; }
+      var s = fxStyle(fxsel ? fxsel.value : 'none');
+      fprev.style.textShadow = s.textShadow; fprev.style.webkitTextStroke = s.webkitTextStroke;
+    }
+    if (fsel) fsel.addEventListener('change', function () { fontPrev(); saveDraft(); });
+    if (fxsel) fxsel.addEventListener('change', function () { fontPrev(); saveDraft(); });
+    fontPrev();
     W.addEventListener('submit', function (e) {
       e.preventDefault(); var d = collect(); if (!d.goal.trim()) { W.goal.focus(); return toast(T.needGoal, 'error'); }
       var b = $('button.btn-primary', W); b.disabled = true;

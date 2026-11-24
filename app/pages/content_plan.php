@@ -480,15 +480,22 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
         <span class="label"><?= e(t('خط العناوين')) ?></span>
         <p class="text-xs text-ink-500 mb-2"><?= e(t('يُستخدم كأسلوب للنص الذي نطبعه على الصور والشرائح (في وضع «قوالب تخطيط»).')) ?></p>
         <div class="grid sm:grid-cols-2 gap-3 items-stretch">
-          <select name="font" id="cp-font-sel" class="input !py-2.5">
-            <?php foreach ($cpFonts as $fk => [$fl, $fd]): ?>
-            <option value="<?= e($fk) ?>" data-fam="<?= $fk === 'auto' ? '' : e($fk) ?>" <?= $fk === 'auto' ? 'selected' : '' ?>><?= e($fl) ?><?= $fd ? ' — ' . e($fd) : '' ?></option>
-            <?php endforeach; ?>
-          </select>
-          <div class="rounded-xl border border-ink-200 bg-ink-50 grid place-items-center px-4 py-3">
-            <div id="cp-font-prev" class="text-center leading-tight">
-              <div class="text-2xl font-bold text-ink-900"><?= e(t('عنوان تجريبي')) ?></div>
-              <div class="text-sm text-ink-500 mt-1" dir="ltr">Sample Heading</div>
+          <div class="space-y-2">
+            <select name="font" id="cp-font-sel" class="input !py-2.5">
+              <?php foreach ($cpFonts as $fk => [$fl, $fd]): ?>
+              <option value="<?= e($fk) ?>" data-fam="<?= $fk === 'auto' ? '' : e($fk) ?>" <?= $fk === 'auto' ? 'selected' : '' ?>><?= e($fl) ?><?= $fd ? ' — ' . e($fd) : '' ?></option>
+              <?php endforeach; ?>
+            </select>
+            <select name="txt_effect" id="cp-fx-sel" class="input !py-2.5">
+              <?php foreach (['none' => t('بدون تأثير'), 'shadow' => t('ظل'), 'outline' => t('حدود (خط حول الحروف)'), '3d' => t('ثري دي (بروز)'), 'glow' => t('توهّج (نيون)')] as $fxk => $fxl): ?>
+              <option value="<?= e($fxk) ?>" <?= $fxk === 'none' ? 'selected' : '' ?>><?= e($fxl) ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div class="rounded-xl border border-ink-200 grid place-items-center px-4 py-4 overflow-hidden" style="background:linear-gradient(135deg,#0b1430,#1d4ed8)">
+            <div id="cp-font-prev" class="text-center leading-tight text-white">
+              <div class="text-3xl font-extrabold"><?= e(t('عنوان تجريبي')) ?></div>
+              <div class="text-base mt-1.5 opacity-90" dir="ltr">Sample Heading</div>
             </div>
           </div>
         </div>
