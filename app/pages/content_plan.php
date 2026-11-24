@@ -486,7 +486,10 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
             <?php endforeach; ?>
           </select>
           <div class="rounded-xl border border-ink-200 bg-ink-50 grid place-items-center px-4 py-3">
-            <div id="cp-font-prev" class="text-2xl font-bold text-ink-900 leading-tight"><?= e(t('عنوان تجريبي')) ?></div>
+            <div id="cp-font-prev" class="text-center leading-tight">
+              <div class="text-2xl font-bold text-ink-900"><?= e(t('عنوان تجريبي')) ?></div>
+              <div class="text-sm text-ink-500 mt-1" dir="ltr">Sample Heading</div>
+            </div>
           </div>
         </div>
       </div>
