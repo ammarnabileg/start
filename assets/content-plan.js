@@ -623,24 +623,29 @@
       o.setCoords && o.setCoords(); }); fc.requestRenderAll(); }
   function tBuildFresh(it) {
     var acc = (P && P.accent) || '#10b981';
+    // في وضع الذكاء: النص مرسوم داخل الصورة نفسها، فنعرض التصميم النهائي ونحرّك اللوجو فقط (بلا نص مكرّر ولا تأثير)
+    var isAi = !!(P && P.design_mode === 'ai');
+    var fxWrap = $('#it-fx'); if (fxWrap && fxWrap.closest('div')) fxWrap.closest('div').style.display = isAi ? 'none' : '';
+    // الخلفية: في الذكاء = الصورة النهائية بدون اللوجو (media_raw)، وإلا الصورة النضيفة
     var rawId = (it.media_raw || [])[0] || (it.media_ids || [])[0];
-    // الصورة في الخلف — مقفولة (لا تتحرك)
     if (rawId) fabric.Image.fromURL(murl(rawId), function (im) { if (!im || !im.width) return; var k = Math.max(FW / im.width, FH / im.height); im.set({ scaleX: k, scaleY: k, originX: 'center', originY: 'center', left: FW / 2, top: FH / 2, dzHero: true, selectable: false, evented: false }); fc.add(im); im.sendToBack(); fc.requestRenderAll(); });
-    // تدرّج داكن من الأسفل — مقفول
-    var scrim = new fabric.Rect({ left: 0, top: FH * 0.40, width: FW, height: FH * 0.60, selectable: false, evented: false, dzBg: true });
-    scrim.set('fill', new fabric.Gradient({ type: 'linear', coords: { x1: 0, y1: 0, x2: 0, y2: FH * 0.60 }, colorStops: [{ offset: 0, color: 'rgba(6,10,18,0)' }, { offset: 0.55, color: 'rgba(6,10,18,0.55)' }, { offset: 1, color: 'rgba(6,10,18,0.92)' }] }));
-    fc.add(scrim);
-    var head0 = String(it.headline || '').replace(/[«»]/g, '').replace(/\s+/g, ' ').trim() || 'عنوان';
-    var bw = FW * 0.86, bl = FW * 0.07;
-    var fs = head0.split(' ').length >= 4 ? 0.075 : 0.088;
-    // العنوان — تحريك المكان فقط
-    var tb = new fabric.Textbox(head0, { left: bl, top: FH * 0.72, width: bw, fontSize: Math.round(FW * fs), fill: '#ffffff', fontWeight: '900', fontFamily: 'Cairo', textAlign: 'right', direction: 'rtl', splitByGrapheme: false });
-    tb.set(MOVE_ONLY); tb.dzHead = true; tb.dzBw = bw; tb.dzSrc = head0; tb.dzBl = bl;
-    if (P && P.txt_effect && P.txt_effect !== 'none') fcApplyFx(tb, P.txt_effect); // التأثير المختار وقت الإنشاء يُطبّق تلقائيًا
-    fc.add(tb); fc.setActiveObject(tb); fc.requestRenderAll();
-    fcEnsureFonts().then(function () { fcRefreshText(); layoutHead(tb); fc.requestRenderAll(); });
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { fcRefreshText(); layoutHead(tb); fc.requestRenderAll(); });
-    // اللوجو — تحريك المكان فقط
+    if (!isAi) {
+      // تدرّج داكن من الأسفل — مقفول
+      var scrim = new fabric.Rect({ left: 0, top: FH * 0.40, width: FW, height: FH * 0.60, selectable: false, evented: false, dzBg: true });
+      scrim.set('fill', new fabric.Gradient({ type: 'linear', coords: { x1: 0, y1: 0, x2: 0, y2: FH * 0.60 }, colorStops: [{ offset: 0, color: 'rgba(6,10,18,0)' }, { offset: 0.55, color: 'rgba(6,10,18,0.55)' }, { offset: 1, color: 'rgba(6,10,18,0.92)' }] }));
+      fc.add(scrim);
+      var head0 = String(it.headline || '').replace(/[«»]/g, '').replace(/\s+/g, ' ').trim() || 'عنوان';
+      var bw = FW * 0.86, bl = FW * 0.07;
+      var fs = head0.split(' ').length >= 4 ? 0.075 : 0.088;
+      // العنوان — تحريك المكان فقط
+      var tb = new fabric.Textbox(head0, { left: bl, top: FH * 0.72, width: bw, fontSize: Math.round(FW * fs), fill: '#ffffff', fontWeight: '900', fontFamily: 'Cairo', textAlign: 'right', direction: 'rtl', splitByGrapheme: false });
+      tb.set(MOVE_ONLY); tb.dzHead = true; tb.dzBw = bw; tb.dzSrc = head0; tb.dzBl = bl;
+      if (P && P.txt_effect && P.txt_effect !== 'none') fcApplyFx(tb, P.txt_effect); // التأثير المختار وقت الإنشاء يُطبّق تلقائيًا
+      fc.add(tb); fc.setActiveObject(tb); fc.requestRenderAll();
+      fcEnsureFonts().then(function () { fcRefreshText(); layoutHead(tb); fc.requestRenderAll(); });
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { fcRefreshText(); layoutHead(tb); fc.requestRenderAll(); });
+    }
+    // اللوجو — تحريك المكان فقط (في كل الأوضاع، فهو عنصرنا نحن)
     if (P && P.logo) fabric.Image.fromURL(P.logo, function (lg) { if (!lg || !lg.width) return; var k = (FW * 0.20) / lg.width; lg.set({ scaleX: k, scaleY: k, left: FW * 0.74, top: FH * 0.035, dzLogo: true }); lg.set(MOVE_ONLY); fc.add(lg); fc.requestRenderAll(); });
     tAfterLoad();
   }

@@ -113,7 +113,7 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
     if (function_exists('img_provider') && img_provider() === 'openai' && function_exists('img_openai_cost')) {
         $cfg['imgCost'] = ['high' => round(img_openai_cost('high', '1024x1536'), 4), 'medium' => round(img_openai_cost('medium', '1024x1536'), 4)];
     }
-    if ($plan): $__lg = function_exists('kb_logo') ? kb_logo($wid) : null; [$__ar, $__ag, $__ab] = cpl_accent_rgb($plan); $cfg['plan'] = cpl_status($plan) + ['name' => (string)$plan['name'], 'has_logo' => $__lg ? 1 : 0, 'logo' => $__lg ? url('media', ['file' => $__lg['id']]) : '', 'accent' => sprintf('#%02x%02x%02x', $__ar, $__ag, $__ab), 'imgPrice' => cpl_img_unit_cost($plan), 'txt_effect' => (string)(cpl_opts($plan)['txt_effect'] ?? 'none')]; ?>
+    if ($plan): $__lg = function_exists('kb_logo') ? kb_logo($wid) : null; [$__ar, $__ag, $__ab] = cpl_accent_rgb($plan); $cfg['plan'] = cpl_status($plan) + ['name' => (string)$plan['name'], 'has_logo' => $__lg ? 1 : 0, 'logo' => $__lg ? url('media', ['file' => $__lg['id']]) : '', 'accent' => sprintf('#%02x%02x%02x', $__ar, $__ag, $__ab), 'imgPrice' => cpl_img_unit_cost($plan), 'txt_effect' => (string)(cpl_opts($plan)['txt_effect'] ?? 'none'), 'design_mode' => (string)(cpl_opts($plan)['design_mode'] ?? 'layout')]; ?>
     <div class="flex flex-wrap items-center gap-2 mb-4">
       <a href="<?= e(url('content_plan')) ?>" class="btn-ghost !py-1.5">← <?= e(t('كل الخطط')) ?></a>
       <span class="text-sm text-ink-500 min-w-0 flex-1 truncate"><?= e(mb_substr((string)$plan['goal'], 0, 160)) ?></span>
