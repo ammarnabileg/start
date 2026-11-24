@@ -129,6 +129,12 @@
       var rows = [[S.goal, v(d.goal), 0], [S.count, d.count, 0], [S.aud, v(d.audience), 1], [S.svc, v((d.services || []).join('، ')), 1], [S.lang, lg, 2], [S.dial, v(dn), 2], [S.tone, v(d.tone), 2], [S.cta, v(d.cta), 2], [S.refs, String((d.refs || []).length), 3], [S.logo, W.logo_w ? (d.logo_on ? S.on : S.off) : S.none, 3]];
       $('#cp-sum').innerHTML = rows.map(function (r) { return '<div class="rounded-xl bg-ink-50 px-3 py-2"><dt class="text-xs text-ink-500 flex justify-between">' + esc(r[0]) + '<button type="button" data-go="' + r[2] + '" class="link text-xs">✎</button></dt><dd class="text-ink-900 break-words" dir="auto">' + esc(r[1]) + '</dd></div>'; }).join('');
       previewMock(d);
+      var est = $('#cp-est');
+      if (est) {
+        var n = parseInt(d.count, 10) || 0, q = (d.img_q === 'medium') ? 'medium' : 'high', ic = (typeof C !== 'undefined' && C.imgCost) ? C.imgCost[q] : null;
+        if (ic && n) est.innerHTML = '🖼️ تكلفة الصور التقديرية: ~$' + (n * ic).toFixed(2) + ' <span class="text-ink-400">(' + n + ' × $' + ic + ')</span> · <span class="text-ink-400">النص والفيديو حسب الاستهلاك</span>';
+        else est.innerHTML = '<span class="text-ink-400">التكلفة تظهر حسب الاستهلاك الفعلي بعد التوليد.</span>';
+      }
     }
     // معاينة تقريبية مجّانية لشكل المنشور من الاختيارات (نمط + تأثير + خط + لوجو)
     function previewMock(d) {

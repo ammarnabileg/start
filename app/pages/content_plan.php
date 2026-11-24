@@ -110,6 +110,9 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
     $steps = [1 => [t('الخطوة الأولى'), t('الهدف وعدد المنشورات والصور المرجعية ← تجهيز الملف والبرومبتات (بدون صور أو فيديو)')], 2 => [t('الخطوة الثانية'), t('حدد منشورات ← ولّد لها صورة أو فيديو أو كاروسيل (أو اتركها نصًا) ← أرسلها للمخزون')]];
     echo '<ol class="grid sm:grid-cols-2 gap-2 mb-5">'; foreach ($steps as $n => [$h, $d]) echo '<li class="rounded-2xl border p-3 ' . ($n === $stepNow ? 'border-brand-300 bg-brand-50/60' : 'border-ink-200 bg-white') . '"><div class="flex items-center gap-2"><span class="w-6 h-6 rounded-full grid place-items-center text-xs font-bold ' . ($n === $stepNow ? 'bg-brand-600 text-[#fff]' : ($n < $stepNow ? 'bg-lime-500 text-[#fff]' : 'bg-ink-100 text-ink-500')) . '">' . ($n < $stepNow ? '✓' : $n) . '</span><b class="text-sm">' . e($h) . '</b></div><p class="text-xs text-ink-500 mt-1">' . e($d) . '</p></li>'; echo '</ol>';
     $cfg = ['url' => url('content_plan'), 'bank' => url('content_bank'), 'csrf' => csrf_token(), 'wid' => $wid, 't' => $T];
+    if (function_exists('img_provider') && img_provider() === 'openai' && function_exists('img_openai_cost')) {
+        $cfg['imgCost'] = ['high' => round(img_openai_cost('high', '1024x1536'), 4), 'medium' => round(img_openai_cost('medium', '1024x1536'), 4)];
+    }
     if ($plan): $__lg = function_exists('kb_logo') ? kb_logo($wid) : null; [$__ar, $__ag, $__ab] = cpl_accent_rgb($plan); $cfg['plan'] = cpl_status($plan) + ['name' => (string)$plan['name'], 'has_logo' => $__lg ? 1 : 0, 'logo' => $__lg ? url('media', ['file' => $__lg['id']]) : '', 'accent' => sprintf('#%02x%02x%02x', $__ar, $__ag, $__ab), 'imgPrice' => cpl_img_unit_cost($plan)]; ?>
     <div class="flex flex-wrap items-center gap-2 mb-4">
       <a href="<?= e(url('content_plan')) ?>" class="btn-ghost !py-1.5">← <?= e(t('كل الخطط')) ?></a>
@@ -516,6 +519,7 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
       <div class="rounded-2xl border border-ink-200 bg-ink-50/60 p-4">
         <div class="flex items-center gap-2 mb-2"><span class="text-base">👁️</span><b class="text-sm text-ink-900"><?= e(t('معاينة تقريبية للشكل')) ?></b><span class="text-[11px] text-ink-400"><?= e(t('(مجّانية — قبل صرف أي كريدِت)')) ?></span></div>
         <div id="cp-preview" class="grid place-items-center"></div>
+        <div id="cp-est" class="text-center text-xs text-ink-600 mt-3"></div>
       </div>
       <div class="flex flex-wrap gap-4 text-sm">
         <label class="flex items-center gap-1.5"><input type="checkbox" name="video" checked><?= e(t('برومبت فيديو لكل منشور')) ?></label>
