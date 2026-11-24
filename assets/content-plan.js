@@ -42,8 +42,12 @@
       if (dr.layout) $$('[name=layout]', W).forEach(function (x) { x.checked = x.value === dr.layout; });
       toast(T.draftRestored, 'info');
     }
-    // إظهار/إخفاء اختيار القالب حسب طريقة الإخراج (قوالب فقط)
-    function syncDMode() { var lw = $('#cp-layout-wrap'); if (!lw) return; var m = (W.querySelector('[name=design_mode]:checked') || {}).value; lw.style.display = m === 'layout' ? '' : 'none'; }
+    // إظهار/إخفاء الخيارات حسب طريقة الإخراج: القالب (قوالب فقط)، الخط (ماعدا وضع الذكاء اللي بيرسم النص بنفسه)
+    function syncDMode() {
+      var m = (W.querySelector('[name=design_mode]:checked') || {}).value || 'layout';
+      var lw = $('#cp-layout-wrap'); if (lw) lw.style.display = m === 'layout' ? '' : 'none';
+      var fw = $('#cp-font-wrap'); if (fw) fw.style.display = m === 'ai' ? 'none' : '';
+    }
     $$('[name=design_mode]', W).forEach(function (x) { x.addEventListener('change', syncDMode); }); syncDMode();
     // معاينة اللوجو التفاعلية: سحب، أماكن جاهزة، حجم، شفافية، لون، خلفية. نفس معادلات السيرفر بالظبط (cpl_logo_box)
     var bgIx = 0;
