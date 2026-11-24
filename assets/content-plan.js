@@ -518,7 +518,8 @@
     else if (fx === 'gold') { o.set('fill', new fabric.Gradient({ type: 'linear', gradientUnits: 'percentage', coords: { x1: 0, y1: 0, x2: 0, y2: 1 }, colorStops: [{ offset: 0, color: '#fff7cc' }, { offset: .42, color: '#f5d142' }, { offset: .6, color: '#c9971f' }, { offset: 1, color: '#8a6a16' }] })); o.set('shadow', new fabric.Shadow({ color: 'rgba(0,0,0,.5)', blur: 4, offsetX: 0, offsetY: Math.round(fs * 0.04) })); }
     else if (fx === 'glow') { o.set('shadow', new fabric.Shadow({ color: acc, blur: Math.round(fs * 0.3), offsetX: 0, offsetY: 0 })); }
     o.dzFx = fx || 'none';
-    if (fc) fc.requestRenderAll();
+    o.set('dirty', true); if (o.initDimensions) o.initDimensions(); if (o.setCoords) o.setCoords();
+    if (fc) fc.renderAll();
   }
   function fcHead() { return fc ? fc.getObjects().filter(function (o) { return o.dzHead; })[0] : null; }
   // ====== قص تفاعلي بالماوس (Crop) ======
@@ -650,7 +651,7 @@
     var dzTxt = $('#dz-txt');
     if (dzTxt) dzTxt.addEventListener('input', function () { var o = fcActive(); if (o && o.type === 'textbox') { o.set('text', dzTxt.value); if (o.initDimensions) o.initDimensions(); fc.requestRenderAll(); } });
     var itFx = $('#it-fx');
-    if (itFx) itFx.addEventListener('change', function () { var o = fcHead(); if (o) { fcApplyFx(o, itFx.value); histSnap(); } });
+    if (itFx) itFx.addEventListener('change', function () { var o = fcHead(); if (!o) { var a = fcActive(); if (a && a.type === 'textbox') o = a; } if (o) { fcApplyFx(o, itFx.value); histSnap(); } else if (typeof toast === 'function') toast('اختر النص الأول أو أعد فتح المحرّر', 'error'); });
     tMod.addEventListener('click', function (e) {
       if (e.target === tMod || e.target.closest('[data-tclose]')) return tClose();
       var b = e.target.closest('[data-dz]'); if (!b || !fc) return; var cmd = b.dataset.dz, o = fcActive();
