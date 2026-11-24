@@ -38,6 +38,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             $J(['ok' => true, 'items' => $out]);
         }
+        if ($a === 'refpreset') {
+            $k = max(1, min(5, (int)($_POST['k'] ?? 0)));
+            $src = dirname(__DIR__, 2) . '/assets/ref-presets/ref' . $k . '.webp';
+            if (!is_file($src)) $J(['ok' => false, 'error' => t('النموذج غير متاح.')], 404);
+            $row = media_store_path($wid, $src, 'reference-' . $k . '.webp', 'image/webp', 'References', false);
+            $J(['ok' => true, 'item' => ['id' => (int)$row['id'], 'thumb' => url('media', ['file' => $row['id'], 'thumb' => 1])]]);
+        }
         if ($a === 'create') { $id = cpl_create(json_decode((string)($_POST['data'] ?? '{}'), true) ?: []); $J(['ok' => true, 'id' => $id, 'url' => url('content_plan', ['plan' => $id])]); }
         $p = cpl_plan($pid); if (!$p) $J(['ok' => false, 'error' => t('الخطة غير موجودة.')], 404);
         if ($a === 'rename') { $nm = mb_substr(trim((string)($_POST['name'] ?? '')), 0, 150); if ($nm === '') $J(['ok' => false, 'error' => t('اكتب اسمًا للخطة.')], 422); db()->prepare('UPDATE cp_plans SET name = ? WHERE id = ?')->execute([$nm, $pid]); $J(['ok' => true, 'name' => $nm]); }
@@ -275,6 +282,18 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
         <p class="text-xs text-ink-500 mb-2"><?= e(t('نحلل أسلوبها (الألوان، الخطوط، التكوين) ونطبقه في كل برومبت، وتُرسل لموديل الصور كمرجع للأسلوب أثناء التوليد، بدون نسخ محتواها.')) ?> <?= $hasLogo ? e(t('الشعار موجود في ملف الشركة وسيُذكر موضعه في البرومبتات.')) : '' ?></p>
         <div id="cp-refs" class="flex flex-wrap gap-2"></div>
         <div class="flex flex-wrap gap-2 mt-2"><label class="btn-ghost !py-1.5 cursor-pointer"><input id="cp-ref-in" type="file" accept="image/*,application/pdf,.pdf" multiple class="hidden"><?= ui_icon('upload', 'w-4 h-4') ?><?= e(t('أضف صورًا أو PDF')) ?></label><button type="button" id="cp-ref-lib" class="btn-ghost !py-1.5"><?= ui_icon('image', 'w-4 h-4') ?><?= e(t('اختر من مكتبة الوسائط')) ?></button></div>
+        <div class="mt-3">
+          <p class="text-xs text-ink-500 mb-1.5"><?= e(t('أو اختر من نماذج جاهزة احترافية (اضغط لإضافته كمرجع):')) ?></p>
+          <div class="flex gap-2 overflow-x-auto pb-1">
+            <?php foreach ([1 => t('إشراق المنتج'), 2 => t('نيون رياضي'), 3 => t('نظيف أزرق'), 4 => t('بنفسجي إبداعي'), 5 => t('كوربوريت راقٍ')] as $rk => $rl): ?>
+            <button type="button" class="cp-ref-preset shrink-0 relative w-20 group" data-k="<?= $rk ?>" title="<?= e(t('أضِف «%s» كمرجع', $rl)) ?>">
+              <img src="assets/ref-presets/ref<?= $rk ?>.webp?v=<?= e(APP_VERSION) ?>" alt="<?= e($rl) ?>" class="w-20 h-24 object-cover rounded-xl border border-ink-200 transition group-hover:border-brand-400 group-hover:shadow-lg" loading="lazy">
+              <span class="absolute inset-0 grid place-items-center opacity-0 group-hover:opacity-100 transition bg-black/30 rounded-xl text-white text-xl font-bold">+</span>
+              <span class="block text-[10px] text-ink-500 text-center mt-0.5 truncate"><?= e($rl) ?></span>
+            </button>
+            <?php endforeach; ?>
+          </div>
+        </div>
       </div>
       <div>
         <span class="label"><?= e(t('طريقة إخراج التصميم')) ?></span>

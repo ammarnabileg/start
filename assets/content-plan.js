@@ -172,6 +172,19 @@
       toast(T.uploading, 'info');
       return post({ action: 'ref' }, fs).then(function (j) { if (!j.ok) return toast(j.error || T.err, 'error'); refs = refs.concat(j.items); paintRefs(); saveDraft(); toast(T.uploaded); }); }).catch(function () { toast(T.err, 'error'); });
     });
+    // نماذج مرجعية جاهزة: تُنسخ لمكتبة الوسائط وتُضاف كمرجع (نفس مسار الرفع)
+    $$('.cp-ref-preset', W).forEach(function (b) {
+      b.addEventListener('click', function () {
+        if (refs.length >= 12) return toast(T.refMax, 'error');
+        if (b.dataset.busy) return; b.dataset.busy = '1';
+        post({ action: 'refpreset', k: b.dataset.k }).then(function (j) {
+          b.removeAttribute('data-busy');
+          if (!j || !j.ok) return toast((j && j.error) || T.err, 'error');
+          if (refs.some(function (r) { return r.id === j.item.id; })) return toast(T.uploaded);
+          refs.push(j.item); paintRefs(); saveDraft(); if (typeof lprev === 'function') lprev(); toast(T.uploaded);
+        }).catch(function () { b.removeAttribute('data-busy'); toast(T.err, 'error'); });
+      });
+    });
     W.addEventListener('submit', function (e) {
       e.preventDefault(); var d = collect(); if (!d.goal.trim()) { W.goal.focus(); return toast(T.needGoal, 'error'); }
       var b = $('button.btn-primary', W); b.disabled = true;
