@@ -476,7 +476,24 @@
   function fcRefreshText() { if (!fc) return; fc.getObjects().forEach(function (o) { if (o.type === 'textbox' || o.type === 'i-text' || o.type === 'text') { o.set('dirty', true); if (o.initDimensions) o.initDimensions(); } }); fc.requestRenderAll(); }
   function fcEnsureFonts() { if (!document.fonts || !document.fonts.load) return Promise.resolve(); return Promise.all(['900 64px Cairo', '700 64px Cairo', '400 64px Cairo', '800 64px Alexandria', '700 64px Tajawal'].map(function (f) { return document.fonts.load(f).catch(function () {}); })); }
   // خصائص المستند القابل للإعادة (بدون مراجع دائرية مثل dzKickRef)
-  var DOC_PROPS = ['dzLogo', 'dzBg', 'dzKick', 'dzHead', 'dzHero', 'dzBw', 'dzSrc', 'dzBl', 'dzKw', 'cropX', 'cropY', 'selectable', 'evented', 'editable', 'direction', 'splitByGrapheme'];
+  var DOC_PROPS = ['dzLogo', 'dzBg', 'dzKick', 'dzHead', 'dzHero', 'dzBw', 'dzSrc', 'dzBl', 'dzKw', 'dzFx', 'cropX', 'cropY', 'selectable', 'evented', 'editable', 'direction', 'splitByGrapheme'];
+  // يغمّق لون hex بنسبة k (0..1)
+  function fxShade(h, k) { h = String(h || '#10b981').replace('#', ''); if (h.length < 6) h = '2563eb'; var r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16); function f(x) { return Math.max(0, Math.min(255, Math.round(x * k))).toString(16).padStart(2, '0'); } return '#' + f(r) + f(g) + f(b); }
+  // يطبّق تأثيرًا على صندوق العنوان (Fabric) ويخزّنه في dzFx ليُحفظ في التصميم
+  function fcApplyFx(o, fx) {
+    if (!o || !window.fabric) return;
+    var acc = (P && P.accent) || '#10b981', fs = o.fontSize || 40;
+    o.set({ shadow: null, stroke: null, strokeWidth: 0, paintFirst: 'fill', fill: '#ffffff' });
+    if (fx === 'shadow') { o.set('shadow', new fabric.Shadow({ color: 'rgba(6,8,14,.6)', blur: Math.round(fs * 0.08), offsetX: Math.round(fs * 0.07), offsetY: Math.round(fs * 0.07) })); }
+    else if (fx === 'outline') { o.set({ stroke: '#0f1116', strokeWidth: Math.max(2, Math.round(fs * 0.06)), paintFirst: 'stroke', shadow: new fabric.Shadow({ color: 'rgba(0,0,0,.4)', blur: 6, offsetX: Math.round(fs * 0.05), offsetY: Math.round(fs * 0.05) }) }); }
+    else if (fx === 'sticker') { o.set({ fill: acc, stroke: '#ffffff', strokeWidth: Math.max(4, Math.round(fs * 0.11)), paintFirst: 'stroke', shadow: new fabric.Shadow({ color: 'rgba(0,0,0,.4)', blur: Math.round(fs * 0.1), offsetX: 0, offsetY: Math.round(fs * 0.08) }) }); }
+    else if (fx === '3d') { o.set({ fill: acc, stroke: fxShade(acc, 0.3), strokeWidth: 2, paintFirst: 'stroke', shadow: new fabric.Shadow({ color: fxShade(acc, 0.42), blur: 0, offsetX: Math.round(fs * 0.06), offsetY: Math.round(fs * 0.06) }) }); }
+    else if (fx === 'gold') { o.set('fill', new fabric.Gradient({ type: 'linear', gradientUnits: 'percentage', coords: { x1: 0, y1: 0, x2: 0, y2: 1 }, colorStops: [{ offset: 0, color: '#fff7cc' }, { offset: .42, color: '#f5d142' }, { offset: .6, color: '#c9971f' }, { offset: 1, color: '#8a6a16' }] })); o.set('shadow', new fabric.Shadow({ color: 'rgba(0,0,0,.5)', blur: 4, offsetX: 0, offsetY: Math.round(fs * 0.04) })); }
+    else if (fx === 'glow') { o.set('shadow', new fabric.Shadow({ color: acc, blur: Math.round(fs * 0.3), offsetX: 0, offsetY: 0 })); }
+    o.dzFx = fx || 'none';
+    if (fc) fc.requestRenderAll();
+  }
+  function fcHead() { return fc ? fc.getObjects().filter(function (o) { return o.dzHead; })[0] : null; }
   // ====== قص تفاعلي بالماوس (Crop) ======
   var cropState = null;
   function cropBar(show) { var el = $('#dz-cropbar'); if (el) el.classList.toggle('hidden', !show); }
@@ -528,7 +545,7 @@
   var hist = [], histIx = -1, histLock = false, draftKey = null, snapT = null;
   function histSnap() { if (!fc || histLock) return; var s; try { s = JSON.stringify(fc.toJSON(DOC_PROPS)); } catch (e) { return; } if (hist[histIx] === s) return; hist = hist.slice(0, histIx + 1); hist.push(s); if (hist.length > 40) hist.shift(); histIx = hist.length - 1; if (hist.length > 1) autosaveDraft(s); }
   // بعد تحميل التصميم: جهّز السجل، واسترجع آخر مسودة غير محفوظة إن وُجدت (بعد انقطاع)
-  function tAfterLoad() { histInit(); setTimeout(function () { var d = readDraft(); if (d && d.s) { histApply(d.s); setTimeout(histSnap, 500); toast(T.draftBack || 'تم استرجاع آخر تعديل غير محفوظ', 'info'); } }, 500); }
+  function tAfterLoad() { histInit(); var o = fcHead(), fxs = $('#it-fx'); if (fxs) fxs.value = (o && o.dzFx) || 'none'; setTimeout(function () { var d = readDraft(); if (d && d.s) { histApply(d.s); setTimeout(function () { var h = fcHead(), s2 = $('#it-fx'); if (s2) s2.value = (h && h.dzFx) || 'none'; histSnap(); }, 500); toast(T.draftBack || 'تم استرجاع آخر تعديل غير محفوظ', 'info'); } }, 500); }
   function histSnapSoon() { clearTimeout(snapT); snapT = setTimeout(histSnap, 350); }
   function histApply(s) { if (!s) return; histLock = true; fc.loadFromJSON(s, function () { fcFit(); fcEnsureFonts().then(function () { fcRefreshText(); fc.requestRenderAll(); }); fc.requestRenderAll(); histLock = false; }); }
   function histInit() { hist = []; histIx = -1; setTimeout(function () { histSnap(); }, 300); }
@@ -604,6 +621,8 @@
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !tMod.classList.contains('hidden')) tClose(); });
     var dzTxt = $('#dz-txt');
     if (dzTxt) dzTxt.addEventListener('input', function () { var o = fcActive(); if (o && o.type === 'textbox') { o.set('text', dzTxt.value); if (o.initDimensions) o.initDimensions(); fc.requestRenderAll(); } });
+    var itFx = $('#it-fx');
+    if (itFx) itFx.addEventListener('change', function () { var o = fcHead(); if (o) { fcApplyFx(o, itFx.value); histSnap(); } });
     tMod.addEventListener('click', function (e) {
       if (e.target === tMod || e.target.closest('[data-tclose]')) return tClose();
       var b = e.target.closest('[data-dz]'); if (!b || !fc) return; var cmd = b.dataset.dz, o = fcActive();

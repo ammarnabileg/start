@@ -181,6 +181,15 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
             <li><?= e(t('اضغط على اللوجو واسحبه لأي مكان.')) ?></li>
             <li><?= e(t('خطوط زرقاء تظهر للمحاذاة للمنتصف.')) ?></li>
           </ul>
+          <div>
+            <label class="block text-xs font-semibold text-ink-700 mb-1">✨ <?= e(t('تأثير العنوان')) ?></label>
+            <select id="it-fx" class="input !py-2 text-sm">
+              <?php foreach (['none' => t('بدون'), 'shadow' => t('ظل'), 'outline' => t('حدود'), 'sticker' => t('ستيكر'), '3d' => t('ثري دي'), 'gold' => t('ذهبي'), 'glow' => t('نيون')] as $fk => $fl): ?>
+              <option value="<?= e($fk) ?>"><?= e($fl) ?></option>
+              <?php endforeach; ?>
+            </select>
+            <p class="text-[11px] text-ink-400 mt-1"><?= e(t('المعاينة فورية، ويتبيّت في الصورة عند الحفظ.')) ?></p>
+          </div>
         </div>
         <div class="mt-auto p-3 border-t border-ink-100 bg-white sticky bottom-0">
           <button type="button" id="it-save" class="btn-primary w-full !py-2.5 text-sm"><?= e(t('حفظ')) ?></button>
