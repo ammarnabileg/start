@@ -479,14 +479,15 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
       <div id="cp-font-wrap">
         <span class="label"><?= e(t('خط العناوين')) ?></span>
         <p class="text-xs text-ink-500 mb-2"><?= e(t('يُستخدم كأسلوب للنص الذي نطبعه على الصور والشرائح (في وضع «قوالب تخطيط»).')) ?></p>
-        <div id="cp-fonts" class="flex gap-2 overflow-x-auto pb-1">
-          <?php foreach ($cpFonts as $fk => [$fl, $fd]): ?>
-          <label class="shrink-0 cursor-pointer"><input type="radio" name="font" value="<?= e($fk) ?>" class="peer sr-only" <?= $fk === 'auto' ? 'checked' : '' ?>>
-            <span class="flex flex-col items-center justify-center gap-1 w-28 h-20 rounded-xl border border-ink-200 px-2 text-center transition hover:border-brand-300 peer-checked:border-brand-500 peer-checked:bg-brand-50">
-              <span class="text-lg leading-tight truncate w-full" style="<?= $fk === 'auto' ? '' : 'font-family:\'' . e($fk) . '\',sans-serif' ?>"><?= $fk === 'auto' ? '✨' : e(t('تجربة')) ?></span>
-              <span class="text-[10px] text-ink-500 truncate w-full"><?= e($fl) ?></span>
-            </span></label>
-          <?php endforeach; ?>
+        <div class="grid sm:grid-cols-2 gap-3 items-stretch">
+          <select name="font" id="cp-font-sel" class="input !py-2.5">
+            <?php foreach ($cpFonts as $fk => [$fl, $fd]): ?>
+            <option value="<?= e($fk) ?>" data-fam="<?= $fk === 'auto' ? '' : e($fk) ?>" <?= $fk === 'auto' ? 'selected' : '' ?>><?= e($fl) ?><?= $fd ? ' — ' . e($fd) : '' ?></option>
+            <?php endforeach; ?>
+          </select>
+          <div class="rounded-xl border border-ink-200 bg-ink-50 grid place-items-center px-4 py-3">
+            <div id="cp-font-prev" class="text-2xl font-bold text-ink-900 leading-tight"><?= e(t('عنوان تجريبي')) ?></div>
+          </div>
         </div>
       </div>
       </section>
