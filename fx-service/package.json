@@ -1,0 +1,16 @@
+{
+  "name": "shohad-fx-service",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Headless-Chromium text-effect renderer for shohad content studio (gold / 3D / sticker / neon / outline). Renders styled Arabic+English headlines to transparent PNGs the PHP app composites onto posters.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "postinstall": "playwright install chromium"
+  },
+  "dependencies": {
+    "express": "4.21.2",
+    "playwright": "1.49.1"
+  },
+  "engines": { "node": ">=18" }
+}

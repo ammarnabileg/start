@@ -1099,6 +1099,38 @@ function cpl_region_score($im, int $x0, int $y0, int $x1, int $y1): float
 
 /** يرسم سطر عنوان مع تلوين الكلمة المفتاحية جوّه السطر (آمن للعربي: الحروف ما بتتوصلش عبر المسافات).
  *  لو $boxKey يرسم خلفية بلون الهوية خلف الكلمة، وإلا يلوّنها بلون الهوية. يرجّع [x1,x2,y] لحدود الكلمة أو null. */
+/** إعدادات خدمة رندر المؤثرات (fx-service على VPS): [url, token]. فاضي = غير مفعّلة. */
+function cpl_fx_cfg(): array
+{
+    $url = (string)(getenv('FX_RENDER_URL') ?: (function_exists('setting') ? setting('fx_render_url', '') : ''));
+    $tok = (string)(getenv('FX_RENDER_TOKEN') ?: (function_exists('setting') ? setting('fx_render_token', '') : ''));
+    return [rtrim(trim($url), '/'), trim($tok)];
+}
+
+/** يطلب من خدمة fx-service رندر عنوان بتأثير، ويرجّع PNG خام (binary) أو null للرجوع لـ GD.
+ *  $effect: shadow/outline/sticker/3d/gold/glow. $accentHex بـ/بدون #. */
+function cpl_fx_render(string $text, string $effect, string $accentHex, string $fontKey, int $size, int $width, bool $rtl, string $align = '', string $keyword = ''): ?string
+{
+    if ($effect === '' || $effect === 'none' || !function_exists('curl_init')) return null;
+    [$url, $tok] = cpl_fx_cfg();
+    if ($url === '') return null;
+    $payload = json_encode([
+        'token' => $tok, 'text' => $text, 'keyword' => $keyword, 'effect' => $effect,
+        'color' => ltrim($accentHex, '#'), 'size' => $size, 'width' => $width,
+        'rtl' => $rtl, 'align' => $align, 'font' => $fontKey, 'scale' => 2,
+    ], JSON_UNESCAPED_UNICODE);
+    $ch = curl_init($url . '/render');
+    curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $payload,
+        CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'X-Fx-Token: ' . $tok],
+        CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 15, CURLOPT_CONNECTTIMEOUT => 5]);
+    $out = curl_exec($ch);
+    $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $ctype = (string)curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
+    curl_close($ch);
+    if ($code !== 200 || strpos($ctype, 'image/png') === false || !$out) { error_log('cpl_fx_render failed: http ' . $code); return null; }
+    return $out;
+}
+
 /** يرسم نصًّا بتأثير اختياري (ظل/حدود/ثري دي/نيون) مقروء من $GLOBALS['cpl_fx']. none = عادي. */
 function cpl_ttf_fx($im, int $size, int $x, int $y, int $color, string $font, string $text): void
 {
