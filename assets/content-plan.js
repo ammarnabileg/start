@@ -16,7 +16,10 @@
     var key = 'cp_draft_' + C.wid, refs = [], prods = [];
     function paintRefs() { $('#cp-refs').innerHTML = refs.map(function (r, i) { return '<span class="relative"><img src="' + esc(r.thumb) + '" class="w-20 h-24 object-cover rounded-xl border border-ink-200" alt=""><button type="button" data-rm="' + i + '" class="absolute -top-1.5 -end-1.5 w-6 h-6 rounded-full bg-white border border-ink-200 text-xs">×</button></span>'; }).join(''); }
     function paintProds() { var el = $('#cp-prods'); if (el) el.innerHTML = prods.map(function (r, i) { return '<span class="relative"><img src="' + esc(r.thumb) + '" class="w-20 h-24 object-cover rounded-xl border border-ink-200" alt=""><button type="button" data-pm="' + i + '" class="absolute -top-1.5 -end-1.5 w-6 h-6 rounded-full bg-white border border-ink-200 text-xs">×</button></span>'; }).join(''); }
-    function collect() { var d = { refs: refs.map(function (r) { return r.id; }), products: prods.map(function (r) { return r.id; }), services: $$('[name=services]:checked', W).map(function (x) { return x.value; }) };
+    function collect() {
+      var mediaRefs = [], presetKeys = [];
+      refs.forEach(function (r) { if (r.preset) presetKeys.push(String(r.k)); else mediaRefs.push(r.id); });
+      var d = { refs: mediaRefs, ref_presets: presetKeys, products: prods.map(function (r) { return r.id; }), services: $$('[name=services]:checked', W).map(function (x) { return x.value; }) };
       if (W.querySelector('[name=style]:checked')) d.style = W.querySelector('[name=style]:checked').value;
       if (W.querySelector('[name=img_q]:checked')) d.img_q = W.querySelector('[name=img_q]:checked').value;
       if (W.querySelector('[name=aspect]:checked')) d.aspect = W.querySelector('[name=aspect]:checked').value;
@@ -128,7 +131,7 @@
     var s0 = 0; try { s0 = +(sessionStorage.getItem(key + '_s') || 0); } catch (e) {} show(dr && dr.goal ? s0 : 0);
     function saveDraft() { lprev(); var d = collect(); d.refsFull = refs; d.prodsFull = prods; ls(key, d); }
     W.addEventListener('input', saveDraft); W.addEventListener('change', saveDraft);
-    $('#cp-refs').addEventListener('click', function (e) { var b = e.target.closest('[data-rm]'); if (!b) return; refs.splice(+b.dataset.rm, 1); paintRefs(); saveDraft(); });
+    $('#cp-refs').addEventListener('click', function (e) { var b = e.target.closest('[data-rm]'); if (!b) return; refs.splice(+b.dataset.rm, 1); paintRefs(); saveDraft(); if (typeof syncPresets === 'function') syncPresets(); });
     // صور المنتج: حذف، مكتبة، رفع (6 كحد أقصى)
     var prodsEl = $('#cp-prods');
     if (prodsEl) prodsEl.addEventListener('click', function (e) { var b = e.target.closest('[data-pm]'); if (!b) return; prods.splice(+b.dataset.pm, 1); paintProds(); saveDraft(); });
@@ -172,19 +175,24 @@
       toast(T.uploading, 'info');
       return post({ action: 'ref' }, fs).then(function (j) { if (!j.ok) return toast(j.error || T.err, 'error'); refs = refs.concat(j.items); paintRefs(); saveDraft(); toast(T.uploaded); }); }).catch(function () { toast(T.err, 'error'); });
     });
-    // نماذج مرجعية جاهزة: تُنسخ لمكتبة الوسائط وتُضاف كمرجع (نفس مسار الرفع)
+    // نماذج مرجعية جاهزة: اختيار محلي فقط — تُقرأ من القرص وقت التوليد، ولا تُضاف لمكتبة الوسائط
+    function syncPresets() {
+      $$('.cp-ref-preset', W).forEach(function (b) {
+        var on = refs.some(function (r) { return r.preset && String(r.k) === String(b.dataset.k); });
+        var img = b.querySelector('img'); if (img) { img.style.outline = on ? '3px solid #2563eb' : ''; img.style.outlineOffset = '1px'; }
+        var ov = b.querySelector('[data-ov]'); if (ov) { ov.style.opacity = on ? '1' : ''; ov.textContent = on ? '✓' : '+'; ov.style.background = on ? 'rgba(37,99,235,.55)' : ''; }
+      });
+    }
     $$('.cp-ref-preset', W).forEach(function (b) {
       b.addEventListener('click', function () {
-        if (refs.length >= 12) return toast(T.refMax, 'error');
-        if (b.dataset.busy) return; b.dataset.busy = '1';
-        post({ action: 'refpreset', k: b.dataset.k }).then(function (j) {
-          b.removeAttribute('data-busy');
-          if (!j || !j.ok) return toast((j && j.error) || T.err, 'error');
-          if (refs.some(function (r) { return r.id === j.item.id; })) return toast(T.uploaded);
-          refs.push(j.item); paintRefs(); saveDraft(); if (typeof lprev === 'function') lprev(); toast(T.uploaded);
-        }).catch(function () { b.removeAttribute('data-busy'); toast(T.err, 'error'); });
+        var k = String(b.dataset.k), idx = -1;
+        for (var i = 0; i < refs.length; i++) { if (refs[i].preset && String(refs[i].k) === k) { idx = i; break; } }
+        if (idx >= 0) refs.splice(idx, 1);
+        else { if (refs.length >= 12) return toast(T.refMax, 'error'); refs.push({ preset: true, k: k, id: 'preset-' + k, thumb: 'assets/ref-presets/ref' + k + '.webp' }); }
+        paintRefs(); saveDraft(); syncPresets(); if (typeof lprev === 'function') lprev();
       });
     });
+    syncPresets();
     W.addEventListener('submit', function (e) {
       e.preventDefault(); var d = collect(); if (!d.goal.trim()) { W.goal.focus(); return toast(T.needGoal, 'error'); }
       var b = $('button.btn-primary', W); b.disabled = true;

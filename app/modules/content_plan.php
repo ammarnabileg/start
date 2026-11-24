@@ -96,15 +96,16 @@ function cpl_create(array $in): int
         'txt_variant' => in_array($in['txt_variant'] ?? '', ['auto', 'box', 'underline', 'color'], true) ? (string)$in['txt_variant'] : 'auto',
         'txt_accent' => (preg_match('/^#?[0-9a-fA-F]{6}$/', (string)($in['txt_accent'] ?? '')) && strtolower(ltrim((string)$in['txt_accent'], '#')) !== '10b981') ? ('#' . ltrim((string)$in['txt_accent'], '#')) : '',
         'products' => array_slice(array_values(array_filter(array_map('intval', (array)($in['products'] ?? [])), function ($id) use ($wid) { $m = media_get($wid, $id); return $id > 0 && $m && empty($m['deleted_at']) && media_kind((string)$m['mime']) === 'image'; })), 0, 6),
+        'ref_presets' => array_values(array_unique(array_filter(array_map('strval', (array)($in['ref_presets'] ?? [])), function ($k) { return in_array($k, ['1', '2', '3', '4', '5'], true); }))),
         'logo_tint' => in_array($in['logo_tint'] ?? '', ['orig', 'white', 'black'], true) ? $in['logo_tint'] : 'orig', 'logo_plate' => in_array($in['logo_plate'] ?? '', ['none', 'light', 'dark'], true) ? $in['logo_plate'] : 'none', 'logo_on' => !isset($in['logo_on']) || !empty($in['logo_on'])];
     $name = mb_substr(trim((string)($in['name'] ?? '')), 0, 150) ?: mb_substr(preg_replace('/\s+/u', ' ', $goal), 0, 60);
     $hasLogo = function_exists('kb_logo') && kb_logo($wid);
     db()->prepare('INSERT INTO cp_plans (workspace_id, user_id, name, goal, cnt, opts, refs, stage, status) VALUES (?,?,?,?,?,?,?,?, "generating")')
-        ->execute([$wid, (int)(current_user()['id'] ?? 0), $name, $goal, $n, json_encode($opts, JSON_UNESCAPED_UNICODE), json_encode($refs), ($refs || $hasLogo || !empty($opts['products'])) ? 'visual' : 'outline']);
+        ->execute([$wid, (int)(current_user()['id'] ?? 0), $name, $goal, $n, json_encode($opts, JSON_UNESCAPED_UNICODE), json_encode($refs), ($refs || $hasLogo || !empty($opts['products']) || !empty($opts['ref_presets'])) ? 'visual' : 'outline']);
     $nid = (int)db()->lastInsertId(); cpl_log($nid, t('اتعملت الخطة: %s منشور، %s صورة مرجعية%s.', $n, count($refs), $hasLogo ? t('، والشعار من ملف الشركة') : '')); return $nid;
 }
 
-function cpl_opts(array $p): array { return (json_decode((string)$p['opts'], true) ?: []) + ['lang' => 'ar', 'dialect' => '', 'audience' => '', 'services' => [], 'tone' => '', 'cta' => '', 'avoid' => '', 'about' => '', 'font' => 'auto', 'video' => true, 'carousel' => true, 'humanize' => true, 'qc' => true, 'img_q' => 'high', 'style' => 'auto', 'products' => [], 'aspect' => '4:5',
+function cpl_opts(array $p): array { return (json_decode((string)$p['opts'], true) ?: []) + ['lang' => 'ar', 'dialect' => '', 'audience' => '', 'services' => [], 'tone' => '', 'cta' => '', 'avoid' => '', 'about' => '', 'font' => 'auto', 'video' => true, 'carousel' => true, 'humanize' => true, 'qc' => true, 'img_q' => 'high', 'style' => 'auto', 'products' => [], 'ref_presets' => [], 'aspect' => '4:5',
     'txt_pos' => 'auto', 'txt_size' => 'm', 'txt_variant' => 'auto', 'txt_accent' => '', 'txt_scale' => 100, 'txt_align' => 'auto', 'txt_y' => null,
     'design_mode' => 'layout', 'layout' => 'full', 'topics_first' => true]; }
 
@@ -144,6 +145,15 @@ function cpl_ref_images(array $p, int $wid, int $max = 4): array
     };
     foreach (cpl_prod_ids($p) as $pid) { if (count($files) >= $max) break; if ($load($pid)) $prod++; }
     foreach (array_slice(json_decode((string)$p['refs'], true) ?: [], 0, $max) as $rid) { if (count($files) >= $max) break; if ($load($rid)) $style++; }
+    // نماذج مرجعية جاهزة: تُقرأ مباشرة من القرص (لا تُخزَّن في مكتبة الوسائط)
+    foreach ((array)(cpl_opts($p)['ref_presets'] ?? []) as $pk) {
+        if (count($files) >= $max) break;
+        $pf = dirname(__DIR__, 2) . '/assets/ref-presets/ref' . (int)$pk . '.webp';
+        if (is_file($pf) && ($rd = cpl_small_image($pf, 1024))) {
+            $tf = tempnam(sys_get_temp_dir(), 'cpr') . '.jpg';
+            file_put_contents($tf, base64_decode(substr($rd, strpos($rd, ',') + 1))); $files[] = $tf; $style++;
+        }
+    }
     $hint = '';
     if ($prod) $hint .= "\nThe first {$prod} attached image(s) show the EXACT real PRODUCT to feature as the clear hero of the design — reproduce it faithfully: real shape, colour, packaging, proportions and its real label/logo kept intact and legible. Integrate it naturally into the scene with correct perspective, lighting, shadow and reflections. Do NOT redesign the product or invent text on it.";
     if ($style) $hint .= "\nThe " . ($prod ? "remaining {$style}" : (string)$style) . " attached image(s) are STYLE REFERENCES — infer their shared visual system (colour palette, lighting mood, contrast, composition and polish) and apply it. Do not copy any subject, text, person or logo from them.";
