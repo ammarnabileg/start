@@ -94,7 +94,7 @@ function cpl_create(array $in): int
         'txt_align' => in_array($in['txt_align'] ?? '', ['auto', 'right', 'center', 'left'], true) ? (string)$in['txt_align'] : 'auto',
         'txt_y' => (isset($in['txt_y']) && is_numeric($in['txt_y'])) ? max(2, min(92, (int)$in['txt_y'])) : null,
         'txt_variant' => in_array($in['txt_variant'] ?? '', ['auto', 'box', 'underline', 'color'], true) ? (string)$in['txt_variant'] : 'auto',
-        'txt_effect' => in_array($in['txt_effect'] ?? '', ['none', 'shadow', 'outline', '3d', 'glow'], true) ? (string)$in['txt_effect'] : 'none',
+        'txt_effect' => in_array($in['txt_effect'] ?? '', ['none', 'shadow', 'outline', 'sticker', '3d', 'gold', 'glow'], true) ? (string)$in['txt_effect'] : 'none',
         'txt_accent' => (preg_match('/^#?[0-9a-fA-F]{6}$/', (string)($in['txt_accent'] ?? '')) && strtolower(ltrim((string)$in['txt_accent'], '#')) !== '10b981') ? ('#' . ltrim((string)$in['txt_accent'], '#')) : '',
         'products' => array_slice(array_values(array_filter(array_map('intval', (array)($in['products'] ?? [])), function ($id) use ($wid) { $m = media_get($wid, $id); return $id > 0 && $m && empty($m['deleted_at']) && media_kind((string)$m['mime']) === 'image'; })), 0, 6),
         'ref_presets' => array_values(array_unique(array_filter(array_map('strval', (array)($in['ref_presets'] ?? [])), function ($k) { return in_array($k, ['1', '2', '3', '4', '5'], true); }))),
@@ -1109,14 +1109,14 @@ function cpl_fx_cfg(): array
 
 /** يطلب من خدمة fx-service رندر عنوان بتأثير، ويرجّع PNG خام (binary) أو null للرجوع لـ GD.
  *  $effect: shadow/outline/sticker/3d/gold/glow. $accentHex بـ/بدون #. */
-function cpl_fx_render(string $text, string $effect, string $accentHex, string $fontKey, int $size, int $width, bool $rtl, string $align = '', string $keyword = ''): ?string
+function cpl_fx_render(string $text, string $effect, string $accentHex, string $fontKey, int $size, int $width, bool $rtl, string $align = '', string $keyword = '', int $height = 0): ?string
 {
     if ($effect === '' || $effect === 'none' || !function_exists('curl_init')) return null;
     [$url, $tok] = cpl_fx_cfg();
     if ($url === '') return null;
     $payload = json_encode([
         'token' => $tok, 'text' => $text, 'keyword' => $keyword, 'effect' => $effect,
-        'color' => ltrim($accentHex, '#'), 'size' => $size, 'width' => $width,
+        'color' => ltrim($accentHex, '#'), 'size' => $size, 'width' => $width, 'height' => $height,
         'rtl' => $rtl, 'align' => $align, 'font' => $fontKey, 'scale' => 2,
     ], JSON_UNESCAPED_UNICODE);
     $ch = curl_init($url . '/render');
@@ -1129,6 +1129,35 @@ function cpl_fx_render(string $text, string $effect, string $accentHex, string $
     curl_close($ch);
     if ($code !== 200 || strpos($ctype, 'image/png') === false || !$out) { error_log('cpl_fx_render failed: http ' . $code); return null; }
     return $out;
+}
+
+/** يركّب PNG خام (من الخدمة، مرندر بـ scale) على صورة GD عند (destX,destY) مع مراعاة الشفافية. */
+function cpl_fx_place($im, string $png, int $destX, int $destY, int $scale = 2): bool
+{
+    $src = @imagecreatefromstring($png); if (!$src) return false;
+    imagealphablending($src, false); imagesavealpha($src, true);
+    $sw = imagesx($src); $sh = imagesy($src);
+    imagealphablending($im, true); imagesavealpha($im, true);
+    if ($scale <= 1) { imagecopy($im, $src, $destX, $destY, 0, 0, $sw, $sh); imagedestroy($src); return true; }
+    $tw = max(1, (int)round($sw / $scale)); $th = max(1, (int)round($sh / $scale));
+    $tmp = imagecreatetruecolor($tw, $th); imagealphablending($tmp, false); imagesavealpha($tmp, true);
+    imagefilledrectangle($tmp, 0, 0, $tw, $th, imagecolorallocatealpha($tmp, 0, 0, 0, 127));
+    imagecopyresampled($tmp, $src, 0, 0, 0, 0, $tw, $th, $sw, $sh);
+    imagecopy($im, $tmp, $destX, $destY, 0, 0, $tw, $th);
+    imagedestroy($tmp); imagedestroy($src); return true;
+}
+
+/** محاولة رسم كتلة عنوان عبر خدمة المؤثرات. يرجّع true لو ركّبها (ونتخطّى GD)، أو false للرجوع لـ GD. */
+function cpl_fx_block($im, array $lines, int $size, int $colLeft, int $colW, int $yTop, bool $rtl, string $align, string $key, int $blockH = 0): bool
+{
+    $fx = (string)($GLOBALS['cpl_fx'] ?? 'none');
+    if ($fx === 'none' || $fx === '') return false;
+    $acc = (array)($GLOBALS['cpl_fx_acc'] ?? [37, 99, 235]);
+    $hex = sprintf('%02x%02x%02x', (int)$acc[0], (int)$acc[1], (int)$acc[2]);
+    $png = cpl_fx_render(implode("\n", $lines), $fx, $hex, (string)($GLOBALS['cpl_fx_font'] ?? 'auto'), $size, $colW, $rtl, $align, $key, $blockH);
+    if ($png === null) return false;
+    $pad = (int)round($size * 0.55);
+    return cpl_fx_place($im, $png, $colLeft - $pad, $yTop - $pad);
 }
 
 /** يرسم نصًّا بتأثير اختياري (ظل/حدود/ثري دي/نيون) مقروء من $GLOBALS['cpl_fx']. none = عادي. */
@@ -1265,8 +1294,9 @@ function cpl_stamp_text(array $p, int $mid, string $headline, array $ov = [], bo
     $y = $top + $size;
     // الكلمة المفتاحية تتلوّن جوّه السطر: قالب 0 = خلفية بلون الهوية، قالب 1/2 = نص ملوّن (مع خط تحتها في 1)
     $boxKey = $variant === 0; $keySpan = null;
-    $GLOBALS['cpl_fx'] = (string)($to['txt_effect'] ?? 'none'); $GLOBALS['cpl_fx_acc'] = [$ar, $ag, $ab];
-    foreach ($lines as $ln) {
+    $GLOBALS['cpl_fx'] = (string)($to['txt_effect'] ?? 'none'); $GLOBALS['cpl_fx_acc'] = [$ar, $ag, $ab]; $GLOBALS['cpl_fx_font'] = (string)($to['font'] ?? 'auto');
+    $usedFx = cpl_fx_block($im, $lines, $size, $colLeft, $colRight - $colLeft, $top, $rtl, $align, $key, $blockH);
+    if (!$usedFx) foreach ($lines as $ln) {
         $sp = cpl_draw_hline($im, $size, $font, $ln, $key, $rtl, $colLeft, $colRight, $y, $white, $acc, $onAcc, $shadow, $boxKey, $align);
         if ($sp && !$keySpan) $keySpan = $sp;
         $y += $lh;
@@ -1322,6 +1352,8 @@ function cpl_draw_title_block($im, string $font, string $headline, string $key, 
     for ($s = $size; $s >= $min; $s -= 2) { $w = cpl_wrap_lines($headline, $font, $s, $colW, $rtl); if (count($w) <= $maxLines) { $lines = $w; $size = $s; break; } }
     if (!$lines) { $lines = array_slice(cpl_wrap_lines($headline, $font, $size, $colW, $rtl), 0, $maxLines); }
     $lh = (int)round($size * ($rtl ? 1.5 : 1.4)); $y = $yTop + $size; $top0 = $yTop;
+    // لو خدمة المؤثرات مفعّلة ونجحت: نركّب الكتلة ونتخطّى رسم GD
+    if (cpl_fx_block($im, $lines, $size, $colLeft, $colW, $yTop, $rtl, $align, $key, $lh * count($lines))) return $lh * count($lines);
     // (أُزيل شريط لون الهوية فوق العنوان بناءً على طلب المستخدم)
     $shadow = imagecolorallocatealpha($im, 0, 0, 0, 80);
     foreach ($lines as $ln) { cpl_draw_hline($im, $size, $font, $ln, $key, $rtl, $colLeft, $colRight, $y, $white, $acc, $onAcc, $shadow, false, $align); $y += $lh; }
@@ -1348,7 +1380,7 @@ function cpl_render_layout(array $p, int $rawMid, string $headline, array $ov = 
     if (preg_match('/^#?([0-9a-fA-F]{6})$/', $cAcc, $cm)) { $ar2 = hexdec(substr($cm[1], 0, 2)); $ag = hexdec(substr($cm[1], 2, 2)); $ab = hexdec(substr($cm[1], 4, 2)); }
     else { [$ar2, $ag, $ab] = cpl_accent_rgb($p); }
     $accRGB = [$ar2, $ag, $ab]; $lum = 0.299 * $ar2 + 0.587 * $ag + 0.114 * $ab;
-    $GLOBALS['cpl_fx'] = (string)($to['txt_effect'] ?? 'none'); $GLOBALS['cpl_fx_acc'] = $accRGB;
+    $GLOBALS['cpl_fx'] = (string)($to['txt_effect'] ?? 'none'); $GLOBALS['cpl_fx_acc'] = $accRGB; $GLOBALS['cpl_fx_font'] = (string)($to['font'] ?? 'auto');
     // خلفية داكنة مشتقة من لون الهوية (نسخة غامقة جدًا) — تحافظ على التناسق
     $dark = [max(8, (int)round($ar2 * 0.16) + 8), max(10, (int)round($ag * 0.16) + 10), max(14, (int)round($ab * 0.16) + 16)];
     // اختيار القالب

@@ -1,0 +1,17 @@
+# نشر خدمة مؤثرات النص بضغطة واحدة على Render.com (بدون أوامر Docker/VPS)
+# الطريقة: على render.com → New → Blueprint → اختر هذا الريبو. سيبني fx-service تلقائيًا ويعطيك رابطًا.
+# ثم انسخ قيمة FX_TOKEN من صفحة الخدمة في Render، وضَع الرابط والتوكن في: لوحة الأدمن → خدمة مؤثرات النص.
+services:
+  - type: web
+    name: shohad-fx
+    runtime: docker
+    dockerfilePath: ./fx-service/Dockerfile
+    dockerContext: ./fx-service
+    plan: starter
+    healthCheckPath: /health
+    autoDeploy: false
+    envVars:
+      - key: FX_TOKEN
+        generateValue: true
+      - key: PORT
+        value: 8080

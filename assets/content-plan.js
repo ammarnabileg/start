@@ -199,16 +199,26 @@
       switch (fx) {
         case 'shadow': return { textShadow: '3px 3px 0 rgba(8,10,16,.6)', webkitTextStroke: '' };
         case 'outline': return { textShadow: '', webkitTextStroke: '2px #0f1116' };
+        case 'sticker': return { textShadow: '4px 5px 6px rgba(0,0,0,.5)', webkitTextStroke: '6px #ffffff', paintOrder: 'stroke fill' };
         case '3d': return { textShadow: '1px 1px 0 #0b0d12,2px 2px 0 #0b0d12,3px 3px 0 #0b0d12,4px 4px 0 #0b0d12,6px 6px 8px rgba(0,0,0,.45)', webkitTextStroke: '' };
+        case 'gold': return { textShadow: '0 2px 0 #4a3608,0 4px 6px rgba(0,0,0,.5)', webkitTextStroke: '', gold: true };
         case 'glow': return { textShadow: '0 0 10px #60a5fa,0 0 20px #3b82f6,0 0 30px #2563eb', webkitTextStroke: '' };
         default: return { textShadow: '', webkitTextStroke: '' };
       }
+    }
+    function applyFx(el, s) {
+      el.style.textShadow = s.textShadow || '';
+      el.style.webkitTextStroke = s.webkitTextStroke || '';
+      el.style.paintOrder = s.paintOrder || '';
+      if (s.gold) { el.style.background = 'linear-gradient(180deg,#fff7cc,#f5d142 42%,#c9971f 60%,#8a6a16)'; el.style.webkitBackgroundClip = 'text'; el.style.backgroundClip = 'text'; el.style.webkitTextFillColor = 'transparent'; }
+      else { el.style.background = ''; el.style.webkitBackgroundClip = ''; el.style.backgroundClip = ''; el.style.webkitTextFillColor = ''; }
     }
     function fontPrev() {
       if (!fprev) return;
       if (fsel) { var o = fsel.options[fsel.selectedIndex], fam = o ? o.getAttribute('data-fam') : ''; fprev.style.fontFamily = fam ? ("'" + fam + "',sans-serif") : ''; }
       var s = fxStyle(fxsel ? fxsel.value : 'none');
-      fprev.style.textShadow = s.textShadow; fprev.style.webkitTextStroke = s.webkitTextStroke;
+      applyFx(fprev, s);
+      Array.prototype.forEach.call(fprev.children, function (ch) { applyFx(ch, s); });
     }
     if (fsel) fsel.addEventListener('change', function () { fontPrev(); saveDraft(); });
     if (fxsel) fxsel.addEventListener('change', function () { fontPrev(); saveDraft(); });

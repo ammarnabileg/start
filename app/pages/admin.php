@@ -2,6 +2,15 @@
 /** إدارة المنصة: نظرة عامة (لمدير النظام) */
 $pdo = db();
 
+// حفظ إعداد خدمة مؤثرات النص (عام للنظام)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'fx') {
+    save_setting('fx_render_url', rtrim(trim((string)($_POST['fx_render_url'] ?? '')), '/'));
+    save_setting('fx_render_token', trim((string)($_POST['fx_render_token'] ?? '')));
+    log_activity('admin.fx_settings');
+    flash('success', t('اتحفظ إعداد خدمة المؤثرات.'));
+    redirect(url('admin'));
+}
+
 $n = function (string $sql, array $p = []) use ($pdo) {
     $st = $pdo->prepare($sql);
     $st->execute($p);
@@ -75,7 +84,18 @@ render(t('نظرة عامة'), 'admin', function () use ($stats, $days, $topWs, 
         </div>
         <span class="text-amber-700 text-sm font-medium shrink-0"><?= e(t('مراجعة ←')) ?></span>
       </a>
-    <?php endif;
+    <?php endif; ?>
+    <div class="rounded-2xl border border-ink-200 bg-white p-5 mb-6">
+      <div class="font-bold text-ink-900 mb-1">✨ <?= e(t('خدمة مؤثرات النص (fx-service)')) ?></div>
+      <p class="text-xs text-ink-500 mb-3"><?= e(t('رابط خدمة الرندر على سيرفرك والتوكن (لتأثيرات العناوين: ذهبي/ثري دي/ستيكر/نيون). اتركه فارغًا لاستخدام محرّك GD الأساسي.')) ?></p>
+      <form method="post" class="grid sm:grid-cols-2 gap-3">
+        <?= csrf_field() ?><input type="hidden" name="form" value="fx">
+        <label class="block"><span class="text-xs text-ink-500">Render URL</span><input name="fx_render_url" dir="ltr" class="input !py-2" placeholder="https://fx.example.com" value="<?= e((string)setting('fx_render_url', '')) ?>"></label>
+        <label class="block"><span class="text-xs text-ink-500">Token</span><input name="fx_render_token" dir="ltr" class="input !py-2" value="<?= e((string)setting('fx_render_token', '')) ?>"></label>
+        <div class="sm:col-span-2"><button class="btn-primary !py-2"><?= e(t('حفظ')) ?></button></div>
+      </form>
+    </div>
+    <?php
     $cards = [
         [t('المستخدمين'), $stats['users'], t('%s نشطين آخر 7 أيام · %s موقوفين', $stats['active7'], $stats['users_suspended']), url('admin_users')],
         [t('الشركات'), $stats['workspaces'], t('%s مش مربوطة · %s موقوفة', $stats['ws_unconnected'], $stats['ws_suspended']), url('admin_workspaces')],

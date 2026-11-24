@@ -45,7 +45,7 @@ app.post('/render', async (req, res) => {
     const b = await getBrowser();
     page = await b.newPage({ deviceScaleFactor: scale, viewport: { width: MAX_W, height: MAX_H } });
     await page.setContent(buildHtml(body), { waitUntil: 'networkidle', timeout: 15000 });
-    await page.evaluate(() => document.fonts && document.fonts.ready).catch(() => {});
+    await page.waitForFunction('window.__fxReady===true', { timeout: 8000 }).catch(() => {});
     const el = await page.$('#wrap');
     if (!el) throw new Error('no element');
     const png = await el.screenshot({ omitBackground: true, type: 'png' });

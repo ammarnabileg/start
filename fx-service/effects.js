@@ -77,8 +77,14 @@ function buildHtml(o) {
   const align = ['right', 'left', 'center'].includes(o.align) ? o.align : (rtl ? 'right' : 'left');
   const fam = FONTS[o.font] || FONTS.auto;
   const lh = (o.lineHeight && +o.lineHeight) || (rtl ? 1.5 : 1.35);
+  const height = Math.max(0, parseInt(o.height, 10) || 0); // صندوق ارتفاع اختياري: نقلّص الخط ليدخل فيه
   const pad = Math.round(size * 0.55); // هامش شفاف يستوعب الظل/التوهّج دون قص
   const css = effectCss(effect, acc, size);
+  // سكربت الملاءمة: يقلّل حجم الخط حتى يدخل النص في العرض والارتفاع المطلوبين
+  const fit = `<script>(function(){function go(){var t=document.getElementById('t');var W=${width},H=${height};var s=${size};
+    while(s>12&&(t.scrollWidth>W+1||(H&&t.scrollHeight>H+1))){s-=2;t.style.fontSize=s+'px';}
+    window.__fxReady=true;}
+    if(document.fonts&&document.fonts.ready){document.fonts.ready.then(go);}else{go();}})();</script>`;
 
   // تلوين كلمة مفتاحية داخل السطر بلون الهوية (إن لم يكن التأثير يلوّن النص كله)
   let body = text;
@@ -97,7 +103,7 @@ function buildHtml(o) {
   #t{font-family:'${fam}',system-ui,sans-serif;font-weight:900;font-size:${size}px;line-height:${lh};
      width:${width}px;text-align:${align};word-break:break-word;${css}}
 </style></head>
-<body><div id="wrap"><div id="t">${body}</div></div></body></html>`;
+<body><div id="wrap"><div id="t">${body}</div></div>${fit}</body></html>`;
 }
 
 module.exports = { buildHtml };

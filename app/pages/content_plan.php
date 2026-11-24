@@ -487,7 +487,7 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
               <?php endforeach; ?>
             </select>
             <select name="txt_effect" id="cp-fx-sel" class="input !py-2.5">
-              <?php foreach (['none' => t('بدون تأثير'), 'shadow' => t('ظل'), 'outline' => t('حدود (خط حول الحروف)'), '3d' => t('ثري دي (بروز)'), 'glow' => t('توهّج (نيون)')] as $fxk => $fxl): ?>
+              <?php foreach (['none' => t('بدون تأثير'), 'shadow' => t('ظل'), 'outline' => t('حدود (خط حول الحروف)'), 'sticker' => t('ستيكر (حدود بيضاء سميكة)'), '3d' => t('ثري دي (بروز ملوّن)'), 'gold' => t('ذهبي معدني'), 'glow' => t('توهّج (نيون)')] as $fxk => $fxl): ?>
               <option value="<?= e($fxk) ?>" <?= $fxk === 'none' ? 'selected' : '' ?>><?= e($fxl) ?></option>
               <?php endforeach; ?>
             </select>
