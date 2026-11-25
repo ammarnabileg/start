@@ -1387,7 +1387,7 @@ return [
                 }
                 $pdo->prepare("INSERT INTO workspaces (name, created_by, timezone, approval_status, sub_status, plan, legacy, admin_override)
                     VALUES (?, NULL, 'Asia/Riyadh', 'approved', 'active', 'pro', 0, 1)")
-                    ->execute(['🎓 ' . 'شركة الديمو — وتد (عرض)']);
+                    ->execute(['🎓 Demo']);
                 $wid = (int)$pdo->lastInsertId();
                 if ($wid <= 0) return;
                 $pdo->prepare("INSERT INTO settings (name, value) VALUES ('demo_ws_id', ?) ON DUPLICATE KEY UPDATE value = VALUES(value)")->execute([(string)$wid]);
@@ -1432,6 +1432,50 @@ return [
                     ['Gulf Defense Systems', 'https://gds.example', 'لاعب إقليمي في الأتمتة الصناعية.'],
                 ] as $c) { try { $comp->execute([$wid, $c[0], $c[1], $c[2]]); } catch (Throwable $e) {} }
             } catch (Throwable $e) { /* أبدًا لا نكسر النشر بسبب بيانات الديمو */ }
+        },
+    ],
+    // المرحلة 2 من بيانات الديمو: عملاء (CRM) + محتوى معتمد (مخزون المحتوى). منفصلة لأن 086 اتشغّلت بالفعل.
+    '087_demo_data_2' => [
+        function (PDO $pdo) {
+            try {
+                $wid = (int)($pdo->query("SELECT value FROM settings WHERE name = 'demo_ws_id'")->fetchColumn());
+                if ($wid <= 0) return;
+                // تصحيح اسم وورك سبيس الديمو (كان فيه اسم الشركة الوهمية)
+                try { $pdo->prepare("UPDATE workspaces SET name = '🎓 Demo' WHERE id = ?")->execute([$wid]); } catch (Throwable $e) {}
+                // لا تكرّر لو اتزرعت قبل كده
+                $has = $pdo->prepare("SELECT COUNT(*) FROM crm_leads WHERE workspace_id = ?"); $has->execute([$wid]);
+                if ((int)$has->fetchColumn() > 0) return;
+
+                // عملاء محتملون (B2B)
+                $lead = $pdo->prepare("INSERT INTO crm_leads (workspace_id, source, company, name, title, email, phone, country, stage, deal_value, note)
+                    VALUES (?, 'manual', ?, ?, ?, ?, ?, 'SA', ?, ?, ?)");
+                foreach ([
+                    ['أرامكو السعودية', 'م. خالد العتيبي', 'مدير أمن المعلومات (CISO)', 'k.otaibi@example.sa', '+966500000001', 'qualified', 2400000, 'مهتم بحل أمن OT لمصفاة الرياض. اجتماع فني الأسبوع القادم.'],
+                    ['سابك', 'أ. نورة القحطاني', 'مدير العمليات الصناعية', 'n.q@example.sa', '+966500000002', 'proposal', 3100000, 'أُرسل عرض تحديث SCADA. بانتظار موافقة اللجنة.'],
+                    ['شركة الكهرباء السعودية', 'م. سعد الدوسري', 'مدير البنية التحتية', 's.d@example.sa', '+966500000003', 'contacted', 1800000, 'تواصل أولي حول SOC. طلب دراسة جدوى.'],
+                    ['موانئ (الهيئة العامة)', 'أ. ريم الشمري', 'CTO', 'r.shamri@example.sa', '+966500000004', 'won', 650000, 'عقد جدار حماية موقّع. بدء التنفيذ.'],
+                    ['معادن', 'م. فهد الحربي', 'رئيس الأمن السيبراني', 'f.h@example.sa', '+966500000005', 'new', 540000, 'عميل جديد من حملة LinkedIn.'],
+                    ['البنك الأهلي', 'أ. لمى العنزي', 'مدير المخاطر التقنية', 'l.anzi@example.sa', '+966500000006', 'qualified', 900000, 'مهتم بـ SIEM. حدّدنا موعد عرض.'],
+                ] as $l) { try { $lead->execute([$wid, $l[0], $l[1], $l[2], $l[3], $l[4], $l[5], $l[6], $l[7]]); } catch (Throwable $e) {} }
+
+                // خطة محتوى + منشورات معتمدة (تظهر في «مخزون المحتوى»)
+                $pdo->prepare("INSERT INTO cp_plans (workspace_id, name, goal, cnt, stage, status, opts)
+                    VALUES (?, ?, ?, ?, 'done', 'review', ?)")
+                    ->execute([$wid, 'حملة أمن OT — الربع الرابع', 'الوصول لمدراء الأمن في قطاع الطاقة وحجز عروض OT', 5,
+                        json_encode(['lang' => 'ar', 'dialect' => 'saudi', 'design_mode' => 'ai'], JSON_UNESCAPED_UNICODE)]);
+                $pid = (int)$pdo->lastInsertId();
+                if ($pid > 0) {
+                    $it = $pdo->prepare("INSERT INTO cp_items (plan_id, workspace_id, seq, topic, linkedin, x, headline, image_prompt, status)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'approved')");
+                    $posts = [
+                        ['من يراقب شبكة الـ SCADA ليلاً؟', 'أغلب اختراقات المنشآت الصناعية تبدأ بعد ساعات العمل، حين لا يراقب أحد. مركز عمليات أمنية (SOC) يعمل 24/7 يكشف الشذوذ في دقائق قبل أن يصل للإنتاج. النتيجة: توقّف أقل، ومخاطر أقل. احجز تقييمًا أمنيًا لبيئة OT لديك.\n#الأمن_السيبراني #OT #SCADA', 'من يراقب الـ SCADA بعد انتهاء الدوام؟ SOC يعمل 24/7 يكشف الاختراق في دقائق. #أمن_OT', 'من يراقب «SCADA»؟'],
+                        ['النسخ الاحتياطي ليس خطة', 'النسخة الاحتياطية تعيد البيانات، لكنها لا توقف الهجوم ولا تمنع توقّف الإنتاج. الخطة الحقيقية: عزل الشبكات، مراقبة مستمرة، واستجابة سريعة. هكذا تتحول من رد الفعل إلى الاستباق. تحدّث معنا عن جاهزية منشأتك.\n#أمن_المعلومات #OT', 'النسخ الاحتياطي يعيد البيانات، لا يوقف الهجوم. الخطة = عزل + مراقبة + استجابة. #أمن_OT', '«النسخ» ليس خطة'],
+                        ['٧٠٪ من الاختراقات تبدأ من الطرف', 'الأجهزة الطرفية هي الباب الخلفي لشبكتك الصناعية. جدار حماية من الجيل القادم (NGFW) يفحص كل اتصال ويمنع التسلل قبل أن يصل للأنظمة الحرجة. ابدأ من حيث يبدأ المهاجم. اطلب عرضًا فنيًا.\n#NGFW #الأمن_السيبراني', '٧٠٪ من الاختراقات تبدأ من الطرف. NGFW يفحص كل اتصال. #أمن_الشبكات', '«٧٠٪» من الطرف'],
+                    ];
+                    $seq = 1;
+                    foreach ($posts as $p) { try { $it->execute([$pid, $wid, $seq++, json_encode(['title' => $p[0], 'angle' => '', 'service' => 'OT Security', 'audience' => 'CISO', 'objective' => 'leads'], JSON_UNESCAPED_UNICODE), $p[1], $p[2], $p[3], 'A premium full-canvas cybersecurity social design, dark control-room scene, brand teal accents, headline integrated top-left. 4:5 1080x1350.']); } catch (Throwable $e) {} }
+                }
+            } catch (Throwable $e) { /* بيانات الديمو لا تكسر النشر أبدًا */ }
         },
     ],
 ];
