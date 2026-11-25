@@ -98,7 +98,7 @@ function cpl_create(array $in): int
         'img_q' => in_array($in['img_q'] ?? '', ['medium', 'high'], true) ? (string)$in['img_q'] : 'high',
         'style' => array_key_exists((string)($in['style'] ?? 'auto'), cpl_styles()) ? (string)$in['style'] : 'auto',
         'aspect' => in_array($in['aspect'] ?? '', ['4:5', '1:1', '9:16', '16:9'], true) ? (string)$in['aspect'] : '4:5',
-        'design_mode' => in_array($in['design_mode'] ?? '', ['photo', 'layout', 'ai'], true) ? (string)$in['design_mode'] : 'layout',
+        'design_mode' => in_array($in['design_mode'] ?? '', ['photo', 'layout', 'ai'], true) ? (string)$in['design_mode'] : 'ai',
         'layout' => array_key_exists((string)($in['layout'] ?? 'full'), cpl_layouts()) ? (string)$in['layout'] : 'full',
         'topics_first' => !isset($in['topics_first']) || !empty($in['topics_first']),
         'txt_pos' => in_array($in['txt_pos'] ?? '', ['auto', 'top', 'bottom'], true) ? (string)$in['txt_pos'] : 'auto',
@@ -121,7 +121,7 @@ function cpl_create(array $in): int
 
 function cpl_opts(array $p): array { return (json_decode((string)$p['opts'], true) ?: []) + ['lang' => 'ar', 'dialect' => '', 'audience' => '', 'services' => [], 'tone' => '', 'cta' => '', 'avoid' => '', 'about' => '', 'font' => 'auto', 'video' => true, 'carousel' => true, 'humanize' => true, 'qc' => true, 'img_q' => 'high', 'style' => 'auto', 'products' => [], 'ref_presets' => [], 'aspect' => '4:5',
     'txt_pos' => 'auto', 'txt_size' => 'm', 'txt_variant' => 'auto', 'txt_effect' => 'none', 'txt_accent' => '', 'txt_scale' => 100, 'txt_align' => 'auto', 'txt_y' => null,
-    'design_mode' => 'layout', 'layout' => 'full', 'topics_first' => true]; }
+    'design_mode' => 'ai', 'layout' => 'full', 'topics_first' => true]; }
 
 /** نسبة/حجم الصورة المختارة للخطة (4:5 طولي افتراضيًا). */
 function cpl_aspect(array $p): string { $a = (string)(cpl_opts($p)['aspect'] ?? '4:5'); return in_array($a, ['4:5', '1:1', '9:16', '16:9'], true) ? $a : '4:5'; }

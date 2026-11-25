@@ -137,7 +137,7 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
         $__refs = array_merge($__pProds, $__pRefs);
         foreach ($__pPres as $__pk) { $__refs[] = ['thumb' => 'assets/ref-presets/ref' . $__pk . '.webp', 'full' => 'assets/ref-presets/ref' . $__pk . '.webp']; }
         $__refSrc = ['refs' => $__pRefs, 'products' => $__pProds, 'presets' => $__pPres];
-        $cfg['plan'] = cpl_status($plan) + ['name' => (string)$plan['name'], 'has_logo' => $__lg ? 1 : 0, 'logo' => $__lg ? url('media', ['file' => $__lg['id']]) : '', 'accent' => sprintf('#%02x%02x%02x', $__ar, $__ag, $__ab), 'imgPrice' => cpl_img_unit_cost($plan), 'txt_effect' => (string)(cpl_opts($plan)['txt_effect'] ?? 'none'), 'design_mode' => (string)(cpl_opts($plan)['design_mode'] ?? 'layout'), 'refs' => $__refs, 'ref_src' => $__refSrc]; ?>
+        $cfg['plan'] = cpl_status($plan) + ['name' => (string)$plan['name'], 'has_logo' => $__lg ? 1 : 0, 'logo' => $__lg ? url('media', ['file' => $__lg['id']]) : '', 'accent' => sprintf('#%02x%02x%02x', $__ar, $__ag, $__ab), 'imgPrice' => cpl_img_unit_cost($plan), 'txt_effect' => (string)(cpl_opts($plan)['txt_effect'] ?? 'none'), 'design_mode' => (string)(cpl_opts($plan)['design_mode'] ?? 'ai'), 'refs' => $__refs, 'ref_src' => $__refSrc]; ?>
     <div class="flex flex-wrap items-center gap-2 mb-4">
       <a href="<?= e(url('content_plan')) ?>" class="btn-ghost !py-1.5">← <?= e(t('كل الخطط')) ?></a>
       <span class="text-sm text-ink-500 min-w-0 flex-1 truncate"><?= e(mb_substr((string)$plan['goal'], 0, 160)) ?></span>
@@ -361,12 +361,12 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
         <span class="label"><?= e(t('طريقة إخراج التصميم')) ?></span>
         <p class="text-xs text-ink-500 mb-2"><?= e(t('أهم اختيار: كيف يخرج شكل المنشور النهائي.')) ?></p>
         <?php $dmodes = [
-          'layout' => ['🎨', t('قوالب تخطيط'), t('الذكاء يولّد الخلفية، ونظامنا يركّب التصميم والنص بهوية شركتك — نص عربي مضبوط دائمًا، والأقرب لشغل الوكالات.')],
-          'ai' => ['✨', t('ذكاء اصطناعي'), t('الذكاء يولّد التصميم كاملًا بالنص داخله — أكثر تنوّعًا بصريًا، لكنه قد يكسر النص العربي أحيانًا (تجريبي).')],
+          'ai' => ['✨', t('ذكاء اصطناعي'), t('الذكاء يولّد التصميم كاملًا بالنص داخله ويملأ الكادر — الأقرب لتصميمات الريفرانس وأكثر تنوّعًا بصريًا (قد يكسر النص العربي أحيانًا).')],
+          'layout' => ['🎨', t('قوالب تخطيط'), t('الذكاء يولّد الخلفية، ونظامنا يركّب التصميم والنص بهوية شركتك — نص عربي مضبوط دائمًا داخل قالب ثابت.')],
         ]; ?>
         <div class="grid sm:grid-cols-2 gap-2" id="cp-dmode">
           <?php foreach ($dmodes as $mk => [$mi, $ml, $md]): ?>
-          <label class="cursor-pointer"><input type="radio" name="design_mode" value="<?= e($mk) ?>" class="peer sr-only" <?= $mk === 'layout' ? 'checked' : '' ?>>
+          <label class="cursor-pointer"><input type="radio" name="design_mode" value="<?= e($mk) ?>" class="peer sr-only" <?= $mk === 'ai' ? 'checked' : '' ?>>
             <span class="block h-full rounded-xl border border-ink-200 p-3 transition hover:border-brand-300 peer-checked:border-brand-500 peer-checked:bg-brand-50">
               <span class="text-xl"><?= $mi ?></span>
               <b class="block text-sm text-ink-900 mt-1"><?= e($ml) ?></b>
