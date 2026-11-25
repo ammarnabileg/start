@@ -110,6 +110,7 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
     if (count($invites) && !($alertsN + $crmN)) $bellHref = url('workspaces');
     if ($apN) $bellHref = url('approvals');
   ?>
+  <?php if ($curWs): ?><button type="button" id="onb-launch" title="<?= e(t('وضع التعلّم')) ?>"><span>🎓</span><span class="hidden md:inline"><?= e(t('جولة تعليمية')) ?></span></button><?php endif; ?>
   <a href="<?= e($bellHref) ?>" id="tb-bell" data-n="<?= (int)$bellN ?>" class="tb relative w-10 justify-center <?= $bellN ? '!text-ink-900' : '' ?>" title="<?= e(t('التنبيهات')) ?>">
     <?= $icon('M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 00-4-5.7V5a2 2 0 10-4 0v.3A6 6 0 006 11v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1') ?>
     <?php if ($bellN): ?><span data-bell-badge data-other="<?= (int)(count($invites) + $crmN + $apN) ?>" class="absolute -top-1.5 -end-1.5 bg-rose-600 text-[#fff] text-[10px] font-bold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center ring-2 ring-white"><?= (int)$bellN ?></span><?php endif; ?>
@@ -382,6 +383,10 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
   ping(); setInterval(ping, 15000);
 })();
 </script>
+<?php endif; ?>
+<?php if ($curWs): /* وضع التعلّم: جولة تفاعلية بشركة ديمو */ ?>
+<script>window.ONB = { lang: <?= json_encode(lang()) ?>, auto: true };</script>
+<script src="assets/onboarding.js?v=<?= e(APP_VERSION) ?>" defer></script>
 <?php endif; ?>
 </body>
 </html>

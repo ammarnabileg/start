@@ -31,6 +31,7 @@ html.dark{--ink-50:10 16 32;--ink-100:16 26 51;--ink-200:28 40 70;--ink-300:43 5
 </style>
 <link rel="stylesheet" href="assets/app.css?v=<?= e(APP_VERSION) ?>">
 <link rel="stylesheet" href="assets/ds.css?v=<?= e(APP_VERSION) ?>">
+<link rel="stylesheet" href="assets/onboarding.css?v=<?= e(APP_VERSION) ?>">
 <?php $appName = trim((string)setting('site_name', '')) ?: t('لوحة النشر'); ?><meta name="application-name" content="<?= e($appName) ?>"><meta name="apple-mobile-web-app-title" content="<?= e($appName) ?>"><link rel="icon" type="image/png" sizes="192x192" href="index.php?p=appicon&amp;s=192&amp;v=<?= e(APP_VERSION) ?>"><link rel="icon" type="image/png" sizes="512x512" href="index.php?p=appicon&amp;s=512&amp;v=<?= e(APP_VERSION) ?>"><link rel="manifest" href="index.php?p=manifest"><meta name="theme-color" content="#2557e0"><link rel="apple-touch-icon" href="index.php?p=appicon&amp;s=192&amp;v=<?= e(APP_VERSION) ?>"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes">
 <?php // تنقّل أسرع: الصفحة بتتجاب في الخلفية لما الماوس يقف على اللينك (Chrome/Edge). الصفحات اللي ليها أثر (تصدير، خروج…) مستبعدة ?>
 <script type="speculationrules">{"prefetch":[{"where":{"and":[{"href_matches":"/*\\?p=*"},{"not":{"href_matches":"/*\\?*(export|ajax|logout|pref|switch|refresh|impersonate|download|img_proxy|voice|go&|crm_t|crm_go)*"}},{"not":{"selector_matches":"[data-modal],[download],[target=_blank],.no-prefetch"}}]},"eagerness":"moderate"}]}</script>
