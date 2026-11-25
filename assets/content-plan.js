@@ -137,7 +137,7 @@
       var grad = '#1e293b', sel = W.querySelector('[name=style]:checked');
       if (sel) { var lbl = sel.closest('label'), mk = lbl && lbl.querySelector('.cp-pmock'); if (mk && mk.style.background) grad = mk.style.background; }
       var fam = (d.font && d.font !== 'auto') ? ("'" + d.font + "',sans-serif") : "'Cairo',sans-serif";
-      var head = String(d.goal || '').replace(/\s+/g, ' ').trim().split(' ').slice(0, 5).join(' ') || 'عنوان منشورك هنا';
+      var head = String(d.goal || '').replace(/\s+/g, ' ').trim().split(' ').slice(0, 5).join(' ') || (C.lang === 'en' ? 'Your headline here' : 'عنوان منشورك هنا');
       var s = (typeof fxStyle === 'function') ? fxStyle(d.txt_effect || 'none') : { textShadow: '0 2px 10px rgba(0,0,0,.5)' };
       var pl = (typeof P !== 'undefined' && P) ? P : (typeof C !== 'undefined' && C && C.plan) ? C.plan : null;
       var logo = (pl && pl.logo) ? '<img src="' + esc(pl.logo) + '" style="position:absolute;top:7%;inset-inline-start:7%;height:12%;object-fit:contain">' : '';
