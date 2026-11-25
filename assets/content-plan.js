@@ -319,7 +319,13 @@
       + '<button type="button" data-copy="' + field + '" class="text-xs link">' + esc(T.copy) + '</button>' + (it.status === 'draft' || it.status === 'approved' || it.status === 'rejected' ? ' <button type="button" data-edit="' + field + '" class="text-xs link">' + esc(T.edit) + '</button>' : '')
       + (['linkedin', 'x', 'headline', 'image_prompt'].indexOf(field) >= 0 && ['draft', 'approved', 'rejected'].indexOf(it.status) >= 0 ? ' <button type="button" data-refield="' + field + '" class="text-xs link" title="' + esc(T.reField || 'إعادة توليد هذا الحقل فقط') + '">↻</button>' : '')
       + ((field === 'image_prompt' || field === 'video_prompt') && ['draft', 'approved', 'rejected'].indexOf(it.status) >= 0 ? ' <button type="button" data-gen1="' + (field === 'image_prompt' ? 'image' : 'video') + '" class="text-xs font-semibold text-brand-700 hover:underline">' + esc(T.genOne) + '</button>' : '') + '</div>'
-      + '<div class="cp-txt text-sm whitespace-pre-wrap break-words" ' + (en ? 'dir="ltr"' : 'dir="auto"') + '>' + esc(text) + '</div></section>';
+      + '<div class="cp-txt text-sm whitespace-pre-wrap break-words" ' + (en ? 'dir="ltr"' : 'dir="auto"') + '>' + esc(text) + '</div>'
+      + (field === 'image_prompt' && P && (P.refs || []).length
+        ? '<div class="mt-2 pt-2 border-t border-ink-100"><div class="text-[11px] text-ink-400 mb-1">' + esc(T.refsUsed || 'الصور المرجعية المرسلة') + '</div><div class="flex flex-wrap gap-1.5">'
+          + P.refs.map(function (r) { return '<a href="' + esc(r.full) + '" target="_blank" title="' + esc(T.refsUsed || 'مرجع') + '"><img src="' + esc(r.thumb) + '" class="w-14 h-16 object-cover rounded-lg border border-ink-200" alt="" loading="lazy"></a>'; }).join('')
+          + '</div></div>'
+        : '')
+      + '</section>';
   }
   function card(it) {
     var t = it.topic || {}, st = it.status, ready = it.linkedin != null;

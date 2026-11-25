@@ -100,7 +100,7 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
         'ilAdj' => t('اضبط اللوجو'), 'ilTitle' => t('ضبط اللوجو على هذه الصورة'), 'ilHint' => t('اسحب اللوجو لأي مكان — حتى خارج حدود الصورة. الخط المتقطع = المنطقة الآمنة.'), 'ilSize' => t('الحجم'), 'ilOp' => t('الشفافية'), 'ilColor' => t('لون اللوجو'), 'ilPlate' => t('خلفية خلف اللوجو'), 'ilSave' => t('حفظ'), 'ilSaved' => t('تم تحديث اللوجو على الصورة.'), 'ilNone' => t('لا يوجد لوجو في ملف الشركة.'), 'ilBusy' => t('جارٍ إعادة التركيب…'),
         'itAdj' => t('صمّم'), 'itReDo' => t('أعد التصميم'), 'itSaved' => t('تم حفظ التصميم ✓'),
         'layoutErr' => t('يوجد نص خارج حدود التصميم. قصّر النص أو كبّر المربع أو حرّكه للداخل قبل الحفظ.'), 'layoutWarn' => t('تنبيه: حجم بعض النصوص صغير وقد يصعب قراءته.'),
-        'draftBack' => t('تم استرجاع آخر تعديل غير محفوظ.'), 'lkOn' => t('مقفول'), 'lkOff' => t('مفتوح'), 'reField' => t('إعادة توليد هذا الحقل فقط'),
+        'draftBack' => t('تم استرجاع آخر تعديل غير محفوظ.'), 'lkOn' => t('مقفول'), 'lkOff' => t('مفتوح'), 'reField' => t('إعادة توليد هذا الحقل فقط'), 'refsUsed' => t('الصور المرجعية المرسلة'),
         'brandNoLogo' => t('تنبيه: التصميم بدون شعار الشركة.'), 'noMatch' => t('لا نتائج مطابقة للبحث.'), 'verLabel' => t('⟲ نسخة سابقة'), 'verLoaded' => t('تم تحميل النسخة — احفظ لاعتمادها'), 'cropPick' => t('اختر صورة لقصّها'),
         'calc' => t('جارٍ الحساب…'), 'costNone' => t('لا توجد بيانات تكلفة لهذه الحملة بعد (تظهر مع التوليد القادم).'), 'costTotal' => t('الإجمالي'), 'costPer' => t('لكل منشور معتمد'), 'costText' => t('النصوص'), 'costMedia' => t('الصور/الفيديو'), 'costTask' => t('المهمة'), 'costProv' => t('المزوّد'), 'costCost' => t('التكلفة'), 'itAllAsk' => t('تطبيق المكان والحجم والنمط واللون على كل التصاميم؟ (يبقى نصّ كل منشور كما هو)'), 'itAllDone' => t('تم تطبيق الإعدادات على %s تصميم.'),
         'ilTint' => ['orig' => t('الأصلي'), 'white' => t('أبيض'), 'black' => t('أسود')], 'ilPlateV' => ['none' => t('بدون'), 'light' => t('فاتحة'), 'dark' => t('داكنة')],
@@ -113,7 +113,11 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
     if (function_exists('img_provider') && img_provider() === 'openai' && function_exists('img_openai_cost')) {
         $cfg['imgCost'] = ['high' => round(img_openai_cost('high', '1024x1536'), 4), 'medium' => round(img_openai_cost('medium', '1024x1536'), 4)];
     }
-    if ($plan): $__lg = function_exists('kb_logo') ? kb_logo($wid) : null; [$__ar, $__ag, $__ab] = cpl_accent_rgb($plan); $cfg['plan'] = cpl_status($plan) + ['name' => (string)$plan['name'], 'has_logo' => $__lg ? 1 : 0, 'logo' => $__lg ? url('media', ['file' => $__lg['id']]) : '', 'accent' => sprintf('#%02x%02x%02x', $__ar, $__ag, $__ab), 'imgPrice' => cpl_img_unit_cost($plan), 'txt_effect' => (string)(cpl_opts($plan)['txt_effect'] ?? 'none'), 'design_mode' => (string)(cpl_opts($plan)['design_mode'] ?? 'layout')]; ?>
+    if ($plan): $__lg = function_exists('kb_logo') ? kb_logo($wid) : null; [$__ar, $__ag, $__ab] = cpl_accent_rgb($plan);
+        $__refs = [];
+        foreach (array_slice(json_decode((string)$plan['refs'], true) ?: [], 0, 12) as $__rid) { $__rid = (int)$__rid; if ($__rid > 0) $__refs[] = ['thumb' => url('media', ['file' => $__rid, 'thumb' => 1]), 'full' => url('media', ['file' => $__rid])]; }
+        foreach ((array)(cpl_opts($plan)['ref_presets'] ?? []) as $__pk) { if (in_array((string)$__pk, ['1', '2', '3', '4', '5'], true)) $__refs[] = ['thumb' => 'assets/ref-presets/ref' . $__pk . '.webp', 'full' => 'assets/ref-presets/ref' . $__pk . '.webp']; }
+        $cfg['plan'] = cpl_status($plan) + ['name' => (string)$plan['name'], 'has_logo' => $__lg ? 1 : 0, 'logo' => $__lg ? url('media', ['file' => $__lg['id']]) : '', 'accent' => sprintf('#%02x%02x%02x', $__ar, $__ag, $__ab), 'imgPrice' => cpl_img_unit_cost($plan), 'txt_effect' => (string)(cpl_opts($plan)['txt_effect'] ?? 'none'), 'design_mode' => (string)(cpl_opts($plan)['design_mode'] ?? 'layout'), 'refs' => $__refs]; ?>
     <div class="flex flex-wrap items-center gap-2 mb-4">
       <a href="<?= e(url('content_plan')) ?>" class="btn-ghost !py-1.5">← <?= e(t('كل الخطط')) ?></a>
       <span class="text-sm text-ink-500 min-w-0 flex-1 truncate"><?= e(mb_substr((string)$plan['goal'], 0, 160)) ?></span>

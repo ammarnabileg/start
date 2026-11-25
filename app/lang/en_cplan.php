@@ -284,6 +284,7 @@ return [
     'ارفع تصميمات تعجبك وحدد مكان الشعار. كل ذلك اختياري.' => 'Upload designs you like and place the logo. All optional.',
     'مراجعة قبل الكتابة' => 'Review before writing',
     'هذه الأفكار قبل كتابة النصوص. احذف ما لا تريده — سنكتب النصوص للأفكار المعتمدة فقط (توفيرًا للكريدت).' => 'These are the ideas before any copy is written. Delete what you don\'t want — we\'ll only write copy for the approved ones (saves credit).',
+    'الصور المرجعية المرسلة' => 'Reference images sent',
     'إيقاف التوليد' => 'Stop generation',
     'إيقاف التوليد الآن؟ المنشورات الجاهزة تبقى محفوظة، وتقدر تكمل لاحقًا.' => 'Stop generation now? Finished posts stay saved, and you can resume later.',
     'انقطع الاتصال. سنكمل تلقائيًا عند عودته، وكل ما تم محفوظ.' => 'Connection lost. We\'ll resume automatically once it\'s back, and everything so far is saved.',
