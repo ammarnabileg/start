@@ -185,7 +185,7 @@ function cpl_ref_images(array $p, int $wid, int $max = 4, ?array $ov = null): ar
         }
     }
     $hint = '';
-    if ($prod) $hint .= "\nThe first {$prod} attached image(s) show a real PRODUCT. Feature it faithfully as the hero (real shape, colour, packaging, label/logo intact and legible, correct perspective, lighting, shadow and reflections; never redesign it or invent text on it) ONLY IF this specific post is about that product or it fits the post's concept naturally. If the post topic is unrelated to the product, do NOT insert the product at all — use it only as a brand/style cue. Never force an irrelevant product into the scene.";
+    if ($prod) $hint .= "\nThe first {$prod} attached image(s) show the EXACT real PRODUCT the user chose to feature — it MUST appear in the design as the clear hero. Reproduce it faithfully: real shape, colour, packaging, proportions and its real label/logo kept intact and legible. Integrate it naturally into the scene with correct perspective, lighting, shadow and reflections. Do NOT redesign the product, do NOT invent text on it, and do NOT omit it.";
     if ($style) $hint .= "\nThe " . ($prod ? "remaining {$style}" : (string)$style) . " attached image(s) are STYLE REFERENCES — infer their shared visual system (colour palette, lighting mood, contrast, composition and polish) and apply it. Do not copy any subject, text, person or logo from them.";
     return [$files, $hint];
 }
@@ -250,7 +250,8 @@ function cpl_brief(array $p): string
         . ($o['audience'] !== '' ? "\nTarget audience / decision-makers: " . $o['audience'] : '')
         . ($o['services'] ? "\nFocus services: " . implode('; ', $o['services']) : '')
         . ($pal ? "\nLogo colors (hex): " . implode(', ', $pal) : '')
-        . ((string)$p['visual'] !== '' ? "\nVisual identity extracted from the reference images (apply it in every image, video and carousel direction):\n" . $p['visual'] : "\nNo reference images were supplied: derive the visual identity from the KB and logo colors.");
+        . ((string)$p['visual'] !== '' ? "\nVisual identity extracted from the reference DESIGNS the user supplied — these reference designs ARE the target look: every image_prompt you write MUST follow this identity (its palette, typography feel, composition, full-canvas design language and mood), not a generic or minimalist default:\n" . $p['visual'] : "\nNo reference images were supplied: derive the visual identity from the KB and logo colors.")
+        . (cpl_prod_ids($p) ? "\n\nPRODUCT TO FEATURE: the user attached a real PRODUCT image for this campaign. In EVERY image_prompt you write, make that product the clear HERO of the design — describe it being featured prominently and faithfully (real shape, packaging, label), integrated into the scene. Never write an image_prompt that omits the product or replaces it with an unrelated object; build the creative concept AROUND showcasing this product." : '');
 }
 
 /** خطوة واحدة من التوليد. ترجع حالة الخطة بعدها. آمنة لو اتنادت من أكتر من مكان (قفل). */
