@@ -405,4 +405,12 @@ return [
     'التليفون' => 'Phone',
     'الأرقام' => 'Numbers',
     'المكالمات' => 'Calls',
+    'وضع التعلّم' => 'Learning Mode',
+    'وضع التعلّم — شركة ديمو' => 'Learning Mode — demo company',
+    'جرّب على ديمو' => 'Try the demo',
+    'وضع العرض — شركة ديمو' => 'Demo mode — sample company',
+    'بيانات تجريبية للتعلّم فقط — التعديل والنشر موقوفان.' => 'Sample data for learning only — editing and publishing are disabled.',
+    'خروج من العرض' => 'Exit demo',
+    'وضع العرض غير متاح حاليًا.' => 'Demo mode is not available right now.',
+    'تعذّر فتح وضع العرض.' => 'Could not open demo mode.',
 ];
