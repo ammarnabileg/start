@@ -142,7 +142,9 @@
       var logo = (pl && pl.logo) ? '<img src="' + esc(pl.logo) + '" style="position:absolute;top:7%;inset-inline-start:7%;height:12%;object-fit:contain">' : '';
       var fxCss = 'text-shadow:' + (s.textShadow || '') + ';-webkit-text-stroke:' + (s.webkitTextStroke || '') + ';paint-order:' + (s.paintOrder || '') + ';';
       var fill = s.gold ? 'background:linear-gradient(180deg,#fff7cc,#f5d142 42%,#c9971f 60%,#8a6a16);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;' : 'color:#fff;';
-      box.innerHTML = '<div style="font-family:' + fam + ';position:relative;width:230px;aspect-ratio:4/5;border-radius:16px;overflow:hidden;background:' + grad + ';box-shadow:0 10px 30px -12px rgba(0,0,0,.5)">'
+      var arMap = { '4:5': '4/5', '1:1': '1/1', '9:16': '9/16', '16:9': '16/9' }, ar = arMap[d.aspect] || '4/5';
+      var pw = (d.aspect === '9:16') ? 190 : (d.aspect === '16:9' ? 300 : 260);
+      box.innerHTML = '<div style="font-family:' + fam + ';position:relative;width:' + pw + 'px;max-width:100%;aspect-ratio:' + ar + ';border-radius:16px;overflow:hidden;background:' + grad + ';box-shadow:0 10px 30px -12px rgba(0,0,0,.5)">'
         + '<div style="position:absolute;inset:0;background:radial-gradient(60% 50% at 70% 24%,rgba(255,255,255,.16),transparent 70%)"></div>'
         + '<div style="position:absolute;inset-inline:0;bottom:0;height:55%;background:linear-gradient(0deg,rgba(6,10,18,.82),transparent)"></div>'
         + logo
