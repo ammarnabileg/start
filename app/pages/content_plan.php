@@ -242,6 +242,10 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
       .cpw-prog-top b{color:#2563eb;font-size:13px}
       .cpw-prog-bar{height:7px;background:#eef2f7;border-radius:999px;overflow:hidden}
       .cpw-prog-bar i{display:block;height:100%;width:20%;background:linear-gradient(90deg,#2563eb,#06b6d4);border-radius:999px;transition:width .45s cubic-bezier(.22,1,.36,1)}
+      #cp-wiz .input,#cp-wiz select,#cp-wiz textarea{border-radius:12px}
+      #cp-wiz .input:focus,#cp-wiz select:focus,#cp-wiz textarea:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.14)}
+      #cp-wiz .label{font-weight:700}
+      .cpw-main{padding-bottom:24px}
       .cpw-head{display:flex;gap:12px;align-items:flex-start;margin-bottom:4px}
       .cpw-head-ic{width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,#eff6ff,#e0f2fe);color:#2563eb;display:grid;place-items:center;font-size:22px;flex:none;box-shadow:inset 0 0 0 1px rgba(37,99,235,.08)}
       .cpw-nav{display:flex;gap:10px}
