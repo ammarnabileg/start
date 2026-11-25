@@ -283,6 +283,7 @@ return [
     'شكل التصميمات' => 'Design look',
     'ارفع تصميمات تعجبك وحدد مكان الشعار. كل ذلك اختياري.' => 'Upload designs you like and place the logo. All optional.',
     'مراجعة قبل الكتابة' => 'Review before writing',
+    'هذه الأفكار قبل كتابة النصوص. احذف ما لا تريده — سنكتب النصوص للأفكار المعتمدة فقط (توفيرًا للكريدت).' => 'These are the ideas before any copy is written. Delete what you don\'t want — we\'ll only write copy for the approved ones (saves credit).',
     'راجع اختياراتك. يمكنك العودة إلى أي خطوة من الأعلى.' => 'Check your choices. You can jump back to any step above.',
     'السابق' => 'Back',
     'التالي' => 'Next',

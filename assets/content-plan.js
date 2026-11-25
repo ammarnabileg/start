@@ -375,7 +375,7 @@
       + '<button type="button" data-deltopic class="btn-ghost !py-1 !px-2 text-rose-600 shrink-0" title="' + esc(T.rejectTopic || 'رفض الفكرة') + '">🗑</button></div></article>';
   }
   function paint() {
-    if (P.status === 'topics') { list.className = 'space-y-2 pb-28'; var ts = items.slice().sort(function (a, b) { return a.seq - b.seq; }); list.innerHTML = '<div class="rounded-xl bg-brand-50 border border-brand-200 p-3 text-sm text-brand-800 mb-2">' + esc(T.topicsHint || 'دي الأفكار قبل كتابة النصوص. احذف اللي مش عايزه — هنكتب النصوص للمعتمد فقط (توفير كريدت).') + '</div>' + ts.map(topicCard).join(''); bar.classList.add('hidden'); fl.classList.add('hidden'); return; }
+    if (P.status === 'topics') { list.className = 'space-y-2 pb-28'; var ts = items.slice().sort(function (a, b) { return a.seq - b.seq; }); list.innerHTML = '<div class="rounded-xl bg-brand-50 border border-brand-200 p-3 text-sm text-brand-800 mb-2">' + esc(T.topicsHint || 'هذه الأفكار قبل كتابة النصوص. احذف ما لا تريده — سنكتب النصوص للأفكار المعتمدة فقط (توفيرًا للكريدت).') + '</div>' + ts.map(topicCard).join(''); bar.classList.add('hidden'); fl.classList.add('hidden'); return; }
     var vis = items.filter(function (i) { return !filter || (filter === 'qc' ? (i.qc || []).length : i.status === filter); });
     if (query) { var qq = query.toLowerCase(); vis = vis.filter(function (i) { return itemText(i).indexOf(qq) >= 0; }); }
     list.className = (view === 'grid' ? 'grid sm:grid-cols-2 xl:grid-cols-3 gap-3 pb-28 items-start' : 'space-y-3 pb-28');
