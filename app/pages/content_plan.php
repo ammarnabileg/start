@@ -220,15 +220,37 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
     <?php else: $plans = cpl_plans(); $kb = kb_get($wid); $svc = array_values(array_filter(array_map(function ($r) { return trim((string)($r['name'] ?? '')); }, (array)($kb['services']['rows'] ?? []))));
       $hasLogo = function_exists('kb_logo') && kb_logo($wid); ?>
     <p class="text-sm text-ink-500 mb-4"><?= e(t('اكتب هدفك وعدد المنشورات وارفع تصميمات مرجعية. نكتب لك خطة كاملة من ملف شركتك: موضوع، نص لينكدإن، نص X، برومبت صورة، برومبت فيديو، وكاروسيل لكل منشور. لا نولّد صورًا هنا؛ أنت تعتمد ما يعجبك فيذهب إلى مخزون المحتوى للجدولة والنشر.')) ?></p>
-    <form id="cp-wiz" class="card p-0 mb-6 overflow-hidden" novalidate>
-      <ol id="cp-steps" class="flex border-b border-ink-100 bg-ink-50/60 text-sm overflow-x-auto">
+    <style>
+      #cp-wiz.cpw{border:0;background:transparent;box-shadow:none;overflow:visible}
+      .cpw-steps{display:flex;gap:8px;border:0!important;background:transparent!important;padding:0 0 4px;overflow-x:auto}
+      .cpw-steps li{list-style:none}
+      .cpw-steps button{border:1px solid #e2e8f0;background:#fff;border-radius:999px;padding:8px 14px;color:#64748b;font-weight:700;transition:.2s}
+      .cpw-steps button span:first-child{width:22px;height:22px;background:#eef2f7!important;border:0!important;color:#64748b}
+      .cpw-steps button.on{background:linear-gradient(90deg,#2563eb,#06b6d4);color:#fff!important;border-color:transparent;box-shadow:0 10px 20px -8px rgba(37,99,235,.55)}
+      .cpw-steps button.on span:first-child{background:rgba(255,255,255,.25)!important;color:#fff}
+      .cpw-steps button.done{color:#16a34a!important;border-color:#bbf7d0;background:#f0fdf4}
+      .cpw-steps button.done span:first-child{background:#dcfce7!important;color:#16a34a}
+      .cpw-grid{display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start;margin-top:14px}
+      .cpw-main{background:#fff;border:1px solid #e2e8f0;border-radius:20px;box-shadow:0 1px 2px rgba(15,23,42,.03)}
+      .cpw-side{position:sticky;top:16px;display:flex;flex-direction:column;gap:14px}
+      .cpw-pv{background:#0b1220;border-radius:18px;padding:14px}
+      .cpw-pv-h{font-size:12px;color:#94a3b8;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+      .cpw-pv-h i{width:7px;height:7px;border-radius:999px;background:#84cc16;box-shadow:0 0 0 4px rgba(132,204,22,.25);display:inline-block}
+      .cpw-est{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:12px 14px;font-size:12px;text-align:center;color:#475569}
+      .cpw-nav{display:flex;gap:10px}
+      .cpw-nav>.btn-primary,.cpw-nav>.btn-ghost{flex:1;justify-content:center;border-radius:14px;padding:12px 10px}
+      @media(max-width:860px){.cpw-grid{grid-template-columns:1fr}.cpw-side{position:static}}
+    </style>
+    <form id="cp-wiz" class="cpw mb-6" novalidate>
+      <ol id="cp-steps" class="cpw-steps text-sm">
         <li><button type="button" data-go="0" class="flex items-center gap-2 px-4 py-3 whitespace-nowrap text-ink-500 [&.on]:text-brand-700 [&.on]:font-semibold [&.done]:text-ink-800"><span class="w-6 h-6 rounded-full grid place-items-center text-xs bg-white border border-ink-200">1</span><?= e(t('الهدف')) ?></button></li>
         <li><button type="button" data-go="1" class="flex items-center gap-2 px-4 py-3 whitespace-nowrap text-ink-500 [&.on]:text-brand-700 [&.on]:font-semibold [&.done]:text-ink-800"><span class="w-6 h-6 rounded-full grid place-items-center text-xs bg-white border border-ink-200">2</span><?= e(t('الجمهور')) ?></button></li>
         <li><button type="button" data-go="2" class="flex items-center gap-2 px-4 py-3 whitespace-nowrap text-ink-500 [&.on]:text-brand-700 [&.on]:font-semibold [&.done]:text-ink-800"><span class="w-6 h-6 rounded-full grid place-items-center text-xs bg-white border border-ink-200">3</span><?= e(t('الأسلوب')) ?></button></li>
         <li><button type="button" data-go="3" class="flex items-center gap-2 px-4 py-3 whitespace-nowrap text-ink-500 [&.on]:text-brand-700 [&.on]:font-semibold [&.done]:text-ink-800"><span class="w-6 h-6 rounded-full grid place-items-center text-xs bg-white border border-ink-200">4</span><?= e(t('الشكل')) ?></button></li>
         <li><button type="button" data-go="4" class="flex items-center gap-2 px-4 py-3 whitespace-nowrap text-ink-500 [&.on]:text-brand-700 [&.on]:font-semibold [&.done]:text-ink-800"><span class="w-6 h-6 rounded-full grid place-items-center text-xs bg-white border border-ink-200">5</span><?= e(t('المراجعة')) ?></button></li>
       </ol>
-      <div class="p-5 space-y-5">
+      <div class="cpw-grid">
+      <div class="cpw-main p-5 space-y-5">
       <?php
         $chip = function (string $name, string $val, string $label, bool $on = false, string $type = 'radio', string $sub = '') { return '<label class="cursor-pointer"><input type="' . $type . '" name="' . $name . '" value="' . e($val) . '" class="peer sr-only"' . ($on ? ' checked' : '') . '><span class="inline-flex flex-col rounded-xl border border-ink-200 px-3 py-1.5 text-sm text-ink-700 transition hover:border-brand-300 peer-checked:border-brand-500 peer-checked:bg-brand-50 peer-checked:text-brand-800">' . e($label) . ($sub !== '' ? '<span class="text-[11px] text-ink-400">' . e($sub) . '</span>' : '') . '</span></label>'; };
         $kbd = function_exists('cpl_kb_defaults') ? cpl_kb_defaults($wid) : [];
@@ -516,11 +538,6 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
       <section data-step="4" class="space-y-5 hidden">
         <div><h2 class="text-lg font-bold text-ink-900"><?= e(t('مراجعة قبل الكتابة')) ?></h2><p class="text-sm text-ink-500"><?= e(t('راجع اختياراتك. يمكنك العودة إلى أي خطوة من الأعلى.')) ?></p></div>
         <dl id="cp-sum" class="grid sm:grid-cols-2 gap-x-6 gap-y-2 text-sm"></dl>
-      <div class="rounded-2xl border border-ink-200 bg-ink-50/60 p-4">
-        <div class="flex items-center gap-2 mb-2"><span class="text-base">👁️</span><b class="text-sm text-ink-900"><?= e(t('معاينة تقريبية للشكل')) ?></b><span class="text-[11px] text-ink-400"><?= e(t('(مجّانية — قبل صرف أي كريدِت)')) ?></span></div>
-        <div id="cp-preview" class="grid place-items-center"></div>
-        <div id="cp-est" class="text-center text-xs text-ink-600 mt-3"></div>
-      </div>
       <div class="flex flex-wrap gap-4 text-sm">
         <label class="flex items-center gap-1.5"><input type="checkbox" name="video" checked><?= e(t('برومبت فيديو لكل منشور')) ?></label>
         <label class="flex items-center gap-1.5"><input type="checkbox" name="carousel" checked><?= e(t('كاروسيل 5 شرائح')) ?></label>
@@ -529,11 +546,19 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
       </div>
       </section>
       </div>
-      <div class="flex items-center gap-3 border-t border-ink-100 px-5 py-3 bg-white">
-        <button type="button" id="cp-back" class="btn-ghost invisible"><?= e(t('السابق')) ?></button>
-        <span class="text-xs text-ink-400 flex-1"><?= e(t('المسودة تُحفظ على جهازك أثناء الكتابة.')) ?></span>
-        <button type="button" id="cp-next" class="btn-primary"><?= e(t('التالي')) ?></button>
-        <button type="submit" id="cp-go" class="btn-primary hidden"><?= e(t('اكتب الخطة')) ?></button>
+      <aside class="cpw-side">
+        <div class="cpw-pv">
+          <div class="cpw-pv-h"><i></i> <?= e(t('معاينة حيّة · قبل أي كريدِت')) ?></div>
+          <div id="cp-preview" class="grid place-items-center"></div>
+        </div>
+        <div id="cp-est" class="cpw-est"></div>
+        <div class="cpw-nav">
+          <button type="button" id="cp-back" class="btn-ghost invisible"><?= e(t('السابق')) ?></button>
+          <button type="button" id="cp-next" class="btn-primary"><?= e(t('التالي')) ?></button>
+          <button type="submit" id="cp-go" class="btn-primary hidden"><?= e(t('اكتب الخطة')) ?></button>
+        </div>
+        <p class="text-[11px] text-ink-400 text-center"><?= e(t('المسودة تُحفظ على جهازك أثناء الكتابة.')) ?></p>
+      </aside>
       </div>
     </form>
     <?php if ($plans): ?>

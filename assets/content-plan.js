@@ -111,7 +111,7 @@
       $$('[data-step]', W).forEach(function (x) { x.classList.toggle('hidden', +x.dataset.step !== step); });
       $$('[data-go]', W).forEach(function (b) { var k = +b.dataset.go; b.classList.toggle('on', k === step); b.classList.toggle('done', k < step); b.firstChild.textContent = k < step ? '✓' : k + 1; });
       $('#cp-back').classList.toggle('invisible', !step); $('#cp-next').classList.toggle('hidden', step === nSteps - 1); $('#cp-go').classList.toggle('hidden', step !== nSteps - 1);
-      if (step === nSteps - 1) summary(); if (step === 3) lprev(); try { sessionStorage.setItem(key + '_s', step); } catch (e) {}
+      if (step === nSteps - 1) summary(); if (step === 3) lprev(); if (typeof previewMock === 'function') try { previewMock(collect()); } catch (e) {} try { sessionStorage.setItem(key + '_s', step); } catch (e) {}
       var f = $('[data-step="' + step + '"] textarea, [data-step="' + step + '"] input:not([type=hidden]):not(.sr-only)', W); if (f && step < 2) f.focus(); window.scrollTo({ top: W.offsetTop - 80, behavior: 'smooth' }); }
     function okStep() { if (step === 0 && !W.goal.value.trim()) { W.goal.focus(); toast(T.needGoal, 'error'); return false; } return true; }
     $('#cp-next').addEventListener('click', function () { if (okStep()) show(step + 1); });
@@ -129,12 +129,6 @@
       var rows = [[S.goal, v(d.goal), 0], [S.count, d.count, 0], [S.aud, v(d.audience), 1], [S.svc, v((d.services || []).join('، ')), 1], [S.lang, lg, 2], [S.dial, v(dn), 2], [S.tone, v(d.tone), 2], [S.cta, v(d.cta), 2], [S.refs, String((d.refs || []).length), 3], [S.logo, W.logo_w ? (d.logo_on ? S.on : S.off) : S.none, 3]];
       $('#cp-sum').innerHTML = rows.map(function (r) { return '<div class="rounded-xl bg-ink-50 px-3 py-2"><dt class="text-xs text-ink-500 flex justify-between">' + esc(r[0]) + '<button type="button" data-go="' + r[2] + '" class="link text-xs">✎</button></dt><dd class="text-ink-900 break-words" dir="auto">' + esc(r[1]) + '</dd></div>'; }).join('');
       previewMock(d);
-      var est = $('#cp-est');
-      if (est) {
-        var n = parseInt(d.count, 10) || 0, q = (d.img_q === 'medium') ? 'medium' : 'high', ic = (typeof C !== 'undefined' && C.imgCost) ? C.imgCost[q] : null;
-        if (ic && n) est.innerHTML = '🖼️ تكلفة الصور التقديرية: ~$' + (n * ic).toFixed(2) + ' <span class="text-ink-400">(' + n + ' × $' + ic + ')</span> · <span class="text-ink-400">النص والفيديو حسب الاستهلاك</span>';
-        else est.innerHTML = '<span class="text-ink-400">التكلفة تظهر حسب الاستهلاك الفعلي بعد التوليد.</span>';
-      }
     }
     // معاينة تقريبية مجّانية لشكل المنشور من الاختيارات (نمط + تأثير + خط + لوجو)
     function previewMock(d) {
@@ -154,6 +148,12 @@
         + logo
         + '<div style="position:absolute;inset-inline:9%;bottom:9%;text-align:right;font-weight:900;font-size:26px;line-height:1.4;' + fill + fxCss + '">' + esc(head) + '</div>'
         + '</div>';
+      var est = $('#cp-est');
+      if (est) {
+        var n = parseInt(d.count, 10) || 0, q = (d.img_q === 'medium') ? 'medium' : 'high', ic = (typeof C !== 'undefined' && C.imgCost) ? C.imgCost[q] : null;
+        if (ic && n) est.innerHTML = '🖼️ تكلفة الصور التقديرية: ~$' + (n * ic).toFixed(2) + ' <span class="text-ink-400">(' + n + ' × $' + ic + ')</span> · <span class="text-ink-400">النص والفيديو حسب الاستهلاك</span>';
+        else est.innerHTML = '<span class="text-ink-400">التكلفة تظهر حسب الاستهلاك بعد التوليد.</span>';
+      }
     }
     var s0 = 0; try { s0 = +(sessionStorage.getItem(key + '_s') || 0); } catch (e) {} show(dr && dr.goal ? s0 : 0);
     function saveDraft() { lprev(); var d = collect(); d.refsFull = refs; d.prodsFull = prods; ls(key, d); }
