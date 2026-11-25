@@ -237,6 +237,11 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
       .cpw-pv-h{font-size:12px;color:#94a3b8;margin-bottom:10px;display:flex;align-items:center;gap:6px}
       .cpw-pv-h i{width:7px;height:7px;border-radius:999px;background:#84cc16;box-shadow:0 0 0 4px rgba(132,204,22,.25);display:inline-block}
       .cpw-est{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:12px 14px;font-size:12px;text-align:center;color:#475569}
+      .cpw-prog{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:12px 14px}
+      .cpw-prog-top{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#64748b;margin-bottom:8px}
+      .cpw-prog-top b{color:#2563eb;font-size:13px}
+      .cpw-prog-bar{height:7px;background:#eef2f7;border-radius:999px;overflow:hidden}
+      .cpw-prog-bar i{display:block;height:100%;width:20%;background:linear-gradient(90deg,#2563eb,#06b6d4);border-radius:999px;transition:width .45s cubic-bezier(.22,1,.36,1)}
       .cpw-nav{display:flex;gap:10px}
       .cpw-nav>.btn-primary,.cpw-nav>.btn-ghost{flex:1;justify-content:center;border-radius:14px;padding:12px 10px}
       @media(max-width:860px){.cpw-grid{grid-template-columns:1fr}.cpw-side{position:static}}
@@ -547,6 +552,10 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
       </section>
       </div>
       <aside class="cpw-side">
+        <div class="cpw-prog">
+          <div class="cpw-prog-top"><span><?= e(t('التقدّم')) ?></span><b id="cp-progn">1 / 5</b></div>
+          <div class="cpw-prog-bar"><i id="cp-progfill"></i></div>
+        </div>
         <div class="cpw-pv">
           <div class="cpw-pv-h"><i></i> <?= e(t('معاينة حيّة · قبل أي كريدِت')) ?></div>
           <div id="cp-preview" class="grid place-items-center"></div>

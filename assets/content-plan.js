@@ -111,6 +111,7 @@
       $$('[data-step]', W).forEach(function (x) { x.classList.toggle('hidden', +x.dataset.step !== step); });
       $$('[data-go]', W).forEach(function (b) { var k = +b.dataset.go; b.classList.toggle('on', k === step); b.classList.toggle('done', k < step); b.firstChild.textContent = k < step ? '✓' : k + 1; });
       $('#cp-back').classList.toggle('invisible', !step); $('#cp-next').classList.toggle('hidden', step === nSteps - 1); $('#cp-go').classList.toggle('hidden', step !== nSteps - 1);
+      var pf = $('#cp-progfill'), pn = $('#cp-progn'); if (pf) pf.style.width = ((step + 1) / nSteps * 100) + '%'; if (pn) pn.textContent = (step + 1) + ' / ' + nSteps;
       if (step === nSteps - 1) summary(); if (step === 3) lprev(); if (typeof previewMock === 'function') try { previewMock(collect()); } catch (e) {} try { sessionStorage.setItem(key + '_s', step); } catch (e) {}
       var f = $('[data-step="' + step + '"] textarea, [data-step="' + step + '"] input:not([type=hidden]):not(.sr-only)', W); if (f && step < 2) f.focus(); window.scrollTo({ top: W.offsetTop - 80, behavior: 'smooth' }); }
     function okStep() { if (step === 0 && !W.goal.value.trim()) { W.goal.focus(); toast(T.needGoal, 'error'); return false; } return true; }
