@@ -489,9 +489,9 @@ function cpl_qc(array $it, array $o = []): array
 {
     if ($it['linkedin'] === null) return [];
     $w = function ($s) { return count(preg_split('/\s+/u', trim((string)$s), -1, PREG_SPLIT_NO_EMPTY)); }; $q = [];
-    $lw = $w($it['linkedin']); if ($lw < 130 || $lw > 220) $q[] = t('لينكدإن %s كلمة (المطلوب 130–220)', $lw);
-    if (mb_strlen((string)$it['x']) > 280) $q[] = t('X تجاوز 280 حرفًا'); if (trim((string)$it['x']) === '') $q[] = t('نص X فارغ');
-    if (!preg_match('/#\S/u', (string)$it['linkedin'])) $q[] = t('لينكدإن بلا هاشتاجات');
+    $lw = $w($it['linkedin']); if ($lw < 130 || $lw > 220) $q[] = t('النص الطويل %s كلمة (المطلوب 130–220)', $lw);
+    if (mb_strlen((string)$it['x']) > 280) $q[] = t('النص القصير تجاوز 280 حرفًا'); if (trim((string)$it['x']) === '') $q[] = t('النص القصير فارغ');
+    if (!preg_match('/#\S/u', (string)$it['linkedin'])) $q[] = t('النص الطويل بلا هاشتاجات');
     // فحوص حتمية (بنيوية) فقط — لا نحكم على الجودة الإبداعية بوجود كلمات مثل 35mm أو 4000K أو hex (ذلك لا يُثبت جودة)
     $iw = $w($it['image_prompt']); if ($iw < 90) $q[] = t('برومبت الصورة قصير جدًا (%s كلمة)', $iw);
     $ip = (string)$it['image_prompt'];
@@ -680,7 +680,7 @@ JS;
 function cpl_xlsx_cols(): array
 {
     return ['id' => 'ID', 'seq' => '#', 'status' => t('الحالة'), 'topic' => t('الموضوع'), 'angle' => t('الزاوية'), 'service' => t('الخدمة'), 'audience' => t('الجمهور'), 'category' => t('التصنيف'), 'objective' => t('الهدف التسويقي'), 'qc' => t('فحص الجودة'),
-        'linkedin' => 'LinkedIn', 'x' => 'X', 'headline' => t('عنوان الصورة'), 'image_prompt' => 'Image prompt', 'video_prompt' => 'Video prompt',
+        'linkedin' => t('النص الطويل'), 'x' => t('النص القصير'), 'headline' => t('عنوان الصورة'), 'image_prompt' => 'Image prompt', 'video_prompt' => 'Video prompt',
         's1' => 'Slide 1 Hook', 's2' => 'Slide 2 Problem', 's3' => 'Slide 3 Insight', 's4' => 'Slide 4 Solution', 's5' => 'Slide 5 CTA'];
 }
 
