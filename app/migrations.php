@@ -1375,4 +1375,63 @@ return [
     '085_cp_item_refs' => [
         "ALTER TABLE cp_items ADD COLUMN refs TEXT NULL",
     ],
+    // وورك سبيس ديمو مشتركة (عرض فقط) لوضع التعلّم — تُزرع مرة واحدة ولا ترمي أبدًا (آمنة تمامًا)
+    '086_demo_workspace' => [
+        function (PDO $pdo) {
+            try {
+                // موجودة بالفعل؟ لا تكرّر
+                $cur = $pdo->query("SELECT value FROM settings WHERE name = 'demo_ws_id'")->fetchColumn();
+                if ($cur) {
+                    $ok = $pdo->prepare("SELECT 1 FROM workspaces WHERE id = ? AND COALESCE(status,'active') <> 'deleted'");
+                    $ok->execute([(int)$cur]); if ($ok->fetchColumn()) return;
+                }
+                $pdo->prepare("INSERT INTO workspaces (name, created_by, timezone, approval_status, sub_status, plan, legacy, admin_override)
+                    VALUES (?, NULL, 'Asia/Riyadh', 'approved', 'active', 'pro', 0, 1)")
+                    ->execute(['🎓 ' . 'شركة الديمو — وتد (عرض)']);
+                $wid = (int)$pdo->lastInsertId();
+                if ($wid <= 0) return;
+                $pdo->prepare("INSERT INTO settings (name, value) VALUES ('demo_ws_id', ?) ON DUPLICATE KEY UPDATE value = VALUES(value)")->execute([(string)$wid]);
+                $pdo->prepare("INSERT INTO settings (name, value) VALUES (?, 'SA') ON DUPLICATE KEY UPDATE value = VALUES(value)")->execute(['country_' . $wid]);
+
+                $kb = function (string $section, array $data) use ($pdo, $wid) {
+                    try { $pdo->prepare("INSERT INTO kb_sections (workspace_id, section, data) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE data = VALUES(data)")
+                        ->execute([$wid, $section, json_encode($data, JSON_UNESCAPED_UNICODE)]); } catch (Throwable $e) {}
+                };
+                $kb('company', [
+                    'name' => 'وتد للحلول التقنية', 'industry' => 'الأمن السيبراني والأتمتة الصناعية والتحول الرقمي',
+                    'tagline' => 'شريكك الموثوق في حماية البنية التحتية الصناعية (IT/OT) للمنشآت الكبرى',
+                    'about' => "تأسست وتد عام 2013، وتضم أكثر من 180 موظفًا و4 فروع في المملكة. متخصّصة في الأمن السيبراني للتقنيات التشغيلية (OT)، جدران الحماية من الجيل القادم، مراكز العمليات الأمنية (SOC)، الأتمتة الصناعية (SCADA)، والذكاء الاصطناعي للمنشآت في قطاعات الطاقة والصناعة والقطاع الحكومي. أكثر من 312 عميلًا و معدّل رضا (NPS) يبلغ 71.",
+                    'branches' => "الرياض — المقر الرئيسي\nالدمام — المنطقة الشرقية\nجدة — المنطقة الغربية\nالجبيل — المدينة الصناعية",
+                    'service_area' => 'جميع مناطق المملكة العربية السعودية، مع تركيز على المنشآت الصناعية الكبرى',
+                    'payment' => 'تحويل بنكي، عقود سنوية، أوامر شراء مؤسسية', 'delivery' => 'تنفيذ وتركيب في الموقع خلال 2–6 أسابيع حسب حجم المشروع',
+                ]);
+                $kb('services', ['rows' => [
+                    ['name' => 'أمن التقنيات التشغيلية (OT Security)', 'price' => '420,000 ر.س', 'details' => 'حماية شبكات SCADA/ICS، عزل الشبكات، مراقبة التهديدات الصناعية والامتثال لضوابط الهيئة الوطنية للأمن السيبراني.'],
+                    ['name' => 'جدار الحماية من الجيل القادم (NGFW)', 'price' => '180,000 ر.س', 'details' => 'جدران حماية متقدمة مع فحص عميق للحزم ومنع التسلل لحماية حدود الشبكة.'],
+                    ['name' => 'مركز العمليات الأمنية (SOC)', 'price' => '650,000 ر.س', 'details' => 'مراقبة أمنية على مدار الساعة، كشف واستجابة للحوادث، فريق محلّلين معتمد.'],
+                    ['name' => 'إدارة الأحداث الأمنية (SIEM)', 'price' => '300,000 ر.س', 'details' => 'تجميع وتحليل سجلات الأحداث وربط المؤشرات للكشف المبكر عن الاختراقات.'],
+                    ['name' => 'الأتمتة الصناعية (SCADA)', 'price' => '540,000 ر.س', 'details' => 'تحديث وتأمين أنظمة التحكم الصناعي ورفع كفاءة الإنتاج.'],
+                ]]);
+                $kb('audience', [
+                    'who' => 'مدراء أمن المعلومات (CISO)، مدراء العمليات الصناعية، والرؤساء التنفيذيون للتقنية (CTO) في منشآت الطاقة والصناعة والقطاع الحكومي الكبرى.',
+                    'traits' => 'صناع قرار بميزانيات مؤسسية، يهتمون بالامتثال التنظيمي (NCA) وتقليل مخاطر توقّف الإنتاج، ويشترون عبر مناقصات وعقود طويلة.',
+                    'problem' => 'تهديدات متزايدة على شبكات OT/SCADA، ضغوط الامتثال، وخطر توقّف إنتاج مكلف عند أي اختراق.',
+                    'objections' => 'التكلفة العالية، تعقيد التكامل مع الأنظمة القائمة، والحاجة لإثبات العائد وخفض المخاطر فعليًا.',
+                ]);
+                $kb('tone', ['style' => ['professional', 'expert'], 'dialect' => 'saudi', 'lang_rule' => 'default', 'emoji' => 'light',
+                    'notes' => 'نبرة احترافية واثقة موجّهة لصنّاع القرار، تركّز على المخاطر والعائد بلغة تقنية دقيقة بلا مبالغة.']);
+                $kb('focus', ['text' => 'الترويج لخدمة أمن التقنيات التشغيلية (OT) ومراكز العمليات الأمنية (SOC) لقطاع الطاقة خلال الربع الحالي.']);
+                $kb('pod', ['text' => "فريق متخصّص في أمن OT الصناعي تحديدًا (وليس IT فقط)، مع خبرة محلية في بيئات SCADA للطاقة والبتروكيماويات، ومركز عمليات أمنية يعمل 24/7 بمحلّلين سعوديين معتمدين."]);
+                $kb('rtb', ['text' => "+312 عميلًا مؤسسيًا منذ 2013\nفريق محلّلين معتمد (GICSP, CISSP)\nمركز عمليات أمنية محلي 24/7\nامتثال كامل لضوابط الهيئة الوطنية للأمن السيبراني"]);
+
+                // منافسون للعرض
+                $comp = $pdo->prepare("INSERT INTO competitors (workspace_id, name, url, note) VALUES (?, ?, ?, ?)");
+                foreach ([
+                    ['SecureNet KSA', 'https://securenet.example.sa', 'منافس مباشر — قوي في IT security، أضعف في OT.'],
+                    ['CyberGulf', 'https://cybergulf.example', 'ينشر بكثافة لكن تفاعله أقل. يركّز على الحكومي.'],
+                    ['Gulf Defense Systems', 'https://gds.example', 'لاعب إقليمي في الأتمتة الصناعية.'],
+                ] as $c) { try { $comp->execute([$wid, $c[0], $c[1], $c[2]]); } catch (Throwable $e) {} }
+            } catch (Throwable $e) { /* أبدًا لا نكسر النشر بسبب بيانات الديمو */ }
+        },
+    ],
 ];

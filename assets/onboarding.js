@@ -9,7 +9,7 @@
   var LANG = ONB.lang === 'ar' ? 'ar' : 'en';
   var RTL = LANG === 'ar';
   var LS_DONE = 'wtd_tour_done_v1';
-  var LS_DEMO = 'wtd_tour_demo_v1';
+  var LS_DEMO = 'wtd_tour_demo_v1_' + LANG; // كاش منفصل لكل لغة حتى لا تظهر لغة قديمة بعد التبديل
   var LS_STEP = 'wtd_tour_step_v1';
 
   function T(ar, en) { return LANG === 'ar' ? ar : en; }
@@ -24,7 +24,7 @@
   function seed() {
     return {
       profile: {
-        name: 'وتد للحلول التقنية', nameEn: 'Watad Technology Solutions',
+        name: T('وتد للحلول التقنية', 'Watad Technology Solutions'),
         country: 'SA', activity: T('الأمن السيبراني والتحول الرقمي', 'Cybersecurity & Digital Transformation'),
         founded: 2013, employees: 180, hq: T('الرياض — المنطقة الوسطى', 'Riyadh — Central Region'),
         branches: 4, clients: 312, nps: 71,

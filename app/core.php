@@ -332,6 +332,15 @@ function current_workspace(): ?array
             return $w;
         }
     }
+    // وضع التعلّم: وورك سبيس ديمو مشتركة (عرض فقط). الدخول عبر علم جلسة فقط، بدون عضوية، بدور عرض محدود.
+    $demoId = demo_ws_id();
+    if ($demoId && $id === $demoId && !empty($_SESSION['demo_ws'])) {
+        $st = db()->prepare("SELECT * FROM workspaces WHERE id = ? AND COALESCE(status,'active') <> 'deleted'");
+        $st->execute([$demoId]);
+        $w = $st->fetch();
+        if ($w) { $w['my_role'] = 'owner'; $w['__demo'] = true; return $w; }
+        unset($_SESSION['demo_ws']);
+    }
     // دخول مدير المنصة لشركة للدعم: وصول مؤقت من الجلسة، من غير ما يتحوّل لملكية دائمة في قاعدة البيانات
     if ($id && is_admin() && !empty($_SESSION['admin_enter'][$id])) {
         $st = db()->prepare("SELECT * FROM workspaces WHERE id = ? AND COALESCE(status,'active') <> 'deleted'");
@@ -442,6 +451,15 @@ function ws(string $field)
     $w = current_workspace();
     return $w[$field] ?? null;
 }
+
+/** مُعرّف وورك سبيس الديمو المشتركة (0 لو لسه ما اتزرعتش) */
+function demo_ws_id(): int { static $v = null; if ($v === null) { try { $v = (int)setting('demo_ws_id', 0); } catch (Throwable $e) { $v = 0; } } return $v; }
+/** هل نحن داخل وورك سبيس الديمو (عرض فقط)؟ */
+function is_demo_ws(): bool { $w = current_workspace(); return !empty($w['__demo']); }
+/** يدخل المستخدم وضع العرض (الديمو) */
+function demo_enter(): bool { $id = demo_ws_id(); if ($id <= 0) return false; $_SESSION['demo_ws'] = 1; $_SESSION['ws'] = $id; return true; }
+/** يخرج من وضع العرض ويرجّع لأول شركة حقيقية للمستخدم */
+function demo_exit(): void { unset($_SESSION['demo_ws']); $list = user_workspaces(true); $_SESSION['ws'] = $list ? (int)$list[0]['id'] : 0; }
 
 /* ---------- مساعدات ---------- */
 

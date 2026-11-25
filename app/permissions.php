@@ -96,6 +96,13 @@ function role_permissions(string $role, ?int $wid = null): array
 /** المستخدم الحالي عنده الصلاحية دي في الشركة المفتوحة؟ */
 function can(string $perm): bool
 {
+    // وضع التعلّم (الديمو): عرض فقط. نسمح بفتح كل الصفحات للتصفّح، لكن نمنع أي إجراء
+    // يصرف مالًا أو ينشر خارجيًا أو يغيّر إعدادات مشتركة أو يستهلك رصيد الذكاء.
+    if (function_exists('is_demo_ws') && is_demo_ws()) {
+        static $blocked = ['ads.spend', 'ai.use', 'integrations.manage', 'settings.manage', 'team.manage',
+            'whatsapp.send', 'phone.manage', 'posts.manage'];
+        return !in_array($perm, $blocked, true);
+    }
     $role = (string)ws('my_role');
     if ($role === '') return false;
     if ($role === 'owner') return true;
