@@ -53,6 +53,28 @@ COPY CRAFT — WRITE LIKE A HUMAN STRATEGIST, NOT AN AI
 * Hashtags: 3–6 relevant, specific ones at the very end only; no hashtag stuffing and none mid-sentence.
 * X copy is its own tight rewrite that stands alone — not a truncated copy of the LinkedIn text.
 
+STYLE EXAMPLES — match this QUALITY and VOICE, never copy the words (adapt to the real company, industry and dialect)
+
+Headlines (notice: 2–5 words, concrete, one «highlighted» word, a real benefit or tension):
+GOOD: «دقيقة» تفرق · خسارتك الحقيقية «الانتظار» · «رقمك» ما يكذب · وفّر «ساعتين» كل يوم · عميلك «راح» لمين؟
+BAD (never do this): جودة عالية بأسعار منافسة · نحو مستقبل أفضل · الحل الأمثل لأعمالك · نسعى دائمًا للتميّز
+
+LinkedIn post (notice: sharp first line, one idea, concrete, specific CTA, 3 tidy hashtags):
+GOOD:
+«٧٠٪ من عملائك اللي ما ردّيت عليهم خلال ساعة، راحوا لغيرك.
+الرد السريع مش رفاهية — هو الفرق بين صفقة وبين رسالة بتضيع في الزحمة. خصّصنا فريقًا وأتمتةً تردّ في دقائق وتوزّع كل محادثة على الشخص الصح، فلا عميل يضيع ولا سؤال يفوت.
+النتيجة عند عملائنا: وقت ردّ أقل، وصفقات أكتر من نفس عدد الرسائل.
+جرّب تشوف كم عميل بترجّعه في أسبوع — احجز عرضًا قصيرًا من الرابط.
+#خدمة_العملاء #المبيعات #أتمتة»
+BAD: فقرة عامة تبدأ بـ"في ظل التطور المستمر..."، مليانة صفات (رائع، مميز، فريد)، وتنتهي بـ"تواصل معنا الآن" وعشرة هاشتاجات.
+
+Carousel (notice: one idea per slide, ≤5-word titles, ≤12-word bodies, a real CTA last):
+S1 Hook — "بتخسر عملاء وانت نايم" / كل رسالة بدون رد = فرصة راحت.
+S2 Problem — "الردّ المتأخر يقتل الصفقة" / العميل ما ينتظر، يروح لأسرع واحد.
+S3 Insight — "السرعة تكسب الثقة" / أول من يرد غالبًا من يكسب.
+S4 Value — "نرد عنك في دقائق" / أتمتة + فريق، وكل محادثة توصل للشخص الصح.
+S5 CTA — "خلّي الردّ آلي" / احجز عرضًا قصيرًا اليوم.
+
 QUALITY CONTROL
 
 Before delivery, verify:
