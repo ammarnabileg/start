@@ -153,9 +153,10 @@
         + '</div>';
       var est = $('#cp-est');
       if (est) {
+        var en = (typeof C !== 'undefined' && C.lang === 'en');
         var n = parseInt(d.count, 10) || 0, q = (d.img_q === 'medium') ? 'medium' : 'high', ic = (typeof C !== 'undefined' && C.imgCost) ? C.imgCost[q] : null;
-        if (ic && n) est.innerHTML = '🖼️ تكلفة الصور التقديرية: ~$' + (n * ic).toFixed(2) + ' <span class="text-ink-400">(' + n + ' × $' + ic + ')</span> · <span class="text-ink-400">النص والفيديو حسب الاستهلاك</span>';
-        else est.innerHTML = '<span class="text-ink-400">التكلفة تظهر حسب الاستهلاك بعد التوليد.</span>';
+        if (ic && n) est.innerHTML = '🖼️ ' + (en ? 'Est. image cost' : 'تكلفة الصور التقديرية') + ': ~$' + (n * ic).toFixed(2) + ' <span class="text-ink-400">(' + n + ' × $' + ic + ')</span> · <span class="text-ink-400">' + (en ? 'text & video by usage' : 'النص والفيديو حسب الاستهلاك') + '</span>';
+        else est.innerHTML = '<span class="text-ink-400">' + (en ? 'Cost shows after generation by actual usage.' : 'التكلفة تظهر حسب الاستهلاك بعد التوليد.') + '</span>';
       }
     }
     var s0 = 0; try { s0 = +(sessionStorage.getItem(key + '_s') || 0); } catch (e) {} show(dr && dr.goal ? s0 : 0);

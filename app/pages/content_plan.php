@@ -109,7 +109,7 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
     $stepNow = !$plan ? 1 : (in_array($plan['status'], ['generating', 'paused'], true) ? 1 : 2);
     $steps = [1 => [t('الخطوة الأولى'), t('الهدف وعدد المنشورات والصور المرجعية ← تجهيز الملف والبرومبتات (بدون صور أو فيديو)')], 2 => [t('الخطوة الثانية'), t('حدد منشورات ← ولّد لها صورة أو فيديو أو كاروسيل (أو اتركها نصًا) ← أرسلها للمخزون')]];
     echo '<ol class="grid sm:grid-cols-2 gap-2 mb-5">'; foreach ($steps as $n => [$h, $d]) echo '<li class="rounded-2xl border p-3 ' . ($n === $stepNow ? 'border-brand-300 bg-brand-50/60' : 'border-ink-200 bg-white') . '"><div class="flex items-center gap-2"><span class="w-6 h-6 rounded-full grid place-items-center text-xs font-bold ' . ($n === $stepNow ? 'bg-brand-600 text-[#fff]' : ($n < $stepNow ? 'bg-lime-500 text-[#fff]' : 'bg-ink-100 text-ink-500')) . '">' . ($n < $stepNow ? '✓' : $n) . '</span><b class="text-sm">' . e($h) . '</b></div><p class="text-xs text-ink-500 mt-1">' . e($d) . '</p></li>'; echo '</ol>';
-    $cfg = ['url' => url('content_plan'), 'bank' => url('content_bank'), 'csrf' => csrf_token(), 'wid' => $wid, 't' => $T];
+    $cfg = ['url' => url('content_plan'), 'bank' => url('content_bank'), 'csrf' => csrf_token(), 'wid' => $wid, 'lang' => function_exists('lang') ? lang() : 'ar', 't' => $T];
     if (function_exists('img_provider') && img_provider() === 'openai' && function_exists('img_openai_cost')) {
         $cfg['imgCost'] = ['high' => round(img_openai_cost('high', '1024x1536'), 4), 'medium' => round(img_openai_cost('medium', '1024x1536'), 4)];
     }
@@ -273,22 +273,22 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
         $ctaPresets = [t('اطلب عرض سعر'), t('احجز مكالمة استشارية'), t('احجز عرضًا تجريبيًا'), t('تواصل عبر واتساب'), t('زر الموقع'), t('حمّل الدليل'), t('سجّل في الفعالية'), t('اطلب زيارة ميدانية')];
       ?>
       <section data-step="0" class="space-y-5">
-        <div class="cpw-head"><span class="cpw-head-ic">🎯</span><div><h2 class="text-lg font-bold text-ink-900"><?= e(t('ما هدف الحملة؟')) ?></h2><p class="text-sm text-ink-500"><?= e(t('اكتبه في جملة أو اثنتين: من تريد أن تصل إليه، وماذا تريده أن يفعل.')) ?></p></div></div>
+        <div><h2 class="text-lg font-bold text-ink-900"><?= e(t('ما هدف الحملة؟')) ?></h2><p class="text-sm text-ink-500"><?= e(t('اكتبه في جملة أو اثنتين: من تريد أن تصل إليه، وماذا تريده أن يفعل.')) ?></p></div>
         <label class="block"><span class="label"><?= e(t('هدف الحملة')) ?> *</span><textarea name="goal" rows="4" class="input" dir="auto" placeholder="<?= e(t('مثال: نريد طلبات عروض أسعار من مديري المشتريات في الشركات الكبيرة لخدمة تجهيز المطابخ التجارية خلال الربع القادم.')) ?>"></textarea></label>
-        <div class="grid sm:grid-cols-2 gap-4">
-          <div><span class="label"><?= e(t('عدد المنشورات')) ?></span><input name="count" type="number" min="1" value="12" class="input !mt-0 !w-32" placeholder="12"></div>
-          <label class="block"><span class="label"><?= e(t('اسم الخطة (اختياري)')) ?></span><input name="name" class="input" dir="auto"></label>
+        <div class="grid sm:grid-cols-2 gap-4 items-start">
+          <label class="block"><span class="label"><?= e(t('عدد المنشورات')) ?></span><input name="count" type="number" min="1" value="12" class="input !mt-0 w-full" placeholder="12"></label>
+          <label class="block"><span class="label"><?= e(t('اسم الخطة (اختياري)')) ?></span><input name="name" class="input !mt-0" dir="auto"></label>
         </div>
       </section>
       <section data-step="1" class="space-y-5 hidden">
-        <div class="cpw-head"><span class="cpw-head-ic">👥</span><div><h2 class="text-lg font-bold text-ink-900"><?= e(t('من تخاطب؟')) ?></h2><p class="text-sm text-ink-500"><?= e(t('كلما كان الجمهور أدق كان المحتوى أقوى. يمكنك تركها فارغة لنعتمد على ملف الشركة.')) ?></p></div></div>
+        <div><h2 class="text-lg font-bold text-ink-900"><?= e(t('من تخاطب؟')) ?></h2><p class="text-sm text-ink-500"><?= e(t('كلما كان الجمهور أدق كان المحتوى أقوى. يمكنك تركها فارغة لنعتمد على ملف الشركة.')) ?></p></div>
       <label class="block"><span class="label"><?= e(t('الجمهور المستهدف')) ?> <span class="text-xs text-ink-400"><?= e(t('(من ملف الشركة، عدّله لهذه الحملة)')) ?></span></span><textarea name="audience" rows="2" class="input" dir="auto" placeholder="<?= e(t('مثال: مديرو المشتريات والمرافق في الفنادق والمستشفيات بالسعودية')) ?>"><?= e((string)($kbd['audience'] ?? '')) ?></textarea></label>
       <label class="block"><span class="label"><?= e(t('نبذة عن الشركة')) ?> <span class="text-xs text-ink-400"><?= e(t('(من ملف الشركة، تُستخدم كسياق)')) ?></span></span><textarea name="about" rows="2" class="input" dir="auto"><?= e((string)($kbd['about'] ?? '')) ?></textarea></label>
       <?php if ($svc): ?><div id="cp-svc-wrap"><div class="flex items-center flex-wrap gap-2"><span class="label !mb-0"><?= e(t('ركّز على خدمات (من ملف الشركة)')) ?></span><span class="text-xs text-ink-400">·</span><button type="button" data-svc="all" class="text-xs font-semibold text-brand-700 hover:underline"><?= e(t('تحديد الكل')) ?></button><button type="button" data-svc="none" class="text-xs font-semibold text-ink-500 hover:underline"><?= e(t('إلغاء تحديد الكل')) ?></button></div><div class="flex flex-wrap gap-2 mt-1.5"><?php foreach (array_slice($svc, 0, 30) as $s): ?><label class="inline-flex items-center gap-1.5 rounded-full border border-ink-200 px-3 py-1 text-sm has-[:checked]:border-brand-400 has-[:checked]:bg-brand-50"><input type="checkbox" name="services" value="<?= e($s) ?>" checked><?= e($s) ?></label><?php endforeach; ?></div>
       <script>(function(){var w=document.getElementById('cp-svc-wrap');if(!w)return;w.addEventListener('click',function(e){var b=e.target.closest('[data-svc]');if(!b)return;var on=b.getAttribute('data-svc')==='all';w.querySelectorAll('input[name=services]').forEach(function(c){c.checked=on;});});})();</script></div><?php endif; ?>
       </section>
       <section data-step="2" class="space-y-5 hidden">
-        <div class="cpw-head"><span class="cpw-head-ic">✍️</span><div><h2 class="text-lg font-bold text-ink-900"><?= e(t('بأي لغة وأسلوب؟')) ?></h2><p class="text-sm text-ink-500"><?= e(t('الإعداد الافتراضي يناسب أغلب الحالات؛ غيّر ما تحتاجه فقط.')) ?></p></div></div>
+        <div><h2 class="text-lg font-bold text-ink-900"><?= e(t('بأي لغة وأسلوب؟')) ?></h2><p class="text-sm text-ink-500"><?= e(t('الإعداد الافتراضي يناسب أغلب الحالات؛ غيّر ما تحتاجه فقط.')) ?></p></div>
         <div class="grid sm:grid-cols-2 gap-4">
           <label class="block"><span class="label"><?= e(t('اللغة')) ?></span>
             <select name="lang_all" class="input"><?= $opt($langs, 'ar') ?></select></label>
@@ -313,7 +313,7 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
         <label class="block"><span class="label"><?= e(t('تجنّب (اختياري)')) ?></span><input name="avoid" class="input" dir="auto" placeholder="<?= e(t('كلمات أو وعود أو أساليب لا تريدها')) ?>"></label>
       </section>
       <section data-step="3" class="space-y-5 hidden">
-        <div class="cpw-head"><span class="cpw-head-ic">🎨</span><div><h2 class="text-lg font-bold text-ink-900"><?= e(t('شكل التصميمات')) ?></h2><p class="text-sm text-ink-500"><?= e(t('ارفع تصميمات تعجبك وحدد مكان الشعار. كل ذلك اختياري.')) ?></p></div></div>
+        <div><h2 class="text-lg font-bold text-ink-900"><?= e(t('شكل التصميمات')) ?></h2><p class="text-sm text-ink-500"><?= e(t('ارفع تصميمات تعجبك وحدد مكان الشعار. كل ذلك اختياري.')) ?></p></div>
       <div class="flex items-center gap-2 pt-1"><span class="text-base">🖼️</span><h3 class="text-base font-bold text-ink-900"><?= e(t('إعدادات الصور')) ?></h3><span class="h-px flex-1 bg-ink-100"></span></div>
       <div>
         <span class="label"><?= e(t('تصميمات مرجعية (اختياري، حتى 12 صورة أو صفحة PDF)')) ?></span>
@@ -547,7 +547,7 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
       </div>
       </section>
       <section data-step="4" class="space-y-5 hidden">
-        <div class="cpw-head"><span class="cpw-head-ic">✅</span><div><h2 class="text-lg font-bold text-ink-900"><?= e(t('مراجعة قبل الكتابة')) ?></h2><p class="text-sm text-ink-500"><?= e(t('راجع اختياراتك. يمكنك العودة إلى أي خطوة من الأعلى.')) ?></p></div></div>
+        <div><h2 class="text-lg font-bold text-ink-900"><?= e(t('مراجعة قبل الكتابة')) ?></h2><p class="text-sm text-ink-500"><?= e(t('راجع اختياراتك. يمكنك العودة إلى أي خطوة من الأعلى.')) ?></p></div>
         <dl id="cp-sum" class="grid sm:grid-cols-2 gap-x-6 gap-y-2 text-sm"></dl>
       <div class="flex flex-wrap gap-4 text-sm">
         <label class="flex items-center gap-1.5"><input type="checkbox" name="video" checked><?= e(t('برومبت فيديو لكل منشور')) ?></label>
@@ -559,11 +559,11 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
       </div>
       <aside class="cpw-side">
         <div class="cpw-prog">
-          <div class="cpw-prog-top"><span><?= e(t('التقدّم')) ?></span><b id="cp-progn">1 / 5</b></div>
+          <div class="cpw-prog-top"><span><?= e(lang() === 'en' ? 'Progress' : 'التقدّم') ?></span><b id="cp-progn">1 / 5</b></div>
           <div class="cpw-prog-bar"><i id="cp-progfill"></i></div>
         </div>
         <div class="cpw-pv">
-          <div class="cpw-pv-h"><i></i> <?= e(t('معاينة حيّة · قبل أي كريدِت')) ?></div>
+          <div class="cpw-pv-h"><i></i> <?= e(lang() === 'en' ? 'Live preview · before any credit' : 'معاينة حيّة · قبل أي كريدِت') ?></div>
           <div id="cp-preview" class="grid place-items-center"></div>
         </div>
         <div id="cp-est" class="cpw-est"></div>
