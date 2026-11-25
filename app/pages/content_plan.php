@@ -68,6 +68,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($a === 'redesign') { $it = cpl_item((int)($_POST['id'] ?? 0)); if (!$it || $it['plan_id'] !== $pid) $J(['ok' => false], 404); session_write_close(); @set_time_limit(180); $r = cpl_recompose($it['id']); $J(['ok' => (bool)$r, 'item' => $r]); }
         if ($a === 'savecanvas') { $it = cpl_item((int)($_POST['id'] ?? 0)); if (!$it || $it['plan_id'] !== $pid) $J(['ok' => false], 404); session_write_close(); $r = cpl_save_canvas($it['id'], (string)($_POST['img'] ?? ''), isset($_POST['doc']) ? (string)$_POST['doc'] : null); $J(['ok' => (bool)$r, 'item' => $r]); }
         if ($a === 'getdoc') { $it = cpl_item((int)($_POST['id'] ?? 0)); if (!$it || $it['plan_id'] !== $pid) $J(['ok' => false], 404); $st = db()->prepare('SELECT design_doc FROM cp_items WHERE id = ? AND workspace_id = ?'); $st->execute([$it['id'], $wid]); $doc = (string)($st->fetchColumn() ?: ''); $J(['ok' => true, 'doc' => $doc !== '' ? json_decode($doc, true) : null]); }
+        if ($a === 'itemrefs') {
+            $it = cpl_item((int)($_POST['id'] ?? 0)); if (!$it || $it['plan_id'] !== $pid) $J(['ok' => false], 404);
+            $in = (array)json_decode((string)($_POST['refs'] ?? '{}'), true);
+            $ok = function ($id) use ($wid) { $id = (int)$id; return $id > 0 && media_get($wid, $id) ? $id : 0; };
+            $refs = array_values(array_filter(array_map($ok, (array)($in['refs'] ?? []))));
+            $prods = array_values(array_filter(array_map($ok, (array)($in['products'] ?? []))));
+            $pres = array_values(array_filter(array_map('strval', (array)($in['presets'] ?? [])), function ($k) { return in_array($k, ['1', '2', '3', '4', '5'], true); }));
+            $refs = array_slice(array_values(array_unique($refs)), 0, 6); $prods = array_slice(array_values(array_unique($prods)), 0, 4); $pres = array_slice(array_values(array_unique($pres)), 0, 5);
+            $val = (!$refs && !$prods && !$pres) ? null : json_encode(['refs' => $refs, 'products' => $prods, 'presets' => $pres], JSON_UNESCAPED_UNICODE);
+            db()->prepare('UPDATE cp_items SET refs = ? WHERE id = ? AND workspace_id = ?')->execute([$val, $it['id'], $wid]);
+            $J(['ok' => true, 'item' => cpl_item($it['id'])]);
+        }
         if ($a === 'refield') { $it = cpl_item((int)($_POST['id'] ?? 0)); if (!$it || $it['plan_id'] !== $pid) $J(['ok' => false], 404); session_write_close(); @set_time_limit(120); $r = cpl_regen_field($it['id'], (string)($_POST['field'] ?? '')); $J(['ok' => (bool)$r, 'item' => $r]); }
         if ($a === 'docvers') { $it = cpl_item((int)($_POST['id'] ?? 0)); if (!$it || $it['plan_id'] !== $pid) $J(['ok' => false], 404); $st = db()->prepare('SELECT design_doc_hist FROM cp_items WHERE id = ? AND workspace_id = ?'); $st->execute([$it['id'], $wid]); $h = json_decode((string)($st->fetchColumn() ?: ''), true); $out = []; if (is_array($h)) foreach ($h as $i => $v) $out[] = ['i' => $i, 't' => (int)($v['t'] ?? 0)]; $J(['ok' => true, 'versions' => $out]); }
         if ($a === 'docver') { $it = cpl_item((int)($_POST['id'] ?? 0)); if (!$it || $it['plan_id'] !== $pid) $J(['ok' => false], 404); $i = (int)($_POST['i'] ?? -1); $st = db()->prepare('SELECT design_doc_hist FROM cp_items WHERE id = ? AND workspace_id = ?'); $st->execute([$it['id'], $wid]); $h = json_decode((string)($st->fetchColumn() ?: ''), true); $doc = (is_array($h) && isset($h[$i]['doc'])) ? json_decode((string)$h[$i]['doc'], true) : null; $J(['ok' => (bool)$doc, 'doc' => $doc]); }
@@ -101,6 +113,9 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
         'itAdj' => t('صمّم'), 'itReDo' => t('أعد التصميم'), 'itSaved' => t('تم حفظ التصميم ✓'),
         'layoutErr' => t('يوجد نص خارج حدود التصميم. قصّر النص أو كبّر المربع أو حرّكه للداخل قبل الحفظ.'), 'layoutWarn' => t('تنبيه: حجم بعض النصوص صغير وقد يصعب قراءته.'),
         'draftBack' => t('تم استرجاع آخر تعديل غير محفوظ.'), 'lkOn' => t('مقفول'), 'lkOff' => t('مفتوح'), 'reField' => t('إعادة توليد هذا الحقل فقط'), 'refsUsed' => t('الصور المرجعية المرسلة'),
+        'refsOwn' => t('خاصة بهذا المنشور'), 'refsEdit' => t('تغيير'), 'refsNone' => t('لا توجد صور مرجعية'), 'refProduct' => t('صورة منتج'),
+        'refsEditTitle' => t('مراجع هذا المنشور'), 'refsEditHint' => t('صور خاصة بهذا المنشور فقط تتجاوز مراجع الحملة عند توليد الصورة. المنتج يظهر كما هو، والمراجع للستايل فقط.'),
+        'refProductSec' => t('صورة المنتج'), 'refStyleSec' => t('مراجع الستايل'), 'refUpload' => t('رفع صورة'), 'refPresets' => t('نماذج جاهزة'), 'refUsePlan' => t('استخدم مراجع الحملة'), 'refNoProd' => t('لا صورة منتج'),
         'brandNoLogo' => t('تنبيه: التصميم بدون شعار الشركة.'), 'noMatch' => t('لا نتائج مطابقة للبحث.'), 'verLabel' => t('⟲ نسخة سابقة'), 'verLoaded' => t('تم تحميل النسخة — احفظ لاعتمادها'), 'cropPick' => t('اختر صورة لقصّها'),
         'calc' => t('جارٍ الحساب…'), 'costNone' => t('لا توجد بيانات تكلفة لهذه الحملة بعد (تظهر مع التوليد القادم).'), 'costTotal' => t('الإجمالي'), 'costPer' => t('لكل منشور معتمد'), 'costText' => t('النصوص'), 'costMedia' => t('الصور/الفيديو'), 'costTask' => t('المهمة'), 'costProv' => t('المزوّد'), 'costCost' => t('التكلفة'), 'itAllAsk' => t('تطبيق المكان والحجم والنمط واللون على كل التصاميم؟ (يبقى نصّ كل منشور كما هو)'), 'itAllDone' => t('تم تطبيق الإعدادات على %s تصميم.'),
         'ilTint' => ['orig' => t('الأصلي'), 'white' => t('أبيض'), 'black' => t('أسود')], 'ilPlateV' => ['none' => t('بدون'), 'light' => t('فاتحة'), 'dark' => t('داكنة')],
@@ -114,10 +129,15 @@ render($plan ? (string)$plan['name'] : t('إنشاء المحتوى'), 'content_
         $cfg['imgCost'] = ['high' => round(img_openai_cost('high', '1024x1536'), 4), 'medium' => round(img_openai_cost('medium', '1024x1536'), 4)];
     }
     if ($plan): $__lg = function_exists('kb_logo') ? kb_logo($wid) : null; [$__ar, $__ag, $__ab] = cpl_accent_rgb($plan);
-        $__refs = [];
-        foreach (array_slice(json_decode((string)$plan['refs'], true) ?: [], 0, 12) as $__rid) { $__rid = (int)$__rid; if ($__rid > 0) $__refs[] = ['thumb' => url('media', ['file' => $__rid, 'thumb' => 1]), 'full' => url('media', ['file' => $__rid])]; }
-        foreach ((array)(cpl_opts($plan)['ref_presets'] ?? []) as $__pk) { if (in_array((string)$__pk, ['1', '2', '3', '4', '5'], true)) $__refs[] = ['thumb' => 'assets/ref-presets/ref' . $__pk . '.webp', 'full' => 'assets/ref-presets/ref' . $__pk . '.webp']; }
-        $cfg['plan'] = cpl_status($plan) + ['name' => (string)$plan['name'], 'has_logo' => $__lg ? 1 : 0, 'logo' => $__lg ? url('media', ['file' => $__lg['id']]) : '', 'accent' => sprintf('#%02x%02x%02x', $__ar, $__ag, $__ab), 'imgPrice' => cpl_img_unit_cost($plan), 'txt_effect' => (string)(cpl_opts($plan)['txt_effect'] ?? 'none'), 'design_mode' => (string)(cpl_opts($plan)['design_mode'] ?? 'layout'), 'refs' => $__refs]; ?>
+        $__mk = function ($id) { $id = (int)$id; return ['id' => $id, 'thumb' => url('media', ['file' => $id, 'thumb' => 1]), 'full' => url('media', ['file' => $id])]; };
+        $__pRefs = array_map($__mk, array_values(array_filter(array_map('intval', json_decode((string)$plan['refs'], true) ?: []))));
+        $__pProds = array_map($__mk, array_values(array_filter(array_map('intval', (array)(cpl_opts($plan)['products'] ?? [])))));
+        $__pPres = array_values(array_filter(array_map('strval', (array)(cpl_opts($plan)['ref_presets'] ?? [])), function ($k) { return in_array($k, ['1', '2', '3', '4', '5'], true); }));
+        // شريط العرض العام (منتجات + مراجع + بريسِت) للمنشورات بلا مراجع خاصة
+        $__refs = array_merge($__pProds, $__pRefs);
+        foreach ($__pPres as $__pk) { $__refs[] = ['thumb' => 'assets/ref-presets/ref' . $__pk . '.webp', 'full' => 'assets/ref-presets/ref' . $__pk . '.webp']; }
+        $__refSrc = ['refs' => $__pRefs, 'products' => $__pProds, 'presets' => $__pPres];
+        $cfg['plan'] = cpl_status($plan) + ['name' => (string)$plan['name'], 'has_logo' => $__lg ? 1 : 0, 'logo' => $__lg ? url('media', ['file' => $__lg['id']]) : '', 'accent' => sprintf('#%02x%02x%02x', $__ar, $__ag, $__ab), 'imgPrice' => cpl_img_unit_cost($plan), 'txt_effect' => (string)(cpl_opts($plan)['txt_effect'] ?? 'none'), 'design_mode' => (string)(cpl_opts($plan)['design_mode'] ?? 'layout'), 'refs' => $__refs, 'ref_src' => $__refSrc]; ?>
     <div class="flex flex-wrap items-center gap-2 mb-4">
       <a href="<?= e(url('content_plan')) ?>" class="btn-ghost !py-1.5">← <?= e(t('كل الخطط')) ?></a>
       <span class="text-sm text-ink-500 min-w-0 flex-1 truncate"><?= e(mb_substr((string)$plan['goal'], 0, 160)) ?></span>

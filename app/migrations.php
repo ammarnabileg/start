@@ -1371,4 +1371,8 @@ return [
     '084_cp_item_doc_hist' => [
         "ALTER TABLE cp_items ADD COLUMN design_doc_hist MEDIUMTEXT NULL",
     ],
+    // مراجع بصرية خاصة بكل منشور (تتجاوز مراجع الخطة عند التوليد) — JSON: {refs:[mediaIds], presets:[1..5], products:[mediaIds]}
+    '085_cp_item_refs' => [
+        "ALTER TABLE cp_items ADD COLUMN refs TEXT NULL",
+    ],
 ];

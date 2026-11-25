@@ -53,6 +53,19 @@ function cpl_item_row(array $r): array
     $r['txt_opts'] = json_decode((string)($r['txt_opts'] ?? ''), true) ?: null;
     $mids = array_values(array_filter(array_map('intval', (array)json_decode((string)($r['media_ids'] ?? ''), true)))); if (!$mids && !empty($r['media_id'])) $mids = [(int)$r['media_id']]; $r['media_ids'] = $mids;
     $r['id'] = (int)$r['id']; $r['plan_id'] = (int)$r['plan_id']; $r['seq'] = (int)$r['seq']; $r['media_id'] = $r['media_id'] !== null ? (int)$r['media_id'] : null;
+    // مراجع خاصة بالمنشور (إن وُجدت) مع روابط مصغّرات لعرضها/تعديلها
+    $r['ref_ov'] = null;
+    $ro = json_decode((string)($r['refs'] ?? ''), true);
+    if (is_array($ro)) {
+        $wid = (int)($r['workspace_id'] ?? ws('id'));
+        $mk = function ($id) use ($wid) { $id = (int)$id; return ['id' => $id, 'thumb' => url('media', ['file' => $id, 'thumb' => 1]), 'full' => url('media', ['file' => $id])]; };
+        $r['ref_ov'] = [
+            'refs' => array_map($mk, array_values(array_filter(array_map('intval', (array)($ro['refs'] ?? []))))),
+            'products' => array_map($mk, array_values(array_filter(array_map('intval', (array)($ro['products'] ?? []))))),
+            'presets' => array_values(array_filter(array_map('strval', (array)($ro['presets'] ?? [])), function ($k) { return in_array($k, ['1', '2', '3', '4', '5'], true); })),
+        ];
+    }
+    unset($r['refs']);
     $r['has_doc'] = !empty($r['design_doc']) ? 1 : 0; unset($r['design_doc']); // لا نرسل المستند الكامل في القائمة (ثقيل) — فقط وجوده
     $hh = json_decode((string)($r['design_doc_hist'] ?? ''), true); $r['n_vers'] = is_array($hh) ? count($hh) : 0; unset($r['design_doc_hist']);
     return $r;
@@ -131,9 +144,21 @@ function cpl_styles(): array
 /** معرّفات صور المنتج اللي رفعها المستخدم (اختياري) — تُرسل لموديل الصور ليظهر المنتج نفسه في التصميم. */
 function cpl_prod_ids(array $p): array { return array_values(array_filter(array_map('intval', (array)(cpl_opts($p)['products'] ?? [])))); }
 
+/** مراجع خاصة بمنشور واحد (تتجاوز مراجع الخطة). ترجّع null لو لا توجد (نستخدم مراجع الخطة). */
+function cpl_item_ref_override(array $it): ?array
+{
+    $raw = trim((string)($it['refs'] ?? '')); if ($raw === '') return null;
+    $d = json_decode($raw, true); if (!is_array($d)) return null;
+    return [
+        'refs' => array_values(array_filter(array_map('intval', (array)($d['refs'] ?? [])))),
+        'products' => array_values(array_filter(array_map('intval', (array)($d['products'] ?? [])))),
+        'presets' => array_values(array_filter(array_map('strval', (array)($d['presets'] ?? [])), function ($k) { return in_array($k, ['1', '2', '3', '4', '5'], true); })),
+    ];
+}
+
 /** يحضّر ملفات مرجعية لموديل الصور: صور المنتج أولًا (تُعاد بأمانة) ثم تصميمات الستايل، مع توجيه نصّي مميّز لكل نوع.
  *  يرجّع [$files, $hint]. المتصل مسؤول عن حذف الملفات المؤقتة بعد الاستخدام. */
-function cpl_ref_images(array $p, int $wid, int $max = 4): array
+function cpl_ref_images(array $p, int $wid, int $max = 4, ?array $ov = null): array
 {
     $files = []; $prod = 0; $style = 0;
     $load = function ($rid) use ($wid, &$files) {
@@ -144,10 +169,14 @@ function cpl_ref_images(array $p, int $wid, int $max = 4): array
         }
         return false;
     };
-    foreach (cpl_prod_ids($p) as $pid) { if (count($files) >= $max) break; if ($load($pid)) $prod++; }
-    foreach (array_slice(json_decode((string)$p['refs'], true) ?: [], 0, $max) as $rid) { if (count($files) >= $max) break; if ($load($rid)) $style++; }
+    // عند وجود مراجع خاصة بالمنشور ($ov) تحلّ محل مراجع الخطة بالكامل
+    $prodIds = $ov !== null ? array_values(array_filter(array_map('intval', (array)($ov['products'] ?? [])))) : cpl_prod_ids($p);
+    $styleIds = $ov !== null ? array_values(array_filter(array_map('intval', (array)($ov['refs'] ?? [])))) : (json_decode((string)$p['refs'], true) ?: []);
+    $presetKeys = $ov !== null ? (array)($ov['presets'] ?? []) : (array)(cpl_opts($p)['ref_presets'] ?? []);
+    foreach ($prodIds as $pid) { if (count($files) >= $max) break; if ($load($pid)) $prod++; }
+    foreach (array_slice($styleIds, 0, $max) as $rid) { if (count($files) >= $max) break; if ($load($rid)) $style++; }
     // نماذج مرجعية جاهزة: تُقرأ مباشرة من القرص (لا تُخزَّن في مكتبة الوسائط)
-    foreach ((array)(cpl_opts($p)['ref_presets'] ?? []) as $pk) {
+    foreach ($presetKeys as $pk) {
         if (count($files) >= $max) break;
         $pf = dirname(__DIR__, 2) . '/assets/ref-presets/ref' . (int)$pk . '.webp';
         if (is_file($pf) && ($rd = cpl_small_image($pf, 1024))) {
@@ -1524,7 +1553,7 @@ function cpl_jobs_tick(int $planId): bool
                 cpl_log($planId, t('بدأ توليد الفيديو للمنشور %s، وسنتابعه حتى يكتمل (قد يستغرق دقائق).', $it['seq']));
             } else {
                 $GLOBALS['img_no_trim'] = true;
-                [$refFiles, $refHint] = cpl_ref_images($p, $wid, 4); $prompt .= $refHint;
+                [$refFiles, $refHint] = cpl_ref_images($p, $wid, 4, cpl_item_ref_override($it)); $prompt .= $refHint;
                 try { $names = img_generate($prompt, cpl_aspect($p), 1, $refFiles, cpl_img_quality($p)); } finally { foreach ($refFiles as $tf) @unlink($tf); } $ms = cpl_media_for_names($names); if (!$ms) throw new RuntimeException(t('لم تُحفظ الصورة الناتجة.'));
                 db()->prepare('UPDATE cp_jobs SET status = "done", result = ? WHERE id = ?')->execute([json_encode($ms), $j['id']]); // الخام؛ الختم في finalize
                 cpl_log($planId, t('اكتملت %s للمنشور %s في %s ثانية.', $label, $it['seq'], round(microtime(true) - $t0)), 'ok');
@@ -1562,20 +1591,24 @@ function cpl_jobs_burst(int $planId, int $concurrency = 5): int
         $st = db()->prepare('SELECT * FROM cp_jobs WHERE plan_id = ? AND status = "queued" AND kind IN ("image","carousel") ORDER BY id LIMIT ' . max(1, min(8, (int)$concurrency))); $st->execute([$planId]);
         $jobs = $st->fetchAll();
         if (!$jobs) return cpl_jobs_tick($planId) ? 1 : 0; // مفيش صور: خلي cpl_jobs_tick يبدأ فيديو منتظر أو يخلص
-        // ملفات الريفرانس (صور المنتج + تصميمات الستايل، مشتركة للخطة) مرة واحدة
+        // ملفات الريفرانس المشتركة للخطة (تُحسب مرة واحدة وتُعاد استخدامها للمنشورات بلا مراجع خاصة)
         [$refFiles, $refHint] = cpl_ref_images($p, $wid, 4);
+        $extraFiles = []; // ملفات مؤقتة إضافية لمنشورات لها مراجع خاصة (تُحذف في النهاية)
         $batch = []; $meta = [];
         foreach ($jobs as $j) {
             $it = cpl_item((int)$j['item_id']); if (!$it) { db()->prepare('UPDATE cp_jobs SET status = "failed", error = "item" WHERE id = ?')->execute([$j['id']]); continue; }
             db()->prepare('UPDATE cp_jobs SET status = "running", tries = tries + 1 WHERE id = ?')->execute([$j['id']]);
             $GLOBALS['img_no_trim'] = true;
-            $batch[] = ['prompt' => cpl_job_prompt($p, $it, $j) . $refHint, 'refs' => $refFiles];
+            $ov = cpl_item_ref_override($it);
+            if ($ov !== null) { [$iFiles, $iHint] = cpl_ref_images($p, $wid, 4, $ov); $extraFiles = array_merge($extraFiles, $iFiles); $jRefs = $iFiles; $jHint = $iHint; }
+            else { $jRefs = $refFiles; $jHint = $refHint; }
+            $batch[] = ['prompt' => cpl_job_prompt($p, $it, $j) . $jHint, 'refs' => $jRefs];
             $meta[] = ['job' => $j, 'it' => $it];
             cpl_log($planId, t('توليد صورة للمنشور %s…', $it['seq']));
         }
         $fail_all = function (string $msg) use ($meta) { foreach ($meta as $mm) { $retry = (int)$mm['job']['tries'] + 1 < 2; db()->prepare('UPDATE cp_jobs SET status = ?, error = ? WHERE id = ?')->execute([$retry ? 'queued' : 'failed', mb_substr($msg, 0, 300), $mm['job']['id']]); if (!$retry) cpl_jobs_finalize((int)$mm['it']['id'], $mm['job']['kind']); } };
         try { $res = img_openai_batch($batch, cpl_aspect($p), cpl_img_quality($p)); }
-        catch (Throwable $e) { $fail_all($e->getMessage()); foreach ($refFiles as $tf) @unlink($tf); return 0; }
+        catch (Throwable $e) { $fail_all($e->getMessage()); foreach (array_merge($refFiles, $extraFiles) as $tf) @unlink($tf); return 0; }
         $n = 0;
         foreach ($meta as $k => $mm) {
             $j = $mm['job']; $it = $mm['it']; $r = $res[$k] ?? ['error' => 'no result'];
@@ -1588,7 +1621,7 @@ function cpl_jobs_burst(int $planId, int $concurrency = 5): int
                 if (!$retry) cpl_jobs_finalize((int)$it['id'], $j['kind']);
             }
         }
-        foreach ($refFiles as $tf) @unlink($tf);
+        foreach (array_merge($refFiles, $extraFiles) as $tf) @unlink($tf);
         return $n;
     } finally { db()->query('SELECT RELEASE_LOCK(' . db()->quote($lk) . ')'); }
 }

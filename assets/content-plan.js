@@ -320,12 +320,70 @@
       + (['linkedin', 'x', 'headline', 'image_prompt'].indexOf(field) >= 0 && ['draft', 'approved', 'rejected'].indexOf(it.status) >= 0 ? ' <button type="button" data-refield="' + field + '" class="text-xs link" title="' + esc(T.reField || 'إعادة توليد هذا الحقل فقط') + '">↻</button>' : '')
       + ((field === 'image_prompt' || field === 'video_prompt') && ['draft', 'approved', 'rejected'].indexOf(it.status) >= 0 ? ' <button type="button" data-gen1="' + (field === 'image_prompt' ? 'image' : 'video') + '" class="text-xs font-semibold text-brand-700 hover:underline">' + esc(T.genOne) + '</button>' : '') + '</div>'
       + '<div class="cp-txt text-sm whitespace-pre-wrap break-words" ' + (en ? 'dir="ltr"' : 'dir="auto"') + '>' + esc(text) + '</div>'
-      + (field === 'image_prompt' && P && (P.refs || []).length
-        ? '<div class="mt-2 pt-2 border-t border-ink-100"><div class="text-[11px] text-ink-400 mb-1">' + esc(T.refsUsed || 'الصور المرجعية المرسلة') + '</div><div class="flex flex-wrap gap-1.5">'
-          + P.refs.map(function (r) { return '<a href="' + esc(r.full) + '" target="_blank" title="' + esc(T.refsUsed || 'مرجع') + '"><img src="' + esc(r.thumb) + '" class="w-14 h-16 object-cover rounded-lg border border-ink-200" alt="" loading="lazy"></a>'; }).join('')
-          + '</div></div>'
-        : '')
+      + (field === 'image_prompt' ? refStrip(it) : '')
       + '</section>';
+  }
+  function presetThumb(k) { return 'assets/ref-presets/ref' + k + '.webp'; }
+  // قائمة الصور المرجعية الفعلية لمنشور: مراجعه الخاصة إن وُجدت، وإلا مراجع الخطة
+  function refListFor(it) {
+    if (it && it.ref_ov) {
+      var o = it.ref_ov, out = [];
+      (o.products || []).forEach(function (r) { out.push({ thumb: r.thumb, full: r.full, kind: 'product' }); });
+      (o.refs || []).forEach(function (r) { out.push({ thumb: r.thumb, full: r.full, kind: 'ref' }); });
+      (o.presets || []).forEach(function (k) { out.push({ thumb: presetThumb(k), full: presetThumb(k), kind: 'ref' }); });
+      return out;
+    }
+    return (P && P.refs) ? P.refs.slice() : [];
+  }
+  function refStrip(it) {
+    var list = refListFor(it), own = !!(it && it.ref_ov), canEdit = it && ['draft', 'approved', 'rejected', 'pending'].indexOf(it.status) >= 0;
+    return '<div class="mt-2 pt-2 border-t border-ink-100"><div class="flex items-center gap-2 mb-1"><div class="text-[11px] text-ink-400">' + esc(T.refsUsed || 'الصور المرجعية المرسلة') + (own ? ' <span class="text-brand-600">• ' + esc(T.refsOwn || 'خاصة بهذا المنشور') + '</span>' : '') + '</div>'
+      + (canEdit ? '<button type="button" data-refedit class="text-[11px] link ms-auto">' + esc(T.refsEdit || 'تغيير') + '</button>' : '') + '</div>'
+      + (list.length ? '<div class="flex flex-wrap gap-1.5">' + list.map(function (r) { return '<a href="' + esc(r.full) + '" target="_blank" title="' + esc(r.kind === 'product' ? (T.refProduct || 'صورة منتج') : (T.refsUsed || 'مرجع')) + '"><img src="' + esc(r.thumb) + '" class="w-14 h-16 object-cover rounded-lg border ' + (r.kind === 'product' ? 'border-emerald-300 ring-1 ring-emerald-200' : 'border-ink-200') + '" alt="" loading="lazy"></a>'; }).join('') + '</div>'
+        : '<div class="text-[11px] text-ink-400">' + esc(T.refsNone || 'لا توجد صور مرجعية') + '</div>') + '</div>';
+  }
+  /* ---------- منتقي المراجع لكل منشور ---------- */
+  function openRefPicker(it) {
+    var src = (P && P.ref_src) || { refs: [], products: [], presets: [] };
+    var st = it.ref_ov
+      ? { products: (it.ref_ov.products || []).slice(), refs: (it.ref_ov.refs || []).slice(), presets: (it.ref_ov.presets || []).slice() }
+      : { products: (src.products || []).slice(), refs: (src.refs || []).slice(), presets: (src.presets || []).slice() };
+    var ov = document.createElement('div');
+    ov.className = 'fixed inset-0 z-50 flex items-center justify-center p-4';
+    ov.style.background = 'rgba(15,23,42,.55)';
+    function chip(r, grp) { return '<span class="relative inline-block"><img src="' + esc(r.thumb) + '" class="w-16 h-20 object-cover rounded-xl border border-ink-200" alt=""><button type="button" data-rmv="' + grp + '" data-id="' + r.id + '" class="absolute -top-1.5 -end-1.5 w-6 h-6 rounded-full bg-white border border-ink-200 text-xs leading-none">×</button></span>'; }
+    function render() {
+      ov.querySelector('[data-prodbox]').innerHTML = st.products.map(function (r) { return chip(r, 'products'); }).join('') || '<span class="text-xs text-ink-400">' + esc(T.refNoProd || 'لا صورة منتج') + '</span>';
+      ov.querySelector('[data-refbox]').innerHTML = st.refs.map(function (r) { return chip(r, 'refs'); }).join('') || '<span class="text-xs text-ink-400">' + esc(T.refsNone || 'لا توجد صور مرجعية') + '</span>';
+      Array.prototype.forEach.call(ov.querySelectorAll('[data-pre]'), function (b) { b.classList.toggle('ring-2', st.presets.indexOf(b.dataset.pre) >= 0); b.classList.toggle('ring-brand-500', st.presets.indexOf(b.dataset.pre) >= 0); });
+    }
+    ov.innerHTML = '<div class="card w-full max-w-lg max-h-[90vh] overflow-auto p-5" role="dialog">'
+      + '<div class="flex items-center gap-2 mb-1"><b class="text-ink-900">' + esc(T.refsEditTitle || 'مراجع هذا المنشور') + '</b><span class="badge ms-1">#' + it.seq + '</span><button type="button" data-x class="btn-ghost !py-1 !px-2 ms-auto">×</button></div>'
+      + '<p class="text-xs text-ink-500 mb-4">' + esc(T.refsEditHint || 'صور خاصة بهذا المنشور فقط تتجاوز مراجع الحملة عند توليد الصورة. المنتج يظهر كما هو، والمراجع للستايل فقط.') + '</p>'
+      + '<div class="mb-4"><div class="flex items-center gap-2 mb-2"><b class="text-xs text-emerald-700">🛍️ ' + esc(T.refProductSec || 'صورة المنتج') + '</b><label class="text-xs link ms-auto cursor-pointer">' + esc(T.refUpload || 'رفع صورة') + '<input type="file" accept="image/*" multiple data-up="products" class="hidden"></label></div><div data-prodbox class="flex flex-wrap gap-2"></div></div>'
+      + '<div class="mb-4"><div class="flex items-center gap-2 mb-2"><b class="text-xs text-ink-700">🎨 ' + esc(T.refStyleSec || 'مراجع الستايل') + '</b><label class="text-xs link ms-auto cursor-pointer">' + esc(T.refUpload || 'رفع صورة') + '<input type="file" accept="image/*" multiple data-up="refs" class="hidden"></label></div><div data-refbox class="flex flex-wrap gap-2 mb-2"></div>'
+      + '<div class="text-[11px] text-ink-400 mb-1">' + esc(T.refPresets || 'نماذج جاهزة') + '</div><div class="flex flex-wrap gap-2">' + ['1', '2', '3', '4', '5'].map(function (k) { return '<button type="button" data-pre="' + k + '" class="rounded-lg overflow-hidden border border-ink-200"><img src="' + presetThumb(k) + '" class="w-12 h-14 object-cover" alt=""></button>'; }).join('') + '</div></div>'
+      + '<div class="flex flex-wrap gap-2 pt-2 border-t border-ink-100"><button type="button" data-save class="btn-primary !py-1.5">' + esc(T.save || 'حفظ') + '</button><button type="button" data-reset class="btn-ghost !py-1.5">' + esc(T.refUsePlan || 'استخدم مراجع الحملة') + '</button><button type="button" data-x class="btn-ghost !py-1.5 ms-auto">' + esc(T.cancel || 'إلغاء') + '</button></div></div>';
+    function close() { document.body.removeChild(ov); document.body.style.overflow = ''; }
+    ov.addEventListener('click', function (e) {
+      if (e.target === ov || e.target.closest('[data-x]')) return close();
+      var b;
+      if ((b = e.target.closest('[data-rmv]'))) { var g = b.dataset.rmv; st[g] = st[g].filter(function (r) { return String(r.id) !== b.dataset.id; }); render(); return; }
+      if ((b = e.target.closest('[data-pre]'))) { var k = b.dataset.pre, i = st.presets.indexOf(k); if (i >= 0) st.presets.splice(i, 1); else st.presets.push(k); render(); return; }
+      if (e.target.closest('[data-reset]')) { st = { products: (src.products || []).slice(), refs: (src.refs || []).slice(), presets: (src.presets || []).slice() }; render(); return; }
+      if (e.target.closest('[data-save]')) {
+        var payload = { refs: st.refs.map(function (r) { return r.id; }), products: st.products.map(function (r) { return r.id; }), presets: st.presets };
+        b = e.target.closest('[data-save]'); b.disabled = true;
+        post({ action: 'itemrefs', id: it.id, refs: JSON.stringify(payload) }).then(function (j) { if (!j.ok) { b.disabled = false; return toast(j.error || T.err, 'error'); } if (j.item) Object.assign(it, j.item); close(); paint(); toast(T.saved); }).catch(function () { b.disabled = false; toast(T.offline, 'error'); });
+        return;
+      }
+    });
+    ov.addEventListener('change', function (e) {
+      var inp = e.target.closest('[data-up]'); if (!inp || !inp.files.length) return;
+      var grp = inp.dataset.up, files = [].slice.call(inp.files).slice(0, 6); inp.value = '';
+      toast(T.uploading || 'جارٍ الرفع…'); post({ action: 'ref' }, files).then(function (j) { if (!j.ok) return toast(j.error || T.err, 'error'); (j.items || []).forEach(function (m) { st[grp].push({ id: m.id, thumb: m.thumb, full: m.thumb }); }); render(); }).catch(function () { toast(T.err, 'error'); });
+    });
+    document.body.appendChild(ov); document.body.style.overflow = 'hidden'; render();
   }
   function card(it) {
     var t = it.topic || {}, st = it.status, ready = it.linkedin != null;
@@ -420,6 +478,7 @@
     if ((b = e.target.closest('[data-copy]'))) { navigator.clipboard.writeText(it[b.dataset.copy] || '').then(function () { toast(T.copied); }); return; }
     if (e.target.closest('[data-ilogo-open]')) { iOpen(id); return; }
     if (e.target.closest('[data-itxt-open]')) { tOpen(id); return; }
+    if (e.target.closest('[data-refedit]')) { openRefPicker(it); return; }
     if ((b = e.target.closest('[data-fmt]'))) { post({ action: 'usefmt', id: id, kind: b.dataset.fmt }).then(function () { load(); }); return; }
     if ((b = e.target.closest('[data-gen1]'))) { var k = b.dataset.gen1, lab = T['k' + k[0].toUpperCase() + k.slice(1)];
       (window.fxAsk ? fxAsk(fmt(T.genAsk, lab, 1)) : Promise.resolve(confirm(fmt(T.genAsk, lab, 1)))).then(function (ok) { if (!ok) return;
