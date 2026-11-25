@@ -1553,4 +1553,41 @@ return [
             } catch (Throwable $e) { /* الديمو لا يكسر النشر */ }
         },
     ],
+    // ضمان وجود محتوى معتمد في الديمو (لو فشل زرع المحتوى في المراحل السابقة لأي سبب)
+    '089_demo_content_ensure' => [
+        function (PDO $pdo) {
+            try {
+                $wid = (int)($pdo->query("SELECT value FROM settings WHERE name = 'demo_ws_id'")->fetchColumn());
+                if ($wid <= 0) return;
+                $ok = $pdo->prepare("SELECT COUNT(*) FROM cp_items WHERE workspace_id = ? AND status = 'approved'");
+                $ok->execute([$wid]);
+                if ((int)$ok->fetchColumn() > 0) return; // المحتوى موجود بالفعل
+
+                $pdo->prepare("INSERT INTO cp_plans (workspace_id, name, goal, cnt, stage, status, opts)
+                    VALUES (?, 'حملة المحتوى التجريبية', 'الوصول لصنّاع القرار في الأمن السيبراني وتوليد عملاء', 9, 'done', 'review', '{\"lang\":\"ar\",\"design_mode\":\"ai\"}')")
+                    ->execute([$wid]);
+                $pid = (int)$pdo->lastInsertId();
+                if ($pid <= 0) return;
+                $it = $pdo->prepare("INSERT INTO cp_items (plan_id, workspace_id, seq, topic, linkedin, x, headline, image_prompt, status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $rows = [
+                    ['من يراقب شبكة الـ SCADA ليلاً؟', 'من «SCADA»؟', 'approved'],
+                    ['النسخ الاحتياطي ليس خطة', '«النسخ» ليس خطة', 'approved'],
+                    ['٧٠٪ من الاختراقات تبدأ من الطرف', '«٧٠٪» من الطرف', 'approved'],
+                    ['كم يكلّفك توقّف إنتاج لساعة؟', '«ساعة» تفرق', 'approved'],
+                    ['كيف يكشف الـ SOC الاختراق في دقائق', 'يكشف في «دقائق»', 'approved'],
+                    ['٣ أخطاء تترك شبكة OT مكشوفة', '٣ «أخطاء»', 'approved'],
+                    ['جدار الحماية وحده لا يكفي', '«جدار» لا يكفي', 'draft'],
+                    ['الامتثال لضوابط الهيئة ليس اختياريًا', '«الامتثال» أولًا', 'draft'],
+                    ['٥ علامات أن شبكتك مخترقة الآن', '٥ «علامات»', 'draft'],
+                ];
+                $seq = 1;
+                foreach ($rows as $r) {
+                    $li = $r[0] . "\n\nحماية البنية الصناعية استثمار يوفّر كلفة التوقّف. تحدّث معنا عن جاهزية منشأتك.\n#الأمن_السيبراني #OT";
+                    $x = $r[0] . ' — احمِ بنيتك قبل فوات الأوان. #أمن_OT';
+                    try { $it->execute([$pid, $wid, $seq++, json_encode(['title' => $r[0], 'service' => 'OT Security', 'audience' => 'CISO', 'objective' => 'awareness'], JSON_UNESCAPED_UNICODE), $li, $x, $r[1], 'A premium full-canvas cybersecurity social design, dark control-room, teal accents, integrated headline. 4:5 1080x1350.', $r[2]]); } catch (Throwable $e) {}
+                }
+            } catch (Throwable $e) {}
+        },
+    ],
 ];

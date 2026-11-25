@@ -286,6 +286,8 @@ return [
     'هذه الأفكار قبل كتابة النصوص. احذف ما لا تريده — سنكتب النصوص للأفكار المعتمدة فقط (توفيرًا للكريدت).' => 'These are the ideas before any copy is written. Delete what you don\'t want — we\'ll only write copy for the approved ones (saves credit).',
     'إلغاء تحديد الكل' => 'Clear all',
     'الصور المرجعية المرسلة' => 'Reference images sent',
+    'المخزون فارغ' => 'Content bank is empty',
+    'اكتب خطة محتوى واعتمد منها منشورات، لتجدها هنا جاهزة للنشر والجدولة.' => 'Create a content plan and approve posts from it — they\'ll appear here ready to publish and schedule.',
     'خاصة بهذا المنشور' => 'Specific to this post',
     'تغيير' => 'Change',
     'لا توجد صور مرجعية' => 'No reference images',
