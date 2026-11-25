@@ -6,6 +6,8 @@
  */
 $err = null;
 $z = zernio_or_null($err);
+// وضع التعلّم: نعرض بيانات ديمو مستقلة بدل النداء على التكاملات الخارجية
+if (function_exists('is_demo_ws') && is_demo_ws()) { require __DIR__ . '/../demo_views.php'; demo_render_analytics(); return; }
 $tabs = [
     'overview' => t('نظرة عامة'),
     'posts' => t('المنشورات'),

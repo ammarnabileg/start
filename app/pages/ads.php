@@ -2,6 +2,8 @@
 /** الإعلانات: حسابات الإعلانات + قائمة الحملات بالأرقام، وإيقاف/تشغيل حملة */
 $err = null;
 $z = zernio_or_null($err);
+// وضع التعلّم: نعرض حملات ديمو مستقلة بدل النداء على حسابات الإعلانات الخارجية
+if (function_exists('is_demo_ws') && is_demo_ws()) { require __DIR__ . '/../demo_views.php'; demo_render_ads(); return; }
 
 $platform = (string)($_GET['pf'] ?? '');
 if ($platform !== '' && !in_array($platform, ads_campaign_platforms(), true)) $platform = '';
