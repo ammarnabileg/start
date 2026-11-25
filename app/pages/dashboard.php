@@ -5,6 +5,7 @@
  */
 $err = null;
 $z = zernio_or_null($err);
+if (function_exists('is_demo_ws') && is_demo_ws()) { require __DIR__ . '/../demo_views.php'; demo_render_dashboard(); return; }
 $pid = zernio_profile();
 $tz = new DateTimeZone(site_timezone());
 

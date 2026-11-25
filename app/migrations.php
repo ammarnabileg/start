@@ -1478,4 +1478,79 @@ return [
             } catch (Throwable $e) { /* بيانات الديمو لا تكسر النشر أبدًا */ }
         },
     ],
+    // المرحلة 3: تعبئة كثيفة (عملاء ومنافسون ومحتوى أكثر) ليحسّها المستخدم وورك سبيس حقيقية مليانة
+    '088_demo_data_3' => [
+        function (PDO $pdo) {
+            try {
+                $wid = (int)($pdo->query("SELECT value FROM settings WHERE name = 'demo_ws_id'")->fetchColumn());
+                if ($wid <= 0) return;
+                if ((int)$pdo->query("SELECT value FROM settings WHERE name = 'demo_seed_v3'")->fetchColumn() === 1) return;
+                $pdo->prepare("INSERT INTO settings (name, value) VALUES ('demo_seed_v3', '1') ON DUPLICATE KEY UPDATE value = VALUES(value)")->execute();
+
+                // منافسون إضافيون
+                $comp = $pdo->prepare("INSERT INTO competitors (workspace_id, name, url, note) VALUES (?, ?, ?, ?)");
+                foreach ([
+                    ['Nexus Security', 'https://nexus.example', 'قوي في SIEM، ضعيف في OT.'],
+                    ['SahmTech', 'https://sahmtech.example', 'أسعار منخفضة، جودة متوسطة.'],
+                    ['Falcon Cyber', 'https://falcon.example', 'يركّز على القطاع المالي.'],
+                    ['TechGuard Arabia', 'https://techguard.example', 'تغطية إعلامية جيدة.'],
+                    ['OT Shield', 'https://otshield.example', 'منافس متخصص في OT — الأقوى.'],
+                    ['DataHaven', 'https://datahaven.example', 'حلول نسخ احتياطي وتعافي.'],
+                ] as $c) { try { $comp->execute([$wid, $c[0], $c[1], $c[2]]); } catch (Throwable $e) {} }
+
+                // عملاء إضافيون (كثير)
+                $lead = $pdo->prepare("INSERT INTO crm_leads (workspace_id, source, company, name, title, email, phone, country, stage, deal_value, note)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 'SA', ?, ?, ?)");
+                $firsts = ['محمد', 'عبدالله', 'فيصل', 'سلطان', 'نواف', 'ماجد', 'بندر', 'تركي', 'ياسر', 'وليد', 'نورة', 'ريم', 'لمى', 'سارة', 'هند', 'العنود', 'منى', 'جواهر'];
+                $lasts = ['العتيبي', 'القحطاني', 'الدوسري', 'الحربي', 'الشمري', 'الغامدي', 'الزهراني', 'المطيري', 'السبيعي', 'العنزي'];
+                $titles = ['مدير أمن المعلومات (CISO)', 'مدير العمليات الصناعية', 'الرئيس التنفيذي للتقنية (CTO)', 'رئيس الأمن السيبراني', 'مدير البنية التحتية', 'مدير المخاطر التقنية', 'مهندس أمن أول'];
+                $companies = ['أرامكو', 'سابك', 'معادن', 'شركة الكهرباء', 'موانئ', 'البنك الأهلي', 'stc', 'الراجحي', 'نيوم', 'البحري', 'ساسكو', 'المراعي', 'تداول', 'علم', 'الاتصالات المتكاملة', 'زين', 'موبايلي', 'أكوا باور'];
+                $stages = ['new', 'contacted', 'qualified', 'proposal', 'won'];
+                $srcs = ['linkedin', 'form', 'manual', 'ad'];
+                for ($i = 0; $i < 22; $i++) {
+                    $fn = $firsts[$i % count($firsts)]; $ln = $lasts[$i % count($lasts)];
+                    $co = $companies[$i % count($companies)] . ' — ' . ['الرياض', 'الدمام', 'جدة', 'الجبيل', 'ينبع'][$i % 5];
+                    $val = [250000, 420000, 540000, 650000, 900000, 1200000, 1800000, 2400000, 3100000][$i % 9];
+                    try { $lead->execute([$wid, $srcs[$i % count($srcs)], $co, "$fn $ln", $titles[$i % count($titles)],
+                        'lead' . ($i + 10) . '@example.sa', '+96650' . str_pad((string)(1000000 + $i), 7, '0'),
+                        $stages[$i % count($stages)], $val, 'عميل محتمل من قطاع الطاقة/الصناعة.']); } catch (Throwable $e) {}
+                }
+
+                // كامبين محتوى كامل (١٢ منشور) — نصفها معتمد (مخزون المحتوى) والباقي مسودّات (مراجعة)
+                $pdo->prepare("INSERT INTO cp_plans (workspace_id, name, goal, cnt, stage, status, opts)
+                    VALUES (?, ?, ?, ?, 'done', 'review', ?)")
+                    ->execute([$wid, 'حملة التوعية الأمنية — ديسمبر', 'بناء وعي صنّاع القرار بمخاطر OT وتوليد عملاء مؤهّلين', 12,
+                        json_encode(['lang' => 'ar', 'dialect' => 'saudi', 'design_mode' => 'ai'], JSON_UNESCAPED_UNICODE)]);
+                $pid = (int)$pdo->lastInsertId();
+                if ($pid > 0) {
+                    $it = $pdo->prepare("INSERT INTO cp_items (plan_id, workspace_id, seq, topic, linkedin, x, headline, image_prompt, status)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                    $topics = [
+                        ['كم يكلّفك توقّف إنتاج لساعة؟', '«ساعة» تفرق'],
+                        ['٣ أخطاء تترك شبكة OT مكشوفة', '٣ «أخطاء» قاتلة'],
+                        ['كيف يكشف الـ SOC الاختراق في دقائق', 'يكشف في «دقائق»'],
+                        ['الامتثال لضوابط الهيئة ليس اختياريًا', '«الامتثال» أولًا'],
+                        ['جدار الحماية وحده لا يكفي', '«جدار» واحد لا يكفي'],
+                        ['ماذا يحدث في أول ٦٠ ثانية من الهجوم؟', 'أول «٦٠» ثانية'],
+                        ['قصة نجاح: صفر توقّف خلال ١٨ شهر', '«صفر» توقّف'],
+                        ['لماذا تستهدف الهجمات قطاع الطاقة؟', 'لماذا «الطاقة»؟'],
+                        ['الفرق بين IT security و OT security', 'IT مقابل «OT»'],
+                        ['دليلك لاختيار مزود أمن سيبراني', 'كيف «تختار»؟'],
+                        ['٥ علامات أن شبكتك مخترقة الآن', '٥ «علامات» خطر'],
+                        ['لماذا السرعة في الاستجابة تكسب؟', '«السرعة» تكسب'],
+                    ];
+                    foreach ($topics as $k => $tp) {
+                        $seq = $k + 1;
+                        $st = $k < 6 ? 'approved' : 'draft'; // نصفها معتمد ونصفها مسودّة
+                        $li = $tp[0] . "\n\n" . 'المنشآت الصناعية الكبرى هدف دائم للهجمات السيبرانية. الاستثمار في حماية OT اليوم أرخص بكثير من كلفة توقّف الإنتاج أو تسريب البيانات غدًا. تحدّث معنا عن جاهزية منشأتك.' . "\n#الأمن_السيبراني #OT #SCADA";
+                        $x = $tp[0] . ' — احمِ بنيتك الصناعية قبل فوات الأوان. #أمن_OT';
+                        try { $it->execute([$pid, $wid, $seq,
+                            json_encode(['title' => $tp[0], 'angle' => '', 'service' => 'OT Security', 'audience' => 'CISO', 'objective' => 'awareness'], JSON_UNESCAPED_UNICODE),
+                            $li, $x, $tp[1],
+                            'A premium full-canvas cybersecurity social design, dark industrial control-room, brand teal accents, integrated headline. 4:5 1080x1350.', $st]); } catch (Throwable $e) {}
+                    }
+                }
+            } catch (Throwable $e) { /* الديمو لا يكسر النشر */ }
+        },
+    ],
 ];

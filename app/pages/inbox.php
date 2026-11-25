@@ -3,6 +3,7 @@ $err = null;
 $z = zernio_or_null($err);
 $fxd = getenv('UI_FIXTURES');
 if ($fxd && is_file($fxd . '/inbox_fake_z.php')) $z = require $fxd . '/inbox_fake_z.php'; // اختبارات بس
+if (function_exists('is_demo_ws') && is_demo_ws()) { require __DIR__ . '/../demo_views.php'; demo_render_inbox(); return; }
 
 $folder = (string)($_GET['folder'] ?? 'inbox');
 if (!in_array($folder, ['inbox', 'requests', 'comments'], true)) $folder = 'inbox';

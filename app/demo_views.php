@@ -40,7 +40,6 @@ function demo_render_analytics()
         $months = dm_t(['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'],
             ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']);
         $reach = [420, 510, 480, 630, 710, 690, 840, 910, 880, 970, 1120, 1280];
-        echo dm_note();
         echo '<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">'
             . dm_kpi('📡', dm_n(3820000), dm_t('إجمالي الوصول (٣٠ يوم)', 'Total reach (30d)'))
             . dm_kpi('❤️', '4.6%', dm_t('معدّل التفاعل', 'Engagement rate'))
@@ -55,22 +54,93 @@ function demo_render_analytics()
             [dm_t('من يراقب شبكة الـ SCADA ليلاً؟', 'Who watches your SCADA at night?'), 128000, 5.2, 42],
             [dm_t('٧٠٪ من الاختراقات تبدأ من الطرف', '70% of breaches start at the edge'), 96500, 4.8, 31],
             [dm_t('النسخ الاحتياطي ليس خطة', 'Backup isn\'t a plan'), 74200, 4.1, 23],
+            [dm_t('كم يكلّفك توقّف إنتاج لساعة؟', 'What does one hour of downtime cost?'), 68900, 4.6, 27],
+            [dm_t('٣ أخطاء تترك شبكة OT مكشوفة', '3 mistakes that leave OT exposed'), 61300, 3.9, 19],
+            [dm_t('كيف يكشف الـ SOC الاختراق في دقائق', 'How a SOC catches a breach in minutes'), 57800, 4.3, 22],
+            [dm_t('الامتثال لضوابط الهيئة ليس اختياريًا', 'NCA compliance is not optional'), 49200, 3.6, 14],
+            [dm_t('جدار الحماية وحده لا يكفي', 'A firewall alone is not enough'), 44100, 3.8, 16],
+            [dm_t('ماذا يحدث في أول ٦٠ ثانية من الهجوم؟', 'What happens in the first 60 seconds of an attack?'), 39700, 4.1, 12],
+            [dm_t('قصة نجاح: صفر توقّف خلال ١٨ شهر', 'Case study: zero downtime over 18 months'), 36500, 5.0, 29],
         ];
         $rows = '';
         foreach ($posts as $p) $rows .= '<tr class="border-b border-ink-100 last:border-0"><td class="py-2 pe-2">' . e($p[0]) . '</td><td class="py-2 text-ink-600">' . dm_n($p[1]) . '</td><td class="py-2 text-ink-600">' . $p[2] . '%</td><td class="py-2 font-semibold text-emerald-600">' . $p[3] . '</td></tr>';
         echo '<div class="card p-4"><div class="font-bold text-ink-900 mb-3">' . e(dm_t('أفضل المنشورات', 'Top posts')) . '</div>'
             . '<table class="w-full text-sm"><thead><tr class="text-xs text-ink-400"><th class="text-start pb-2">' . e(dm_t('المنشور', 'Post')) . '</th><th class="text-start pb-2">' . e(dm_t('وصول', 'Reach')) . '</th><th class="text-start pb-2">' . e(dm_t('تفاعل', 'Eng.')) . '</th><th class="text-start pb-2">' . e(dm_t('عملاء', 'Leads')) . '</th></tr></thead><tbody>' . $rows . '</tbody></table></div>';
         // المنصات
-        $plats = [['LinkedIn', 48200, 6.4], ['Instagram', 15800, 8.9], ['X', 21500, 3.1]];
+        $plats = [['LinkedIn', 48200, 6.4], ['Instagram', 15800, 8.9], ['X', 21500, 3.1], ['YouTube', 9400, 5.2], ['Facebook', 12600, 2.3], ['TikTok', 7300, 11.4]];
         $pr = '';
         foreach ($plats as $pl) $pr .= '<div class="flex items-center justify-between py-2 border-b border-ink-100 last:border-0"><span class="font-medium">' . e($pl[0]) . '</span><span class="text-ink-600 text-sm">👥 ' . dm_n($pl[1]) . '</span><span class="text-emerald-600 text-sm font-semibold">▲ ' . $pl[2] . '%</span></div>';
         echo '<div class="card p-4"><div class="font-bold text-ink-900 mb-3">' . e(dm_t('المنصات', 'Platforms')) . '</div>' . $pr . '</div>';
         echo '</div>';
-        echo '<div class="grid grid-cols-2 lg:grid-cols-3 gap-3">'
+        echo '<div class="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-4">'
             . dm_kpi('🧲', dm_n(196), dm_t('عملاء مؤهّلون (MQL)', 'Qualified leads (MQL)'))
             . dm_kpi('💼', dm_money(14200000), dm_t('قيمة الفرص', 'Pipeline value'))
             . dm_kpi('🏆', '27%', dm_t('نسبة الإغلاق', 'Win rate'))
             . '</div>';
+        // الجمهور: المسمى الوظيفي + القطاع
+        $roles = [[dm_t('مدير أمن المعلومات', 'CISO'), 34], [dm_t('مدير العمليات', 'Ops Manager'), 26], [dm_t('الرئيس التنفيذي للتقنية', 'CTO'), 18], [dm_t('مهندس أمن', 'Security Engineer'), 14], [dm_t('أخرى', 'Other'), 8]];
+        $inds = [[dm_t('الطاقة والبترول', 'Energy & Oil'), 38], [dm_t('الصناعة', 'Manufacturing'), 24], [dm_t('الحكومي', 'Government'), 20], [dm_t('المالية', 'Finance'), 11], [dm_t('أخرى', 'Other'), 7]];
+        $barRow = function ($rows) { $h = ''; foreach ($rows as $r) { $h .= '<div class="flex items-center gap-2 py-1.5"><span class="w-40 text-sm">' . e($r[0]) . '</span><span class="flex-1 h-2.5 rounded-full bg-ink-100 overflow-hidden"><span class="block h-full" style="width:' . $r[1] . '%;background:linear-gradient(90deg,#2563eb,#06b6d4)"></span></span><span class="text-xs text-ink-500 w-10 text-end">' . $r[1] . '%</span></div>'; } return $h; };
+        echo '<div class="grid lg:grid-cols-2 gap-3"><div class="card p-4"><div class="font-bold text-ink-900 mb-2">' . e(dm_t('الجمهور حسب المنصب', 'Audience by role')) . '</div>' . $barRow($roles) . '</div>'
+            . '<div class="card p-4"><div class="font-bold text-ink-900 mb-2">' . e(dm_t('الجمهور حسب القطاع', 'Audience by industry')) . '</div>' . $barRow($inds) . '</div></div>';
+    });
+}
+
+/* ============================ الرسائل (Inbox) ============================ */
+function demo_render_inbox()
+{
+    render(t('الرسائل'), 'inbox', function () {
+        $convs = [
+            ['أحمد الغامدي', 'LinkedIn', dm_t('مهتمين بحل أمن OT لمصنعنا في الجبيل. ممكن عرض تقديمي؟', 'Interested in an OT security solution for our Jubail plant. Can you present?'), dm_t('منذ ٥ د', '5m'), 2, true],
+            ['Sara Al-Qahtani', 'Instagram', dm_t('ما الفرق بين NGFW العادي والجيل القادم؟', 'What is the difference between a regular firewall and NGFW?'), dm_t('منذ ٢٢ د', '22m'), 1, true],
+            ['شركة الخليج للطاقة', 'WhatsApp', dm_t('استلمنا العرض، نحتاج توضيح بند الدعم ٢٤/٧.', 'We received the quote, need clarification on the 24/7 support item.'), dm_t('منذ ساعة', '1h'), 3, false],
+            ['Mohammed Nasser', 'LinkedIn', dm_t('عندكم شهادات امتثال للهيئة الوطنية؟', 'Do you have NCA compliance certifications?'), dm_t('منذ ٣ س', '3h'), 0, false],
+            ['نورة السبيعي', 'X', dm_t('كم يستغرق تركيب SOC كامل؟', 'How long does a full SOC deployment take?'), dm_t('منذ ٥ س', '5h'), 1, false],
+            ['Gulf Defense', 'Instagram', dm_t('هل الحل يدعم بيئات SCADA القديمة؟', 'Does the solution support legacy SCADA environments?'), dm_t('أمس', 'Yesterday'), 0, false],
+            ['عبدالله الدوسري', 'WhatsApp', dm_t('أبغى أعرف الأسعار للباقة المتكاملة.', 'I want to know the pricing for the full package.'), dm_t('أمس', 'Yesterday'), 2, false],
+            ['Reem H.', 'LinkedIn', dm_t('شكراً على العرض الممتاز أمس 👏', 'Thanks for the great presentation yesterday 👏'), dm_t('منذ يومين', '2d'), 0, false],
+        ];
+        echo '<div class="flex items-center gap-2 mb-3 text-sm"><span class="badge badge-amber">' . dm_n(9) . ' ' . e(dm_t('غير مقروءة', 'unread')) . '</span>'
+            . '<span class="text-ink-500">' . e(dm_t('متوسط زمن الرد: ١٨ دقيقة', 'Avg. response time: 18 min')) . '</span></div>';
+        echo '<div class="card divide-y divide-ink-100">';
+        foreach ($convs as $c) {
+            $plIc = ['LinkedIn' => '🔵', 'Instagram' => '🟣', 'WhatsApp' => '🟢', 'X' => '⚫', 'Facebook' => '🔷'][$c[1]] ?? '•';
+            echo '<div class="flex items-start gap-3 p-3 ' . ($c[5] ? 'bg-brand-50/40' : '') . '">'
+                . '<div class="w-10 h-10 rounded-full bg-gradient-to-br from-brand-500 to-cyan-500 text-[#fff] grid place-items-center font-bold shrink-0">' . e(mb_substr($c[0], 0, 1)) . '</div>'
+                . '<div class="min-w-0 flex-1"><div class="flex items-center gap-2"><b class="text-ink-900 truncate">' . e($c[0]) . '</b><span class="text-xs text-ink-400">' . $plIc . ' ' . e($c[1]) . '</span><span class="text-xs text-ink-400 ms-auto">' . e($c[3]) . '</span></div>'
+                . '<div class="text-sm text-ink-600 truncate mt-0.5">' . e($c[2]) . '</div></div>'
+                . ($c[4] ? '<span class="badge badge-green shrink-0">' . $c[4] . '</span>' : '') . '</div>';
+        }
+        echo '</div>';
+    });
+}
+
+/* ============================ التعليقات ============================ */
+function demo_render_comments()
+{
+    render(t('التعليقات'), 'comments', function () {
+        $comments = [
+            ['Khalid M.', dm_t('معلومة مهمة جداً، فعلاً كثير شركات تهمل أمن OT 👏', 'Very important point, many companies really neglect OT security 👏'), dm_t('من يراقب شبكة الـ SCADA ليلاً؟', 'Who watches your SCADA at night?'), 'LinkedIn', dm_t('منذ ١٠ د', '10m'), true],
+            ['نواف العتيبي', dm_t('كم تكلفة الباقة للمنشآت المتوسطة؟', 'How much is the package for mid-size facilities?'), dm_t('٧٠٪ من الاختراقات تبدأ من الطرف', '70% of breaches start at the edge'), 'Instagram', dm_t('منذ ٣٥ د', '35m'), true],
+            ['Ahmad S.', dm_t('هل تقدمون تدريب للفريق الداخلي؟', 'Do you offer training for the in-house team?'), dm_t('النسخ الاحتياطي ليس خطة', 'Backup isn\'t a plan'), 'LinkedIn', dm_t('منذ ساعة', '1h'), false],
+            ['سلطان الحربي', dm_t('محتوى قيم، تابعت صفحتكم من زمان', 'Valuable content, been following your page for a while'), dm_t('كيف يكشف الـ SOC الاختراق في دقائق', 'How a SOC catches a breach in minutes'), 'X', dm_t('منذ ٣ س', '3h'), false],
+            ['Lina K.', dm_t('عندنا بيئة SCADA قديمة، تنفع معها الحلول؟', 'We have a legacy SCADA environment, do the solutions work with it?'), dm_t('٣ أخطاء تترك شبكة OT مكشوفة', '3 mistakes that leave OT exposed'), 'Instagram', dm_t('منذ ٤ س', '4h'), false],
+            ['فيصل الشمري', dm_t('ممكن تواصل؟ مهتمين بعرض سعر', 'Can we get in touch? Interested in a quote'), dm_t('كم يكلّفك توقّف إنتاج لساعة؟', 'What does one hour of downtime cost?'), 'LinkedIn', dm_t('أمس', 'Yesterday'), false],
+            ['Omar A.', dm_t('هل الحل معتمد من الهيئة الوطنية؟', 'Is the solution NCA-approved?'), dm_t('الامتثال لضوابط الهيئة ليس اختياريًا', 'NCA compliance is not optional'), 'LinkedIn', dm_t('أمس', 'Yesterday'), false],
+        ];
+        echo '<div class="flex items-center gap-2 mb-3 text-sm"><span class="badge badge-amber">' . dm_n(2) . ' ' . e(dm_t('بانتظار الرد', 'awaiting reply')) . '</span>'
+            . '<span class="text-ink-500">' . e(dm_t('٥ ردود تلقائية هذا الأسبوع', '5 auto-replies this week')) . '</span></div>';
+        echo '<div class="space-y-2">';
+        foreach ($comments as $c) {
+            $plIc = ['LinkedIn' => '🔵', 'Instagram' => '🟣', 'WhatsApp' => '🟢', 'X' => '⚫', 'Facebook' => '🔷'][$c[3]] ?? '•';
+            echo '<div class="card p-3"><div class="flex items-start gap-3">'
+                . '<div class="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-500 to-brand-500 text-[#fff] grid place-items-center font-bold shrink-0">' . e(mb_substr($c[0], 0, 1)) . '</div>'
+                . '<div class="min-w-0 flex-1"><div class="flex items-center gap-2"><b class="text-ink-900">' . e($c[0]) . '</b><span class="text-xs text-ink-400">' . $plIc . '</span><span class="text-xs text-ink-400 ms-auto">' . e($c[4]) . '</span></div>'
+                . '<div class="text-sm text-ink-700 mt-0.5">' . e($c[1]) . '</div>'
+                . '<div class="text-xs text-ink-400 mt-1">' . e(dm_t('على: ', 'On: ')) . e($c[2]) . '</div></div>'
+                . ($c[5] ? '<span class="badge badge-amber shrink-0">' . e(dm_t('رد', 'reply')) . '</span>' : '<span class="badge badge-green shrink-0">' . e(dm_t('تم الرد', 'replied')) . '</span>') . '</div></div>';
+        }
+        echo '</div>';
     });
 }
 
@@ -78,11 +148,15 @@ function demo_render_analytics()
 function demo_render_ads()
 {
     render(t('الحملات الإعلانية'), 'ads', function () {
-        echo dm_note();
         $ads = [
             [dm_t('حملة OT Security — الربع الرابع', 'OT Security — Q4'), 42000, 1240000, 18400, 310, 4.2],
             [dm_t('إعادة استهداف SOC', 'SOC Retargeting'), 18500, 540000, 9200, 142, 5.8],
             [dm_t('توعية NGFW', 'NGFW Awareness'), 27000, 980000, 12600, 96, 2.4],
+            [dm_t('توليد عملاء — قطاع الطاقة', 'Lead gen — Energy'), 54000, 1680000, 24100, 418, 4.9],
+            [dm_t('حملة الامتثال (NCA)', 'NCA Compliance'), 16200, 420000, 7100, 88, 3.6],
+            [dm_t('إعادة استهداف زوّار الموقع', 'Website retargeting'), 9800, 310000, 6400, 134, 6.4],
+            [dm_t('حملة الأتمتة الصناعية (SCADA)', 'Industrial automation (SCADA)'), 33500, 760000, 10200, 71, 2.1],
+            [dm_t('توعية بالعلامة — LinkedIn', 'Brand awareness — LinkedIn'), 21000, 1120000, 15800, 52, 1.8],
         ];
         $spend = array_sum(array_column($ads, 1)); $leads = array_sum(array_column($ads, 4));
         echo '<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">'
@@ -106,5 +180,60 @@ function demo_render_ads()
             . '<table class="w-full text-sm min-w-[560px]"><thead><tr class="text-xs text-ink-400">'
             . '<th class="text-start pb-2">' . e(dm_t('الحملة', 'Campaign')) . '</th><th class="text-start pb-2">' . e(dm_t('إنفاق', 'Spend')) . '</th><th class="text-start pb-2">' . e(dm_t('ظهور', 'Impr.')) . '</th><th class="text-start pb-2">' . e(dm_t('نقرات', 'Clicks')) . '</th><th class="text-start pb-2">' . e(dm_t('عملاء', 'Leads')) . '</th><th class="text-start pb-2">ROAS</th>'
             . '</tr></thead><tbody>' . $rows . '</tbody></table></div>';
+    });
+}
+
+/* ============================ الرئيسية (Dashboard) ============================ */
+function demo_render_dashboard()
+{
+    render(t('الرئيسية'), 'dashboard', function () {
+        $name = dm_t('أهلاً، أحمد', 'Welcome, Ahmed');
+        echo '<div class="mb-4"><h1 class="text-2xl font-bold text-ink-900">' . e($name) . ' 👋</h1>'
+            . '<p class="text-ink-500 text-sm mt-1">' . e(dm_t('نظرة سريعة على أداء شركتك هذا الأسبوع.', 'A quick look at your company\'s performance this week.')) . '</p></div>';
+        echo '<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">'
+            . dm_kpi('📡', dm_n(3820000), dm_t('الوصول (٣٠ يوم)', 'Reach (30d)'))
+            . dm_kpi('❤️', '4.6%', dm_t('التفاعل', 'Engagement'))
+            . dm_kpi('👥', dm_n(85500), dm_t('المتابعون', 'Followers'))
+            . dm_kpi('🎯', dm_n(28), dm_t('عملاء جدد (٧ أيام)', 'New leads (7d)'))
+            . '</div>';
+        echo '<div class="grid lg:grid-cols-2 gap-3 mb-3">';
+        // أحدث المنشورات
+        $posts = [
+            [dm_t('من يراقب شبكة الـ SCADA ليلاً؟', 'Who watches your SCADA at night?'), dm_t('منشور', 'Published'), 'green', dm_n(128000)],
+            [dm_t('النسخ الاحتياطي ليس خطة', 'Backup isn\'t a plan'), dm_t('مجدول — غدًا ١٠ص', 'Scheduled — tomorrow 10am'), 'blue', '—'],
+            [dm_t('٧٠٪ من الاختراقات تبدأ من الطرف', '70% of breaches start at the edge'), dm_t('منشور', 'Published'), 'green', dm_n(96500)],
+            [dm_t('كم يكلّفك توقّف إنتاج لساعة؟', 'What does one hour of downtime cost?'), dm_t('معتمد', 'Approved'), '', '—'],
+        ];
+        $pr = '';
+        foreach ($posts as $p) $pr .= '<div class="flex items-center gap-2 py-2 border-b border-ink-100 last:border-0"><span class="flex-1 text-sm truncate">' . e($p[0]) . '</span><span class="badge ' . ($p[2] ? 'badge-' . $p[2] : '') . '">' . e($p[1]) . '</span><span class="text-xs text-ink-400 w-16 text-end">' . e($p[3]) . '</span></div>';
+        echo '<div class="card p-4"><div class="font-bold text-ink-900 mb-2">' . e(dm_t('أحدث المنشورات', 'Recent posts')) . '</div>' . $pr . '</div>';
+        // أحدث العملاء
+        $leads = [
+            ['أرامكو السعودية', dm_t('مؤهّل', 'Qualified'), dm_money(2400000)],
+            ['سابك', dm_t('عرض سعر', 'Proposal'), dm_money(3100000)],
+            ['شركة الكهرباء', dm_t('تواصل', 'Contacted'), dm_money(1800000)],
+            ['موانئ', dm_t('مكسوب', 'Won'), dm_money(650000)],
+        ];
+        $lr = '';
+        foreach ($leads as $l) $lr .= '<div class="flex items-center gap-2 py-2 border-b border-ink-100 last:border-0"><span class="flex-1 text-sm truncate">' . e($l[0]) . '</span><span class="badge">' . e($l[1]) . '</span><span class="text-xs text-ink-500 w-24 text-end">' . e($l[2]) . '</span></div>';
+        echo '<div class="card p-4"><div class="font-bold text-ink-900 mb-2">' . e(dm_t('أحدث العملاء', 'Recent leads')) . '</div>' . $lr . '</div>';
+        echo '</div>';
+        // نشاط + قيم سريعة
+        echo '<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">'
+            . dm_kpi('💼', dm_money(14200000), dm_t('قيمة الفرص', 'Pipeline'))
+            . dm_kpi('📅', dm_n(9), dm_t('منشورات مجدولة', 'Scheduled posts'))
+            . dm_kpi('💬', dm_n(9), dm_t('رسائل غير مقروءة', 'Unread messages'))
+            . dm_kpi('🏆', dm_n(312), dm_t('إجمالي العملاء', 'Total clients'))
+            . '</div>';
+        $acts = [
+            dm_t('نُشر منشور "من يراقب شبكة الـ SCADA" على LinkedIn و X', 'Published "Who watches your SCADA" to LinkedIn & X'),
+            dm_t('عميل جديد: معادن (من حملة LinkedIn)', 'New lead: Maaden (from LinkedIn campaign)'),
+            dm_t('رد تلقائي على تعليق في Instagram', 'Auto-replied to a comment on Instagram'),
+            dm_t('تم اعتماد ٣ منشورات في مخزون المحتوى', 'Approved 3 posts in the content bank'),
+            dm_t('تنبيه: منافس "SecureNet" نشر حملة جديدة', 'Alert: competitor "SecureNet" launched a new campaign'),
+        ];
+        $ar = '';
+        foreach ($acts as $a) $ar .= '<div class="flex items-start gap-2 py-2 border-b border-ink-100 last:border-0"><span class="w-2 h-2 rounded-full bg-brand-500 mt-1.5 shrink-0"></span><span class="text-sm text-ink-700">' . e($a) . '</span></div>';
+        echo '<div class="card p-4"><div class="font-bold text-ink-900 mb-2">' . e(dm_t('آخر النشاط', 'Recent activity')) . '</div>' . $ar . '</div>';
     });
 }
