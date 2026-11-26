@@ -379,6 +379,73 @@ function crm_daily_digest(): int
     return $n;
 }
 
+/* ---------- البريفنج اليومي للمبيعات: ما الذي يحتاج انتباهك اليوم ---------- */
+/**
+ * يرجّع صورة ذكية للـ pipeline تساعد المندوب يبدأ يومه: صفقات واقفة، متابعات فات موعدها،
+ * صفقات بقيمة شاذة، وميتينجات اليوم. كله حساب SQL (بدون تكلفة ذكاء).
+ * $uid = 0 يعني كل الشركة؛ غير ذلك يقتصر على عملاء هذا المندوب.
+ */
+function crm_brief_data(int $wid, int $uid = 0): array
+{
+    $tz = new DateTimeZone(site_timezone());
+    $now = new DateTime('now', $tz);
+    $utc = new DateTimeZone(date_default_timezone_get());
+    $toUtc = function (DateTime $d) use ($utc) { return (clone $d)->setTimezone($utc)->format('Y-m-d H:i:s'); };
+    $nowU = $toUtc($now);
+    $todayStart = $toUtc((clone $now)->setTime(0, 0, 0));
+    $todayEnd = $toUtc((clone $now)->setTime(23, 59, 59));
+    $own = $uid > 0 ? ' AND l.owner_id = ' . (int)$uid : '';
+
+    // متوسط قيمة الصفقات المكسوبة (للكشف عن الشاذ)
+    $avg = (float)db()->query("SELECT COALESCE(AVG(deal_value),0) FROM crm_leads WHERE workspace_id = " . (int)$wid . " AND stage = 'won' AND deal_value > 0")->fetchColumn();
+
+    // 1) صفقات واقفة: مرحلة نشطة، آخر نشاط (أو الإنشاء) أقدم من 14 يومًا
+    $st = db()->prepare("SELECT l.id, l.name, l.company, l.stage, l.deal_value,
+            GREATEST(COALESCE(MAX(a.created_at), l.created_at), l.created_at) AS last_act,
+            DATEDIFF(?, GREATEST(COALESCE(MAX(a.created_at), l.created_at), l.created_at)) AS idle_days
+        FROM crm_leads l LEFT JOIN crm_acts a ON a.lead_id = l.id
+        WHERE l.workspace_id = ? AND l.stage NOT IN ('won','lost','new')$own
+        GROUP BY l.id
+        HAVING idle_days >= 14
+        ORDER BY idle_days DESC LIMIT 30");
+    $st->execute([$nowU, $wid]);
+    $stuck = $st->fetchAll();
+
+    // 2) متابعات فات موعدها + مهام متأخرة
+    $st = db()->prepare("SELECT l.id, l.name, l.company, l.next_note, l.next_at
+        FROM crm_leads l WHERE l.workspace_id = ? AND l.next_at IS NOT NULL AND l.next_at <= ? AND l.stage NOT IN ('won','lost')$own
+        ORDER BY l.next_at LIMIT 30");
+    $st->execute([$wid, $nowU]);
+    $overdue = $st->fetchAll();
+    $tOwn = $uid > 0 ? ' AND t.user_id = ' . (int)$uid : '';
+    $st = db()->prepare("SELECT t.title, t.due_at, t.lead_id, l.name AS lead FROM crm_tasks t LEFT JOIN crm_leads l ON l.id = t.lead_id
+        WHERE t.workspace_id = ? AND t.done_at IS NULL AND t.due_at IS NOT NULL AND t.due_at <= ?$tOwn ORDER BY t.due_at LIMIT 30");
+    $st->execute([$wid, $nowU]);
+    $tasks = $st->fetchAll();
+
+    // 3) صفقات بقيمة شاذة (أكبر من 3× المتوسط أو أقل من ثلثه) — فقط لو عندنا متوسط
+    $anomaly = [];
+    if ($avg > 0) {
+        $hi = $avg * 3; $lo = $avg / 3;
+        $st = db()->prepare("SELECT l.id, l.name, l.company, l.stage, l.deal_value FROM crm_leads l
+            WHERE l.workspace_id = ? AND l.stage NOT IN ('won','lost') AND l.deal_value > 0 AND (l.deal_value >= ? OR l.deal_value <= ?)$own
+            ORDER BY l.deal_value DESC LIMIT 20");
+        $st->execute([$wid, $hi, $lo]);
+        foreach ($st->fetchAll() as $r) { $r['kind'] = $r['deal_value'] >= $hi ? 'high' : 'low'; $anomaly[] = $r; }
+    }
+
+    // 4) ميتينجات اليوم (من الحجوزات)
+    $mOwn = $uid > 0 ? ' AND l.owner_id = ' . (int)$uid : '';
+    $st = db()->prepare("SELECT b.start_at, b.lead_id, l.name AS lead, l.company, l.stage, l.next_note
+        FROM crm_bookings b LEFT JOIN crm_leads l ON l.id = b.lead_id
+        WHERE b.workspace_id = ? AND b.start_at BETWEEN ? AND ?$mOwn ORDER BY b.start_at LIMIT 30");
+    $st->execute([$wid, $todayStart, $todayEnd]);
+    $meetings = $st->fetchAll();
+
+    return ['avg' => $avg, 'stuck' => $stuck, 'overdue' => $overdue, 'tasks' => $tasks, 'anomaly' => $anomaly, 'meetings' => $meetings,
+        'count' => count($stuck) + count($overdue) + count($tasks) + count($anomaly) + count($meetings)];
+}
+
 /* ---------- #88 منشن @ في ملاحظات العميل ---------- */
 function crm_mentions(string $body, int $leadId): int
 {
